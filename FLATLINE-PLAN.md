@@ -12,11 +12,11 @@ updated: 2026-08-13
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5114 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 15,000 lines.
+> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5133 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 15,600 lines.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
-> **What is not done:** breadth. More chrome, programs, ICE, districts, and origins. Content, not systems: every system the plan set out to build is built. The right way to choose what to add is to play it and notice what is missing.
+> **What is not done:** nothing structural. Every system the plan set out to build is built, and the catalogue has had one breadth pass (26 chrome, 36 programs, 20 ICE, 8 icons, 7 rivals, 6 origins, 6 districts, 8 factions). More districts and origins are the obvious next content, but **the right way to choose is to play it and notice what is missing**, which nobody has done yet. Treat any further content added without play as a guess.
 >
 > **What this is.** A netrunner sim you play by typing at a fake terminal. Two layers: a persistent city that keeps score, and procedurally generated corporate networks you break into one contract at a time. The character system is classless and deep enough that two players at the same credit total play nothing alike.
 >
@@ -654,3 +654,32 @@ cannot go below the chrome floor, which is what keeps D11's one-way rule
 intact while still letting a player change their mind at real cost.
 
 `validate.py` clean, `test.py` green at **5114 checks**.
+
+### 2026-08-13 (e): breadth
+
+Every system the plan set out to build is built, so this was content. The
+catalogue went from 18 chrome / 26 programs / 14 ICE to **26 / 36 / 20**, plus
+four new services.
+
+Chosen by auditing what was thin rather than by writing whatever came to mind.
+Three findings drove the whole pass:
+
+- **Only six restricted implants existed**, and the D23 back room samples three
+  of them, so the reward for the entire Dissonance arc was nearly the same
+  three items every time. Now ten.
+- **Forger had two programs**, which meant a Subterfuge build had no loadout
+  decision to make in the one category that defines it. Now four, and the same
+  went for wipers, armour, and daemons.
+- **Ocular had two options for one slot**, which is a choice, but a thin one
+  for the slot with the least room to hedge. Now four.
+
+Everything new holds the same bars: every implant has an honest drawback with a
+penalty dict or an implemented rider, and the one new rider (`slow_exit`, the
+Grave Governor holding a session open you are trying to leave) is wired into
+`jack out` rather than existing only in prose.
+
+Verified by generation rather than by eye: over sixty networks across all eight
+factions, **all twenty ICE types and all fifteen services appear**, so nothing
+was added that the generator cannot reach.
+
+`validate.py` clean, `test.py` green at **5133 checks**.

@@ -236,7 +236,83 @@ WARE: tuple[Ware, ...] = (
                   'installing it: +1 every time you complete a run.',
          penalty={},
          rider='creeping_dissonance'),
+    # -- second wave: depth for the thin slots and the back room ----------
+    Ware('optic_lattice', 'Kohler-Reyes Optic Lattice', 'Kohler-Reyes',
+         'ocular', 2, 6, 3900, 2,
+         'Overlays a structural read of whatever you are looking at. Built '
+         'for surveyors and adopted immediately by people surveying things '
+         'they did not own.',
+         effects={'scan_depth': 1, 'crack_bonus': 1},
+         drawback='It renders constantly and it renders everything. Extended '
+                  'use is exhausting in a way that does not show up until you '
+                  'are already tired.',
+         penalty={'composure': -2}),
+    Ware('nictitating', 'Nictitating Shutter', 'unbranded',
+         'ocular', 1, 3, 1400, 1,
+         'A second eyelid, more or less. Cuts the feedback flash that black '
+         'ICE uses to blind you before it does anything worse.',
+         effects={'ice_dr': 0.88},
+         drawback='It closes on its own when it thinks it should. Roughly one '
+                  'time in twenty it thinks so during something important.',
+         penalty={'evade_bonus': -1}),
+    Ware('pale_cortex', 'Pale Cortex', 'Aoyama Biotech',
+         'cortex', 3, 18, 13800, 3,
+         'Cultured neural tissue grown against your own and wired in as a '
+         'coprocessor. Aoyama will not say whose it was originally.',
+         effects={'logic': 1, 'focus': 3, 'crypto_bonus': 2},
+         drawback='It dreams. Not metaphorically: it runs when you are not '
+                  'using it, and what it produces has begun turning up in '
+                  'your working memory unannounced.',
+         penalty={},
+         rider='creeping_dissonance'),
+    Ware('vagus_tap', 'Vagus Tap', 'Sendai Interface',
+         'spinal', 2, 9, 5600, 2,
+         'Taps the nerve that runs the autonomic system and gives the deck a '
+         'vote in what it does. Your heart rate becomes a configurable.',
+         effects={'nerve': 1, 'composure': 3, 'tick_mult': 0.94},
+         drawback='The deck now has a vote in what your heart does, and the '
+                  'deck is a machine that takes damage.',
+         penalty={'ice_dr': 1.2}),
+    Ware('grave_governor', 'Grave Governor', 'unbranded',
+         'neural', 3, 17, 14900, 3,
+         'Nobody sells these. They are made, one at a time, by somebody in '
+         'Freeport who does not take appointments. It holds a session open '
+         'through feedback that would drop anybody else.',
+         effects={'integrity': 6, 'composure': 6},
+         drawback='It holds the session open. That is the entire function, '
+                  'and it does not distinguish between a session you want '
+                  'held and one you are trying to leave: jacking out takes an '
+                  'extra tick, always, including the tick you do not have.',
+         penalty={},
+         rider='slow_exit'),
+    Ware('quiet_hands', 'Quiet Hands', 'Freeport Collective',
+         'limb', 2, 7, 4300, 2,
+         'Community-printed replacements with the haptic layer tuned down '
+         'rather than up. Everything you do through them is deliberate.',
+         effects={'residue_mult': 0.7, 'skill_forensics': 1},
+         drawback='Tuned down is tuned down. Anything that rewards speed '
+                  'rewards somebody else.',
+         penalty={'tick_mult': 1.1}),
+    Ware('lamprey', 'Lamprey Interface', 'Carrion Column',
+         'subdermal', 3, 20, 11200, 3,
+         'Carrion make these and Carrion install these, and the waiting list '
+         'is short because of what the waiting list knows. It draws power '
+         'from you directly and it is very, very fast.',
+         effects={'tempo': 1, 'tick_mult': 0.8, 'ice_damage': 2},
+         drawback='It feeds. Every run costs you Integrity that rest returns '
+                  'slowly, and the number is not negotiable.',
+         penalty={},
+         rider='thermal_load'),
+    Ware('archivist', 'Archivist Node', 'Kagawa Vertical',
+         'cortex', 2, 10, 6900, 3,
+         'Corporate compliance hardware: it records everything you do, '
+         'perfectly, forever, and indexes it. Kagawa issue it to auditors.',
+         effects={'legwork_bonus': 2, 'skill_cryptography': 1},
+         drawback='It records everything you do, perfectly, forever. That '
+                  'archive is on you, in you, and admissible.',
+         penalty={'heat_mult': 1.3}),
 )
+
 
 BY_KEY: dict[str, Ware] = {w.key: w for w in WARE}
 WARE_KEYS: tuple[str, ...] = tuple(BY_KEY)
@@ -245,7 +321,7 @@ WARE_KEYS: tuple[str, ...] = tuple(BY_KEY)
 #: a validation error, which is what stops a drawback existing only in prose.
 RIDERS: frozenset[str] = frozenset({
     'misfire', 'nightwatch_serial', 'dual_thread', 'deadman', 'thermal_load',
-    'blind_trace', 'creeping_dissonance',
+    'blind_trace', 'creeping_dissonance', 'slow_exit',
 })
 
 

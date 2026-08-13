@@ -142,6 +142,20 @@ SERVICES: tuple[Service, ...] = (
     Service('bms', 'building management', 'physical', (3, 5),
             'Runs the lights, the doors, and the air. Nobody patches it.',
             noise=1.1),
+    Service('queue', 'message queue', 'access', (3, 4),
+            'Everything the network says to itself, in order, with retries.',
+            noise=0.85),
+    Service('sign', 'signing service', 'crypto', (5, 8),
+            'Vouches for other things. Break it and the network vouches for '
+            'you.',
+            noise=1.3),
+    Service('roster', 'staff roster', 'identity', (2, 4),
+            'Who is on shift, and therefore who is not going to be missed.',
+            noise=0.8),
+    Service('scada', 'process control', 'physical', (4, 6),
+            'Runs something with moving parts. Written in a decade that did '
+            'not have a threat model.',
+            noise=1.2),
 )
 
 SERVICE_BY_KEY: dict[str, Service] = {s.key: s for s in SERVICES}
@@ -155,14 +169,14 @@ def services_for(node_type: str) -> list[Service]:
     generated network feel authored.
     """
     table = {
-        'gateway': ('webapp', 'vpn', 'shell'),
-        'relay': ('shell', 'rpc'),
-        'workstation': ('shell', 'share', 'webapp', 'badge'),
-        'fileserver': ('share', 'cipher', 'shell'),
-        'controller': ('rpc', 'bms', 'badge', 'shell'),
-        'auth': ('sso', 'directory', 'keystore', 'rpc'),
-        'vault': ('cipher', 'keystore', 'share'),
-        'honeypot': ('shell', 'share', 'webapp', 'rpc'),
+        'gateway': ('webapp', 'vpn', 'shell', 'queue'),
+        'relay': ('shell', 'rpc', 'queue'),
+        'workstation': ('shell', 'share', 'webapp', 'badge', 'roster'),
+        'fileserver': ('share', 'cipher', 'shell', 'queue'),
+        'controller': ('rpc', 'bms', 'badge', 'shell', 'scada'),
+        'auth': ('sso', 'directory', 'keystore', 'rpc', 'roster', 'sign'),
+        'vault': ('cipher', 'keystore', 'share', 'sign'),
+        'honeypot': ('shell', 'share', 'webapp', 'rpc', 'roster'),
     }
     return [SERVICE_BY_KEY[k] for k in table.get(node_type, ('shell',))]
 

@@ -166,7 +166,13 @@ def cmd_jack_in(sess, args) -> None:
 def cmd_jack_out(sess, args) -> None:
     state = sess.require_run()
     c = sess.console
-    _act(sess, 'jack out')
+    # The Grave Governor holds a session open, and does not distinguish
+    # between one you want held and one you are trying to leave.
+    slow = 'slow_exit' in state.char.riders()
+    if slow:
+        c.say('[warn]The Governor does not want to let go. It takes a moment '
+              'to convince it.[/]')
+    _act(sess, 'jack out', ticks=2 if slow else None)
     if state.running:
         state.finish('clean' if state.objective_met() else 'burned')
     _resolve(sess)

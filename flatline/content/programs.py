@@ -182,7 +182,57 @@ PROGRAMS: tuple[Program, ...] = (
             'convincing enough to move a Probe off your trail.',
             effects={'evade_bonus': 3},
             note='Generates noise on a node of your choosing. Loud on purpose.'),
+    # -- second wave: depth for the thin categories -----------------------
+    Program('vellum', 'Vellum', 'forger', 2, 4, 0.5, 3400, 2,
+            'Writes a badge that is wrong in ways only an auditor would '
+            'catch, and auditors are not on shift at four in the morning.',
+            effects={'pretext_bonus': 3},
+            note='Quiet. Grants tier-1 access and does not survive review.'),
+    Program('nom_de_guerre', 'Nom de Guerre', 'forger', 4, 6, 0.9, 9700, 3,
+            'Does not forge a person. Retires one, and gives you what they '
+            'left behind, which the network has no reason to question.',
+            effects={'pretext_bonus': 5, 'residue_mult': 0.85},
+            note='Four memory. Grants tier-2 access and holds under audit.'),
+    Program('lethe', 'Lethe', 'wiper', 3, 4, 0.6, 4900, 2,
+            'Does not remove the record. Removes the index, and lets the '
+            'record sit there being unfindable for as long as anybody cares.',
+            effects={'residue_mult': 0.6},
+            note='Cheaper than Palimpsest and does not enable falsify.'),
+    Program('housecall', 'Housecall', 'wiper', 1, 2, 1.3, 600, 1,
+            'The free one everybody starts with. Deletes the obvious, '
+            'clumsily, and leaves a deletion where the thing used to be.',
+            effects={'residue_mult': 0.85},
+            note='One memory. Better than nothing, and only just.'),
+    Program('carapace', 'Carapace', 'armour', 4, 6, 0.0, 11800, 3,
+            'A second session standing in front of the first one. Anything '
+            'that reaches you has to finish with the decoy before it starts.',
+            effects={'ice_dr': 0.45, 'integrity': 4},
+            note='Four memory. The most expensive way to survive a core.'),
+    Program('sump', 'Sump', 'armour', 1, 2, 0.0, 700, 1,
+            'Bleeds feedback into the deck chassis. Cheap, and the deck is '
+            'the thing that pays for it.',
+            effects={'ice_dr': 0.85},
+            note='One memory. Redirects harm to your components.'),
+    Program('understudy', 'Understudy', 'daemon', 3, 4, 1.0, 5300, 3,
+            'Runs a copy of your session one node behind you, doing what you '
+            'did a tick ago. Probes find it first.',
+            effects={'evade_bonus': 2},
+            note='Holds or makes noise. Very good at being found.'),
+    Program('gleaner', 'Gleaner', 'daemon', 2, 3, 0.7, 3600, 2,
+            'A patient little process that works one lock, slowly, and does '
+            'not care how long you leave it there.',
+            note='Grinds a service quietly. Slower than Errand, quieter.'),
+    Program('drillbit', 'Drillbit', 'breaker', 2, 4, 1.8, 2900, 2,
+            'Half the price of Lattice and four times the noise, because it '
+            'does not attack the scheme, it attacks the machine.',
+            note='Good rating, cheap, and everybody hears it.'),
+    Program('tidemark', 'Tidemark', 'hunter', 2, 4, 1.1, 3300, 2,
+            'Reads what a node has been doing rather than what it is. Finds '
+            'the busy ones, which are the ones with something on them.',
+            effects={'legwork_bonus': 1},
+            note='Marks nodes by traffic, not by type.'),
 )
+
 
 BY_KEY: dict[str, Program] = {p.key: p for p in PROGRAMS}
 PROGRAM_KEYS: tuple[str, ...] = tuple(BY_KEY)

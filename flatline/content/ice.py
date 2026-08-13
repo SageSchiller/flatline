@@ -268,7 +268,95 @@ ICE: tuple[IceType, ...] = (
         noise=4,
         trace=6,
     ),
+    # -- second wave ------------------------------------------------------
+    IceType(
+        'verger', 'Verger', 'sentry', ('aoyama', 'sendai'),
+        (4, 6),
+        'Corporate monitoring that does not report upward. It reports '
+        'sideways, to three other constructs, all at once.',
+        tells=(
+            'three separate processes have started agreeing about something',
+            'the node is describing you to its neighbours in the third person',
+            'something has begun taking a census and you are in it',
+        ),
+        strike='Verger tells everything nearby exactly where you are.',
+        noise=5,
+        effects={'alert_jump': 1},
+    ),
+    IceType(
+        'gull', 'Gull', 'probe', ('freeport', 'fixers', 'sixes'),
+        (2, 4),
+        'Wanders. Genuinely wanders: it has no route and no schedule, which '
+        'makes it impossible to time and trivial to walk into.',
+        tells=(
+            'something is moving and it is not moving toward anything',
+            'a process just changed direction for no reason you can see',
+            'there is traffic on this segment that has no destination',
+        ),
+        strike='Gull blunders into you and starts shouting.',
+        noise=7,
+        trace=3,
+    ),
+    IceType(
+        'coroner', 'Coroner', 'hunter', ('nightwatch', 'kagawa'),
+        (5, 8),
+        'Response-desk ICE. It does not hunt intruders, it hunts intrusions: '
+        'it works backward from the damage and arrives where you are now.',
+        tells=(
+            'something is reading the log of what you did an hour ago',
+            'your earlier work is being re-walked, in order, quickly',
+            'a process is retracing your route and gaining',
+        ),
+        strike='Coroner finishes the reconstruction and arrives at you.',
+        damage=6,
+        noise=4,
+        trace=6,
+    ),
+    IceType(
+        'gallows', 'Gallows', 'trap', ('carrion', 'sixes'),
+        (3, 6),
+        'Somebody wired a dead-drop to a segment cut. It is not clever and '
+        'the person who left it thought it was extremely funny.',
+        tells=(),
+        strike='Gallows cuts the segment behind you. That route is gone.',
+        trace=5,
+        effects={'access_drop': 1},
+    ),
+    IceType(
+        'steward', 'Steward', 'warden', ('freeport', 'fixers', 'sixes'),
+        (3, 5),
+        'Not really ICE. A person, mostly, watching a boundary on a rota, '
+        'with a script they wrote themselves and understand completely.',
+        tells=(
+            'somebody at the boundary has stopped what they were doing',
+            'the gateway is being watched by something with opinions',
+            'a human-paced process has taken an interest in this connection',
+        ),
+        strike='Steward closes the boundary and starts asking questions.',
+        damage=2,
+        noise=5,
+        trace=2,
+        effects={'credential_check': 1},
+    ),
+    IceType(
+        'requiem', 'Requiem', 'black', ('aoyama',),
+        (7, 10),
+        'Aoyama built lethal countermeasure the way Aoyama builds everything: '
+        'medically. It does not attack the session. It attacks the person on '
+        'the other end of it, accurately, with reference to their chart.',
+        tells=(
+            'something is reading your vitals off the interface and writing '
+            'them down',
+            'the connection has begun behaving like a clinical procedure',
+            'you are being measured by something that has seen your file',
+        ),
+        strike='Requiem administers the dose it calculated.',
+        damage=13,
+        noise=3,
+        trace=8,
+    ),
 )
+
 
 BY_KEY: dict[str, IceType] = {i.key: i for i in ICE}
 ICE_KEYS: tuple[str, ...] = tuple(BY_KEY)

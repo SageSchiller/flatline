@@ -501,6 +501,9 @@ class RunState:
         node = self.net.node(escort['node'])
         if node is None:
             return
+        # Two constructs waking on the same node in the same tick is one
+        # event to the player, not two identical lines.
+        announced = False
         for construct in node.live_ice:
             if construct.behaviour == 'trap':
                 continue
@@ -509,10 +512,12 @@ class RunState:
                 continue
             if construct.state == 'dormant':
                 construct.state = 'awake'
-                self.console.blank()
-                self.console.say(
-                    f'[ice]Something on {node.uid} has noticed '
-                    f'{escort["name"]}.[/]')
+                if not announced:
+                    announced = True
+                    self.console.blank()
+                    self.console.say(
+                        f'[ice]Something on {node.uid} has noticed '
+                        f'{escort["name"]}.[/]')
                 continue
             # If you are standing with them, you can take it instead.
             if self.here == escort['node'] and self.rng.chance(0.5):
