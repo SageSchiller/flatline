@@ -12,14 +12,13 @@ updated: 2026-08-12
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5044 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 13,500 lines.
+> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5058 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 13,500 lines.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
 > **What is not done, in the order I would do it:**
-> 1. **Scripting is thin.** `script` records and replays, but the Daemonology fantasy is scripts that *react* to conditions. That is the deepest remaining hole and the most on-theme.
-> 2. **The Dissonance arc has no city-side content.** High Dissonance is mechanically real (prices, pretext, icon coherence) but nothing in the city is *written* for it: no clinic that will only see you if you are far enough gone, no contact who only talks to people like that.
-> 3. **Breadth.** More chrome, programs, ICE, districts. Content, not systems.
+> 1. **The Dissonance arc has no city-side content.** High Dissonance is mechanically real (prices, pretext, icon coherence) but nothing in the city is *written* for it: no clinic that will only see you if you are far enough gone, no contact who only talks to people like that.
+> 2. **Breadth.** More chrome, programs, ICE, districts. Content, not systems.
 >
 > **What this is.** A netrunner sim you play by typing at a fake terminal. Two layers: a persistent city that keeps score, and procedurally generated corporate networks you break into one contract at a time. The character system is classless and deep enough that two players at the same credit total play nothing alike.
 >
@@ -278,6 +277,12 @@ if trace > 40: mask           runs only when the condition holds
 stop if alert >= red          abandons the rest of the script
 repeat 3: crack gw01 shell    bounded, one to ten
 ```
+
+A daemon can be handed a script as its behaviour policy (`daemon script
+<name>`): it re-reads it every tick and the first passing condition names its
+task. It only ever gets its own three tasks, never the player's verb set,
+because an autonomous process that could type `jack out` would be puppeting the
+player rather than helping them.
 
 Conditions read live run state by name: `trace`, `noise`, `focus`,
 `integrity`, `tick`, `haul`, `residue`, `tier` as numbers; `ice`, `locked`,
@@ -593,9 +598,16 @@ returns positionals only. Anything that stores a command to run later needs the
 text as typed, so `Args.raw_rest()` now exists and the two are documented
 against each other.
 
-**Still open, and deliberately.** A daemon that runs a script rather than a
-single task would close the Daemonology loop completely (rank 2 writes them,
-rank 4 sets them running unattended). It is the obvious next thing and it is
-not done, because reactive scripts are worth playing with first.
+**The loop is now closed.** `daemon script <name>` reads a script as a
+*policy* rather than a program: every tick the daemon re-reads it and the first
+step whose condition passes names its task. So Daemonology rank 2 writes the
+automation and rank 4 sets it running unattended, which is the arc the skill
+description promised from the beginning.
 
-`validate.py` clean, `test.py` green at **5044 checks**.
+The important restraint is that a daemon only ever gets its own three tasks
+(`hold`, `grind`, `noise`), never the player's verb set. An autonomous process
+that could type `jack out` would be puppeting the player rather than helping
+them, and the command refuses to deploy a script that names nothing a daemon
+can do rather than silently ignoring half of it.
+
+`validate.py` clean, `test.py` green at **5058 checks**.

@@ -278,10 +278,27 @@ class RunState:
             prog = programs.BY_KEY.get(daemon['program'])
             rating = prog.rating if prog else 2
 
-            if daemon['task'] == 'hold':
+            # A scripted daemon re-decides what it is doing every tick by
+            # running its script as a policy: the first step whose condition
+            # holds names the task. This is the top of the Daemonology arc,
+            # where rank 2 writes the automation and rank 4 sets it loose.
+            if daemon['task'] == 'script':
+                chosen = self._daemon_policy(daemon)
+                if chosen is None:
+                    daemon['life'] = 0
+                    self.console.info(f'{daemon["uid"]} stops itself.')
+                    self.daemons.remove(daemon)
+                    continue
+                effective, arg = chosen
+                daemon['acting'] = effective
+                daemon['arg'] = arg or daemon.get('arg', '')
+            else:
+                effective = daemon['task']
+
+            if effective == 'hold':
                 # Keeps a node quiet by absorbing the traffic you generated.
                 node.noise = max(0, node.noise - (1 + rating // 2))
-            elif daemon['task'] == 'grind':
+            elif effective == 'grind':
                 svc = node.service(daemon.get('arg', ''))
                 if svc and not svc.cracked:
                     daemon['progress'] = daemon.get('progress', 0) + rating
@@ -294,7 +311,7 @@ class RunState:
                         daemon['life'] = 0
                 elif svc is None or svc.cracked:
                     daemon['life'] = 0
-            elif daemon['task'] == 'noise':
+            elif effective == 'noise':
                 # A diversion: loud somewhere you are not.
                 node.noise += 2 + rating
                 for construct in node.live_ice:
@@ -383,6 +400,42 @@ class RunState:
                                 f'They are heading out.')
         else:
             self._escort_walk(escort, target)
+
+    #: What a daemon is allowed to be told to do. Deliberately the same three
+    #: tasks it has always had: a script sets the *policy*, it does not hand a
+    #: daemon the player's whole verb set.
+    DAEMON_TASKS = ('hold', 'grind', 'noise')
+
+    def _daemon_policy(self, daemon: dict):
+        """Which task this daemon should perform this tick, or None to stop.
+
+        The script is read as a policy rather than a program: the first step
+        whose condition holds names the task, and a `stop if` that fires ends
+        the daemon. That keeps an autonomous process autonomous instead of
+        letting it puppet the player around the network.
+        """
+        from ..script import ScriptError, parse
+
+        try:
+            steps = parse(daemon.get('lines') or [])
+        except ScriptError:
+            return None
+        for step in steps:
+            if step.condition is not None:
+                truth = step.condition.evaluate(self)
+                if step.kind == 'stop':
+                    if truth:
+                        return None
+                    continue
+                if not truth:
+                    continue
+            elif step.kind == 'stop':
+                continue
+            head, _, rest = step.command.strip().partition(' ')
+            head = head.lower()
+            if head in self.DAEMON_TASKS:
+                return head, rest.strip()
+        return 'hold', ''
 
     def _ally_tick(self) -> None:
         """The runner you hired keeps up, and earns their fee passively.

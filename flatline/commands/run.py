@@ -951,7 +951,7 @@ def cmd_signal(sess, args) -> None:
 
 @command('daemon', 'Deploy an autonomous process.',
          group='action', contexts=('run',), ticks=1,
-         usage='daemon <hold|grind|noise> [host] [service]',
+         usage='daemon <hold|grind|noise|script> [name|host] [service]',
          detail='Daemonology rank 4. A daemon acts every tick without you. '
                 '`hold` keeps a node quiet, `grind` works a service open while '
                 'you are elsewhere, `noise` is a diversion loud enough to pull '
@@ -972,10 +972,35 @@ def cmd_daemon(sess, args) -> None:
                            f'{"s" if limit != 1 else ""} at your rank')
 
     task = (args.get(0) or 'hold').lower()
-    if task not in ('hold', 'grind', 'noise'):
-        raise CommandError('daemon hold|grind|noise')
+    if task not in ('hold', 'grind', 'noise', 'script'):
+        raise CommandError('daemon hold|grind|noise|script')
 
-    host = args.get(1) or state.here
+    lines: list[str] = []
+    if task == 'script':
+        if not state.char.has_technique('script'):
+            raise CommandError('a scripted daemon needs Daemonology rank 2 as '
+                               'well, for the script itself.')
+        name = args.get(1)
+        if not name:
+            raise CommandError('which script? `daemon script <name> [host]`')
+        script = sess.scripts.get(name)
+        if script is None:
+            raise CommandError(f'no script called {name!r}')
+        from .. import script as script_mod
+        try:
+            steps = script.steps
+        except script_mod.ScriptError as e:
+            raise CommandError(f'{name}: {e}') from None
+        usable = [st for st in steps
+                  if st.kind == 'stop'
+                  or st.command.split()[0].lower() in state.DAEMON_TASKS]
+        if not usable:
+            raise CommandError(
+                f'{name} tells a daemon nothing it can do. A daemon script '
+                f'names tasks from: ' + ', '.join(state.DAEMON_TASKS))
+        lines = list(script.lines)
+
+    host = args.get(2 if task == 'script' else 1) or state.here
     node = _node(state, host)
     if not node.known:
         raise CommandError(f'{host} has not been found yet')
@@ -997,13 +1022,17 @@ def cmd_daemon(sess, args) -> None:
     uid = f'{prog.key}-{len(state.daemons) + 1}'
     state.daemons.append({
         'uid': uid, 'program': prog.key, 'node': node.uid,
-        'task': task, 'arg': arg,
+        'task': task, 'arg': arg, 'lines': lines,
         'life': 4 + state.char.skill('daemonology') * 2,
     })
     _act(sess, 'strike', node=node, noise_scale=prog.signature * 0.5)
     if state.running:
-        c.ok(f'{uid} is running on [accent]{node.uid}[/]: {task}'
-             + (f' {arg}' if arg else '') + '.')
+        label = f'{task} {args.get(1)}' if task == 'script' else task
+        c.ok(f'{uid} is running on [accent]{node.uid}[/]: {label}'
+             + (f' {arg}' if arg and task != 'script' else '') + '.')
+        if task == 'script':
+            c.say('[dim]It re-reads the script every tick and does whatever '
+                  'the first passing condition tells it to.[/]')
 
 
 @command('hotswap', 'Change a deck component mid-run.',

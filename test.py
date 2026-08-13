@@ -1042,6 +1042,54 @@ def test_scripting() -> None:
          'and keep their lines exactly')
     save_mod.delete('scripts')
 
+    # A daemon reads a script as a policy: first passing condition names the
+    # task, `stop if` ends it, and it never gets the player's verb set.
+    console2 = quiet_console()
+    console2.start_capture()
+    dstate = RunState.begin(net, char, Rng(9)('combat'), console2)
+    daemon = {'uid': 'd1', 'program': 'errand', 'node': dstate.here,
+              'task': 'script', 'arg': '', 'life': 9,
+              'lines': ['if trace > 20: noise', 'if ice: hold', 'hold']}
+    dstate.trace = 0.0
+    T.eq(dstate._daemon_policy(daemon)[0], 'hold',
+         'a daemon falls through to the unconditional step')
+    dstate.trace = 50.0
+    T.eq(dstate._daemon_policy(daemon)[0], 'noise',
+         'and switches task when a condition starts passing')
+
+    daemon['lines'] = ['stop if trace > 10']
+    T.eq(dstate._daemon_policy(daemon), None, 'a stop condition ends a daemon')
+    daemon['lines'] = ['stop if trace > 999']
+    T.ok(dstate._daemon_policy(daemon) is not None,
+         'and does not when it is false')
+
+    daemon['lines'] = ['if trace > 0: jack out', 'if trace > 0: pull --all']
+    chosen = dstate._daemon_policy(daemon)
+    T.ok(chosen is None or chosen[0] in dstate.DAEMON_TASKS,
+         'a daemon never gets a command outside its own task set')
+
+    # A policy that names only commands a daemon cannot run falls back to
+    # holding rather than doing something it was not told to do.
+    daemon['lines'] = ['scan', 'pull --all']
+    fallback = dstate._daemon_policy(daemon)
+    T.ok(fallback is not None and fallback[0] == 'hold',
+         'a policy of commands it cannot run leaves it holding')
+
+    # A policy that does not parse at all stops it, rather than crashing it.
+    daemon['lines'] = ['if florble > 3: hold']
+    T.eq(dstate._daemon_policy(daemon), None,
+         'an unparseable policy stops the daemon rather than crashing it')
+
+    # A scripted daemon actually runs on the tick without raising.
+    dstate.daemons = [{'uid': 'd2', 'program': 'errand', 'node': dstate.here,
+                       'task': 'script', 'arg': '', 'life': 4,
+                       'lines': ['if ice: noise', 'hold']}]
+    for _ in range(6):
+        dstate._daemon_tick()
+        T.checks += 1
+    T.ok(True, 'scripted daemons tick without raising')
+    console2.end_capture()
+
     # Every shipped example parses and is made of real commands.
     for name, lines in script_mod.EXAMPLES.items():
         try:
