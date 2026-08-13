@@ -1,0 +1,173 @@
+"""Persistence, per D7. Versioned JSON in the XDG data directory.
+
+Two things here are load-bearing.
+
+**Atomic writes.** Saves go to a temp file in the same directory and are then
+renamed over the target. A game that autosaves on shift boundaries will
+eventually be killed mid-write, and a truncated JSON file is a dead character.
+`os.replace` is atomic on POSIX and on Windows, so the worst case becomes
+"lost the last save" rather than "lost everything".
+
+**Forward migrations.** Every save records the schema it was written under, and
+loading runs it forward through every migration since. The chain is append-only
+and each step is a pure dict-to-dict function, which keeps them testable and
+keeps `test.py` able to prove that a save written under version 1 still opens.
+The alternative, refusing to load old saves, means a refactor can cost somebody
+a forty-hour character, and that is not an acceptable trade for a game.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import tempfile
+from pathlib import Path
+from typing import Callable
+
+from .config import SCHEMA, data_dir, meta_path, save_path
+
+
+class SaveError(Exception):
+    """Anything that stops a save being read. Always shown to the player."""
+
+
+# --------------------------------------------------------------------------
+# migrations
+# --------------------------------------------------------------------------
+
+#: version -> function taking a save at that version and returning one at
+#: version + 1. Append only; never renumber, never edit a shipped step.
+MIGRATIONS: dict[int, Callable[[dict], dict]] = {}
+
+
+def migration(from_version: int):
+    def deco(fn: Callable[[dict], dict]):
+        if from_version in MIGRATIONS:
+            raise RuntimeError(f'duplicate migration from v{from_version}')
+        MIGRATIONS[from_version] = fn
+        return fn
+    return deco
+
+
+def migrate(data: dict) -> dict:
+    """Bring a save up to the current schema, or explain why it cannot be."""
+    version = int(data.get('schema', 0))
+    if version > SCHEMA:
+        raise SaveError(
+            f'this save was written by a newer version of the game '
+            f'(schema {version}, this build understands {SCHEMA})')
+    while version < SCHEMA:
+        step = MIGRATIONS.get(version)
+        if step is None:
+            raise SaveError(f'no migration path from schema {version} to {SCHEMA}')
+        data = step(dict(data))
+        version += 1
+        data['schema'] = version
+    return data
+
+
+# --------------------------------------------------------------------------
+# io
+# --------------------------------------------------------------------------
+
+
+def _write_atomic(path: Path, data: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix='.tmp-', suffix='.json')
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=1, sort_keys=True)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def write(data: dict, slot: str = 'default') -> Path:
+    payload = dict(data)
+    payload['schema'] = SCHEMA
+    path = save_path(slot)
+    _write_atomic(path, payload)
+    return path
+
+
+def read(slot: str = 'default') -> dict:
+    path = save_path(slot)
+    if not path.exists():
+        raise SaveError(f'no save at {path}')
+    try:
+        raw = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, ValueError) as e:
+        raise SaveError(f'{path} could not be read: {e}') from e
+    if not isinstance(raw, dict):
+        raise SaveError(f'{path} is not a save file')
+    return migrate(raw)
+
+
+def exists(slot: str = 'default') -> bool:
+    return save_path(slot).exists()
+
+
+def delete(slot: str = 'default') -> None:
+    try:
+        save_path(slot).unlink()
+    except FileNotFoundError:
+        pass
+
+
+def slots() -> list[str]:
+    d = data_dir()
+    if not d.exists():
+        return []
+    return sorted(p.stem[len('save-'):] for p in d.glob('save-*.json'))
+
+
+# --------------------------------------------------------------------------
+# meta: survives character death, per D6
+# --------------------------------------------------------------------------
+
+META_DEFAULT = {
+    'schema': SCHEMA,
+    'characters_created': 0,
+    'flatlines': 0,
+    'best_credits': 0,
+    'runs_completed': 0,
+    'seeds_played': [],
+}
+
+
+def read_meta() -> dict:
+    path = meta_path()
+    if not path.exists():
+        return dict(META_DEFAULT)
+    try:
+        raw = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        # Meta is a nicety, not a character. A corrupt one is reset silently
+        # rather than blocking play, which is the opposite of the save policy
+        # above and deliberately so.
+        return dict(META_DEFAULT)
+    out = dict(META_DEFAULT)
+    out.update(raw if isinstance(raw, dict) else {})
+    return out
+
+
+def write_meta(data: dict) -> None:
+    _write_atomic(meta_path(), data)
+
+
+def bump_meta(**deltas) -> dict:
+    """Increment counters and persist. Values that are not numbers are set."""
+    meta = read_meta()
+    for k, v in deltas.items():
+        if isinstance(v, (int, float)) and isinstance(meta.get(k), (int, float)):
+            meta[k] = meta[k] + v
+        else:
+            meta[k] = v
+    write_meta(meta)
+    return meta

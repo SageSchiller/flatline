@@ -1,0 +1,325 @@
+"""The character: attributes, skills, chrome, and the deck they drive.
+
+Everything the rest of the game asks about a build comes through here, and
+every one of those questions is answered as `base + modifiers` computed on
+demand rather than cached. Caching was tempting and would have been wrong: a
+build changes when chrome is installed, when a component is damaged mid-run,
+and when a program is loaded, and a stale cached Tempo is the kind of bug that
+presents as "the game feels wrong" rather than as a traceback.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from ..content import attributes as attrs
+from ..content import cyberware, effects as fx, origins, programs, skills
+from .deck import Deck
+
+
+@dataclass(slots=True)
+class Character:
+    #: The name on nothing official. Aliases (D13) are separate and live in
+    #: `model/identity.py`; this is what the player calls themselves.
+    handle: str = 'unnamed'
+    origin: str = 'gutter'
+
+    base_attrs: dict[str, int] = field(default_factory=dict)
+    base_skills: dict[str, int] = field(default_factory=dict)
+
+    installed: list[str] = field(default_factory=list)
+    deck: Deck = field(default_factory=Deck)
+    #: Programs owned but not necessarily loaded. The loadout decision of D12
+    #: only exists because these two lists are different.
+    library: list[str] = field(default_factory=list)
+
+    credits: int = 0
+    xp: int = 0
+    #: Unspent attribute points. Creation grants a budget and spends it through
+    #: the same `boost` command used later, so there is no separate creation
+    #: minigame to learn and then never use again.
+    points: int = 0
+    dissonance: int = 0
+
+    #: Damage carried out of a run. Heals with rest, never spontaneously.
+    hurt: int = 0
+    runs: int = 0
+
+    # ------------------------------------------------------------------
+    # creation
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def from_origin(cls, origin_key: str, handle: str) -> Character:
+        origin = origins.BY_KEY[origin_key]
+        base = {k: origins.BASE_ATTR + origin.attrs.get(k, 0)
+                for k in attrs.ATTR_KEYS}
+        char = cls(
+            handle=handle,
+            origin=origin_key,
+            base_attrs=base,
+            base_skills={k: origin.skills.get(k, 0) for k in skills.SKILL_KEYS},
+            installed=list(origin.cyberware),
+            deck=Deck.from_preset(origin.deck),
+            library=list(origin.programs),
+            credits=origin.credits,
+        )
+        char.dissonance = sum(cyberware.BY_KEY[w].dissonance
+                              for w in char.installed if w in cyberware.BY_KEY)
+        if origin_key == 'chromed':
+            char.dissonance = max(char.dissonance,
+                                  origins.CHROMED_START_DISSONANCE)
+        # Load what fits, strongest first, so a new character can run at once
+        # rather than having to discover the `load` command to do anything.
+        for key in sorted(char.library,
+                          key=lambda k: -programs.BY_KEY[k].rating
+                          if k in programs.BY_KEY else 0):
+            ok, _ = char.deck.can_load(key)
+            if ok:
+                char.deck.load(key)
+        return char
+
+    # ------------------------------------------------------------------
+    # effects
+    # ------------------------------------------------------------------
+
+    def effects(self) -> dict:
+        """Everything modifying this character right now.
+
+        Order does not matter: additive keys sum and multiplicative keys
+        multiply, both commutatively, which is exactly why `fx` splits them.
+        """
+        parts = [self.deck.effects()]
+        for key in self.installed:
+            ware = cyberware.BY_KEY.get(key)
+            if ware:
+                parts.append(ware.effects)
+                parts.append(ware.penalty)
+        return fx.merge(*parts)
+
+    def mult(self, key: str) -> float:
+        """A multiplicative modifier, defaulting to 1.0."""
+        return float(self.effects().get(key, 1.0))
+
+    def bonus(self, key: str) -> int:
+        """An additive modifier, defaulting to 0."""
+        return int(round(self.effects().get(key, 0)))
+
+    # ------------------------------------------------------------------
+    # attributes and skills
+    # ------------------------------------------------------------------
+
+    def attr(self, key: str) -> int:
+        """Effective attribute, clamped to the legal range."""
+        raw = self.base_attrs.get(key, attrs.ATTR_MIN)
+        raw += int(round(self.effects().get(key, 0)))
+        return max(attrs.ATTR_MIN, min(attrs.ATTR_MAX + 3, raw))
+
+    def skill(self, key: str) -> int:
+        """Effective skill rank. Chrome can push a rank past 5; techniques
+        cannot be granted that way, which is checked by `has_technique`."""
+        raw = self.base_skills.get(key, 0)
+        raw += int(round(self.effects().get(f'skill_{key}', 0)))
+        return max(0, min(skills.MAX_RANK + 2, raw))
+
+    def has_technique(self, technique_key: str) -> bool:
+        """Techniques come from trained rank only.
+
+        Deliberate: an implant that grants `+1 Intrusion` should make you
+        better at cracking, not teach you to Pivot. Otherwise the technique
+        system, which is the whole point of D10's skill design, becomes
+        purchasable with money.
+        """
+        tech = skills.TECHNIQUES.get(technique_key)
+        if tech is None:
+            return False
+        owner = next((s for s in skills.SKILLS
+                      if any(t.key == technique_key for t in s.techniques)), None)
+        if owner is None:
+            return False
+        return self.base_skills.get(owner.key, 0) >= tech.rank
+
+    def techniques(self) -> list[skills.Technique]:
+        return [t for s in skills.SKILLS for t in s.techniques
+                if self.base_skills.get(s.key, 0) >= t.rank]
+
+    # ------------------------------------------------------------------
+    # derived
+    # ------------------------------------------------------------------
+
+    @property
+    def bandwidth(self) -> int:
+        return attrs.bandwidth(self.attr('grit')) + self.bonus('bandwidth')
+
+    @property
+    def bandwidth_used(self) -> int:
+        return sum(cyberware.BY_KEY[k].bandwidth for k in self.installed
+                   if k in cyberware.BY_KEY)
+
+    @property
+    def bandwidth_free(self) -> int:
+        return self.bandwidth - self.bandwidth_used
+
+    @property
+    def integrity_max(self) -> int:
+        return attrs.integrity(self.attr('grit')) + self.bonus('integrity')
+
+    @property
+    def integrity(self) -> int:
+        return max(0, self.integrity_max - self.hurt)
+
+    @property
+    def focus(self) -> int:
+        return attrs.focus(self.attr('logic')) + self.bonus('focus')
+
+    @property
+    def tempo(self) -> int:
+        return min(4, attrs.tempo(self.attr('reflex')) + self.bonus('tempo'))
+
+    @property
+    def composure(self) -> int:
+        return (attrs.composure(self.attr('nerve'), self.dissonance)
+                + self.bonus('composure'))
+
+    @property
+    def dissonance_band(self) -> tuple[int, str, str]:
+        return cyberware.band(self.dissonance)
+
+    # ------------------------------------------------------------------
+    # chrome
+    # ------------------------------------------------------------------
+
+    def can_install(self, ware_key: str) -> tuple[bool, str]:
+        ware = cyberware.BY_KEY.get(ware_key)
+        if ware is None:
+            return False, f'no such cyberware: {ware_key}'
+        if ware_key in self.installed:
+            return False, f'{ware.name} is already installed'
+        if ware.bandwidth > self.bandwidth_free:
+            return False, (f'{ware.name} needs {ware.bandwidth} bandwidth, '
+                           f'{self.bandwidth_free} free')
+        used = sum(1 for k in self.installed
+                   if k in cyberware.BY_KEY
+                   and cyberware.BY_KEY[k].location == ware.location)
+        if used >= cyberware.SLOTS[ware.location]:
+            return False, (f'no {ware.location} slot free '
+                           f'({used}/{cyberware.SLOTS[ware.location]} used)')
+        return True, ''
+
+    def install(self, ware_key: str) -> None:
+        ok, why = self.can_install(ware_key)
+        if not ok:
+            raise ValueError(why)
+        self.installed.append(ware_key)
+        self.dissonance += cyberware.BY_KEY[ware_key].dissonance
+
+    def uninstall(self, ware_key: str) -> None:
+        """Chrome comes out. Dissonance does not.
+
+        This is the sharp edge of D11 and it is intentional: the drift is a
+        record of what you have done to yourself, not a status effect keyed to
+        current equipment. Removing the hardware removes the benefit and leaves
+        the mark, which is what makes a chrome-heavy build a commitment rather
+        than a rental.
+        """
+        if ware_key not in self.installed:
+            raise ValueError(f'{ware_key} is not installed')
+        self.installed.remove(ware_key)
+
+    def slots_used(self, location: str) -> int:
+        return sum(1 for k in self.installed
+                   if k in cyberware.BY_KEY
+                   and cyberware.BY_KEY[k].location == location)
+
+    def riders(self) -> set[str]:
+        """Rider keys currently active. The run layer special-cases these."""
+        return {cyberware.BY_KEY[k].rider for k in self.installed
+                if k in cyberware.BY_KEY and cyberware.BY_KEY[k].rider}
+
+    # ------------------------------------------------------------------
+    # progression
+    # ------------------------------------------------------------------
+
+    def can_boost(self, attr_key: str) -> tuple[bool, str]:
+        if attr_key not in attrs.ATTR_KEYS:
+            return False, f'no such attribute: {attr_key}'
+        if not self.points:
+            return False, 'no attribute points left'
+        if self.base_attrs.get(attr_key, 0) >= attrs.ATTR_MAX:
+            return False, f'{attr_key} is already at {attrs.ATTR_MAX}'
+        return True, ''
+
+    def boost(self, attr_key: str) -> int:
+        ok, why = self.can_boost(attr_key)
+        if not ok:
+            raise ValueError(why)
+        self.points -= 1
+        self.base_attrs[attr_key] = self.base_attrs.get(attr_key, 0) + 1
+        return self.base_attrs[attr_key]
+
+    def can_train(self, skill_key: str) -> tuple[bool, str]:
+        if skill_key not in skills.BY_KEY:
+            return False, f'no such skill: {skill_key}'
+        rank = self.base_skills.get(skill_key, 0)
+        if rank >= skills.MAX_RANK:
+            return False, f'{skills.BY_KEY[skill_key].name} is already at rank 5'
+        cost = skills.RANK_COST[rank + 1]
+        if cost > self.xp:
+            return False, (f'rank {rank + 1} costs {cost} experience, '
+                           f'you have {self.xp}')
+        return True, ''
+
+    def train(self, skill_key: str) -> skills.Technique | None:
+        """Buy the next rank. Returns the technique unlocked, if any."""
+        ok, why = self.can_train(skill_key)
+        if not ok:
+            raise ValueError(why)
+        rank = self.base_skills.get(skill_key, 0) + 1
+        self.xp -= skills.RANK_COST[rank]
+        self.base_skills[skill_key] = rank
+        return skills.BY_KEY[skill_key].technique_at(rank)
+
+    @property
+    def origin_data(self) -> origins.Origin:
+        return origins.BY_KEY[self.origin]
+
+    # ------------------------------------------------------------------
+    # persistence
+    # ------------------------------------------------------------------
+
+    def to_dict(self) -> dict:
+        return {
+            'handle': self.handle,
+            'origin': self.origin,
+            'base_attrs': dict(self.base_attrs),
+            'base_skills': {k: v for k, v in self.base_skills.items() if v},
+            'installed': list(self.installed),
+            'deck': self.deck.to_dict(),
+            'library': list(self.library),
+            'credits': self.credits,
+            'xp': self.xp,
+            'points': self.points,
+            'dissonance': self.dissonance,
+            'hurt': self.hurt,
+            'runs': self.runs,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> Character:
+        return cls(
+            handle=d.get('handle', 'unnamed'),
+            origin=d.get('origin', 'gutter'),
+            base_attrs={k: int(d.get('base_attrs', {}).get(k, origins.BASE_ATTR))
+                        for k in attrs.ATTR_KEYS},
+            base_skills={k: int(d.get('base_skills', {}).get(k, 0))
+                         for k in skills.SKILL_KEYS},
+            installed=list(d.get('installed') or []),
+            deck=Deck.from_dict(d.get('deck') or {}),
+            library=list(d.get('library') or []),
+            credits=int(d.get('credits', 0)),
+            xp=int(d.get('xp', 0)),
+            points=int(d.get('points', 0)),
+            dissonance=int(d.get('dissonance', 0)),
+            hurt=int(d.get('hurt', 0)),
+            runs=int(d.get('runs', 0)),
+        )

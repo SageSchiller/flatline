@@ -1,0 +1,905 @@
+#!/usr/bin/env python3
+"""Behaviour checks. Run after every change.
+
+`validate.py` checks what the content says. This checks what the game does.
+
+The most important tests here are the determinism ones, because D3 is the
+invariant everything else in the project leans on: if a seed stops reproducing
+a world, every bug report becomes unreproducible and the save format becomes a
+lie. Those run first and they run over many seeds.
+
+The second most important is the playthrough fuzz, which drives whole runs
+through the real command layer with the real dispatcher. That is only possible
+because D2 made the interface strings-in and strings-out, and it catches the
+class of bug that unit tests never do: a verb that works alone and explodes
+when the network is in a state nobody thought about.
+"""
+
+from __future__ import annotations
+
+import io
+import os
+import sys
+import tempfile
+import traceback
+
+# Saves must never touch the player's real data directory.
+_TMP = tempfile.mkdtemp(prefix='flatline-test-')
+os.environ['XDG_DATA_HOME'] = _TMP
+os.environ['NO_COLOR'] = '1'
+
+from flatline import commands, save as save_mod, theme, ui  # noqa: E402
+from flatline.content import attributes as attr_content  # noqa: E402
+from flatline.content import cyberware, districts, effects as fx  # noqa: E402
+from flatline.content import factions, hardware, ice as ice_content  # noqa: E402
+from flatline.content import nodes as node_content  # noqa: E402
+from flatline.content import origins, programs, skills  # noqa: E402
+from flatline.game import Game  # noqa: E402
+from flatline.model.character import Character  # noqa: E402
+from flatline.model.identity import Alias  # noqa: E402
+from flatline.rng import Rng, derive  # noqa: E402
+from flatline.run import network as net_mod  # noqa: E402
+from flatline.run.checks import Check  # noqa: E402
+from flatline.run.session import RunState  # noqa: E402
+from flatline.session import Session  # noqa: E402
+from flatline.shell import REGISTRY, CommandError  # noqa: E402
+from flatline.ui import Caps, ColorLevel, Console, GlyphLevel  # noqa: E402
+from flatline.world.city import City  # noqa: E402
+
+
+class Harness:
+    def __init__(self) -> None:
+        self.checks = 0
+        self.failures: list[str] = []
+        self.group = ''
+
+    def section(self, name: str) -> None:
+        self.group = name
+
+    def ok(self, cond, what: str) -> bool:
+        self.checks += 1
+        if not cond:
+            self.failures.append(f'{self.group}: {what}')
+            return False
+        return True
+
+    def eq(self, a, b, what: str) -> bool:
+        return self.ok(a == b, f'{what} (got {a!r}, wanted {b!r})')
+
+    def raises(self, fn, what: str) -> bool:
+        self.checks += 1
+        try:
+            fn()
+        except Exception:
+            return True
+        self.failures.append(f'{self.group}: {what} did not raise')
+        return False
+
+
+T = Harness()
+
+
+def quiet_console() -> Console:
+    caps = Caps(color=ColorLevel.NONE, glyphs=GlyphLevel.UNICODE, width=80,
+                palette=theme.NEUTRAL)
+    console = Console(caps, stream=io.StringIO())
+    return console
+
+
+def play(lines, seed=4242, origin='gutter', game=None):
+    """Drive real commands through the real dispatcher, capturing output."""
+    console = quiet_console()
+    sess = Session(console=console, slot='test')
+    if game is not None:
+        sess.game = game
+    console.start_capture()
+    for line in lines:
+        sess.execute(line)
+    text = console.end_capture()
+    return sess, text
+
+
+# --------------------------------------------------------------------------
+# D3: determinism
+# --------------------------------------------------------------------------
+
+
+def test_determinism() -> None:
+    T.section('determinism')
+
+    # Stream derivation must be stable across processes, not just within one.
+    T.eq(derive(8829, 'network'), derive(8829, 'network'),
+         'derive is stable')
+    T.ok(derive(8829, 'network') != derive(8829, 'ice'),
+         'different stream names give different seeds')
+    T.ok(derive(8829, 'network') != derive(8830, 'network'),
+         'different world seeds give different streams')
+
+    # A named stream must not be perturbed by another stream being used.
+    a = Rng(99)
+    first = [a('network').int(1, 1000) for _ in range(5)]
+    b = Rng(99)
+    for _ in range(20):
+        b('contracts').int(1, 1000)
+        b('market').int(1, 1000)
+    second = [b('network').int(1, 1000) for _ in range(5)]
+    T.eq(first, second, 'streams are independent of each other')
+
+    # Undeclared streams are a typo, not a new universe.
+    T.raises(lambda: Rng(1)('netowrk'), 'undeclared stream')
+
+    # Forked streams are reproducible from the key alone.
+    T.eq([Rng(7).fork('network', 'c001').int(1, 10**6) for _ in range(3)],
+         [Rng(7).fork('network', 'c001').int(1, 10**6) for _ in range(3)],
+         'forks reproduce from the key')
+    T.ok(Rng(7).fork('network', 'c001').int(1, 10**6)
+         != Rng(7).fork('network', 'c002').int(1, 10**6),
+         'different keys give different forks')
+
+    # Whole networks reproduce.
+    for seed in (1, 8829, 65535):
+        for faction in ('kagawa', 'sixes', 'sendai'):
+            one = net_mod.generate(Rng(seed).fork('network', 'x'), faction, 50)
+            two = net_mod.generate(Rng(seed).fork('network', 'x'), faction, 50)
+            T.eq(list(one.nodes), list(two.nodes),
+                 f'network node list reproduces (seed {seed}, {faction})')
+            T.eq(one.objective_asset, two.objective_asset,
+                 f'objective reproduces (seed {seed}, {faction})')
+            T.eq([len(n.ice) for n in one.nodes.values()],
+                 [len(n.ice) for n in two.nodes.values()],
+                 f'ice placement reproduces (seed {seed}, {faction})')
+
+    # Whole games reproduce, board included.
+    for seed in (11, 2024):
+        boards = []
+        for _ in range(2):
+            char = Character.from_origin('gutter', 'x')
+            game = Game.new(char, seed=seed)
+            boards.append([(c.cid, c.patron, c.target, c.objective, c.pay)
+                           for c in game.city.board])
+        T.eq(boards[0], boards[1], f'contract board reproduces (seed {seed})')
+
+    # RNG state survives a save and continues rather than restarting.
+    rng = Rng(500)
+    drawn = [rng('combat').int(1, 100) for _ in range(10)]
+    restored = Rng.fromstate(rng.getstate())
+    T.eq([restored('combat').int(1, 100) for _ in range(5)],
+         [rng('combat').int(1, 100) for _ in range(5)],
+         'rng state round-trips and continues')
+    T.ok(drawn, 'rng produced values')
+
+
+# --------------------------------------------------------------------------
+# saves
+# --------------------------------------------------------------------------
+
+
+def test_saves() -> None:
+    T.section('saves')
+    char = Character.from_origin('academic', 'tester')
+    char.xp = 7
+    char.credits = 12345
+    game = Game.new(char, seed=321)
+    game.alias.adjust_rep('fixers', 30)
+    game.alias.add_heat('kagawa', 22)
+    game.city.shift = 9
+    game.city.where = 'freeport'
+
+    game.save('roundtrip')
+    back = Game.load('roundtrip')
+
+    T.eq(back.char.handle, 'tester', 'handle survives')
+    T.eq(back.char.credits, 12345, 'credits survive')
+    T.eq(back.char.xp, 7, 'xp survives')
+    T.eq(back.char.origin, 'academic', 'origin survives')
+    T.eq(back.char.base_attrs, char.base_attrs, 'attributes survive')
+    T.eq(back.char.deck.parts, char.deck.parts, 'deck parts survive')
+    T.eq(sorted(back.char.deck.loaded), sorted(char.deck.loaded),
+         'loadout survives')
+    T.eq(back.city.shift, 9, 'shift survives')
+    T.eq(back.city.where, 'freeport', 'location survives')
+    T.eq(back.alias.reputation('fixers'), game.alias.reputation('fixers'),
+         'reputation survives')
+    T.eq(back.alias.attention('kagawa'), 22, 'heat survives')
+    T.eq(back.rng.seed, 321, 'seed survives')
+    T.eq(len(back.city.board), len(game.city.board), 'board survives')
+
+    # A loaded game continues the same world rather than a similar one.
+    T.eq(back.rng('combat').int(1, 10**6), game.rng('combat').int(1, 10**6),
+         'rng continues after load (D3)')
+
+    # Saves are atomic: a save written over itself stays readable.
+    for i in range(5):
+        back.char.credits = i
+        back.save('roundtrip')
+    T.eq(Game.load('roundtrip').char.credits, 4, 'repeated saves stay readable')
+
+    # Unknown future schema is refused with an explanation, not a crash.
+    raw = save_mod.read('roundtrip')
+    raw['schema'] = 999
+    T.raises(lambda: save_mod.migrate(raw), 'future schema')
+
+    # Every migration in the chain is reachable.
+    for version in range(1, save_mod.SCHEMA):
+        T.ok(version in save_mod.MIGRATIONS,
+             f'migration from schema {version} exists')
+
+    T.ok(save_mod.exists('roundtrip'), 'exists() finds the save')
+    T.ok('roundtrip' in save_mod.slots(), 'slots() lists it')
+    save_mod.delete('roundtrip')
+    T.ok(not save_mod.exists('roundtrip'), 'delete removes it')
+
+
+# --------------------------------------------------------------------------
+# character
+# --------------------------------------------------------------------------
+
+
+def test_character() -> None:
+    T.section('character')
+    for key in origins.ORIGIN_KEYS:
+        char = Character.from_origin(key, 'x')
+        T.ok(char.bandwidth_used <= char.bandwidth,
+             f'{key} starts within bandwidth')
+        T.ok(char.deck.memory_used <= char.deck.memory,
+             f'{key} starts within memory')
+        T.ok(char.integrity_max > 0, f'{key} has positive integrity')
+        T.ok(char.tempo >= 1, f'{key} has at least one action per tick')
+        T.ok(char.focus >= 1, f'{key} has some focus')
+        T.ok(char.deck.loaded, f'{key} starts with something loaded')
+        for location, capacity in cyberware.SLOTS.items():
+            T.ok(char.slots_used(location) <= capacity,
+                 f'{key} respects the {location} slot limit')
+
+    # Attributes clamp rather than running away.
+    char = Character.from_origin('gutter', 'x')
+    for key in attr_content.ATTR_KEYS:
+        char.base_attrs[key] = 99
+        T.ok(char.attr(key) <= attr_content.ATTR_MAX + 3,
+             f'{key} clamps at the ceiling')
+        char.base_attrs[key] = -99
+        T.ok(char.attr(key) >= attr_content.ATTR_MIN,
+             f'{key} clamps at the floor')
+    char = Character.from_origin('gutter', 'x')
+
+    # Progression spends what it costs and nothing more.
+    char.xp = skills.RANK_COST[1]
+    before = char.xp
+    char.base_skills['warfare'] = 0
+    tech = char.train('warfare')
+    T.eq(char.base_skills['warfare'], 1, 'training raises the rank')
+    T.eq(char.xp, before - skills.RANK_COST[1], 'training spends the xp')
+    T.eq(tech, None, 'rank 1 unlocks no technique')
+    char.xp = skills.RANK_COST[2]
+    tech = char.train('warfare')
+    T.ok(tech is not None and tech.key == 'strike',
+         'rank 2 unlocks the technique')
+    T.raises(lambda: char.train('warfare'), 'training with no xp')
+
+    # D10/D11: chrome must not be able to buy a technique.
+    char = Character.from_origin('gutter', 'x')
+    char.base_skills['hardware'] = 1
+    T.ok(not char.has_technique('overclock'),
+         'rank 1 does not grant a rank 2 technique')
+    ok, _ = char.can_install('interface_hands')
+    if ok:
+        char.install('interface_hands')  # grants +1 Hardware
+        T.ok(char.skill('hardware') >= 2, 'chrome raises the effective rank')
+        T.ok(not char.has_technique('overclock'),
+             'chrome cannot grant a technique (D10)')
+
+    # Bandwidth and slots are enforced, not advisory.
+    char = Character.from_origin('gutter', 'x')
+    char.base_attrs['grit'] = 1
+    over = [w for w in cyberware.WARE if w.bandwidth > char.bandwidth]
+    if over:
+        ok, why = char.can_install(over[0].key)
+        T.ok(not ok and 'bandwidth' in why, 'bandwidth is enforced')
+
+    # D11: dissonance is a one-way door.
+    char = Character.from_origin('gutter', 'x')
+    start = char.dissonance
+    char.install('coolant_mesh')
+    T.ok(char.dissonance > start, 'installing raises dissonance')
+    raised = char.dissonance
+    char.uninstall('coolant_mesh')
+    T.eq(char.dissonance, raised, 'uninstalling does not lower it (D11)')
+
+    # Effects combine under the right rule for each key class.
+    merged = fx.merge({'logic': 2}, {'logic': 3},
+                      {'noise_mult': 0.5}, {'noise_mult': 0.5})
+    T.eq(merged['logic'], 5, 'additive effects sum')
+    T.eq(merged['noise_mult'], 0.25, 'multiplicative effects multiply')
+
+    # A damaged component degrades toward neutral, never past it.
+    char = Character.from_origin('defector', 'x')
+    clean = char.deck.memory
+    for level in (1, 2, 3):
+        char.deck.damage['memory'] = level
+        T.ok(char.deck.memory <= clean,
+             f'damage {level} does not raise memory')
+    T.ok(char.deck.memory >= 0, 'memory never goes negative')
+
+
+# --------------------------------------------------------------------------
+# checks
+# --------------------------------------------------------------------------
+
+
+def test_checks() -> None:
+    T.section('checks')
+    check = Check(name='x', resistance=10)
+    check.add('skill', 6)
+    check.add('attr', 4)
+    T.eq(check.power, 10, 'power sums the terms')
+    T.eq(check.target, 5, 'target is resistance + offset - power')
+    T.eq(check.chance, 0.6, 'chance is exact')
+
+    # Zero-valued terms are dropped rather than shown.
+    check.add('nothing', 0)
+    T.eq(len(check.terms), 2, 'zero terms are not recorded')
+
+    # The bounds behave. A bare check with no terms still needs a 5+, which is
+    # the point of the offset: power and resistance are directly comparable.
+    T.eq(Check(name='x', resistance=0).chance, 0.6,
+         'an unmodified check needs 5 or better')
+    certain = Check(name='x', resistance=0)
+    certain.add('power', 10)
+    T.eq(certain.chance, 1.0, 'enough power makes it certain')
+    T.ok(certain.certain, 'certain is flagged')
+    T.eq(Check(name='x', resistance=100).chance, 0.0,
+         'impossible checks are impossible')
+    T.ok(Check(name='x', resistance=100).impossible, 'impossible is flagged')
+
+    # Resolution respects the maths over a large sample.
+    rng = Rng(1)('combat')
+    check = Check(name='x', resistance=10)
+    check.add('power', 10)
+    wins = 0
+    trials = 4000
+    for _ in range(trials):
+        fresh = Check(name='x', resistance=10)
+        fresh.add('power', 10)
+        fresh.resolve(rng)
+        wins += fresh.success
+    rate = wins / trials
+    T.ok(abs(rate - 0.6) < 0.04,
+         f'observed success rate {rate:.3f} matches the stated 0.60')
+
+    # The audit trail is legible and names the weak link.
+    check = Check(name='x', resistance=10)
+    check.add('good', 8)
+    check.add('bad', -4)
+    T.ok(check.culprit().label == 'bad', 'culprit finds the negative term')
+    T.ok('vs' in check.explain(), 'explain shows the resistance')
+    T.ok('%' in check.summary() or 'automatic' in check.summary()
+         or 'impossible' in check.summary(), 'summary states the odds')
+
+
+# --------------------------------------------------------------------------
+# networks
+# --------------------------------------------------------------------------
+
+
+def test_networks() -> None:
+    T.section('networks')
+    seen_black = 0
+    seen_warden = 0
+    for seed in range(40):
+        faction = factions.FACTION_KEYS[seed % len(factions.FACTION_KEYS)]
+        posture = factions.BY_KEY[faction].posture
+        objective = ('exfiltrate', 'implant', 'corrupt',
+                     'surveil', 'wipe', 'escort')[seed % 6]
+        net = net_mod.generate(Rng(seed).fork('network', f'c{seed}'),
+                               faction, posture, objective)
+
+        T.ok(net.entry in net.nodes, f'seed {seed}: entry exists')
+        T.ok(net.nodes[net.entry].open, f'seed {seed}: entry is open')
+
+        # Everything must be reachable or the run can be unwinnable.
+        seen = {net.entry}
+        frontier = [net.entry]
+        while frontier:
+            uid = frontier.pop()
+            for edge in net.nodes[uid].edges:
+                if edge not in seen:
+                    seen.add(edge)
+                    frontier.append(edge)
+        T.eq(len(seen), len(net.nodes), f'seed {seed}: every node is reachable')
+
+        # The objective must exist and be somewhere you can get to.
+        T.ok(net.objective_node in net.nodes,
+             f'seed {seed}: objective node exists')
+        if objective in ('exfiltrate', 'corrupt', 'wipe'):
+            T.ok(net.objective_asset, f'seed {seed}: objective asset was placed')
+            found = net.find_asset(net.objective_asset)
+            T.ok(found is not None, f'seed {seed}: objective asset is findable')
+
+        # Edges are symmetric, or `connect` and `scan` disagree.
+        for node in net.nodes.values():
+            for edge in node.edges:
+                T.ok(node.uid in net.nodes[edge].edges,
+                     f'seed {seed}: {node.uid}<->{edge} is symmetric')
+
+        for node in net.nodes.values():
+            T.ok(node.zone in node_content.ZONES,
+                 f'seed {seed}: {node.uid} has a real zone')
+            T.ok(node.type in node_content.BY_KEY,
+                 f'seed {seed}: {node.uid} has a real type')
+            for svc in node.services:
+                T.ok(svc.difficulty > 0,
+                     f'seed {seed}: {node.uid}/{svc.key} has positive difficulty')
+            for construct in node.ice:
+                T.ok(construct.rating > 0,
+                     f'seed {seed}: ice has positive rating')
+                if construct.behaviour == 'black':
+                    seen_black += 1
+                if construct.behaviour == 'warden':
+                    seen_warden += 1
+                # Black ICE must never sit on the doorstep.
+                if construct.behaviour == 'black':
+                    T.ok(node.zone in ('restricted', 'core'),
+                         f'seed {seed}: black ice is deep, not on the perimeter')
+
+    T.ok(seen_warden > 0, 'wardens appear across 40 networks')
+    T.ok(seen_black > 0, 'black ice appears across 40 networks')
+
+    # Posture must actually change the difficulty, or the city layer is decor.
+    soft = hard = 0
+    for seed in range(25):
+        low = net_mod.generate(Rng(seed).fork('network', 'a'), 'kagawa', 25)
+        high = net_mod.generate(Rng(seed).fork('network', 'a'), 'kagawa', 90)
+        soft += sum(len(n.ice) for n in low.nodes.values())
+        hard += sum(len(n.ice) for n in high.nodes.values())
+    T.ok(hard > soft * 1.3,
+         f'posture 90 is meaningfully harder than 25 ({soft} vs {hard} ice)')
+
+
+# --------------------------------------------------------------------------
+# the run
+# --------------------------------------------------------------------------
+
+
+def test_run_mechanics() -> None:
+    T.section('run mechanics')
+    char = Character.from_origin('gutter', 'x')
+    net = net_mod.generate(Rng(5).fork('network', 'c1'), 'sixes', 30)
+    console = quiet_console()
+    console.start_capture()
+    state = RunState.begin(net, char, Rng(5)('combat'), console)
+
+    T.eq(state.here, net.entry, 'you start on the entry node')
+    T.eq(state.trace, 0.0, 'trace starts at zero')
+    T.eq(state.alert, 'green', 'alert starts green')
+    T.ok(state.running, 'the run starts running')
+
+    # D5: trace never decreases on its own, noise decays, residue persists.
+    before = state.trace
+    state.advance(3)
+    T.ok(state.trace > before, 'trace advances with time')
+
+    node = state.node
+    quiet = node.noise
+    state.make_noise(10)
+    T.ok(node.noise > quiet, 'noise lands on the node')
+    noisy = node.noise
+    state.advance(1)
+    T.ok(node.noise < noisy, 'noise decays')
+
+    state.leave_residue(5)
+    residue = node.residue
+    state.advance(5)
+    T.eq(node.residue, residue, 'residue does not decay inside the run')
+
+    # Trace is bounded and ends the run when it fills.
+    state.trace = 99.0
+    state.advance(5)
+    T.ok(state.trace <= 100.0, 'trace is capped')
+    T.eq(state.outcome, 'severed', 'a full trace severs the connection')
+    T.ok(not state.running, 'a severed run is over')
+
+    # Alert escalation is monotonic within a run.
+    console2 = quiet_console()
+    console2.start_capture()
+    state = RunState.begin(net, char, Rng(6)('combat'), console2)
+    order = list(ice_content.ALERT_LEVELS)
+    last = 0
+    for _ in range(5):
+        state.escalate(1)
+        now = order.index(state.alert)
+        T.ok(now >= last, 'alert never de-escalates')
+        last = now
+    T.eq(state.alert, 'lockdown', 'alert tops out at lockdown')
+
+    # Nullsig genuinely stops the clock.
+    state = RunState.begin(net, char, Rng(7)('combat'), console2)
+    state.nullsig = 5
+    frozen = state.trace
+    state.advance(3)
+    T.eq(state.trace, frozen, 'nullsig freezes the trace')
+
+    # Every ICE type that can act on the clock telegraphs first.
+    for construct in ice_content.ICE:
+        if construct.behaviour != 'trap':
+            T.ok(len(construct.tells) >= 2,
+                 f'{construct.key} telegraphs before it strikes')
+
+    console2.end_capture()
+    console.end_capture()
+
+
+# --------------------------------------------------------------------------
+# city
+# --------------------------------------------------------------------------
+
+
+def test_city() -> None:
+    T.section('city')
+    char = Character.from_origin('protege', 'x')
+    game = Game.new(char, seed=77)
+
+    T.ok(game.city.board, 'a fresh city has work on the board')
+    for contract in game.city.board:
+        T.ok(contract.patron in factions.BY_KEY, 'patron is a real faction')
+        T.ok(contract.target in factions.BY_KEY, 'target is a real faction')
+        T.ok(contract.patron != contract.target, 'nobody hires you to rob them')
+        T.ok(contract.pay > 0, 'the job pays something')
+        T.ok(contract.district in districts.BY_KEY, 'the job is somewhere real')
+        T.ok(contract.expires > contract.posted, 'the job has a future')
+
+    # Time moves and heat cools.
+    game.alias.add_heat('kagawa', 40)
+    hot = game.alias.attention('kagawa')
+    game.city.advance(game.rng, game.alias, 6)
+    T.ok(game.alias.attention('kagawa') < hot, 'heat decays over shifts')
+    T.ok(game.city.shift >= 6, 'shifts accumulate')
+
+    # Reputation propagates along the relations table.
+    alias = Alias(name='test')
+    alias.adjust_rep('fixers', 40)
+    T.ok(alias.reputation('fixers') > 0, 'direct reputation lands')
+    T.ok(alias.reputation('nightwatch') < 0,
+         'helping the Switchboard cools Nightwatch (relations table)')
+    T.ok(alias.reputation('sixes') > 0, 'and warms their allies')
+    T.ok(abs(alias.reputation('sixes')) < abs(alias.reputation('fixers')),
+         'knock-on is weaker than the direct change')
+
+    # Reputation and heat are bounded.
+    for _ in range(50):
+        alias.adjust_rep('fixers', 50)
+        alias.add_heat('fixers', 50)
+    T.ok(alias.reputation('fixers') <= 100, 'reputation is capped')
+    T.ok(alias.attention('fixers') <= 100, 'heat is capped')
+
+    # D13: burning an alias dumps heat and reputation together.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=5)
+    game.alias.adjust_rep('sixes', 50)
+    game.alias.add_heat('kagawa', 80)
+    old = game.alias
+    fresh = game.new_alias('clean slate')
+    T.ok(old.burned, 'the old name is marked burned')
+    T.eq(fresh.attention('kagawa'), 0, 'a new name carries no heat')
+    T.eq(fresh.reputation('sixes'), 0, 'and no reputation either (D13)')
+    T.ok(len(game.aliases) == 2, 'the history is kept')
+
+    # Posture persists across an alias change, because they do not know who.
+    game.city.posture['kagawa'] = 80
+    game.new_alias('third')
+    T.eq(game.city.posture['kagawa'], 80, 'posture survives a burn')
+
+    # Residue converts to heat, and only after a delay.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=8)
+    summary = {'outcome': 'clean', 'faction': 'kagawa', 'residue': 20,
+               'objective': True, 'haul_value': 1000, 'alert': 'green',
+               'framed': '', 'ticks': 10, 'trace': 30, 'haul': []}
+    game.city.apply_run(game.alias, summary, game.rng)
+    T.eq(game.alias.attention('kagawa'), 0,
+         'residue does not become heat immediately (D5)')
+    T.ok(game.city.pending, 'the fallout is queued')
+    game.city.advance(game.rng, game.alias, 2)
+    T.ok(game.alias.attention('kagawa') > 0,
+         'residue becomes heat a shift later')
+
+    # Falsify redirects rather than reduces.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=9)
+    summary = dict(summary, framed='sixes')
+    game.city.apply_run(game.alias, summary, game.rng)
+    game.city.advance(game.rng, game.alias, 2)
+    T.ok(game.alias.attention('kagawa') < 8,
+         'a successful frame keeps the heat off you')
+
+    # Travel is only ever to a neighbour.
+    city = City.new(Rng(3), Alias(name='x'))
+    for key in districts.DISTRICT_KEYS:
+        ok, _ = city.can_travel(key)
+        expected = key in districts.BY_KEY[city.where].neighbours
+        T.eq(ok, expected, f'travel to {key} is gated by adjacency')
+
+
+# --------------------------------------------------------------------------
+# the shell
+# --------------------------------------------------------------------------
+
+
+def test_shell() -> None:
+    T.section('shell')
+    sess, _ = play(['help'])
+    T.ok(sess.running, 'help does not end the session')
+
+    # Unknown commands are reported, not fatal.
+    _, out = play(['definitely-not-a-command'])
+    T.ok('not a command' in out, 'unknown commands explain themselves')
+
+    # Prefixes resolve, ambiguity is reported.
+    from flatline.shell import resolve
+    T.eq(resolve('hel', 'city').command.name, 'help', 'prefixes resolve')
+    T.raises(lambda: resolve('', 'city'), 'empty line')
+
+    # Context gating produces the specific error, not "unknown command".
+    _, out = play(['crack foo bar'])
+    T.ok('only works' in out, 'run verbs explain they need a run')
+
+    # Chaining and comments.
+    _, out = play(['help ; help'])
+    T.ok(out.count('FLATLINE commands') == 2, 'semicolons chain commands')
+    _, out = play(['help # this is a comment'])
+    T.ok('FLATLINE commands' in out, 'comments are stripped')
+
+    # Quoted arguments survive.
+    from flatline.shell import Args
+    args = Args(['one', '--flag', '--key', 'value', 'two'])
+    T.eq(args.positional, ['one', 'two'], 'positionals are collected')
+    T.ok(args.has('flag'), 'flags are detected')
+    T.eq(args.opt('key'), 'value', 'options take their value')
+    T.eq(Args(['--n', '5']).int_opt('n', 0), 5, 'int options parse')
+    T.raises(lambda: Args(['--n', 'x']).int_opt('n', 0), 'bad int option')
+
+    # Every command must survive being called with nothing and with junk.
+    for name, cmd in sorted(REGISTRY.commands.items()):
+        for suffix in ('', ' zzz', ' zzz qqq --nope'):
+            char = Character.from_origin('gutter', 'fuzz')
+            game = Game.new(char, seed=1234)
+            try:
+                play([f'{name}{suffix}'], game=game)
+            except CommandError:
+                pass  # expected and handled
+            except SystemExit:
+                pass
+            except Exception:
+                T.failures.append(
+                    f'shell: `{name}{suffix}` crashed:\n'
+                    + traceback.format_exc())
+            T.checks += 1
+
+
+# --------------------------------------------------------------------------
+# playthroughs
+# --------------------------------------------------------------------------
+
+
+OPENING = [
+    'boost logic', 'train intrusion', 'char', 'skills', 'deck', 'chrome',
+    'techniques', 'rep', 'alias', 'status', 'board', 'travel', 'market',
+]
+
+
+def test_playthrough() -> None:
+    T.section('playthrough')
+    for origin in origins.ORIGIN_KEYS:
+        char = Character.from_origin(origin, origin)
+        char.points = attr_content.CREATION_POINTS
+        char.xp = skills.CREATION_XP
+        game = Game.new(char, seed=2468)
+        try:
+            sess, out = play(OPENING, game=game)
+        except Exception:
+            T.failures.append(f'playthrough: {origin} opening crashed:\n'
+                              + traceback.format_exc())
+            T.checks += 1
+            continue
+        T.ok('Traceback' not in out, f'{origin} opening is clean')
+
+    # A full run, driven entirely through the command layer.
+    for origin in ('gutter', 'academic', 'chromed'):
+        char = Character.from_origin(origin, origin)
+        game = Game.new(char, seed=13579)
+        contract = game.city.board[0]
+        lines = [f'take {contract.cid}']
+        if game.city.where != contract.district:
+            # Walk there, one shift at a time, however far it is.
+            for _ in range(4):
+                if game.city.where == contract.district:
+                    break
+                nxt = _step_toward(game.city.where, contract.district)
+                if nxt is None:
+                    break
+                lines.append(f'travel {nxt}')
+                game.city.where = nxt
+            game.city.where = districts.BY_KEY[contract.district].key \
+                if game.city.where != contract.district else game.city.where
+        try:
+            sess, _ = play(lines, game=game)
+        except Exception:
+            T.failures.append(f'playthrough: {origin} travel crashed:\n'
+                              + traceback.format_exc())
+            T.checks += 1
+            continue
+
+        # Put them on the doorstep and run the whole thing.
+        sess.game.city.where = contract.district
+        run_lines = ['jack in --force', 'scan', 'map', 'status', 'here']
+        for node_uid in list(sess.game.city.board and []):
+            pass
+        try:
+            _, out = _drive_run(sess)
+        except Exception:
+            T.failures.append(f'playthrough: {origin} run crashed:\n'
+                              + traceback.format_exc())
+            T.checks += 1
+            continue
+        T.ok(sess.run is None, f'{origin} finished the run and got out')
+        T.ok(sess.game.char.runs >= 1, f'{origin} recorded the run')
+
+
+def _step_toward(here: str, there: str) -> str | None:
+    """Breadth-first next hop, so the test can walk the real district graph."""
+    if here == there:
+        return None
+    frontier = [(here, [])]
+    seen = {here}
+    while frontier:
+        node, path = frontier.pop(0)
+        for nxt in districts.BY_KEY[node].neighbours:
+            if nxt in seen:
+                continue
+            if nxt == there:
+                return (path + [nxt])[0]
+            seen.add(nxt)
+            frontier.append((nxt, path + [nxt]))
+    return None
+
+
+def _drive_run(sess):
+    """Play a run to a conclusion with a simple deterministic policy."""
+    console = sess.console
+    console.start_capture()
+    sess.execute('jack in --force')
+    steps = 0
+    while sess.run is not None and steps < 60:
+        steps += 1
+        state = sess.run
+        sess.execute('scan')
+        if sess.run is None:
+            break
+        # Probe and try to crack anything adjacent and closed.
+        for node in list(state.net.nodes.values()):
+            if sess.run is None:
+                break
+            if not node.known or node.uid == state.here:
+                continue
+            if node.uid not in state.node.edges:
+                continue
+            if not node.mapped:
+                sess.execute(f'probe {node.uid}')
+            if sess.run is None:
+                break
+            closed = [s for s in node.services if not s.cracked]
+            if closed:
+                sess.execute(f'crack {node.uid} {closed[0].key}')
+            if sess.run is None:
+                break
+            if node.open:
+                sess.execute(f'connect {node.uid}')
+                break
+        if sess.run is None:
+            break
+        if sess.run.node.data:
+            sess.execute('pull --all')
+        if sess.run is not None and sess.run.trace_pct > 0.6:
+            sess.execute('jack out')
+    if sess.run is not None:
+        sess.execute('jack out')
+    return sess, console.end_capture()
+
+
+# --------------------------------------------------------------------------
+# presentation
+# --------------------------------------------------------------------------
+
+
+def test_ui() -> None:
+    T.section('ui')
+    # Markup parses, measures, and renders without leaking codes into widths.
+    T.eq(ui.plain('[accent]hello[/] world'), 'hello world', 'plain strips tags')
+    T.eq(ui.width('[accent]hello[/]'), 5, 'width ignores markup')
+    T.eq(ui.plain('[[literal]'), '[literal]', 'double bracket escapes')
+    T.eq(ui.plain('[accent]unclosed'), 'unclosed', 'unclosed tags do not crash')
+
+    spans = ui.parse('[accent][bold]x[/][/]')
+    T.eq(spans[0].role, 'accent', 'nested tags keep the role')
+    T.ok('bold' in spans[0].attrs, 'nested tags keep the attribute')
+
+    # No colour means no escape codes at all.
+    plain_caps = Caps(ColorLevel.NONE, GlyphLevel.ASCII, 80, theme.NEUTRAL)
+    T.ok('\033' not in ui.render('[accent]x[/]', plain_caps),
+         'NO_COLOR emits no escapes')
+    colour_caps = Caps(ColorLevel.TRUE, GlyphLevel.UNICODE, 80,
+                       theme.CYBERPUNK_NEON)
+    T.ok('\033' in ui.render('[accent]x[/]', colour_caps),
+         'truecolour emits escapes')
+
+    # D16: wrapping respects the column at every rung and never overflows.
+    long_text = ('[accent]' + 'word ' * 200 + '[/]')
+    for cols in (40, 60, 76, 100):
+        for line in ui.wrap(long_text, cols):
+            T.ok(ui.width(line) <= cols,
+                 f'wrapped line fits {cols} columns')
+
+    # Padding survives wrapping, which `help` and `skills` depend on.
+    wrapped = ui.wrap('a' + ' ' * 8 + 'b', 40)
+    T.eq(ui.plain(wrapped[0]), 'a' + ' ' * 8 + 'b', 'runs of spaces survive')
+
+    # Every glyph has an ASCII form and it is really ASCII.
+    for name, (uni, ascii_form) in ui.GLYPHS.items():
+        T.ok(ascii_form.isascii(), f'{name} has an ASCII form')
+        T.ok(uni, f'{name} has a Unicode form')
+
+    ascii_caps = Caps(ColorLevel.NONE, GlyphLevel.ASCII, 80, theme.NEUTRAL)
+    for name in ui.GLYPHS:
+        T.ok(ascii_caps.g(name).isascii(), f'{name} renders ASCII at the low rung')
+
+    # Truncation fits and marks itself.
+    caps = Caps(ColorLevel.NONE, GlyphLevel.UNICODE, 80, theme.NEUTRAL)
+    cut = ui.truncate('[accent]' + 'x' * 100 + '[/]', 20, caps)
+    T.ok(ui.width(cut) <= 20, 'truncate fits the budget')
+
+    # Every palette answers every role, at every rung.
+    for name, palette in theme.PALETTES.items():
+        for role in theme.ROLES:
+            colour = getattr(palette, role)
+            T.ok(0 <= colour.c256 <= 255, f'{name}/{role} has a 256 index')
+            T.ok(colour.ansi in theme.ANSI16, f'{name}/{role} has an ANSI name')
+            T.ok(len(colour.rgb) == 3, f'{name}/{role} has rgb')
+
+    # The whole game must render at the minimum terminal, ASCII, no colour.
+    small = Caps(ColorLevel.NONE, GlyphLevel.ASCII, 80, theme.ANSI)
+    console = Console(small, stream=io.StringIO())
+    console.start_capture()
+    console.header('title', 'right')
+    console.kv([('a', 'b'), ('long key here', 'value')])
+    console.table(('one', 'two'), [('x' * 60, 'y' * 60)])
+    console.raw(console.bar(0.5))
+    console.bullets(['one', 'two'])
+    for line in console.end_capture().splitlines():
+        T.ok(len(line) <= 80, f'output fits 80 columns: {line[:30]!r}')
+        T.ok(line.isascii(), f'output is ASCII at the low rung: {line[:30]!r}')
+
+
+# --------------------------------------------------------------------------
+
+
+SUITES = (
+    test_determinism, test_saves, test_character, test_checks,
+    test_networks, test_run_mechanics, test_city, test_shell,
+    test_playthrough, test_ui,
+)
+
+
+def main() -> int:
+    for suite in SUITES:
+        try:
+            suite()
+        except Exception:
+            T.failures.append(f'{suite.__name__} raised:\n'
+                              + traceback.format_exc())
+    for failure in T.failures:
+        print(f'FAIL  {failure}')
+    if T.failures:
+        print(f'\ntest: {len(T.failures)} failures in {T.checks} checks')
+        return 1
+    print(f'test: green, {T.checks} checks')
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

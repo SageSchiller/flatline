@@ -1,0 +1,214 @@
+"""Programs. What you actually carry, per D12.
+
+Memory is the binding constraint on playstyle. You will never have enough, and
+the decision about what to load, made before the run and informed by legwork,
+is the most frequent interesting decision in the game.
+
+Every program carries a **signature**: how loud it is to use. This is
+deliberately not correlated with rating. The best breaker in the game is also
+the loudest, and the quietest one is barely adequate, so "bring the strongest
+thing" is not automatically correct and a stealth loadout is not simply a
+weaker loadout.
+
+Categories map onto verbs. A program does nothing on its own; it is what a verb
+reaches for. `crack` needs a breaker, `mask` needs a mask, and a build carrying
+no wiper can still run, it just cannot clean up after itself.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+#: category -> what it is for, and which verbs reach for it.
+CATEGORIES: dict[str, tuple[str, tuple[str, ...]]] = {
+    'breaker': ('Defeats services and access controls.', ('crack', 'chain')),
+    'hunter': ('Finds things: nodes, services, ICE, data.', ('scan', 'probe', 'map')),
+    'mask': ('Suppresses trace and noise.', ('mask', 'nullsig', 'connect')),
+    'forger': ('Manufactures credentials and identity.', ('forge', 'pretext', 'impersonate')),
+    'weapon': ('Damages countermeasures.', ('strike', 'overload', 'kill')),
+    'armour': ('Absorbs what countermeasures do to you.', ('mask', 'strike')),
+    'payload': ('Does the thing the contract is about.', ('deploy', 'push', 'implant')),
+    'wiper': ('Removes evidence.', ('wipe', 'scrub', 'falsify')),
+    'daemon': ('Acts on its own each tick.', ('daemon', 'deploy')),
+}
+
+
+@dataclass(frozen=True, slots=True)
+class Program:
+    key: str
+    name: str
+    category: str
+    memory: int
+    rating: int          # raw power, 1..6
+    signature: float     # noise multiplier when used, 1.0 is baseline
+    price: int
+    tier: int            # 1 street, 2 professional, 3 restricted
+    blurb: str
+    effects: dict = field(default_factory=dict)
+    #: Terse mechanical text. Shown in `load` listings where space is tight.
+    note: str = ''
+
+
+PROGRAMS: tuple[Program, ...] = (
+    # -- breakers ----------------------------------------------------------
+    Program('crowbar', 'Crowbar', 'breaker', 1, 2, 1.4, 300, 1,
+            'Brute force with a friendly name. It works on almost everything '
+            'and it tells everybody it is working.',
+            note='Cheap, reliable, loud.'),
+    Program('sable', 'Sable', 'breaker', 2, 3, 0.9, 1400, 1,
+            'The workhorse. Quiet enough to use twice, strong enough to matter.',
+            note='The default. Nobody regrets carrying Sable.'),
+    Program('lattice', 'Lattice', 'breaker', 3, 4, 0.75, 4200, 2,
+            'Attacks the structure of an authentication scheme rather than its '
+            'implementation. Slow, elegant, nearly silent.',
+            effects={'crypto_bonus': 1},
+            note='Two ticks per use instead of one.'),
+    Program('thunderhead', 'Thunderhead', 'breaker', 4, 6, 2.2, 9600, 3,
+            'Nothing survives it. Everything hears it.',
+            note='Highest rating in the game. Signature to match.'),
+    Program('skeleton', 'Skeleton', 'breaker', 3, 3, 0.5, 6800, 3,
+            'A key shaped like the absence of a lock. Freeport built it, and '
+            'they will not say from what.',
+            effects={'noise_mult': 0.9},
+            note='Quietest breaker that is still worth carrying.'),
+
+    # -- hunters -----------------------------------------------------------
+    Program('blink', 'Blink', 'hunter', 1, 2, 1.0, 250, 1,
+            'A scan that returns node types and nothing else. Fast and honest '
+            'about its limits.',
+            note='One tick, shallow.'),
+    Program('cartographer', 'Cartographer', 'hunter', 3, 4, 1.3, 3100, 2,
+            'Maps topology two hops out, including edges you have no business '
+            'knowing about.',
+            effects={'scan_depth': 1},
+            note='Reveals routes, not contents.'),
+    Program('auspex', 'Auspex', 'hunter', 3, 5, 0.9, 5400, 3,
+            'Passive collection. It does not probe, it listens, and what it '
+            'hears is everything that talks.',
+            effects={'tell_lead': 1},
+            note='Reveals ICE without alerting it.'),
+    Program('ledgerhand', 'Ledgerhand', 'hunter', 2, 3, 0.55, 2200, 2,
+            'Finds the money. Locates data assets by value rather than by '
+            'location, which is how a professional decides what to steal.',
+            note='Marks the highest-value asset on any mapped node.'),
+
+    # -- masks -------------------------------------------------------------
+    Program('quietcastle', 'Quietcastle', 'mask', 2, 3, 0.0, 1800, 1,
+            'Wraps your traffic in something that looks like a backup job. Not '
+            'convincing forever. Convincing for a while.',
+            effects={'trace_mult': 0.85},
+            note='Passive while loaded.'),
+    Program('mirrorbox', 'Mirrorbox', 'mask', 3, 4, 0.0, 4700, 2,
+            'Reflects the trace back along a path that terminates in somebody '
+            'else\'s subnet.',
+            effects={'trace_mult': 0.7},
+            note='Passive. Stacks poorly with other masks by design.'),
+    Program('nullsuit', 'Nullsuit', 'mask', 4, 6, 0.0, 11200, 3,
+            'You are not there. This is expensive to be true.',
+            effects={'trace_mult': 0.55, 'noise_mult': 0.8},
+            note='Four memory. It costs a build, not a slot.'),
+
+    # -- forgers -----------------------------------------------------------
+    Program('handshake', 'Handshake', 'forger', 2, 3, 0.7, 1600, 1,
+            'Manufactures a credential that is plausible for about ninety '
+            'seconds, which is generally ninety seconds more than you need.',
+            effects={'pretext_bonus': 2},
+            note='Grants tier-1 access without a crack.'),
+    Program('provenance', 'Provenance', 'forger', 3, 5, 0.6, 6100, 3,
+            'Does not forge a credential. Forges the history that would have '
+            'issued one.',
+            effects={'pretext_bonus': 4},
+            note='Grants tier-2 access. Survives audit.'),
+
+    # -- weapons -----------------------------------------------------------
+    Program('cudgel', 'Cudgel', 'weapon', 2, 3, 1.6, 900, 1,
+            'Hits countermeasures until they stop. No subtlety, no upkeep.',
+            effects={'ice_damage': 2},
+            note='Reliable. Announces you to the whole segment.'),
+    Program('scalpel', 'Scalpel', 'weapon', 3, 4, 0.9, 3800, 2,
+            'Targets the specific routine an ICE construct uses to hold a lock, '
+            'and removes only that.',
+            effects={'ice_damage': 3, 'evade_bonus': 2},
+            note='Breaks lock-on rather than killing. Often better.'),
+    Program('banshee', 'Banshee', 'weapon', 4, 6, 2.6, 10400, 3,
+            'Kills anything short of black ICE in one pass and puts the entire '
+            'network into alert while it does.',
+            effects={'ice_damage': 6},
+            note='Escalates the alert level on use, guaranteed.'),
+
+    # -- armour ------------------------------------------------------------
+    Program('bulwark', 'Bulwark', 'armour', 2, 3, 0.0, 2100, 1,
+            'Absorbs feedback before it reaches the deck. Degrades as it works.',
+            effects={'ice_dr': 0.7},
+            note='Passive. Loses a rating point each time it saves you.'),
+    Program('deadlight', 'Deadlight', 'armour', 3, 5, 0.0, 7300, 3,
+            'Black ICE mitigation. The only reason to attempt a core without '
+            'the Nerve for it.',
+            effects={'ice_dr': 0.5, 'composure': 4},
+            note='Passive. Specifically counters lethal countermeasures.'),
+
+    # -- payloads ----------------------------------------------------------
+    Program('siphon', 'Siphon', 'payload', 2, 3, 0.9, 1300, 1,
+            'Pulls data out through the connection you already have. Slower '
+            'than a bulk copy, and it does not need a bulk copy\'s privileges.',
+            note='Required for most exfiltration contracts.'),
+    Program('rootcap', 'Rootcap', 'payload', 3, 4, 1.5, 4400, 2,
+            'Leaves something behind that will still be there next quarter.',
+            note='Required for implant contracts. High residue.'),
+    Program('revision', 'Revision', 'payload', 3, 5, 1.25, 5900, 3,
+            'Edits a record so that it has always said this.',
+            effects={'residue_mult': 0.8},
+            note='Required for corruption contracts.'),
+
+    # -- wipers ------------------------------------------------------------
+    Program('housekeeper', 'Housekeeper', 'wiper', 2, 3, 0.9, 1700, 1,
+            'Removes the obvious half of what you left. The obvious half is '
+            'most of it.',
+            effects={'residue_mult': 0.75},
+            note='One tick per node.'),
+    Program('palimpsest', 'Palimpsest', 'wiper', 4, 6, 0.7, 9100, 3,
+            'Does not delete logs. Rewrites them into a coherent alternative '
+            'account of the evening.',
+            effects={'residue_mult': 0.4},
+            note='Enables `falsify` without Forensics rank 4.'),
+
+    # -- daemons -----------------------------------------------------------
+    Program('errand', 'Errand', 'daemon', 2, 2, 1.2, 2600, 2,
+            'A small autonomous process that will do exactly one thing, '
+            'repeatedly, until told otherwise or killed.',
+            note='Holds a node or grinds a crack. Not clever.'),
+    Program('choirboy', 'Choirboy', 'daemon', 4, 5, 1.8, 8700, 3,
+            'Three coordinated processes that between them can run a diversion '
+            'convincing enough to move a Probe off your trail.',
+            effects={'evade_bonus': 3},
+            note='Generates noise on a node of your choosing. Loud on purpose.'),
+)
+
+BY_KEY: dict[str, Program] = {p.key: p for p in PROGRAMS}
+PROGRAM_KEYS: tuple[str, ...] = tuple(BY_KEY)
+
+
+def by_category(category: str) -> list[Program]:
+    return [p for p in PROGRAMS if p.category == category]
+
+
+def best(loaded: list[str], category: str) -> Program | None:
+    """The strongest loaded program of a category, or None.
+
+    Verbs call this rather than asking the player which program to use, because
+    "which breaker" is not an interesting decision at the moment of cracking.
+    The interesting decision already happened, in the loadout.
+    """
+    have = [BY_KEY[k] for k in loaded if k in BY_KEY and BY_KEY[k].category == category]
+    return max(have, key=lambda p: p.rating) if have else None
+
+
+def quietest(loaded: list[str], category: str) -> Program | None:
+    """The lowest-signature loaded program of a category.
+
+    The counterpart to `best`, used by the `--quiet` option on verbs that have
+    one. Carrying both a Thunderhead and a Skeleton is a real loadout and this
+    is what makes it one.
+    """
+    have = [BY_KEY[k] for k in loaded if k in BY_KEY and BY_KEY[k].category == category]
+    return min(have, key=lambda p: (p.signature, -p.rating)) if have else None

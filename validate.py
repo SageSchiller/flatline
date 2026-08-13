@@ -1,0 +1,615 @@
+#!/usr/bin/env python3
+"""Content graph checks. Run after every content change.
+
+`validate.py` looks at what the content *says*; `test.py` looks at what the
+game *does*. The split matters because most of what goes wrong in a
+content-heavy game is a dangling reference or a rule quietly broken in one
+entry out of two hundred, and that is cheap to catch here and expensive to
+catch by playing.
+
+Errors fail the build. Warnings are things worth seeing that may be
+deliberate, so they are reported and do not fail.
+"""
+
+from __future__ import annotations
+
+import sys
+
+from flatline import commands  # noqa: F401  (registers the command table)
+from flatline import theme, ui
+from flatline.content import attributes as attr_content
+from flatline.content import cyberware, districts, effects as fx, factions
+from flatline.content import hardware, ice as ice_content, nodes as node_content
+from flatline.content import origins, programs, skills
+from flatline.model.character import Character
+from flatline.shell import CONTEXTS, GROUPS, REGISTRY
+from flatline.world import contracts as contract_mod
+
+
+class Report:
+    def __init__(self) -> None:
+        self.errors: list[str] = []
+        self.warnings: list[str] = []
+
+    def error(self, where: str, msg: str) -> None:
+        self.errors.append(f'{where}: {msg}')
+
+    def warn(self, where: str, msg: str) -> None:
+        self.warnings.append(f'{where}: {msg}')
+
+    def check(self, cond: bool, where: str, msg: str) -> None:
+        if not cond:
+            self.error(where, msg)
+
+
+# --------------------------------------------------------------------------
+# effects vocabulary
+# --------------------------------------------------------------------------
+
+
+def check_effects(rep: Report) -> None:
+    """Nothing may name a modifier that does not exist (see content/effects)."""
+    for w in cyberware.WARE:
+        for problems in (fx.check(w.effects, f'cyberware/{w.key}/effects'),
+                         fx.check(w.penalty, f'cyberware/{w.key}/penalty')):
+            for p in problems:
+                rep.error('effects', p)
+    for p in programs.PROGRAMS:
+        for problem in fx.check(p.effects, f'programs/{p.key}'):
+            rep.error('effects', problem)
+    for c in hardware.COMPONENTS:
+        for problems in (fx.check(c.effects, f'hardware/{c.key}/effects'),
+                         fx.check(c.penalty, f'hardware/{c.key}/penalty')):
+            for problem in problems:
+                rep.error('effects', problem)
+    for i in ice_content.ICE:
+        for key in i.effects:
+            if key not in fx.ALL and key not in ice_content.ICE_RIDERS:
+                rep.error('effects',
+                          f'ice/{i.key}: unknown effect key {key!r}')
+
+
+# --------------------------------------------------------------------------
+# cyberware
+# --------------------------------------------------------------------------
+
+
+def check_cyberware(rep: Report) -> None:
+    for w in cyberware.WARE:
+        where = f'cyberware/{w.key}'
+        rep.check(w.location in cyberware.SLOTS, where,
+                  f'unknown location {w.location!r}')
+        rep.check(w.bandwidth > 0, where, 'costs no bandwidth')
+        rep.check(w.dissonance > 0, where, 'costs no dissonance')
+        rep.check(w.price > 0, where, 'is free')
+        rep.check(1 <= w.tier <= 3, where, f'tier {w.tier} out of range')
+        # D11: every piece must have an honest downside, stated and mechanical.
+        rep.check(bool(w.drawback), where, 'has no stated drawback (D11)')
+        if not w.penalty and not w.rider:
+            rep.error(where, 'drawback is prose only: needs a penalty dict or '
+                             'a rider the engine implements (D11)')
+        if w.rider:
+            rep.check(w.rider in cyberware.RIDERS, where,
+                      f'rider {w.rider!r} is not in RIDERS')
+
+    # Every location must have something worth fitting in it.
+    for location in cyberware.SLOTS:
+        if not cyberware.by_location(location):
+            rep.error('cyberware', f'nothing exists for the {location} slot')
+
+    for rider in cyberware.RIDERS:
+        if not any(w.rider == rider for w in cyberware.WARE):
+            rep.warn('cyberware', f'rider {rider!r} is declared but unused')
+
+
+# --------------------------------------------------------------------------
+# programs and hardware
+# --------------------------------------------------------------------------
+
+
+def check_programs(rep: Report) -> None:
+    for p in programs.PROGRAMS:
+        where = f'programs/{p.key}'
+        rep.check(p.category in programs.CATEGORIES, where,
+                  f'unknown category {p.category!r}')
+        rep.check(p.memory > 0, where, 'takes no memory')
+        rep.check(1 <= p.rating <= 6, where, f'rating {p.rating} out of range')
+        rep.check(p.signature >= 0, where, 'negative signature')
+        rep.check(p.price > 0, where, 'is free')
+    for category in programs.CATEGORIES:
+        if not programs.by_category(category):
+            rep.error('programs', f'no programs in category {category!r}')
+
+    # A category whose every member is strictly better than every other is a
+    # category with no decision in it.
+    for category in programs.CATEGORIES:
+        pool = programs.by_category(category)
+        if len(pool) < 2:
+            continue
+        signatures = {p.signature for p in pool}
+        if len(signatures) == 1:
+            # Passive categories (masks, armour) are never "used" and so have
+            # no signature to trade against. They differentiate on memory cost,
+            # which is checked by the memory warning instead.
+            continue
+        best_rating = max(p.rating for p in pool)
+        quietest = min(p.signature for p in pool)
+        top = [p for p in pool if p.rating == best_rating]
+        if any(p.signature == quietest for p in top) and len(pool) > 2:
+            rep.warn('programs', f'{category}: the strongest option is also '
+                                 f'the quietest, so the loadout choice is free')
+
+
+def check_hardware(rep: Report) -> None:
+    for c in hardware.COMPONENTS:
+        where = f'hardware/{c.key}'
+        rep.check(c.slot in hardware.SLOTS, where, f'unknown slot {c.slot!r}')
+        rep.check(c.heat >= 0, where, 'negative heat')
+    for slot in hardware.SLOTS:
+        options = hardware.by_slot(slot)
+        rep.check(len(options) >= 2, f'hardware/{slot}',
+                  'fewer than two options, so the slot is not a choice')
+
+    for preset in hardware.PRESETS:
+        where = f'hardware/preset/{preset.key}'
+        for slot in hardware.SLOTS:
+            key = preset.parts.get(slot)
+            if key is None:
+                rep.error(where, f'no component for the {slot} slot')
+            elif key not in hardware.BY_KEY:
+                rep.error(where, f'{slot} points at unknown {key!r}')
+            elif hardware.BY_KEY[key].slot != slot:
+                rep.error(where, f'{key!r} is a {hardware.BY_KEY[key].slot} '
+                                 f'part, fitted to {slot}')
+        for key in preset.parts:
+            if key not in hardware.SLOTS:
+                rep.error(where, f'unknown slot {key!r}')
+
+
+# --------------------------------------------------------------------------
+# origins
+# --------------------------------------------------------------------------
+
+
+def check_origins(rep: Report) -> None:
+    for o in origins.ORIGINS:
+        where = f'origins/{o.key}'
+        for key in o.attrs:
+            rep.check(key in attr_content.ATTR_KEYS, where,
+                      f'unknown attribute {key!r}')
+        for key in o.skills:
+            rep.check(key in skills.SKILL_KEYS, where, f'unknown skill {key!r}')
+        for key in o.cyberware:
+            rep.check(key in cyberware.BY_KEY, where,
+                      f'unknown cyberware {key!r}')
+        for key in o.programs:
+            rep.check(key in programs.BY_KEY, where, f'unknown program {key!r}')
+        rep.check(o.deck in hardware.PRESETS_BY_KEY, where,
+                  f'unknown deck preset {o.deck!r}')
+        for key in o.standing:
+            rep.check(key in factions.BY_KEY, where, f'unknown faction {key!r}')
+        rep.check(bool(o.passive and o.passive_detail), where,
+                  'has no passive')
+        rep.check(bool(o.complication), where, 'has no complication')
+        rep.check(bool(o.story), where, 'has no story')
+
+        # The build it produces has to be legal, or a new character starts
+        # over capacity and every derived number is wrong from turn one.
+        char = Character.from_origin(o.key, 'validate')
+        if char.bandwidth_used > char.bandwidth:
+            rep.error(where, f'starts over bandwidth: '
+                             f'{char.bandwidth_used}/{char.bandwidth}')
+        for location, capacity in cyberware.SLOTS.items():
+            used = char.slots_used(location)
+            if used > capacity:
+                rep.error(where, f'starts with {used} pieces in {location}, '
+                                 f'which holds {capacity}')
+        if char.deck.memory_used > char.deck.memory:
+            rep.error(where, f'starts over memory: {char.deck.memory_used}/'
+                             f'{char.deck.memory}')
+        if char.deck.heat > char.deck.heat_cap:
+            rep.warn(where, f'starts over thermal budget: {char.deck.heat}/'
+                            f'{char.deck.heat_cap}, so the deck cooks at rest')
+        # Somebody has to be able to do the objective they are handed.
+        if not char.deck.loaded:
+            rep.error(where, 'starts with nothing loaded')
+
+
+# --------------------------------------------------------------------------
+# skills
+# --------------------------------------------------------------------------
+
+
+def check_skills(rep: Report) -> None:
+    seen: set[str] = set()
+    for s in skills.SKILLS:
+        where = f'skills/{s.key}'
+        rep.check(s.attr in attr_content.ATTR_KEYS, where,
+                  f'checks against unknown attribute {s.attr!r}')
+        ranks = sorted(t.rank for t in s.techniques)
+        rep.check(ranks == [2, 4], where,
+                  f'techniques at ranks {ranks}, expected [2, 4] (D10)')
+        for t in s.techniques:
+            rep.check(t.key not in seen, where, f'duplicate technique {t.key!r}')
+            seen.add(t.key)
+            rep.check(bool(t.summary and t.detail), f'{where}/{t.key}',
+                      'technique has no description')
+            if t.verb:
+                # A technique that claims a verb has to name a real one, or
+                # the skill tree is promising something the shell cannot do.
+                head = t.verb.split()[0].split('--')[0].strip()
+                if head and REGISTRY.lookup(head) is None:
+                    rep.error(f'{where}/{t.key}',
+                              f'verb {t.verb!r} names no command')
+
+    for rank in range(1, skills.MAX_RANK + 1):
+        rep.check(rank in skills.RANK_COST, 'skills',
+                  f'no experience cost for rank {rank}')
+
+
+# --------------------------------------------------------------------------
+# factions and districts
+# --------------------------------------------------------------------------
+
+
+def check_factions(rep: Report) -> None:
+    for f in factions.FACTIONS:
+        where = f'factions/{f.key}'
+        rep.check(f.kind in factions.KINDS, where, f'unknown kind {f.kind!r}')
+        rep.check(0 <= f.posture <= 100, where, f'posture {f.posture} out of range')
+        rep.check(bool(f.doctrine), where, 'has no doctrine')
+        for key, value in f.relations.items():
+            if key not in factions.BY_KEY:
+                rep.error(where, f'relation to unknown faction {key!r}')
+                continue
+            rep.check(-1.0 <= value <= 1.0, where,
+                      f'relation to {key} is {value}, outside -1..1')
+            # Asymmetry in a table this small is always a typo.
+            back = factions.BY_KEY[key].relations.get(f.key, 0.0)
+            if abs(back - value) > 1e-9:
+                rep.error(where, f'feels {value} about {key}, but {key} feels '
+                                 f'{back} about {f.key}')
+        for want in f.wants:
+            rep.check(want in contract_mod.OBJECTIVES, where,
+                      f'wants unknown objective {want!r}')
+
+    kinds = {f.kind for f in factions.FACTIONS}
+    for kind in factions.KINDS:
+        if kind not in kinds:
+            rep.warn('factions', f'no faction of kind {kind!r}')
+
+
+def check_districts(rep: Report) -> None:
+    for d in districts.DISTRICTS:
+        where = f'districts/{d.key}'
+        rep.check(d.controller in factions.BY_KEY, where,
+                  f'controlled by unknown faction {d.controller!r}')
+        for s in d.services:
+            rep.check(s in districts.SERVICES, where, f'unknown service {s!r}')
+        for p in d.presence:
+            rep.check(p in factions.BY_KEY, where, f'unknown faction {p!r}')
+        rep.check(bool(d.arrival), where, 'has no arrival text')
+        rep.check(1 <= d.max_tier <= 3, where, f'max_tier {d.max_tier}')
+        for n in d.neighbours:
+            if n not in districts.BY_KEY:
+                rep.error(where, f'neighbour {n!r} does not exist')
+            elif d.key not in districts.BY_KEY[n].neighbours:
+                rep.error(where, f'{n} is a neighbour but does not list '
+                                 f'{d.key} back')
+
+    rep.check(districts.START in districts.BY_KEY, 'districts',
+              f'START district {districts.START!r} does not exist')
+
+    # Every district must be reachable, or content is stranded.
+    seen = {districts.START}
+    frontier = [districts.START]
+    while frontier:
+        key = frontier.pop()
+        for n in districts.BY_KEY[key].neighbours:
+            if n not in seen:
+                seen.add(n)
+                frontier.append(n)
+    for d in districts.DISTRICTS:
+        if d.key not in seen:
+            rep.error('districts', f'{d.key} is unreachable from '
+                                   f'{districts.START}')
+
+    # Every service has to exist somewhere or a command is unusable.
+    for service in districts.SERVICES:
+        if not districts.with_service(service):
+            rep.error('districts', f'no district offers {service!r}')
+
+
+# --------------------------------------------------------------------------
+# the run layer
+# --------------------------------------------------------------------------
+
+
+def check_ice(rep: Report) -> None:
+    for i in ice_content.ICE:
+        where = f'ice/{i.key}'
+        rep.check(i.behaviour in ice_content.BEHAVIOURS, where,
+                  f'unknown behaviour {i.behaviour!r}')
+        for f in i.factions:
+            rep.check(f in factions.BY_KEY, where, f'unknown faction {f!r}')
+        lo, hi = i.rating
+        rep.check(0 < lo <= hi, where, f'rating range {i.rating} is backwards')
+        rep.check(bool(i.strike), where, 'has no strike line')
+        # The fairness contract: anything that can act on the clock must
+        # telegraph. Traps are the deliberate exception, and are countered by
+        # `probe` rather than by reflexes.
+        if i.behaviour == 'trap':
+            rep.check(not i.tells, where,
+                      'traps must not telegraph: that is what makes them traps')
+        else:
+            rep.check(len(i.tells) >= 2, where,
+                      'needs at least two tells, or it reads identically every '
+                      'time it appears')
+        if i.behaviour in ('hunter', 'black', 'warden'):
+            rep.check(i.damage > 0, where, 'does no damage')
+
+    for behaviour in ice_content.BEHAVIOURS:
+        if not ice_content.by_behaviour(behaviour):
+            rep.error('ice', f'no constructs with behaviour {behaviour!r}')
+
+    # Every faction needs a warden and a generic fallback, or generation
+    # cannot place a chokepoint guard for them.
+    for f in factions.FACTIONS:
+        for behaviour in ('sentry', 'probe', 'hunter', 'trap', 'warden'):
+            if not ice_content.available(behaviour, f.key):
+                rep.error('ice', f'{f.key} has no {behaviour} available')
+
+    for level in ice_content.ALERT_LEVELS:
+        rep.check(level in ice_content.ALERT_BLURB, 'ice',
+                  f'alert level {level!r} has no blurb')
+        rep.check(level in ice_content.ALERT_TRACE_MULT, 'ice',
+                  f'alert level {level!r} has no trace multiplier')
+
+
+def check_nodes(rep: Report) -> None:
+    for n in node_content.NODE_TYPES:
+        where = f'nodes/{n.key}'
+        for z in n.zones:
+            rep.check(z in node_content.ZONES, where, f'unknown zone {z!r}')
+        rep.check(bool(n.zones), where, 'appears in no zone')
+        lo, hi = n.services
+        rep.check(0 < lo <= hi, where, f'service range {n.services} is backwards')
+        found = node_content.services_for(n.key)
+        rep.check(bool(found), where, 'services_for returns nothing')
+        rep.check(len(found) >= lo, where,
+                  f'wants up to {hi} services but only {len(found)} are '
+                  f'plausible for it')
+
+    for zone in node_content.ZONES:
+        if not [n for n in node_content.NODE_TYPES if zone in n.zones]:
+            rep.error('nodes', f'no node type can appear in {zone!r}')
+        rep.check(zone in node_content.ZONE_BLURB, 'nodes',
+                  f'zone {zone!r} has no blurb')
+
+    for s in node_content.SERVICES:
+        where = f'services/{s.key}'
+        rep.check(s.family in node_content.FAMILIES, where,
+                  f'unknown family {s.family!r}')
+        lo, hi = s.difficulty
+        rep.check(0 < lo <= hi, where, f'difficulty {s.difficulty} is backwards')
+
+    for family, (skill_key, category) in node_content.FAMILIES.items():
+        rep.check(skill_key in skills.SKILL_KEYS, 'nodes',
+                  f'family {family!r} names unknown skill {skill_key!r}')
+        rep.check(category in programs.CATEGORIES, 'nodes',
+                  f'family {family!r} names unknown category {category!r}')
+        if not [s for s in node_content.SERVICES if s.family == family]:
+            rep.error('nodes', f'no services in family {family!r}')
+
+    for d in node_content.DATA_KINDS:
+        lo, hi = d.value
+        rep.check(0 < lo <= hi, f'data/{d.key}', f'value {d.value} is backwards')
+
+
+# --------------------------------------------------------------------------
+# contracts
+# --------------------------------------------------------------------------
+
+
+def check_contracts(rep: Report) -> None:
+    for o in contract_mod.OBJECTIVES:
+        rep.check(o in contract_mod.OBJECTIVE_BLURB, 'contracts',
+                  f'objective {o!r} has no blurb')
+        rep.check(o in contract_mod.OBJECTIVE_PAY, 'contracts',
+                  f'objective {o!r} has no pay multiplier')
+        rep.check(o in contract_mod.OBJECTIVE_PROGRAM, 'contracts',
+                  f'objective {o!r} does not declare its required program')
+        rep.check(o in contract_mod._FRAMES, 'contracts',
+                  f'objective {o!r} has no blurb frames')
+        need = contract_mod.OBJECTIVE_PROGRAM.get(o)
+        if need:
+            rep.check(need in programs.CATEGORIES, 'contracts',
+                      f'objective {o!r} needs unknown category {need!r}')
+    # Somebody has to want each objective, or it never appears on a board.
+    wanted = {w for f in factions.FACTIONS for w in f.wants}
+    for o in contract_mod.OBJECTIVES:
+        if o not in wanted:
+            rep.warn('contracts', f'no faction wants {o!r}, so it is rare')
+
+
+# --------------------------------------------------------------------------
+# commands
+# --------------------------------------------------------------------------
+
+
+def check_commands(rep: Report) -> None:
+    for name, cmd in REGISTRY.commands.items():
+        where = f'commands/{name}'
+        rep.check(bool(cmd.summary), where, 'has no summary (D9)')
+        rep.check(cmd.group in GROUPS, where, f'unknown group {cmd.group!r}')
+        for c in cmd.contexts:
+            rep.check(c in CONTEXTS, where, f'unknown context {c!r}')
+        rep.check(bool(cmd.contexts), where, 'is legal nowhere')
+        if cmd.summary and not cmd.summary[0].isupper():
+            rep.warn(where, 'summary does not start with a capital')
+        if cmd.summary and not cmd.summary.endswith('.'):
+            rep.warn(where, 'summary does not end with a full stop')
+        if cmd.ticks and 'run' not in cmd.contexts:
+            rep.error(where, 'costs ticks but is not a run command')
+
+    # Both contexts need to be usable on their own.
+    for context in ('city', 'run'):
+        available = REGISTRY.in_context(context)
+        rep.check(len(available) >= 5, 'commands',
+                  f'only {len(available)} commands work in {context}')
+
+    # Every group that exists should have something in it.
+    for group in GROUPS:
+        if not [c for c in REGISTRY.commands.values() if c.group == group]:
+            rep.warn('commands', f'group {group!r} is empty')
+
+    # The run command table must price every verb it claims to price.
+    from flatline.commands.run import COST
+    for verb in COST:
+        head = verb.split()[0]
+        if REGISTRY.lookup(verb) is None and REGISTRY.lookup(head) is None:
+            rep.error('commands', f'COST prices {verb!r}, which is not a command')
+
+
+# --------------------------------------------------------------------------
+# presentation
+# --------------------------------------------------------------------------
+
+
+def check_theme(rep: Report) -> None:
+    for name, palette in theme.PALETTES.items():
+        for role in theme.ROLES:
+            colour = getattr(palette, role, None)
+            if colour is None:
+                rep.error(f'theme/{name}', f'missing role {role!r}')
+                continue
+            rep.check(colour.ansi in theme.ANSI16, f'theme/{name}/{role}',
+                      f'unknown ANSI name {colour.ansi!r}')
+            try:
+                int(colour.hex.lstrip('#'), 16)
+            except ValueError:
+                rep.error(f'theme/{name}/{role}', f'bad hex {colour.hex!r}')
+
+    # D16: the ASCII rung must actually be ASCII.
+    for name, (uni, ascii_form) in ui.GLYPHS.items():
+        if not ascii_form.isascii():
+            rep.error('ui/glyphs', f'{name!r} ASCII form is not ASCII: '
+                                   f'{ascii_form!r}')
+
+
+def check_markup(rep: Report) -> None:
+    """Every role named in content markup has to exist.
+
+    This is the check that stops `[acccent]` from silently rendering plain.
+    """
+    known = set(theme.ROLES) | ui.ATTRS
+    sources: list[tuple[str, str]] = []
+
+    def collect(where: str, text) -> None:
+        if isinstance(text, str):
+            sources.append((where, text))
+
+    for o in origins.ORIGINS:
+        for field in ('blurb', 'story', 'passive_detail', 'complication'):
+            collect(f'origins/{o.key}', getattr(o, field))
+    for w in cyberware.WARE:
+        collect(f'cyberware/{w.key}', w.blurb)
+        collect(f'cyberware/{w.key}', w.drawback)
+    for p in programs.PROGRAMS:
+        collect(f'programs/{p.key}', p.blurb)
+        collect(f'programs/{p.key}', p.note)
+    for i in ice_content.ICE:
+        collect(f'ice/{i.key}', i.blurb)
+        collect(f'ice/{i.key}', i.strike)
+        for tell in i.tells:
+            collect(f'ice/{i.key}/tell', tell)
+    for d in districts.DISTRICTS:
+        collect(f'districts/{d.key}', d.blurb)
+        collect(f'districts/{d.key}', d.arrival)
+    for f in factions.FACTIONS:
+        collect(f'factions/{f.key}', f.blurb)
+        collect(f'factions/{f.key}', f.doctrine)
+    for cmd in REGISTRY.commands.values():
+        collect(f'commands/{cmd.name}', cmd.summary)
+        collect(f'commands/{cmd.name}', cmd.detail)
+
+    for where, text in sources:
+        for span in ui.parse(text):
+            if span.role and span.role not in known:
+                rep.error('markup', f'{where}: unknown role {span.role!r}')
+
+    # Content is authored to fit the reading column at the ASCII rung.
+    caps = ui.Caps(color=ui.ColorLevel.NONE, glyphs=ui.GlyphLevel.ASCII,
+                   width=80, palette=theme.NEUTRAL)
+    for where, text in sources:
+        for line in ui.wrap(text, caps.text_width):
+            if ui.width(line) > caps.text_width:
+                rep.error('layout', f'{where}: a line exceeds '
+                                    f'{caps.text_width} columns after wrapping')
+
+
+# --------------------------------------------------------------------------
+# balance sanity
+# --------------------------------------------------------------------------
+
+
+def check_balance(rep: Report) -> None:
+    """Cheap invariants that catch a decimal point in the wrong place."""
+    for w in cyberware.WARE:
+        # Price should track what it costs you to wear.
+        weight = w.bandwidth * 900 + w.dissonance * 240
+        if w.price > weight * 4.5:
+            rep.warn(f'cyberware/{w.key}',
+                     f'{w.price}c looks steep for {w.bandwidth}bw/'
+                     f'{w.dissonance}dis')
+    for p in programs.PROGRAMS:
+        if p.memory > 4:
+            rep.warn(f'programs/{p.key}', f'{p.memory} memory is more than the '
+                                          f'smallest bank holds')
+    smallest = min(c.effects.get('memory', 0) for c in hardware.by_slot('memory'))
+    rep.check(smallest >= 3, 'hardware',
+              f'the smallest memory bank holds {smallest}, which cannot carry '
+              f'a working loadout')
+    # Attributes must produce sane derived values across their whole range.
+    for value in range(attr_content.ATTR_MIN, attr_content.ATTR_MAX + 1):
+        rep.check(attr_content.bandwidth(value) > 0, 'attributes',
+                  f'bandwidth({value}) is not positive')
+        rep.check(attr_content.integrity(value) > 0, 'attributes',
+                  f'integrity({value}) is not positive')
+        rep.check(1 <= attr_content.tempo(value) <= 3, 'attributes',
+                  f'tempo({value}) = {attr_content.tempo(value)} out of range')
+
+
+# --------------------------------------------------------------------------
+
+
+CHECKS = (
+    check_effects, check_cyberware, check_programs, check_hardware,
+    check_origins, check_skills, check_factions, check_districts,
+    check_ice, check_nodes, check_contracts, check_commands,
+    check_theme, check_markup, check_balance,
+)
+
+
+def main() -> int:
+    rep = Report()
+    for check in CHECKS:
+        check(rep)
+
+    for w in rep.warnings:
+        print(f'warning  {w}')
+    for e in rep.errors:
+        print(f'ERROR    {e}')
+
+    counts = (f'{len(rep.errors)} error{"s" if len(rep.errors) != 1 else ""}, '
+              f'{len(rep.warnings)} warning'
+              f'{"s" if len(rep.warnings) != 1 else ""}')
+    if rep.errors:
+        print(f'\nvalidate: {counts}')
+        return 1
+    print(f'validate: clean ({counts})')
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
