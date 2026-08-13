@@ -203,3 +203,87 @@ OUTCOME_LINES = {
         'commented.',
     ),
 }
+
+
+# --------------------------------------------------------------------------
+# the social layer
+# --------------------------------------------------------------------------
+
+#: What a rival will do for you, and what asking costs in disposition.
+#: Favours are deliberately cheaper than the market rate and deliberately
+#: finite: the resource being spent is a relationship, and it does not
+#: regenerate on its own.
+FAVOURS = {
+    'intel': (
+        18, 'Everything they know about your target.',
+        'Free legwork on the contract you have accepted, at their quality '
+        'rather than yours.'),
+    'loan': (
+        25, 'Money, on the understanding that it is a loan.',
+        'Credits now. They will mention it later, and the mentioning is the '
+        'interest.'),
+    'program': (
+        30, 'The loan of something off their deck.',
+        'A program from their library, yours until the character dies.'),
+    'cover': (
+        22, 'Somebody to say you were somewhere else.',
+        'Removes a chunk of heat with one faction. They are lying for you and '
+        'both of you know what that is worth.'),
+}
+
+#: How a rival reacts to being asked when they do not like you enough.
+REFUSALS = (
+    '"No." There is no second sentence and no visible reconsidering.',
+    'They look at you for slightly too long. "Ask somebody else."',
+    '"I do not think we are the kind of people who do each other favours."',
+    'The call ends. The number stops working about an hour later.',
+)
+
+#: Buyers pay for names. What they say when you sell one.
+SALE_LINES = (
+    'The handover takes six minutes in a car park and nobody uses a name.',
+    'You give them the pattern: where {name} works, when, and what they '
+    'render as. It is enough. It was always going to be enough.',
+    'They do not thank you and they do not look at you twice. The transfer '
+    'clears before you are out of the building.',
+)
+
+#: What the street says afterwards. Selling somebody is not a private act.
+SALE_FALLOUT = (
+    'Marrow is quiet about it, which is how you know it is not quiet at all.',
+    'Nobody says anything to your face. Two contacts stop returning calls.',
+    'Somebody has written a single word on the door of the place you drink. '
+    'It is not clever and it is not wrong.',
+)
+
+#: What happens to the person you sold.
+SALE_OUTCOMES = {
+    'taken': (
+        '{name} was picked up four shifts later. Nobody has seen them since.',
+        '{buyer} took {name} off a street in daylight. It was very quick and '
+        'very public and that was clearly the point.'),
+    'killed': (
+        '{name} did not survive being found. {buyer} are not commenting and '
+        'do not need to.',
+        'They found {name} first and there was no arrest to report.'),
+    'escaped': (
+        '{name} got out ahead of it. They know it was somebody. Given time '
+        'they will work out it was you.',
+        '{buyer} moved on {name} and came up empty. Somebody warned them. It '
+        'was not you, which is going to be difficult to prove.'),
+}
+
+#: What an ally does that is worth paying for, by style.
+ALLY_SPECIALTY = {
+    'loud': ('breaks things', 'Adds their skill to your intrusion checks '
+             'while they are standing with you, and makes a great deal of '
+             'noise doing it.'),
+    'quiet': ('goes unseen', 'Reduces the noise of everything you do on the '
+              'node they are standing on.'),
+    'social': ('talks', 'Adds their skill to pretext and forgery, and can '
+               'talk a warden into a delay once per run.'),
+    'chrome': ('takes the hit', 'Intercepts countermeasure strikes aimed at '
+               'you, at real cost to themselves.'),
+    'careful': ('sees it coming', 'ICE tells arrive a tick earlier and traps '
+                'are called out before you step on them.'),
+}

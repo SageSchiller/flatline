@@ -67,6 +67,8 @@ class City:
     board: list = field(default_factory=list)
     #: The contract currently accepted, if any.
     accepted: str = ''
+    #: A rival paid to run alongside you on the next job.
+    hired: str = ''
     next_cid: int = 1
     #: district -> listings, and the shift they were rolled.
     stock: dict = field(default_factory=dict)
@@ -157,7 +159,8 @@ class City:
             self.rivals = rival_mod.seed_pool()
         taken, told = rival_mod.take_turn(
             rng('rivals'), self.rivals, self.board, self.posture, self.shift,
-            protected=self.accepted)
+            protected=self.accepted,
+            busy={self.hired} if self.hired else None)
         if taken:
             gone = {c.cid for c in taken}
             self.board = [c for c in self.board if c.cid not in gone]
@@ -346,7 +349,8 @@ class City:
             'posture': {k: round(v, 2) for k, v in self.posture.items()},
             'bounties': dict(self.bounties),
             'board': [c.to_dict() for c in self.board],
-            'accepted': self.accepted, 'next_cid': self.next_cid,
+            'accepted': self.accepted, 'hired': self.hired,
+            'next_cid': self.next_cid,
             'stock': {k: [l.to_dict() for l in v] for k, v in self.stock.items()},
             'stock_shift': self.stock_shift,
             'pending': [p.to_dict() for p in self.pending],
@@ -363,6 +367,7 @@ class City:
             bounties={k: int(v) for k, v in (d.get('bounties') or {}).items()},
             board=[Contract.from_dict(c) for c in (d.get('board') or [])],
             accepted=d.get('accepted', ''),
+            hired=d.get('hired', ''),
             next_cid=int(d.get('next_cid', 1)),
             stock={k: [Listing.from_dict(l) for l in v]
                    for k, v in (d.get('stock') or {}).items()},

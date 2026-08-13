@@ -257,6 +257,46 @@ def check_rivals(rep: Report) -> None:
                   f'no outcome lines for {outcome!r}')
     rep.check(bool(rival_content.TAKEN_LINES), 'rivals', 'no taken lines')
 
+    # -- the social layer ---------------------------------------------
+    from flatline.world import rivals as rival_world
+
+    for style in rival_content.STYLES:
+        rep.check(style in rival_content.ALLY_SPECIALTY, 'rivals',
+                  f'style {style!r} has no ally specialty, so hiring one does '
+                  f'nothing')
+    for style, pair in rival_content.ALLY_SPECIALTY.items():
+        rep.check(style in rival_content.STYLES, 'rivals',
+                  f'ally specialty for unknown style {style!r}')
+        rep.check(len(pair) == 2 and all(pair), f'rivals/{style}',
+                  'ally specialty is incomplete')
+
+    ceiling = rival_content.DISPOSITION_BANDS[-1][0]
+    for kind, entry in rival_content.FAVOURS.items():
+        where = f'rivals/favour/{kind}'
+        rep.check(len(entry) == 3 and all(entry), where, 'favour is incomplete')
+        cost = entry[0]
+        rep.check(0 < cost <= 100, where, f'cost {cost} out of range')
+        # A favour nobody can ever reach is content that does not exist.
+        rep.check(cost <= ceiling + 20, where,
+                  f'costs {cost}, which is past anything reachable')
+
+    for outcome in ('taken', 'killed', 'escaped'):
+        rep.check(outcome in rival_content.SALE_OUTCOMES, 'rivals',
+                  f'no sale outcome lines for {outcome!r}')
+    for name in ('SALE_LINES', 'SALE_FALLOUT', 'REFUSALS'):
+        rep.check(bool(getattr(rival_content, name)), 'rivals',
+                  f'{name} is empty')
+
+    # Hiring must be affordable relative to what a contract pays, or the
+    # whole social layer is decoration for a build nobody has yet.
+    for r in rival_content.RIVALS:
+        stub = rival_world.Rival(key=r.key, disposition=r.disposition)
+        price = rival_world.hire_price(stub)
+        rep.check(price > 0, f'rivals/{r.key}', 'hire price is not positive')
+        if price > 6000:
+            rep.warn(f'rivals/{r.key}',
+                     f'hire price {price:,}c is more than an early contract pays')
+
 
 def check_cyberspace(rep: Report) -> None:
     """Every faction has to look like something, or the run reads as a scan."""

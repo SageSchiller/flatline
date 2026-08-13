@@ -229,6 +229,38 @@ been caught twice is playing a different, worse, more interesting character than
 the one they built. The only thing that ends a character is black ICE, where
 they can see it coming.
 
+### D21: Relationships are a resource, and spending one is permanent
+
+Rivals stopped being scenery in Phase 4 and became a system in Phase 5. Three
+verbs, and the shape of all three is the same: you are spending something that
+does not grow back on its own.
+
+**`hire`** puts one of them in the network beside you. What they are worth is
+entirely their style: a chromed runner steps into strikes aimed at you, a quiet
+one keeps the room quiet, a loud one adds their skill to everything you break,
+a careful one calls out traps before you step on them. They take a fee up front
+and a quarter of the haul, and they can die in there, and if they do the whole
+street knows whose job it was.
+
+**`ask`** calls in a favour: intel, money, a program off their deck, or somebody
+to say you were elsewhere. Favours are priced in disposition rather than
+credits, and asking spends it. That makes the social layer genuinely finite,
+which is the only thing that stops it becoming a second wallet.
+
+**`betray`** sells a name to a faction that wants it. It is the most lucrative
+single action in the game and the most expensive: the person you sold usually
+does not survive being found, every other runner in the city thinks less of you
+permanently, and none of it can be undone. It has its own verb rather than
+being a mode of `sell` because selling a program and selling a person are not
+the same act and should not read as one.
+
+**The loop closes through `escort`.** Nobody starts liking you enough for a
+favour. The way up is to take an escort contract and keep somebody alive
+through it, which is worth more disposition than anything else in the game. So
+the objective that seemed like the odd one out turns out to be the engine: it
+is where relationships are made, and relationships are what make hiring cheap
+and favours possible.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -495,3 +527,15 @@ Added **D20** in two halves. Rivals act on the shift tick and the world hardens 
 Two smaller things the harness forced. Rivals initially stripped the board faster than a player could read it, roughly 1.5 contracts a shift against a five-slot board; capped now. And `disposition_band` labelled +15 as "cold", because the band boundaries had drifted off zero, which `validate.py` now asserts directly.
 
 **Schema 2 exists, and the migration is real.** D7 promised forward migrations and nothing had ever proved one. A schema-1 save now opens, gains a runner pool, an icon, and a bounty ledger, and round-trips cleanly. `test.py` proves it by forging a v1 save and loading it.
+
+### 2026-08-13 (b): Phase 5, the social layer
+
+Rivals became a system you act on rather than a feed you read. `hire`, `ask`, and `betray`, plus the ally mechanics that make a hired runner worth their fee: style decides what they are for, and a chromed one will physically step into a strike aimed at you.
+
+**The design problem this solved.** Phase 4 shipped rivals whose disposition only ever went *down*, and favours priced above anything reachable. The fix was not to lower the prices, it was to notice that `escort` was already the answer: the objective where you spend a night keeping somebody alive is exactly where a relationship should come from. Escort now pays 18 disposition on a clean run and costs you dearly when they die, which turns the odd-one-out objective into the engine of the whole social layer.
+
+**One bug that only shows up in play.** A runner you had hired was still eligible for the shift-tick rival turn, so between paying their fee and jacking in they could be sent off on somebody else's contract and killed, taking the fee with them. `city.hired` now marks them busy and is deliberately held through the run rather than cleared at the door.
+
+**One design call worth recording.** `betray` is its own verb rather than an overload of `sell`. The command registry refused the duplicate, which was the right refusal for the wrong reason: selling a program and selling a person should not share a word.
+
+`validate.py` clean, `test.py` green at **4987 checks**.

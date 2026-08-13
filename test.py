@@ -931,6 +931,133 @@ def test_rivals() -> None:
     save_mod.delete('rivals')
 
 
+def test_social() -> None:
+    T.section('social')
+    from flatline.content import rivals as rival_content
+    from flatline.world import rivals as rival_world
+
+    game = Game.new(Character.from_origin('protege', 'x'), seed=11)
+    moth = game.city.rival('moth')
+    ledger = game.city.rival('ledger')
+
+    # Hiring is priced on skill, discounted by liking you.
+    T.ok(rival_world.hire_price(ledger) > rival_world.hire_price(moth),
+         'the better runner costs more')
+    cold = rival_world.Rival(key='moth', disposition=-20)
+    warm = rival_world.Rival(key='moth', disposition=60)
+    T.ok(rival_world.hire_price(warm) < rival_world.hire_price(cold),
+         'liking you is a discount')
+
+    # And gated on disposition, not just money.
+    hostile = rival_world.Rival(key='hound', disposition=-80)
+    ok, why = rival_world.can_hire(hostile)
+    T.ok(not ok, 'somebody who hates you will not work with you')
+    dead = rival_world.Rival(key='moth', disposition=90, alive=False)
+    ok, _ = rival_world.can_hire(dead)
+    T.ok(not ok, 'the dead do not take contracts')
+
+    # A hired runner must not be sent off on somebody else's job while they
+    # are on your books. This is the bug that only shows up in play.
+    game.city.hired = 'moth'
+    before = moth.jobs
+    for _ in range(25):
+        game.city.advance(game.rng, game.alias, 1)
+    T.eq(moth.jobs, before, 'a hired runner takes no other work')
+    T.ok(moth.alive, 'and cannot die on a job you did not send them on')
+    T.ok(sum(r.jobs for r in game.city.rivals if r.key != 'moth') > 0,
+         'while everybody else keeps working')
+    game.city.hired = ''
+
+    # Only somebody with enemies is worth selling.
+    clean = rival_world.Rival(key='moth', rep={})
+    T.eq(rival_world.bounty_buyers(clean), [],
+         'nobody pays for a name that has not cost them anything')
+    marked = rival_world.Rival(key='hound', rep={'nightwatch': -60})
+    buyers = rival_world.bounty_buyers(marked)
+    T.ok(buyers, 'a runner with enemies has a price')
+    T.ok(all(v > 0 for _, v in buyers), 'and the price is positive')
+
+    # Selling is permanent and wide.
+    game2 = Game.new(Character.from_origin('gutter', 'x'), seed=33)
+    target = game2.city.rival('hound')
+    target.rep['nightwatch'] = -60
+    others = {r.key: r.disposition for r in game2.city.rivals
+              if r.key != 'hound'}
+    rep_before = game2.alias.reputation('nightwatch')
+    result = rival_world.sell_out(Rng(2)('events'), target, 'nightwatch',
+                                  game2.city.rivals, game2.alias,
+                                  game2.city.shift)
+    T.ok(result['price'] > 0, 'selling pays')
+    T.ok(result['outcome'] in ('taken', 'killed', 'escaped'),
+         'the sale has a declared outcome')
+    T.ok(target.disposition <= -100 + 1, 'the person you sold never forgives it')
+    T.ok(game2.alias.reputation('nightwatch') > rep_before,
+         'the buyer thinks better of you')
+    cooled = [k for k, v in others.items()
+              if game2.city.rival(k).disposition < v]
+    T.eq(len(cooled), len(others),
+         'every other runner in the city thinks less of you')
+
+    # Favours are gated on disposition and cost the relationship.
+    for kind in rival_content.FAVOURS:
+        low = rival_world.Rival(key='moth', disposition=-100)
+        ok, _ = rival_world.can_ask(low, kind)
+        T.ok(not ok, f'{kind} is refused by somebody who dislikes you')
+        high = rival_world.Rival(key='moth', disposition=100)
+        ok, _ = rival_world.can_ask(high, kind)
+        T.ok(ok, f'{kind} is granted by somebody who owes you')
+    ok, _ = rival_world.can_ask(rival_world.Rival(key='moth', disposition=100),
+                                'nonsense')
+    T.ok(not ok, 'an unknown favour is refused')
+
+    # An ally is only worth what their style says, and only next to you.
+    net = net_mod.generate(Rng(5).fork('network', 'ally'), 'sixes', 30)
+    char = Character.from_origin('gutter', 'x')
+    console = quiet_console()
+    console.start_capture()
+    state = RunState.begin(net, char, Rng(5)('combat'), console)
+    T.eq(state.ally_bonus('crack'), 0, 'no ally is no bonus')
+    state.ally = {'key': 'moth', 'name': 'Moth', 'node': state.here,
+                  'integrity': 20, 'state': 'with you', 'skill': 6,
+                  'style': 'loud', 'cut': 0.25}
+    T.ok(state.ally_bonus('crack') > 0, 'a loud ally helps you break things')
+    T.eq(state.ally_bonus('social'), 0, 'but not with talking')
+    state.ally['style'] = 'social'
+    T.ok(state.ally_bonus('social') > 0, 'a social ally helps you talk')
+    T.eq(state.ally_bonus('crack'), 0, 'but not with breaking')
+    state.ally['node'] = '__elsewhere__'
+    state.ally['style'] = 'loud'
+    T.eq(state.ally_bonus('crack'), 0, 'and only while standing with you')
+
+    # They can die, and the player survives it.
+    state.ally['node'] = state.here
+    state.hurt_ally(999)
+    T.eq(state.ally['state'], 'dead', 'enough damage kills an ally')
+    T.ok(state.running, 'the player survives their ally dying')
+    T.eq(state.ally_bonus('crack'), 0, 'a dead ally is worth nothing')
+
+    # An ally closes the distance to you on its own.
+    state2 = RunState.begin(net, char, Rng(6)('combat'), console)
+    far = [n for n in net.nodes if n != state2.here]
+    if far:
+        state2.ally = {'key': 'moth', 'name': 'Moth', 'node': far[-1],
+                       'integrity': 20, 'state': 'with you', 'skill': 6,
+                       'style': 'quiet', 'cut': 0.25}
+        for _ in range(30):
+            state2._ally_tick()
+            if state2.ally['node'] == state2.here:
+                break
+        T.eq(state2.ally['node'], state2.here, 'an ally catches up with you')
+    console.end_capture()
+
+    # The hire survives a save, or paying up front means nothing.
+    game.city.hired = 'ledger'
+    game.save('social')
+    back = Game.load('social')
+    T.eq(back.city.hired, 'ledger', 'a paid-for hire survives a save')
+    save_mod.delete('social')
+
+
 def test_objectives() -> None:
     T.section('objectives')
     from flatline.world.contracts import OBJECTIVES
@@ -1118,7 +1245,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_objectives, test_fallout, test_migration, test_shell,
+    test_social, test_objectives, test_fallout, test_migration, test_shell,
     test_playthrough, test_ui,
 )
 

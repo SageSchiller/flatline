@@ -18,6 +18,7 @@ from ..model.identity import ALIAS_COST, ALIAS_SHIFTS
 from ..rng import random_seed
 from ..shell import CommandError, command
 from ..world import fallout
+from ..world import rivals as rival_world
 from ..world import market as market_mod
 
 
@@ -1077,3 +1078,268 @@ def cmd_who(sess, args) -> None:
             roles=('accent', 'dim', 'dim', None))
     c.blank()
     c.say('[dim]`who <name>` for detail.[/]')
+
+
+@command('hire', 'Pay a runner to come in with you.',
+         group='prep', usage='hire [name] [--confirm]',
+         detail='An ally runs alongside you on your next job. What they are '
+                'worth depends entirely on their style: a chromed one steps '
+                'into strikes aimed at you, a quiet one keeps the room quiet, '
+                'a loud one adds their skill to everything you break. They '
+                'take a fee up front and a quarter of the haul, and they can '
+                'die in there.')
+def cmd_hire(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    if sess.run is not None:
+        raise CommandError('you are already inside.')
+    pool = game.city.rivals
+
+    if not len(args):
+        if game.city.hired:
+            who = game.city.rival(game.city.hired)
+            c.ok(f'{who.name} is already on the next job.')
+            c.say('[dim]`hire --cancel` to call it off. The fee does not '
+                  'come back.[/]')
+            return
+        c.header('For hire', f'{game.char.credits:,}c')
+        rows = []
+        for rival in pool:
+            ok, why = rival_world.can_hire(rival)
+            style, _ = rival_content.ALLY_SPECIALTY[rival.data.style]
+            price = rival_world.hire_price(rival)
+            rows.append((rival.data.handle, rival.data.style, style,
+                         f'{price:,}c' if ok else '[err]no[/]'))
+        c.table(('who', 'style', 'what you get', 'fee'), rows,
+                roles=('accent', 'dim', 'dim', 'credit'))
+        c.blank()
+        c.say(f'[dim]They also take {int(rival_world.HIRE_CUT * 100)}% of the '
+              f'haul. `hire <name> --confirm`.[/]')
+        return
+
+    if args.has('cancel'):
+        game.city.hired = ''
+        c.ok('Called off.')
+        return
+
+    query = args.rest().replace('--confirm', '').strip().lower()
+    rival = next((r for r in pool
+                  if query in r.name.lower() or query == r.key
+                  or query == r.data.handle.lower()), None)
+    if rival is None:
+        raise CommandError(f'nobody called {query!r}')
+
+    ok, why = rival_world.can_hire(rival)
+    if not ok:
+        raise CommandError(why)
+    price = rival_world.hire_price(rival)
+    style, detail = rival_content.ALLY_SPECIALTY[rival.data.style]
+
+    if not args.has('confirm'):
+        c.header(rival.name, f'{price:,}c up front')
+        c.say(f'[dim]{rival.data.manner}[/]')
+        c.blank()
+        c.kv([('style', f'{rival.data.style}, {style}'),
+              ('what that means', detail),
+              ('their cut', f'{int(rival_world.HIRE_CUT * 100)}% of the haul'),
+              ('how they feel', f'{rival.disposition:+d} {rival.band}')])
+        c.blank()
+        c.say(f'[dim]`hire {rival.data.handle.lower()} --confirm`.[/]')
+        return
+
+    if price > game.char.credits:
+        raise CommandError(f'{rival.name} wants {price:,}c and you have '
+                           f'{game.char.credits:,}c')
+    game.char.credits -= price
+    game.city.hired = rival.key
+    rival.adjust_disposition(4)
+    c.ok(f'{rival.name} is in. [credit]{price:,}c[/] gone, and a '
+         f'{int(rival_world.HIRE_CUT * 100)}% cut of whatever you carry out.')
+
+
+@command('ask', 'Call in a favour.',
+         group='prep', usage='ask [name] [favour]',
+         detail='Favours are cheaper than the market and they are finite. '
+                'What you are spending is a relationship, and it does not '
+                'grow back on its own.')
+def cmd_ask(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    pool = game.city.rivals
+
+    if len(args) < 2:
+        c.header('Favours', 'what people will do, and what it costs them')
+        rows = []
+        for kind, (cost, blurb, detail) in rival_content.FAVOURS.items():
+            rows.append((kind, str(cost), blurb))
+        c.table(('favour', 'needs', 'what it is'), rows,
+                roles=('accent', 'warn', 'dim'))
+        c.blank()
+        c.say('[dim]`needs` is the disposition they have to be at. '
+              '`ask <name> <favour>`.[/]')
+        c.blank()
+        rows = [(r.data.handle, f'{r.disposition:+d}', r.band)
+                for r in pool if r.alive]
+        c.table(('who', 'disposition', ''), rows,
+                roles=('accent', None, 'dim'))
+        return
+
+    query = args[0].lower()
+    rival = next((r for r in pool
+                  if query in r.name.lower() or query == r.key
+                  or query == r.data.handle.lower()), None)
+    if rival is None:
+        raise CommandError(f'nobody called {query!r}')
+
+    kind = args[1].lower()
+    matches = [k for k in rival_content.FAVOURS if k.startswith(kind)]
+    if len(matches) != 1:
+        raise CommandError('which favour: '
+                           + ', '.join(rival_content.FAVOURS))
+    kind = matches[0]
+
+    ok, why = rival_world.can_ask(rival, kind)
+    if not ok:
+        c.blank()
+        c.say(f'[err]{game.rng("events").pick(rival_content.REFUSALS)}[/]')
+        c.blank()
+        c.say(f'[dim]{why}[/]')
+        return
+
+    rival.adjust_disposition(-rival_world.favour_cost(kind))
+    _grant_favour(sess, rival, kind)
+
+
+def _grant_favour(sess, rival, kind: str) -> None:
+    game, c = sess.game, sess.console
+    stream = game.rng('events')
+
+    if kind == 'intel':
+        contract = game.city.current
+        if contract is None:
+            raise CommandError('take a contract first: intel is about a target.')
+        net_stream = game.rng.fork('network', contract.cid)
+        from ..run import network as net_mod
+        net = net_mod.generate(net_stream, contract.target,
+                               int(contract.posture), contract.objective,
+                               contract.size_mod)
+        for gives in ('topology', 'ice'):
+            if gives not in contract.intel:
+                contract.intel[gives] = _legwork_result(
+                    net, gives, rival.data.skill // 3, game)
+        c.ok(f'{rival.name} sends over everything they have on '
+             f'{contract.target_data.short}.')
+        for value in contract.intel.values():
+            c.say(f'[dim]{value}[/]')
+        return
+
+    if kind == 'loan':
+        amount = 800 + rival.data.skill * 350
+        game.char.credits += amount
+        c.ok(f'[credit]{amount:,}c[/] from {rival.name}, on the '
+             f'understanding that it is a loan.')
+        c.say('[dim]They will mention it later. The mentioning is the '
+              'interest.[/]')
+        return
+
+    if kind == 'program':
+        owned = set(game.char.library) | set(game.char.deck.loaded)
+        pool = [p for p in programs.PROGRAMS
+                if p.tier <= 2 and p.key not in owned]
+        if not pool:
+            raise CommandError(f'{rival.name} has nothing you do not.')
+        pick = stream.pick(pool)
+        game.char.library.append(pick.key)
+        c.ok(f'{rival.name} drops you a copy of {pick.name}.')
+        c.say(f'[dim]{pick.blurb}[/]')
+        return
+
+    if kind == 'cover':
+        hot, heat = game.alias.hottest
+        if not hot:
+            raise CommandError('nobody is looking for you. Save it.')
+        game.alias.add_heat(hot, -min(30, heat))
+        c.ok(f'{rival.name} puts you somewhere else on the night in '
+             f'question. [dim]{factions.BY_KEY[hot].short} heat down to '
+             f'{game.alias.attention(hot)}.[/]')
+        c.say('[dim]They are lying for you and you both know what that is '
+              'worth.[/]')
+        return
+
+
+@command('betray', 'Sell a runner\'s name to somebody who wants it.',
+         group='prep', usage='betray <name> [buyer] [--confirm]',
+         aliases=('sellout',),
+         detail='The most lucrative thing in the game and the most expensive. '
+                'Everybody who worked with them cools on you, permanently, and '
+                'there is a real chance the person you sold does not survive '
+                'being found. Nothing about this is reversible.')
+def cmd_sell_out(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    if not len(args):
+        raise CommandError('betray whom? `who` for the list.')
+
+    query = args[0].lower()
+    rival = next((r for r in game.city.rivals
+                  if query in r.name.lower() or query == r.key
+                  or query == r.data.handle.lower()), None)
+    if rival is None:
+        raise CommandError(f'nobody called {query!r}. `who` for the list, '
+                           f'and `sell` if you meant a program.')
+    if not rival.alive:
+        raise CommandError(f'{rival.name} is already dead. Nobody is paying.')
+
+    buyers = rival_world.bounty_buyers(rival)
+    if not buyers:
+        raise CommandError(f'nobody wants {rival.name} badly enough to pay '
+                           f'for them. They have not annoyed the right people '
+                           f'yet.')
+
+    buyer_key = args.get(1, '').lower() if len(args) > 1 else ''
+    buyer_key = '' if buyer_key.startswith('--') else buyer_key
+    if not buyer_key:
+        c.header(f'Buyers for {rival.name}', f'{len(buyers)} interested')
+        c.table(('buyer', 'pays'),
+                [(factions.BY_KEY[k].name, f'{v:,}c') for k, v in buyers],
+                roles=('accent', 'credit'))
+        c.blank()
+        c.say(f'[dim]`betray {rival.data.handle.lower()} <buyer> '
+              f'--confirm`.[/]')
+        return
+
+    match = next((k for k, _ in buyers if k.startswith(buyer_key)), None)
+    if match is None:
+        raise CommandError(f'{buyer_key!r} is not buying. Interested: '
+                           + ', '.join(k for k, _ in buyers))
+    price = dict(buyers)[match]
+
+    if not args.has('confirm'):
+        c.blank()
+        c.warn(f'Selling {rival.name} to {factions.BY_KEY[match].name} for '
+               f'{price:,}c.')
+        c.say('[dim]This is permanent. Every runner who works with them will '
+              'think less of you, and there is a good chance they do not '
+              'survive it.[/]')
+        c.blank()
+        c.say(f'[dim]`betray {rival.data.handle.lower()} {match} '
+              f'--confirm`.[/]')
+        return
+
+    result = rival_world.sell_out(game.rng('events'), rival, match,
+                                  game.city.rivals, game.alias,
+                                  game.city.shift)
+    game.char.credits += result['price']
+    game.earned += result['price']
+
+    stream = game.rng('events')
+    c.blank()
+    c.rule('sold', role='err')
+    c.say(f'[dim]{stream.pick(rival_content.SALE_LINES).format(name=rival.name)}[/]')
+    c.blank()
+    c.say(f'[credit]{result["price"]:,}c[/].')
+    c.blank()
+    line = stream.pick(rival_content.SALE_OUTCOMES[result['outcome']])
+    c.say(f'[err]{line.format(name=rival.name, buyer=factions.BY_KEY[match].short)}[/]')
+    c.blank()
+    c.say(f'[dim]{stream.pick(rival_content.SALE_FALLOUT)}[/]')
+    game.city.news.append(f'You sold {rival.name} to '
+                          f'{factions.BY_KEY[match].short}.')
+    sess.autosave()

@@ -98,12 +98,18 @@ def seed_pool() -> list[Rival]:
 
 
 def take_turn(rng: Stream, pool: list[Rival], board: list, posture: dict,
-              shift: int, protected: str = '') -> tuple[list, list[str]]:
+              shift: int, protected: str = '',
+              busy: set | None = None) -> tuple[list, list[str]]:
     """Let the rivals work. Returns (contracts they took, what to tell you).
 
     `protected` is the contract the player has accepted. Nobody takes that one
     out from under them: losing an accepted job to an NPC would be a rug-pull
     rather than a consequence, and the player cannot even see it coming.
+
+    `busy` is anybody already working for the player. Without it a runner you
+    have hired can be sent off on somebody else's contract on the same shift
+    they are standing next to you in a network, and can die on it, which is
+    exactly the sort of bug that only shows up in play.
     """
     told: list[str] = []
     taken: list = []
@@ -113,7 +119,9 @@ def take_turn(rng: Stream, pool: list[Rival], board: list, posture: dict,
             break
         if len(board) - len(taken) <= BOARD_FLOOR:
             break
-        if not rival.alive or not rng.chance(ACTIVITY):
+        if not rival.alive or rival.key in (busy or ()):
+            continue
+        if not rng.chance(ACTIVITY):
             continue
         options = [c for c in board
                    if c.cid != protected
@@ -230,3 +238,115 @@ def pick_escort(rng: Stream, pool: list[Rival], patron: str) -> Rival | None:
                for r in options}
     key = rng.weighted(weights)
     return next(r for r in options if r.key == key)
+
+
+# --------------------------------------------------------------------------
+# the social layer
+# --------------------------------------------------------------------------
+
+#: Disposition below which nobody does anything for you at any price.
+HIRE_FLOOR = -25
+#: Base fee, scaled by skill. They also take a cut of the haul.
+HIRE_BASE = 900
+#: Share of the run's haul value an ally takes.
+HIRE_CUT = 0.25
+
+
+def hire_price(rival: Rival) -> int:
+    """What they want up front. Liking you is a discount, not a waiver."""
+    base = HIRE_BASE + rival.data.skill * 420
+    return max(300, int(base * (1.0 - rival.disposition / 300.0)))
+
+
+def can_hire(rival: Rival) -> tuple[bool, str]:
+    if not rival.alive:
+        return False, f'{rival.name} is dead.'
+    if rival.disposition < HIRE_FLOOR:
+        return False, (f'{rival.name} does not work with you and is not '
+                       f'interested in discussing it.')
+    return True, ''
+
+
+def bounty_buyers(rival: Rival) -> list[tuple[str, int]]:
+    """Who would pay for this name, and roughly what for.
+
+    A faction pays for a runner in proportion to how much that runner has
+    cost them. That means selling somebody is only lucrative once they have
+    done something, which in turn means the most valuable name to sell is
+    usually the most useful person to know.
+    """
+    out: list[tuple[str, int]] = []
+    for key, fac in factions.BY_KEY.items():
+        standing = rival.reputation(key)
+        if standing >= -10:
+            continue
+        value = int(abs(standing) * 45 + rival.data.skill * 260)
+        out.append((key, value))
+    return sorted(out, key=lambda pair: -pair[1])
+
+
+def sell_out(rng: Stream, rival: Rival, buyer: str, pool: list[Rival],
+             alias, shift: int) -> dict:
+    """Sell a name. Returns what happened, for the caller to narrate.
+
+    The consequences are deliberately wide. The rival's disposition floors,
+    everybody who works with them cools on you, the buyer warms to you, and
+    there is a real chance the person you sold does not survive it. None of
+    that is reversible.
+    """
+    price = dict(bounty_buyers(rival)).get(buyer, 0)
+    fac = factions.BY_KEY[buyer]
+
+    # How it goes for them, weighted by how good they are at not being found.
+    escape = 0.15 + rival.data.skill * 0.045
+    if rival.data.style == 'quiet':
+        escape += 0.2
+    if rng.chance(min(0.75, escape)):
+        outcome = 'escaped'
+    elif rng.chance(0.35 if fac.kind == 'law' else 0.6):
+        outcome = 'killed'
+    else:
+        outcome = 'taken'
+
+    rival.adjust_disposition(-200)
+    if outcome == 'killed':
+        rival.alive = False
+        rival.died = shift
+    elif outcome == 'taken':
+        rival.alive = False
+        rival.died = shift
+
+    # The street is small. Anybody who liked them likes you less.
+    for other in pool:
+        if other.key == rival.key or not other.alive:
+            continue
+        shared = sum(1 for f in factions.FACTION_KEYS
+                     if other.reputation(f) > 20 and rival.reputation(f) > 20)
+        other.adjust_disposition(-8 - shared * 4)
+
+    alias.adjust_rep(buyer, 12)
+    for enemy in factions.FACTION_KEYS:
+        if factions.relation(buyer, enemy) < -0.4:
+            alias.adjust_rep(enemy, -4)
+
+    return {'price': price, 'outcome': outcome, 'buyer': buyer,
+            'rival': rival.key}
+
+
+def favour_cost(kind: str) -> int:
+    from ..content.rivals import FAVOURS
+    return FAVOURS[kind][0]
+
+
+def can_ask(rival: Rival, kind: str) -> tuple[bool, str]:
+    from ..content.rivals import FAVOURS
+    if kind not in FAVOURS:
+        return False, f'no such favour: {kind}'
+    if not rival.alive:
+        return False, f'{rival.name} is dead.'
+    cost = favour_cost(kind)
+    if rival.disposition < cost:
+        return False, (f'{rival.name} is not going to do that for you. '
+                       f'That favour needs them at {cost} and they are at '
+                       f'{rival.disposition}.')
+    return True, ''

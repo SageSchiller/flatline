@@ -97,6 +97,23 @@ def cmd_jack_in(sess, args) -> None:
                 'panic': (game.rng('rivals').pick(data.panic)
                           if data.panic else ''),
             }
+    # A hired runner comes in with you and takes their cut on the way out.
+    if game.city.hired:
+        who = game.city.rival(game.city.hired)
+        if who is not None and who.alive:
+            from ..world import rivals as rival_world
+            data = who.data
+            state.ally = {
+                'key': who.key, 'name': data.name, 'node': net.entry,
+                'integrity': 12 + data.skill * 2, 'state': 'with you',
+                'skill': data.skill, 'style': data.style,
+                'cut': rival_world.HIRE_CUT,
+            }
+        # Deliberately NOT cleared here. `city.hired` is what keeps them out
+        # of the shift-tick rival turn, so it has to survive until the run
+        # resolves or they can be sent off to die on somebody else's job while
+        # standing next to you.
+
     sess.run = state
 
     c.blank()
@@ -122,6 +139,12 @@ def cmd_jack_in(sess, args) -> None:
         for node in net.nodes.values():
             if node.data:
                 node.known = True
+    if state.ally:
+        from ..content import rivals as rival_content
+        style, detail = rival_content.ALLY_SPECIALTY[state.ally['style']]
+        c.blank()
+        c.say(f'[ok]{state.ally["name"]} comes up beside you and says '
+              f'nothing.[/] [dim]{detail}[/]')
     if state.escort:
         c.blank()
         c.say(f'[info]{state.escort["name"]} comes up on the same entry node '
@@ -223,11 +246,60 @@ def _resolve(sess) -> None:
     # Selling the haul is a city action, but crediting it here keeps the run
     # readable: what you carried out is worth what it is worth.
     extra = sum(v for v in [summary['haul_value']] if v)
+    ally = summary.get('ally')
     if extra:
         take = int(extra * 0.5)
+        if ally and ally['state'] != 'dead':
+            cut = int(take * ally['cut'])
+            take -= cut
+            c.say(f'[dim]{ally["name"]} takes {cut:,}c off the top, counts it '
+                  f'once, and leaves.[/]')
         game.char.credits += take
         game.earned += take
         c.say(f'[credit]{take:,}c[/] for the rest of the haul.')
+
+    # An escort job is the game's relationship engine: you spent a night
+    # keeping somebody alive, or you did not, and either way they remember.
+    # Without this there is no route up from a cold start to a favour.
+    escort = summary.get('escort')
+    if escort:
+        who = game.city.rival(escort['key'])
+        if who is not None:
+            if escort['state'] == 'dead':
+                who.alive = False
+                who.died = game.city.shift
+                for other in game.city.rivals:
+                    if other.key != who.key and other.alive:
+                        other.adjust_disposition(-10)
+                c.blank()
+                c.say('[err]Everybody is going to hear whose job that was.[/]')
+                game.city.news.append(f'{escort["name"]} died on your watch.')
+            elif escort['done']:
+                who.adjust_disposition(18)
+                c.say(f'[ok]{escort["name"]} got out with what they went in '
+                      f'for, and knows who covered them.[/]')
+            else:
+                who.adjust_disposition(-6)
+                c.say(f'[warn]{escort["name"]} came out with nothing. They '
+                      f'are not blaming you out loud.[/]')
+
+    game.city.hired = ''
+    if ally:
+        who = game.city.rival(ally['key'])
+        if who is not None:
+            if ally['state'] == 'dead':
+                who.alive = False
+                who.died = game.city.shift
+                c.blank()
+                c.say(f'[err]You are going to have to tell somebody about '
+                      f'{ally["name"]}.[/]')
+                # The street knows who they went in with.
+                for other in game.city.rivals:
+                    if other.key != who.key and other.alive:
+                        other.adjust_disposition(-6)
+                game.city.news.append(f'{ally["name"]} died on a job with you.')
+            else:
+                who.adjust_disposition(6 if summary.get('objective') else 2)
 
     if 'creeping_dissonance' in game.char.riders():
         game.char.dissonance += 1

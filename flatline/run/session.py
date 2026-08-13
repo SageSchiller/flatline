@@ -106,6 +106,10 @@ class RunState:
     #: {key, name, node, integrity, state, done}. Their noise is not your
     #: decision, which is the entire design of the objective.
     escort: dict | None = None
+    #: A rival you paid to run alongside you, as
+    #: {key, name, node, integrity, state, skill, style, cut}. The mirror of
+    #: `escort`: this one is here to help, and takes a share of the haul.
+    ally: dict | None = None
     #: Consecutive ticks of clean residency, for a surveil job. Reset by the
     #: alert going red, because being watched is the opposite of watching.
     observed: int = 0
@@ -253,6 +257,7 @@ class RunState:
             self._heat_tick()
             self._daemon_tick()
             self._escort_tick()
+            self._ally_tick()
             self._ice_tick()
             self._surveil_tick()
             self._decay_noise()
@@ -378,6 +383,58 @@ class RunState:
                                 f'They are heading out.')
         else:
             self._escort_walk(escort, target)
+
+    def _ally_tick(self) -> None:
+        """The runner you hired keeps up, and earns their fee passively.
+
+        An ally is deliberately low-maintenance. You are paying for a standing
+        bonus and a body between you and the ICE, not for a second character to
+        micromanage: the game already has one companion that needs managing and
+        it is the escort, which is a whole objective.
+        """
+        ally = self.ally
+        if not ally or ally['state'] in ('out', 'dead'):
+            return
+        if ally['node'] == self.here:
+            if ally['style'] == 'quiet':
+                # They keep the room quiet around you.
+                self.node.noise = max(0, self.node.noise - 2)
+            return
+        # Otherwise close the distance. They are competent and they know where
+        # you are, so they do not open doors or make noise doing this.
+        path = self._path(ally['node'], self.here)
+        if path:
+            ally['node'] = path[0]
+
+    def ally_bonus(self, kind: str) -> int:
+        """What a co-located ally adds to a check of this kind."""
+        ally = self.ally
+        if not ally or ally['state'] != 'with you' or ally['node'] != self.here:
+            return 0
+        style = ally['style']
+        if kind == 'crack' and style == 'loud':
+            return ally['skill']
+        if kind == 'social' and style == 'social':
+            return ally['skill']
+        if kind == 'trap' and style == 'careful':
+            return ally['skill'] // 2
+        return 0
+
+    def hurt_ally(self, amount: int, source: str = '') -> None:
+        ally = self.ally
+        if not ally or ally['state'] in ('out', 'dead'):
+            return
+        ally['integrity'] -= amount
+        if ally['integrity'] > 0:
+            self.console.warn(f'{ally["name"]} takes it for you. '
+                              f'[dim]{ally["integrity"]} left.[/]')
+            return
+        ally['state'] = 'dead'
+        self.console.blank()
+        self.console.raw(f'[err][bold]{ally["name"]} does not come back up.[/][/]')
+        self.console.say('[dim]You paid them a fee this morning and they are '
+                         'still holding the receipt.[/]')
+        self.log(f'ally dead: {ally["name"]}')
 
     def _escort_exposure(self, escort: dict) -> None:
         """Countermeasures where *they* are standing, not where you are.
@@ -589,6 +646,16 @@ class RunState:
                              source=data.name)
             return
 
+        # A chromed ally standing with you will step into it. That is the
+        # entire reason anybody hires one.
+        ally = self.ally
+        if (ally and ally['state'] == 'with you' and ally['node'] == self.here
+                and ally['style'] == 'chrome'
+                and data.behaviour in ('hunter', 'warden')
+                and self.rng.chance(0.55)):
+            self.hurt_ally(data.damage + construct.rating // 2, data.name)
+            return
+
         # If the person you are covering is standing here and making the
         # noise that woke this thing up, it may well find them first.
         escort = self.escort
@@ -693,6 +760,9 @@ class RunState:
             avoid.add('forensics', self.char.skill('forensics'))
             if construct.known:
                 avoid.add('you knew it was there', 6)
+            spotter = self.ally_bonus('trap')
+            if spotter:
+                avoid.add(f'{self.ally["name"]} saw it', spotter)
             avoid.resolve(self.rng)
             if avoid.success:
                 if construct.known:
@@ -766,6 +836,7 @@ class RunState:
             'framed': self.framed,
             'observed': self.observed,
             'escort': dict(self.escort) if self.escort else None,
+            'ally': dict(self.ally) if self.ally else None,
             'hurt': self.hurt,
             'events': list(self.events),
         }
@@ -800,6 +871,9 @@ def crack_check(state: RunState, node: Node, svc: net_mod.ServiceInstance,
         check.add(f'{short} tier short of this zone', -3 * short, actionable=True)
     if state.impersonating > 0:
         check.add('impersonating a credential', 4)
+    helper = state.ally_bonus('crack')
+    if helper:
+        check.add(f'{state.ally["name"]} working with you', helper)
     if quiet:
         check.add('working quietly', -2)
     if state.alert in ('red', 'lockdown'):
