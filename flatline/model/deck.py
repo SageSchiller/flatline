@@ -134,10 +134,8 @@ class Deck:
         prog = programs.BY_KEY.get(program_key)
         if prog is None:
             return False, f'no such program: {program_key}'
-        if program_key in self.loaded:
-            # Duplicates are legal and sometimes correct: two Crowbars means a
-            # spare when one gets burned. The check is capacity, not identity.
-            pass
+        # Duplicates are deliberately legal: two Crowbars means a spare when
+        # one gets burned. The only question here is capacity.
         if prog.memory > self.memory_free:
             return False, (f'{prog.name} needs {prog.memory} memory, '
                            f'{self.memory_free} free')

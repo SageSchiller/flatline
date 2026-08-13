@@ -932,6 +932,199 @@ def test_rivals() -> None:
     save_mod.delete('rivals')
 
 
+def test_regressions() -> None:
+    """Three bugs found by audit on 2026-08-13. None had a test; all three
+    were reachable in ordinary play."""
+    T.section('regressions')
+
+    def in_run(hardware=4, stealth=4, seed=8829):
+        game = Game.new(Character.from_origin('gutter', 'x'), seed=seed)
+        game.char.base_skills['hardware'] = hardware
+        game.char.base_skills['stealth'] = stealth
+        contract = game.city.board[0]
+        game.city.where = contract.district
+        sess, _ = play([f'take {contract.cid}', 'jack in --force'], game=game)
+        return sess
+
+    # 1. Overclocking must never make an action free, because an action that
+    #    costs no ticks never calls advance(), which stops the trace, the ICE
+    #    and the whole run clock. Step 2 used to reduce every one-tick action
+    #    to zero.
+    costs = {}
+    for steps in (0, 1, 2, 3):
+        sess = in_run()
+        sess.execute(f'overclock {steps}')
+        before = sess.run.tick
+        for _ in range(8):
+            if sess.run is None:
+                break
+            sess.execute('scan')
+        costs[steps] = (sess.run.tick - before) if sess.run else -1
+    T.ok(costs[0] > 0, 'unoverclocked actions cost ticks')
+    for steps in (1, 2, 3):
+        T.ok(costs[steps] > 0,
+             f'overclock {steps} still spends ticks (got {costs[steps]})')
+        T.ok(costs[steps] < costs[0],
+             f'overclock {steps} is faster than not overclocking')
+    T.ok(costs[1] < costs[0], 'step 1 does something at all')
+    T.ok(costs[2] <= costs[1], 'more steps are not slower')
+
+    # 2. Nullsig must protect the tick it is spending. Decrementing before
+    #    advance() meant the last point of the window silently protected
+    #    nothing, and the announcement promised ticks it did not deliver.
+    sess = in_run()
+    sess.execute('nullsig')
+    T.ok(sess.run.nullsig > 0, 'nullsig opens a window')
+    leaked = 0
+    acted = 0
+    while sess.run is not None and sess.run.nullsig > 0 and acted < 25:
+        before = sess.run.trace
+        sess.execute('scan')
+        acted += 1
+        if sess.run is None:
+            break
+        if sess.run.trace > before:
+            leaked += 1
+    T.eq(leaked, 0, 'no action inside a nullsig window advances the trace')
+    T.ok(acted > 0, 'and the window covers at least one action')
+
+    # 3. A run can end inside a command, and when it does the session has to
+    #    settle up. It used to leave the player inside a finished run, taking
+    #    further actions against a dead connection, with no consequences ever
+    #    applied.
+    for ending in ('trace', 'integrity'):
+        sess = in_run()
+        runs_before = sess.game.char.runs
+        if ending == 'trace':
+            sess.run.trace = 99.5
+        else:
+            sess.run.hurt = sess.run.char.integrity_max - 1
+            sess.run.trace = 99.5
+        sess.execute('scan')
+        T.ok(sess.run is None,
+             f'a run ending by {ending} mid-command resolves itself')
+        T.eq(sess.context, 'city', 'and the shell returns to the city')
+        T.ok(sess.game.char.runs > runs_before,
+             'and the run is counted')
+
+    # Jacking out of an already-finished run must not double-resolve.
+    sess = in_run()
+    sess.run.trace = 99.5
+    sess.execute('scan')
+    T.ok(sess.run is None, 'the run resolved')
+    counted = sess.game.char.runs
+    sess.execute('jack out')
+    T.eq(sess.game.char.runs, counted, 'jacking out again changes nothing')
+
+    # And a normal jack out still resolves exactly once.
+    sess = in_run()
+    before = sess.game.char.runs
+    sess.execute('jack out')
+    T.ok(sess.run is None, 'a deliberate exit resolves')
+    T.eq(sess.game.char.runs, before + 1, 'and counts exactly one run')
+
+    # 4. Content that promises something the engine does not read. Three
+    #    separate instances of this shipped: `crack --chain`, the three
+    #    wardens' `credential_check`, and `alert_jump` on non-traps. All of
+    #    them validated, all of them announced themselves, none of them did
+    #    anything.
+    from flatline.content import ice as ice_mod
+    from flatline.content import skills as skill_mod
+
+    engine = _source_of('flatline/run', 'flatline/commands')
+    for rider in ice_mod.ICE_RIDERS:
+        T.ok(rider in engine, f'ICE rider {rider!r} is read by the engine')
+    for tech in skill_mod.TECHNIQUES.values():
+        flag = _flag_of(tech.verb)
+        if flag:
+            T.ok(f"args.has('{flag}')" in engine,
+                 f'technique {tech.key!r} option --{flag} is read')
+
+    # Chain in particular: two services, one action.
+    sess = in_run()
+    sess.game.char.base_skills['intrusion'] = 2
+    target = None
+    sess.execute('scan')
+    for node in (sess.run.net.nodes.values() if sess.run else ()):
+        if (node.known and node.uid in sess.run.node.edges
+                and len(node.services) >= 2):
+            target = node
+            break
+    if target is not None:
+        sess.execute(f'probe {target.uid}')
+        closed = [s for s in target.services if not s.cracked]
+        if len(closed) >= 2 and sess.run is not None:
+            ticks = sess.run.tick
+            sess.console.start_capture()
+            sess.execute(f'crack {target.uid} --chain')
+            out = sess.console.end_capture()
+            if sess.run is not None:
+                spent = sess.run.tick - ticks
+                T.ok(spent <= 2,
+                     f'chain costs about one action, not two (spent {spent})')
+                # Assert on the attempt, not the outcome: both checks are
+                # resolved on dice and either may fail.
+                reported = sum(1 for svc in closed[:2]
+                               if svc.data.name in out)
+                T.eq(reported, 2, 'and it reports on both services')
+
+    # Chain refuses when it cannot do what it says.
+    sess = in_run()
+    sess.game.char.base_skills['intrusion'] = 0
+    sess.console.start_capture()
+    sess.execute('crack nowhere --chain')
+    out = sess.console.end_capture()
+    T.ok('Intrusion rank 2' in out, 'chain is gated on the technique')
+
+    # A credential warden can be answered with credentials.
+    net = net_mod.generate(Rng(2).fork('network', 'cred'), 'kagawa', 60)
+    console = quiet_console()
+    console.start_capture()
+    char = Character.from_origin('protege', 'x')
+    char.base_skills['subterfuge'] = 3
+    state = RunState.begin(net, char, Rng(2)('combat'), console)
+    talkable = untalkable = None
+    for construct in ice_mod.ICE:
+        if construct.effects.get('credential_check'):
+            talkable = construct
+        elif construct.behaviour == 'warden':
+            untalkable = construct
+    if talkable:
+        from flatline.run.network import IceInstance
+        inst = IceInstance(uid='t', key=talkable.key, rating=4)
+        T.ok(state.credential_challenge(inst) is not None,
+             'a credential warden offers a challenge')
+    if untalkable:
+        from flatline.run.network import IceInstance
+        inst = IceInstance(uid='u', key=untalkable.key, rating=4)
+        T.eq(state.credential_challenge(inst), None,
+             'and one that does not check credentials offers nothing')
+    console.end_capture()
+
+    # alert_jump is read from the construct rather than assumed.
+    jumpers = [i for i in ice_mod.ICE
+               if i.effects.get('alert_jump') and i.behaviour != 'trap']
+    T.ok(jumpers, 'some non-trap construct declares alert_jump')
+    T.ok("data.effects.get('alert_jump'" in engine
+         or "effects.get('alert_jump'" in engine,
+         'and the strike path reads it')
+
+
+def _source_of(*dirs) -> str:
+    import pathlib
+    out = []
+    for d in dirs:
+        for path in sorted(pathlib.Path(d).glob('*.py')):
+            out.append(path.read_text(encoding='utf-8'))
+    return '\n'.join(out)
+
+
+def _flag_of(verb: str) -> str:
+    import re
+    match = re.search(r'--([a-z][a-z0-9_-]*)', verb or '')
+    return match.group(1) if match else ''
+
+
 def test_herders_and_kinds() -> None:
     T.section('herders and kinds')
 
@@ -1744,7 +1937,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_migration, test_shell,
+    test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_migration, test_shell,
     test_playthrough, test_ui,
 )
 

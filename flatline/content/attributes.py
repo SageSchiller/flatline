@@ -17,8 +17,6 @@ from dataclasses import dataclass
 #: at creation would make the first ten hours of the game a straight line.
 ATTR_MIN = 1
 ATTR_MAX = 9
-ATTR_START_MIN = 2
-ATTR_START_MAX = 6
 
 #: Points to distribute at creation, on top of the origin's shape.
 CREATION_POINTS = 6
@@ -100,11 +98,3 @@ def composure(nerve: int, dissonance: int) -> int:
     less the net can frighten you.
     """
     return nerve * 2 + dissonance // 10
-
-
-DERIVED = (
-    ('bandwidth', 'Bandwidth', 'grit', bandwidth, 'Capacity for chrome.'),
-    ('integrity', 'Integrity', 'grit', integrity, 'Damage before the run ends.'),
-    ('focus', 'Focus', 'logic', focus, 'Precision actions per run.'),
-    ('tempo', 'Tempo', 'reflex', tempo, 'Actions per tick in live engagement.'),
-)

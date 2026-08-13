@@ -21,6 +21,7 @@ from ..run import network as net_mod
 from ..run.checks import Check
 from ..run.session import RunState, crack_check
 from ..shell import CommandError, command
+from ..world import market as market_mod
 from ..world.contracts import OBJECTIVE_PROGRAM
 
 #: verb -> (ticks, noise, residue). The whole run economy, in one table.
@@ -173,8 +174,10 @@ def cmd_jack_out(sess, args) -> None:
         c.say('[warn]The Governor does not want to let go. It takes a moment '
               'to convince it.[/]')
     _act(sess, 'jack out', ticks=2 if slow else None)
-    if state.running:
-        state.finish('clean' if state.objective_met() else 'burned')
+    if sess.run is None:
+        # Leaving cost you the last tick you had. `_act` has already settled.
+        return
+    state.finish('clean' if state.objective_met() else 'burned')
     _resolve(sess)
 
 
@@ -251,10 +254,15 @@ def _resolve(sess) -> None:
 
     # Selling the haul is a city action, but crediting it here keeps the run
     # readable: what you carried out is worth what it is worth.
-    extra = sum(v for v in [summary['haul_value']] if v)
+    # What you carried out is worth what somebody will pay for it today, and
+    # who that somebody is depends on who you know. A trusted runner clears
+    # nearly three quarters of nominal; a stranger clears under half.
+    extra = int(summary.get('haul_value') or 0)
     ally = summary.get('ally')
     if extra:
-        take = int(extra * 0.5)
+        buyer = contract.patron if contract is not None else 'fixers'
+        take, rate = market_mod.data_price(game.rng('market'), extra,
+                                           game.alias, buyer)
         if ally and ally['state'] != 'dead':
             cut = int(take * ally['cut'])
             take -= cut
@@ -262,7 +270,9 @@ def _resolve(sess) -> None:
                   f'once, and leaves.[/]')
         game.char.credits += take
         game.earned += take
-        c.say(f'[credit]{take:,}c[/] for the rest of the haul.')
+        c.say(f'[credit]{take:,}c[/] for the haul, at '
+              f'[dim]{rate * 100:.0f}% of nominal through '
+              f'{fac_content.BY_KEY[buyer].short}.[/]')
 
     # An escort job is the game's relationship engine: you spent a night
     # keeping somebody alive, or you did not, and either way they remember.
@@ -437,7 +447,7 @@ def cmd_here(sess, args) -> None:
 
 @command('connect', 'Move to an adjacent node you have opened.',
          group='access', contexts=('run',), aliases=('cd',), ticks=1,
-         usage='connect <host> [--ghost]',
+         usage='connect <host> [--ghost] [--present]',
          complete=lambda sess, prefix: _known_hosts(sess))
 def cmd_connect(sess, args) -> None:
     state, c = sess.require_run(), sess.console
@@ -453,9 +463,36 @@ def cmd_connect(sess, args) -> None:
     wardens = [i for i in node.live_ice
                if i.behaviour == 'warden' and i.state != 'dead']
     if wardens:
-        raise CommandError(
-            f'{wardens[0].data.name} holds {uid}. Break it, or get past it '
-            f'with credentials.')
+        warden = wardens[0]
+        challenge = state.credential_challenge(warden)
+        if challenge is None:
+            raise CommandError(
+                f'{warden.data.name} holds {uid}, and it does not care who '
+                f'you say you are. Break it.')
+        if not args.has('present'):
+            c.blank()
+            c.say(f'[ice]{warden.data.name} holds {uid}, and it is the kind '
+                  f'that asks rather than the kind that refuses.[/]')
+            c.say(f'{challenge.summary()}')
+            c.say(challenge.explain(), indent='  ')
+            c.blank()
+            c.say(f'[dim]`connect {uid} --present` to show it something. '
+                  f'A failure escalates.[/]')
+            return
+        challenge.resolve(state.rng)
+        _act(sess, 'pretext', node=node, noise_scale=0.3)
+        if not state.running:
+            return
+        if not challenge.success:
+            c.blank()
+            c.err(f'{warden.data.name} does not accept it.')
+            c.say(challenge.explain())
+            state.escalate(1, 'A credential was presented and refused.')
+            return
+        c.blank()
+        c.ok(f'{warden.data.name} reads what you are carrying and stands '
+             f'aside.')
+        warden.state = 'dead'
 
     ghost = args.has('ghost')
     if ghost and not state.char.has_technique('ghost'):
@@ -481,12 +518,17 @@ def cmd_connect(sess, args) -> None:
 
 @command('crack', 'Break a service open.',
          group='access', contexts=('run',), ticks=1,
-         usage='crack <host> <service> [--quiet] [--key]',
+         usage='crack <host> <service> [--quiet] [--key] [--chain]',
          detail='Uses your best loaded breaker. `--quiet` swaps to the '
                 'lowest-signature one and takes a penalty. `--key` uses the '
-                'Keygrind technique: Focus instead of ticks, and no noise.')
+                'Keygrind technique: Focus instead of ticks, and no noise. '
+                '`--chain` uses the Chain technique: two services on one node '
+                'for one action, at 1.6x the noise of the louder half.')
 def cmd_crack(sess, args) -> None:
     state, c = sess.require_run(), sess.console
+    if args.has('chain'):
+        _crack_chain(sess, args)
+        return
     node, svc = _target_service(state, args)
     if svc.cracked:
         raise CommandError(f'{svc.key} on {node.uid} is already open')
@@ -544,6 +586,90 @@ def cmd_crack(sess, args) -> None:
             c.say(f'[dim]What sank it: {culprit.label}.[/]')
         if check.fumble:
             state.escalate(1, 'A failed attempt was logged loudly.')
+    state.check_traps(node)
+
+
+def _crack_chain(sess, args) -> None:
+    """Intrusion rank 2: two services on one node for the price of one action.
+
+    The maths favours it when the trace is your problem and the ICE is not:
+    you pay one action's ticks instead of two, and 1.6x the noise of the
+    *louder* half rather than the sum. On a quiet node that is a bargain. On
+    one with something dormant listening it is how you wake it.
+    """
+    state, c = sess.require_run(), sess.console
+    if not state.char.has_technique('chain'):
+        raise CommandError('Chain is Intrusion rank 2.')
+
+    host = args.get(0)
+    if not host:
+        raise CommandError('chain what? `crack <host> --chain`')
+    node = _node(state, host)
+    if not node.mapped:
+        raise CommandError(f'{node.uid} has not been probed. '
+                           f'`probe {node.uid}` first.')
+
+    closed = [s for s in node.services if not s.cracked]
+    if len(closed) < 2:
+        raise CommandError(f'{node.uid} has {len(closed)} service'
+                           f'{"s" if len(closed) != 1 else ""} left to break. '
+                           f'Chain needs two.')
+
+    named = [a for a in args.positional[1:]]
+    if named:
+        picked = []
+        for key in named[:2]:
+            match = [s for s in closed if s.key.startswith(key.lower())]
+            if not match:
+                raise CommandError(f'{node.uid} has no uncracked service '
+                                   f'matching {key!r}')
+            if match[0] not in picked:
+                picked.append(match[0])
+        if len(picked) < 2:
+            raise CommandError('name two different services, or none and I '
+                               'will take the two easiest')
+    else:
+        picked = sorted(closed, key=lambda s: s.difficulty)[:2]
+
+    quiet = args.has('quiet')
+    checks = []
+    loudest = 0.0
+    for svc in picked:
+        _, category = node_content.FAMILIES[svc.family]
+        program = (programs.quietest(state.char.deck.loaded, category) if quiet
+                   else programs.best(state.char.deck.loaded, category))
+        check = crack_check(state, node, svc, program, quiet=quiet)
+        check.resolve(state.rng)
+        checks.append((svc, check))
+        signature = program.signature if program else 1.5
+        loudest = max(loudest, signature * svc.data.noise)
+
+    # One action, and 1.6x the louder half rather than the sum of both.
+    _act(sess, 'crack', node=node,
+         noise_scale=loudest * 1.6 * (0.5 if quiet else 1.0),
+         ticks=1)
+    if not state.running:
+        return
+
+    c.blank()
+    opened = 0
+    for svc, check in checks:
+        if check.success:
+            svc.cracked = True
+            node.open = True
+            opened += 1
+            c.ok(f'{svc.data.name} on [accent]{node.uid}[/] is open.')
+        else:
+            c.err(f'{svc.data.name} holds.')
+            c.say(check.explain(), indent='  ')
+    if opened == 2:
+        c.say('[dim]Both, in one pass. Everything within earshot knows.[/]')
+    if node.type == 'auth' and node.cracked_all:
+        state.tier = max(state.tier, node.tier + 1)
+        c.say(f'[ok]This is where the badges come from. Access tier '
+              f'{state.tier}.[/]')
+    if any(check.fumble for _, check in checks):
+        state.escalate(1, 'A failed attempt was logged loudly.')
     state.check_traps(node)
 
 
@@ -1184,7 +1310,10 @@ def cmd_nullsig(sess, args) -> None:
         raise CommandError('once a run')
     state.spent.add('nullsig')
     state.nullsig = 3 + state.char.skill('stealth')
-    c.ok(f'You go quiet. {state.nullsig} ticks with no trace at all.')
+    c.ok(f'You go quiet. {state.nullsig} points of silence, and no trace at '
+         f'all while they last.')
+    c.say('[dim]A tick spends one. Acting spends another on top of it, so '
+          'the window is twice as long if you spend it holding still.[/]')
 
 
 @command('overclock', 'Push the deck past its rating.',
@@ -1362,14 +1491,39 @@ def _act(sess, verb: str, node=None, ticks: int | None = None,
     if spend and state.free_actions > 0:
         state.free_actions -= 1
         spend = 0
-    if state.overclock:
-        # Overclocking buys actions, which is modelled as ticks costing less.
-        spend = max(0, spend - (1 if state.overclock >= 2 else 0))
-    if state.nullsig > 0:
-        state.nullsig = max(0, state.nullsig - 1)
+
+    # Overclocking buys *actions*, which is a credit pool rather than a
+    # discount. Every real tick you spend at N steps earns N credits, and each
+    # credit pays for one tick of a later action, so "one extra action per
+    # tick per step" is literally what happens.
+    #
+    # The previous version subtracted a flat tick at two steps or more, which
+    # made step 1 pure heat for no benefit and made step 2 reduce every
+    # one-tick action to zero. At zero ticks `advance` never runs, so the
+    # trace stopped, the ICE stopped, and the whole run clock stopped with it.
+    if spend and state.overclock and state.oc_credit >= 1.0:
+        take = min(int(state.oc_credit), spend)
+        state.oc_credit -= take
+        spend -= take
+
     if spend:
         state.advance(spend)
+        if state.overclock:
+            state.oc_credit += spend * state.overclock
+        # Acting inside a Nullsig window costs it an extra point on top of the
+        # tick it already spends, which is the "every action shortens it" half
+        # of the technique. Applied *after* advance, so the tick you paid for
+        # is the tick you were protected during: doing it first meant the last
+        # point of the window silently protected nothing.
+        if state.nullsig > 0:
+            state.nullsig = max(0, state.nullsig - 1)
     _escalation_check(sess)
+    # A run can end *inside* advance(): the trace completing, black ICE, the
+    # deck dying. If it did, settle up here. Without this the session stays in
+    # a finished run, further commands still execute against a dead
+    # connection, and none of the consequences ever land.
+    if sess.run is not None and not sess.run.running:
+        _resolve(sess)
 
 
 def _escalation_check(sess) -> None:

@@ -160,14 +160,16 @@ def sale_value(kind: str, key: str) -> int:
     return int(getattr(item, 'price', 0) * 0.35) if item else 0
 
 
-def data_price(rng: Stream, kind: str, value: int, alias,
-               buyer: str) -> tuple[int, str]:
-    """What a fixer pays for stolen data, and who is buying.
+def data_price(rng: Stream, value: int, alias, buyer: str) -> tuple[int, float]:
+    """What somebody pays for stolen data, and the rate they paid at.
 
     Not the asset's nominal value: that is what it is worth, and what you get
     is what somebody will pay today, which is less and depends on who you are.
+    A trusted runner clears close to three quarters; a stranger clears under
+    half, and finds out that the difference between the two is the entire
+    argument for having a reputation.
     """
     rep = alias.reputation(buyer)
-    mult = 0.55 + (rep / 100.0) * 0.25
+    mult = 0.45 + (rep / 100.0) * 0.28
     mult *= rng.spread(100, 0.12) / 100.0
-    return max(1, int(round(value * mult))), buyer
+    return max(1, int(round(value * mult))), mult

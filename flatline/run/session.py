@@ -110,6 +110,9 @@ class RunState:
     #: {key, name, node, integrity, state, skill, style, cut}. The mirror of
     #: `escort`: this one is here to help, and takes a share of the haul.
     ally: dict | None = None
+    #: Overclock credits: each real tick spent at N steps earns N of them,
+    #: and each pays for one tick of a later action. See `_act`.
+    oc_credit: float = 0.0
     #: Actions that cost no ticks, spent before ordinary ones. The Chromed
     #: origin opens a run with one.
     free_actions: int = 0
@@ -689,23 +692,31 @@ class RunState:
         self.log(f'strike: {data.name}')
         construct.known = True
 
+        # A construct that declares `alert_jump` escalates by that much
+        # rather than by the generic one. Three of them declared it and were
+        # being escalated generically, which made their whole distinguishing
+        # feature decorative.
+        jump = int(data.effects.get('alert_jump', 1))
+
         if data.behaviour == 'probe':
             self.add_trace(data.trace + construct.rating)
-            self.escalate(1, f'{data.name} reported your position.')
+            self.escalate(jump, f'{data.name} reported your position.')
             construct.state = 'dormant'
             return
 
         if data.behaviour == 'sentry':
             self.add_trace(data.trace + construct.rating * 0.5)
-            self.escalate(1, f'{data.name} filed on your session.')
+            self.escalate(jump, f'{data.name} filed on your session.')
             if 'null_escalation' in self.char.riders():
                 self.escalate(1, 'There was nothing there to file, which is '
                                  'considerably worse than something.')
             construct.state = 'dormant'
             return
 
-        if data.behaviour == 'herder':
-            # It never touches you. It closes the way you came.
+        if data.effects.get('route_cut'):
+            # It never touches you. It closes the way you came. Keyed off the
+            # declared effect rather than the behaviour so that the content
+            # and the engine agree about what this construct does.
             self.add_trace(data.trace)
             cut = self._cut_route()
             if cut:
@@ -880,6 +891,33 @@ class RunState:
     # ------------------------------------------------------------------
     # traps
     # ------------------------------------------------------------------
+
+    def credential_challenge(self, construct: IceInstance) -> Check | None:
+        """A warden that checks credentials can be answered with credentials.
+
+        This is the Subterfuge build's answer to "what do you do about a door
+        that cannot be evaded": you do not break it, you satisfy it. Only
+        wardens declaring `credential_check` can be passed this way, and only
+        if you are actually carrying something worth showing.
+
+        Returns the check to resolve, or None if the construct is not the kind
+        that can be talked to.
+        """
+        if not construct.data.effects.get('credential_check'):
+            return None
+        check = Check(name='credentials', resistance=construct.rating * 2 + 2)
+        check.add('access tier held', self.tier * 3)
+        check.add('subterfuge', self.char.skill('subterfuge') * 2)
+        check.add('guile', self.char.attr('guile'))
+        check.add('gear', self.char.bonus('pretext_bonus'))
+        forger = programs.best(self.char.deck.loaded, 'forger')
+        if forger:
+            check.add(forger.name, forger.rating * 2)
+        if self.impersonating > 0:
+            check.add('wearing somebody else\'s name', 5)
+        if 'no_social' in self.char.riders():
+            check.add('a process cannot present a badge', -10)
+        return check
 
     def check_traps(self, node: Node | None = None) -> None:
         """Traps spring on contact. Nothing telegraphs them, by design: the

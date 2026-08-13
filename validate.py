@@ -33,6 +33,45 @@ from flatline.shell import CONTEXTS, GROUPS, REGISTRY
 from flatline.world import contracts as contract_mod
 
 
+_COMMAND_SOURCE: str = ''
+
+
+def _command_source() -> str:
+    """The text of every command module, for promise-versus-implementation
+    checks that cannot be made any other way."""
+    global _COMMAND_SOURCE
+    if not _COMMAND_SOURCE:
+        import pathlib
+        _COMMAND_SOURCE = '\n'.join(
+            p.read_text(encoding='utf-8')
+            for p in sorted(pathlib.Path('flatline/commands').glob('*.py')))
+    return _COMMAND_SOURCE
+
+
+_ENGINE_SOURCE: str = ''
+
+
+def _engine_source() -> str:
+    """The run layer plus its commands, for promise-versus-implementation
+    checks. Content declaring a rider nothing reads is the most expensive
+    bug class this project has: it validates, it ships, and it lies."""
+    global _ENGINE_SOURCE
+    if not _ENGINE_SOURCE:
+        import pathlib
+        paths = sorted(pathlib.Path('flatline/run').glob('*.py'))
+        paths += sorted(pathlib.Path('flatline/commands').glob('*.py'))
+        _ENGINE_SOURCE = '\n'.join(p.read_text(encoding='utf-8')
+                                   for p in paths)
+    return _ENGINE_SOURCE
+
+
+def _option_of(verb: str) -> str:
+    """The `--flag` a technique's verb claims, if any."""
+    import re
+    match = re.search(r'--([a-z][a-z0-9_-]*)', verb)
+    return match.group(1) if match else ''
+
+
 def _probe_rng():
     """A throwaway stream for validation-time generation probes."""
     from flatline.rng import Rng
@@ -510,6 +549,16 @@ def check_skills(rep: Report) -> None:
                 if head and REGISTRY.lookup(head) is None:
                     rep.error(f'{where}/{t.key}',
                               f'verb {t.verb!r} names no command')
+                # And if it claims an *option*, something has to read it.
+                # `crack --chain` shipped for weeks naming a real command and
+                # a flag no handler looked at, so the technique unlocked,
+                # announced itself, and did nothing. Checking the verb alone
+                # is not enough.
+                flag = _option_of(t.verb)
+                if flag and f"args.has('{flag}')" not in _command_source():
+                    rep.error(f'{where}/{t.key}',
+                              f'verb {t.verb!r} names an option no command '
+                              f'handler reads')
 
     for rank in range(1, skills.MAX_RANK + 1):
         rep.check(rank in skills.RANK_COST, 'skills',
@@ -649,6 +698,21 @@ def check_ice(rep: Report) -> None:
                   'fight')
         rep.check(i.effects.get('route_cut'), f'ice/{i.key}',
                   'a herder that does not cut a route does nothing at all')
+
+    # Every declared rider must be read by the engine. Three wardens carried
+    # `credential_check` for weeks with nothing anywhere reading it, so the
+    # one thing that distinguished them did nothing at all.
+    engine = _engine_source()
+    for rider in sorted(ice_content.ICE_RIDERS):
+        if rider not in engine:
+            rep.error('ice', f'rider {rider!r} is declared by content and read '
+                             f'nowhere in the run layer')
+    for i in ice_content.ICE:
+        for key in i.effects:
+            if key in ice_content.ICE_RIDERS:
+                continue
+            if key not in fx.ALL:
+                rep.error(f'ice/{i.key}', f'unknown effect {key!r}')
 
     for level in ice_content.ALERT_LEVELS:
         rep.check(level in ice_content.ALERT_BLURB, 'ice',

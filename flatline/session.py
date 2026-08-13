@@ -24,9 +24,6 @@ from .script import MAX_DISPATCH, ScriptError, parse
 from .shell import REGISTRY, CommandError, Invocation, Quit, resolve, split_line
 from .ui import Caps, Console
 
-#: Longest a script may be, so a runaway `script` cannot lock the session.
-MAX_SCRIPT = 40
-
 
 @dataclass(slots=True)
 class Session:

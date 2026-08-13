@@ -146,18 +146,8 @@ GROUND_FLOOR_TEXT = (
 )
 
 #: Grounding cannot take you below the Dissonance your installed chrome
-#: implies. You can walk back what the work did to you. You cannot walk back
-#: the hardware while it is still in you.
-GROUND_FLOOR_RULE = 'sum of installed cyberware dissonance'
-
-
-def band_of(value: int) -> int:
-    """The band floor a Dissonance value sits in."""
-    out = BANDS[0]
-    for floor in BANDS:
-        if value >= floor:
-            out = floor
-    return out
+#: implies: see `Character.chrome_dissonance`. You can walk back what the work
+#: did to you. You cannot walk back the hardware while it is still in you.
 
 
 def crossed(before: int, after: int) -> list[Passage]:

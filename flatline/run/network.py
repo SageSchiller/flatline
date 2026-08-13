@@ -160,19 +160,12 @@ class Network:
         n = self.nodes.get(uid)
         return [self.nodes[e] for e in (n.edges if n else []) if e in self.nodes]
 
-    def in_zone(self, zone: str) -> list[Node]:
-        return [n for n in self.nodes.values() if n.zone == zone]
-
     def find_asset(self, uid: str) -> tuple[Node, DataAsset] | None:
         for node in self.nodes.values():
             for asset in node.data:
                 if asset.uid == uid:
                     return node, asset
         return None
-
-    @property
-    def total_value(self) -> int:
-        return sum(a.value for n in self.nodes.values() for a in n.data)
 
 
 # --------------------------------------------------------------------------

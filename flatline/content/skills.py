@@ -202,8 +202,3 @@ BY_KEY: dict[str, Skill] = {s.key: s for s in SKILLS}
 TECHNIQUES: dict[str, Technique] = {
     t.key: t for s in SKILLS for t in s.techniques
 }
-
-
-def cost_to_rank(current: int, target: int) -> int:
-    """Total experience to go from `current` to `target`."""
-    return sum(RANK_COST[r] for r in range(current + 1, target + 1))

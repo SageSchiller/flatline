@@ -12,7 +12,7 @@ updated: 2026-08-13
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5796 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 16,900 lines.
+> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5832 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 16,900 lines.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
@@ -804,3 +804,58 @@ appears interested in the answer, a Stringer that publishes you to everybody
 rather than to security, and an Undertow that does not approach.
 
 `validate.py` clean, `test.py` green at **5796 checks**.
+
+### 2026-08-13 (h): code audit
+
+No new features. A systematic read of ~16,000 lines looking for the things the
+harnesses cannot see. **Seven real bugs**, three of them reachable in ordinary
+play and one of them severe.
+
+**The severe one: a run that ended mid-command never settled.** When the trace
+completed, or black ICE landed, or the deck died, `RunState.finish` ran but
+nothing told the session. The player stayed inside a finished run, kept issuing
+commands against a dead connection, and none of the consequences ever applied.
+The central failure state of the game did not actually fail. `_act` now settles
+up when a run ends inside it.
+
+**Overclocking stopped the clock.** Step 1 cost heat and gave nothing at all,
+and step 2 reduced every one-tick action to zero ticks. At zero ticks `advance`
+never runs, so the trace stopped, the ICE stopped, and the entire run clock
+stopped with it: a Hardware 2 build could take unlimited actions for free.
+Rebuilt as a credit pool, so "one extra action per tick per step" is literally
+what happens and eight actions cost 8 / 4 / 3 / 2 ticks at 0 / 1 / 2 / 3 steps.
+
+**Nullsig lied about its duration**, decrementing once per action *and* once
+per tick, with the action decrement applied before `advance` so the last point
+of the window protected nothing. The announcement promised seven ticks and
+delivered three and a half.
+
+**Three separate cases of content promising what the engine does not read**,
+which is now the bug class this project has to be most careful about, because
+it validates, it ships, and it lies:
+
+- `crack --chain`, Intrusion rank 2, the first technique most players unlock:
+  the flag was never read. It announced itself on training and did nothing.
+- `credential_check`, declared by three wardens and read nowhere. Implemented
+  as the Subterfuge answer to a door that cannot be evaded: `connect --present`
+  shows the warden what you are carrying, with the odds printed first per D14.
+- `alert_jump` on non-trap constructs, ignored on the strike path, which made
+  the one distinguishing feature of Verger, Psalm and Stringer decorative.
+
+`validate.py` now has source-level checks for the whole class: every declared
+ICE rider must appear in the run layer, and every technique naming a `--flag`
+must have a handler that reads it. Both would have caught all three.
+
+**Also:** eleven dead definitions removed, and `data_price` wired up. That last
+one was a designed fence economy sitting unused while `_resolve` hard-coded a
+flat 50%; the haul now clears at 33% to 74% of nominal depending on standing
+with the buyer, which gives reputation a second job.
+
+**One thing deliberately not changed.** Stripping a network bare pays about
+1.95x doing only the job. That reads as the intended D5 tension rather than a
+fault, and the cost of the extra nodes is trace, noise and residue. It is
+flagged here rather than tuned, because tuning it without play would be a
+guess.
+
+`validate.py` clean, `test.py` green at **5832 checks**, with regression
+coverage for every bug above.
