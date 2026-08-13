@@ -4,7 +4,7 @@ tags:
   - project-plan
   - game
 created: 2026-08-12
-updated: 2026-08-12
+updated: 2026-08-13
 ---
 
 # flatline: Build Plan and Progress Log
@@ -12,7 +12,7 @@ updated: 2026-08-12
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5058 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 13,500 lines.
+> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5058 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 14,200 lines.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
