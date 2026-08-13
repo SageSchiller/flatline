@@ -33,6 +33,12 @@ from flatline.shell import CONTEXTS, GROUPS, REGISTRY
 from flatline.world import contracts as contract_mod
 
 
+def _probe_rng():
+    """A throwaway stream for validation-time generation probes."""
+    from flatline.rng import Rng
+    return Rng(1).fork('network', 'validate')
+
+
 class Report:
     def __init__(self) -> None:
         self.errors: list[str] = []
@@ -516,6 +522,21 @@ def check_skills(rep: Report) -> None:
 
 
 def check_factions(rep: Report) -> None:
+    # Every place the code branches on faction kind must handle every kind, or
+    # adding a faction is a KeyError a player finds rather than the build.
+    from flatline.run import network as net_mod
+    for kind in factions.KINDS:
+        probe = next((f for f in factions.FACTIONS if f.kind == kind), None)
+        if probe is None:
+            rep.warn('factions', f'no faction of kind {kind!r}')
+            continue
+        try:
+            net_mod.generate(_probe_rng(), probe.key, probe.posture)
+        except KeyError as e:
+            rep.error('factions',
+                      f'generating a {kind!r} network raises KeyError({e}): '
+                      f'some branch does not handle this kind')
+
     for f in factions.FACTIONS:
         where = f'factions/{f.key}'
         rep.check(f.kind in factions.KINDS, where, f'unknown kind {f.kind!r}')
@@ -536,10 +557,7 @@ def check_factions(rep: Report) -> None:
             rep.check(want in contract_mod.OBJECTIVES, where,
                       f'wants unknown objective {want!r}')
 
-    kinds = {f.kind for f in factions.FACTIONS}
-    for kind in factions.KINDS:
-        if kind not in kinds:
-            rep.warn('factions', f'no faction of kind {kind!r}')
+
 
 
 def check_districts(rep: Report) -> None:
@@ -618,9 +636,19 @@ def check_ice(rep: Report) -> None:
     # Every faction needs a warden and a generic fallback, or generation
     # cannot place a chokepoint guard for them.
     for f in factions.FACTIONS:
-        for behaviour in ('sentry', 'probe', 'hunter', 'trap', 'warden'):
+        for behaviour in ('sentry', 'probe', 'hunter', 'trap', 'warden',
+                          'herder'):
             if not ice_content.available(behaviour, f.key):
                 rep.error('ice', f'{f.key} has no {behaviour} available')
+
+    # A herder that does damage is a hunter with extra steps. The whole design
+    # question it asks depends on it never touching you.
+    for i in ice_content.by_behaviour('herder'):
+        rep.check(i.damage == 0, f'ice/{i.key}',
+                  'a herder must do no damage: it cuts routes, it does not '
+                  'fight')
+        rep.check(i.effects.get('route_cut'), f'ice/{i.key}',
+                  'a herder that does not cut a route does nothing at all')
 
     for level in ice_content.ALERT_LEVELS:
         rep.check(level in ice_content.ALERT_BLURB, 'ice',

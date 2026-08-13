@@ -289,8 +289,20 @@ def generate(rng: Stream, faction: str, posture: int,
     # posture 22 has to read as genuinely empty next to a corp at 45, or the
     # faction descriptions are writing cheques the generator does not honour.
     uid = 0
-    kind_density = {'corp': 1.15, 'law': 1.0, 'broker': 0.9,
-                    'collective': 0.8, 'gang': 0.55}[fac.kind]
+    kind_density = {
+        'corp': 1.15,
+        'law': 1.0,
+        'broker': 0.9,
+        'collective': 0.8,
+        'gang': 0.55,
+        # A cult defends devotionally: fewer constructs, and the ones there
+        # are do not leave.
+        'cult': 0.75,
+        # A pirate press has almost nothing worth defending and knows it.
+        'press': 0.4,
+        # Deepwater is not defended, it is inhabited.
+        'construct': 1.3,
+    }[fac.kind]
     for node in net.nodes.values():
         if node.uid == net.entry:
             continue
@@ -381,18 +393,21 @@ def _pick_behaviour(rng: Stream, node: Node, scale: float) -> str:
         'probe': 1.4,
         'hunter': 1.0 * scale,
         'trap': 1.2,
+        'herder': 0.7,
         'warden': 0.0,   # placed deliberately at chokepoints, never randomly
         'black': 0.0,
     }
     if node.zone in ('restricted', 'core'):
         weights['hunter'] *= 2.0
         weights['trap'] *= 1.3
+        weights['herder'] *= 1.4
     if node.zone == 'core' or node.type == 'vault':
         weights['black'] = 1.1 * scale
     if node.type == 'honeypot':
         # Honeypots are soft on purpose, right up to the part that is not.
         weights = {'sentry': 4.0, 'trap': 2.5, 'probe': 0.5,
-                   'hunter': 0.0, 'warden': 0.0, 'black': 0.0}
+                   'hunter': 0.0, 'warden': 0.0, 'herder': 0.0,
+                   'black': 0.0}
     return rng.weighted(weights)
 
 
@@ -403,6 +418,23 @@ def _data_weights(node: Node, fac: factions.Faction) -> dict[str, float]:
         weights['financial'] = 1.8
         weights['schematics'] = 1.6
         weights['surveillance'] = 0.5
+    elif fac.kind == 'press':
+        weights['correspondence'] = 2.6
+        weights['contracts'] = 2.2
+        weights['surveillance'] = 1.8
+        weights['schematics'] = 0.2
+    elif fac.kind == 'cult':
+        weights['personnel'] = 2.4
+        weights['research'] = 1.6
+        weights['correspondence'] = 1.8
+        weights['financial'] = 0.4
+    elif fac.kind == 'construct':
+        # Whatever Deepwater keeps, it is not keeping it for money.
+        weights['research'] = 3.0
+        weights['schematics'] = 2.0
+        weights['credentials'] = 1.6
+        weights['financial'] = 0.2
+        weights['personnel'] = 0.3
     elif fac.kind == 'gang':
         weights['surveillance'] = 2.4
         weights['contracts'] = 2.0

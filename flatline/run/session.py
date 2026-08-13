@@ -704,6 +704,19 @@ class RunState:
             construct.state = 'dormant'
             return
 
+        if data.behaviour == 'herder':
+            # It never touches you. It closes the way you came.
+            self.add_trace(data.trace)
+            cut = self._cut_route()
+            if cut:
+                self.console.say(f'[dim]{cut[0]} no longer reaches '
+                                 f'{cut[1]}.[/]')
+            else:
+                self.console.say('[dim]There is nothing left it can safely '
+                                 'close.[/]')
+            construct.state = 'awake'
+            return
+
         if data.behaviour == 'warden':
             self.add_trace(data.trace)
             if ('registry_check' in self.char.riders()
@@ -753,6 +766,53 @@ class RunState:
         damage = data.damage + construct.rating // 2
         self.take_damage(damage, black=(data.behaviour == 'black'),
                          source=data.name)
+
+    def _cut_route(self) -> tuple[str, str] | None:
+        """Close one edge, without ever stranding the player or the job.
+
+        A herder that can orphan the objective, or cut you off from the way
+        out, is not a difficulty spike: it is an unwinnable run generated
+        mid-run, which is the one thing network generation is not allowed to
+        do (see `_ensure_reachable`). So every candidate cut is tested before
+        it is made, and if none is safe the construct simply has nothing to do.
+        """
+        candidates: list[tuple[str, str]] = []
+        for node in self.net.nodes.values():
+            for edge in node.edges:
+                # Prefer cutting behind the player, which is the whole point:
+                # a herder pushes you deeper rather than boxing you in place.
+                if node.uid == self.here or edge == self.here:
+                    continue
+                candidates.append((node.uid, edge))
+        if not candidates:
+            return None
+
+        for a, b in self.rng.shuffled(candidates):
+            node_a, node_b = self.net.nodes[a], self.net.nodes[b]
+            node_a.edges.remove(b)
+            node_b.edges.remove(a)
+            if self._still_playable():
+                return (a, b)
+            # Put it back and try another.
+            node_a.edges.append(b)
+            node_b.edges.append(a)
+        return None
+
+    def _still_playable(self) -> bool:
+        """Can the player still reach the way out and the job from here."""
+        seen = {self.here}
+        frontier = [self.here]
+        while frontier:
+            uid = frontier.pop()
+            for edge in self.net.nodes[uid].edges:
+                if edge not in seen:
+                    seen.add(edge)
+                    frontier.append(edge)
+        if self.net.entry not in seen:
+            return False
+        if self.net.objective_node and self.net.objective_node not in seen:
+            return False
+        return True
 
     def _check_trace(self) -> None:
         if self.trace < TRACE_MAX:

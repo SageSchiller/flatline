@@ -12,11 +12,11 @@ updated: 2026-08-13
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5257 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 16,300 lines.
+> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5796 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 16,900 lines.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
-> **What is not done:** nothing structural. Every system the plan set out to build is built, and the catalogue has had one breadth pass (26 chrome, 36 programs, 20 ICE, 8 icons, 7 rivals, 10 origins, 9 districts, 8 factions). More districts and origins are the obvious next content, but **the right way to choose is to play it and notice what is missing**, which nobody has done yet. Treat any further content added without play as a guess.
+> **What is not done:** nothing structural. Every system the plan set out to build is built, and the catalogue has had one breadth pass (26 chrome, 36 programs, 28 ICE, 8 icons, 7 rivals, 10 origins, 9 districts, 12 factions). More districts and origins are the obvious next content, but **the right way to choose is to play it and notice what is missing**, which nobody has done yet. Treat any further content added without play as a guess.
 >
 > **What this is.** A netrunner sim you play by typing at a fake terminal. Two layers: a persistent city that keeps score, and procedurally generated corporate networks you break into one contract at a time. The character system is classless and deep enough that two players at the same credit total play nothing alike.
 >
@@ -358,6 +358,28 @@ a collection must remove more than the interest accrued between collections.
 Otherwise the debt is unpayable and the character is dead, and D6 says nothing
 but black ICE ends a character. It is a spiral you get dragged down, never one
 you fall out of the bottom of.
+
+### D26: A herder does not fight
+
+The seventh ICE behaviour, and the only one that does no damage at all. A
+herder closes routes: it cuts the way you came, one edge at a time, and leaves
+exactly one door open.
+
+The question it asks is different from every other construct's. A hunter asks
+whether you can afford to fight, a warden asks what your answer to a locked
+door is, and a herder asks **whether the thing it is steering you toward is
+worse than the trace you would spend refusing**. That is why it must never
+deal damage: the moment it can hurt you it becomes a hunter with extra steps,
+and `validate.py` enforces the zero.
+
+**Every cut is checked before it is made.** A herder that can orphan the
+objective, or cut you off from the way out, is not a difficulty spike: it is an
+unwinnable run generated in the middle of a winnable one, which is the single
+thing network generation is not allowed to do. So `_cut_route` tries candidates,
+tests connectivity from the player's position to both the entry and the job,
+and rolls back anything that fails. If nothing is safe to close, the construct
+simply has nothing to do that tick. `test.py` proves it over sixty networks and
+roughly two thousand cuts.
 
 ### D17: The finish line
 
@@ -750,3 +772,35 @@ makes it shippable is checked rather than hoped for: collections must outpace
 interest, or the debt is a death sentence and D6 forbids those.
 
 `validate.py` clean, `test.py` green at **5257 checks**.
+
+### 2026-08-13 (g): four more powers, and a construct that does not fight
+
+**Twelve factions.** Meridian Trust, who hold the paper rather than the ground
+and whose networks are cryptographic to the exclusion of everything else. The
+Chorus, who have decided that what happens to a netrunner at high Dissonance is
+not a symptom. Static, a pirate press who publish rather than sell. And
+Deepwater, which has placed contracts through four fixers for nine years
+without once meeting anybody, and whose networks are not defended but
+inhabited.
+
+**None of the four holds a district, and that is the characterisation.** A bank
+owns paper, a cult meets in other people's clinics, a pirate broadcast is
+nowhere on purpose, and whatever Deepwater is, it does not have offices. Every
+faction that holds *ground* has somewhere; these do not hold ground.
+
+Three new faction kinds came with them (`cult`, `press`, `construct`), which
+meant finding every place the code branches on kind. That is a real failure
+mode: a missing branch is a `KeyError` in network generation that a player
+discovers rather than the build. `validate.py` now generates one network per
+kind at build time specifically to catch it.
+
+The doctrine gradient came out exactly as written: Static generates 0.24 ICE
+per node against Kagawa's 1.00 and Deepwater's 1.38.
+
+**D26** is the herder, the first ICE behaviour that does no damage. Eight new
+constructs in all, including one apiece for the new powers: a Notary that
+guards keys rather than data, a Psalm that asks what you are doing here and
+appears interested in the answer, a Stringer that publishes you to everybody
+rather than to security, and an Undertow that does not approach.
+
+`validate.py` clean, `test.py` green at **5796 checks**.

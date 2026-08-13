@@ -932,6 +932,96 @@ def test_rivals() -> None:
     save_mod.delete('rivals')
 
 
+def test_herders_and_kinds() -> None:
+    T.section('herders and kinds')
+
+    # Every faction kind must generate without a missing branch. This is the
+    # failure mode adding a faction actually has.
+    for kind in factions.KINDS:
+        probe = next((f for f in factions.FACTIONS if f.kind == kind), None)
+        if probe is None:
+            continue
+        try:
+            net = net_mod.generate(Rng(3).fork('network', kind),
+                                   probe.key, probe.posture)
+            T.ok(bool(net.nodes), f'a {kind} network generates')
+        except Exception:
+            T.failures.append(f'herders and kinds: {kind} generation raised:\n'
+                              + traceback.format_exc())
+            T.checks += 1
+
+    # Every faction can be fielded against, and every ICE type is reachable.
+    reached = set()
+    for i in range(96):
+        key = factions.FACTION_KEYS[i % len(factions.FACTION_KEYS)]
+        net = net_mod.generate(Rng(i).fork('network', f'k{i}'), key,
+                               factions.BY_KEY[key].posture)
+        for node in net.nodes.values():
+            for construct in node.ice:
+                reached.add(construct.key)
+    missing = [i.key for i in ice_content.ICE if i.key not in reached]
+    T.ok(not missing, f'every ICE type is reachable by generation ({missing})')
+
+    # Doctrine shows up in the numbers: a pirate press is emptier than a corp.
+    def density(key):
+        total = nodes = 0
+        for i in range(24):
+            net = net_mod.generate(Rng(i).fork('network', f'd{key}{i}'), key,
+                                   factions.BY_KEY[key].posture)
+            nodes += len(net.nodes)
+            total += sum(len(n.ice) for n in net.nodes.values())
+        return total / max(1, nodes)
+
+    T.ok(density('static') < density('kagawa'),
+         'a pirate press defends less than a megacorp')
+    T.ok(density('deepwater') > density('sixes'),
+         'whatever Deepwater is, it is denser than a gang')
+
+    # Herders never fight, and never strand you.
+    for construct in ice_content.by_behaviour('herder'):
+        T.eq(construct.damage, 0, f'{construct.key} does no damage')
+        T.ok(construct.effects.get('route_cut'),
+             f'{construct.key} cuts a route')
+
+    console = quiet_console()
+    console.start_capture()
+    char = Character.from_origin('gutter', 'x')
+    cuts = 0
+    for i in range(60):
+        net = net_mod.generate(Rng(i).fork('network', f'h{i}'),
+                               'deepwater', 72)
+        state = RunState.begin(net, char, Rng(i)('combat'), console)
+        deep = [n for n in net.nodes.values()
+                if n.zone in ('restricted', 'core')]
+        if deep:
+            state.here = deep[0].uid
+        for _ in range(30):
+            cut = state._cut_route()
+            if cut is None:
+                break
+            cuts += 1
+            T.checks += 1
+            if not state._still_playable():
+                T.failures.append(
+                    'herders and kinds: a cut left the run unplayable')
+                break
+        # Whatever it did, the way out and the job are still reachable.
+        T.ok(state._still_playable(),
+             f'seed {i}: the run is still playable after cutting')
+    T.ok(cuts > 0, f'route cutting actually happens ({cuts} cuts)')
+
+    # A herder with nowhere safe to cut does nothing rather than misbehaving.
+    tiny = net_mod.generate(Rng(1).fork('network', 'tiny'), 'sixes', 20)
+    state = RunState.begin(tiny, char, Rng(1)('combat'), console)
+    for _ in range(200):
+        if state._cut_route() is None:
+            break
+    T.eq(state._cut_route(), None,
+         'a herder with nothing safe to close does nothing')
+    T.ok(state._still_playable(), 'and the run is still finishable')
+    console.end_capture()
+
+
 def test_passives_and_debt() -> None:
     T.section('passives and debt')
     from flatline.world import debt as debt_mod
@@ -1654,7 +1744,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_migration, test_shell,
+    test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_migration, test_shell,
     test_playthrough, test_ui,
 )
 

@@ -112,6 +112,48 @@ SIGNATURES: tuple[Signature, ...] = (
         'Your name goes up on the public log, in the sky, in letters four '
         'containers high.',
     ),
+    Signature(
+        'meridian',
+        'Meridian render nothing at all. You are in a grey volume the exact '
+        'size of the node you are standing in, with the doors marked and '
+        'everything else omitted as an unnecessary expense. It is the only '
+        'network in the city that has clearly been costed by the same people '
+        'who defend it.',
+        ('grey', 'unrendered', 'costed', 'plain', 'exact'),
+        'A door you had not noticed is marked. That is the whole of the '
+        'warning and it is entirely sufficient.',
+    ),
+    Signature(
+        'chorus',
+        'The Chorus built theirs to be worth being in, and it is: a warm '
+        'unbroken interior in gold and deep red, with a sound underneath it '
+        'that resolves, if you stop and listen, into a great many people '
+        'quietly agreeing about something.',
+        ('warm', 'gold', 'unbroken', 'devotional', 'sung'),
+        'The agreement stops. Several thousand voices are now paying '
+        'attention to the same thing, and the thing is you.',
+    ),
+    Signature(
+        'static',
+        'Static is a broadcast studio that never existed, rendered from '
+        'reference photographs of four different ones: mismatched furniture, '
+        'a mixing desk with somebody\'s tea on it, and every wall a live feed '
+        'of something happening elsewhere in the city right now.',
+        ('mismatched', 'live', 'broadcast', 'lit', 'borrowed'),
+        'Every wall cuts to the same feed at once. The feed is this room, '
+        'from behind you.',
+    ),
+    Signature(
+        'deepwater',
+        'Deepwater does not render an environment and does not render you. '
+        'There is depth, and pressure, and a sense of enormous slow structure '
+        'somewhere below the resolution you are being permitted. Nothing here '
+        'was built for a person to look at. It is not clear that anything '
+        'here was built.',
+        ('pressured', 'unlit', 'vast', 'slow', 'unmeant'),
+        'The structure below you changes its mind about something. You feel '
+        'it the way you feel a ship move.',
+    ),
 )
 
 BY_FACTION: dict[str, Signature] = {s.faction: s for s in SIGNATURES}

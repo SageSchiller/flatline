@@ -18,14 +18,21 @@ The six behaviours, and the design question each one asks:
 - **hunter**: can you afford to fight? (locks on, damages the deck)
 - **trap**: did you look before you touched it? (invisible until sprung)
 - **warden**: what is your answer to a door that cannot be evaded?
+- **herder**: will you go where it wants? (cuts routes, never touches you)
 - **black**: is this worth dying for? (the only route to a flatline)
+
+A herder is the odd one and the most interesting to play against, because it
+does no damage at all. It closes the way you came and leaves exactly one door
+open, and the question it asks is whether the thing it is steering you toward
+is worse than the trace you would spend refusing.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-BEHAVIOURS = ('sentry', 'probe', 'hunter', 'trap', 'warden', 'black')
+BEHAVIOURS = ('sentry', 'probe', 'hunter', 'trap', 'warden', 'herder',
+              'black')
 
 #: Alert levels. The network's collective state of mind. Escalates on noise
 #: and on specific failures, and never de-escalates within a run.
@@ -355,6 +362,138 @@ ICE: tuple[IceType, ...] = (
         noise=3,
         trace=8,
     ),
+    # -- herder -----------------------------------------------------------
+    IceType(
+        'drover', 'Drover', 'herder', (),
+        (3, 6),
+        'Does not attack, does not report, and does not stop. It closes '
+        'routes behind you, one at a time, and it is extremely patient about '
+        'where it would prefer you went.',
+        tells=(
+            'a route you were not using has stopped answering',
+            'the segment is smaller than it was a minute ago',
+            'something is closing doors somewhere behind you, unhurriedly',
+        ),
+        strike='Drover closes a route. You have fewer ways out than you did.',
+        noise=2,
+        trace=2,
+        effects={'route_cut': 1},
+    ),
+    IceType(
+        'ostler', 'Ostler', 'herder', ('meridian', 'kagawa', 'nightwatch'),
+        (4, 7),
+        'Corporate containment. It is not trying to catch you: it is trying '
+        'to make sure that when somebody does, you are somewhere convenient.',
+        tells=(
+            'the routing table has been simplified in a way that suits '
+            'somebody',
+            'two paths just became one path',
+            'something is arranging the network around your position',
+        ),
+        strike='Ostler cuts the alternative. The remaining route is the one '
+               'they want you on.',
+        noise=3,
+        trace=4,
+        effects={'route_cut': 1},
+    ),
+
+    # -- the new powers ----------------------------------------------------
+    IceType(
+        'notary', 'Notary', 'warden', ('meridian',),
+        (5, 8),
+        'Meridian do not guard data, they guard keys, and the Notary is the '
+        'thing that decides whether you are somebody a key may be issued to. '
+        'It has never been in a hurry and it has never been wrong.',
+        tells=(
+            'your credentials are being compared against a signature chain',
+            'something is establishing, carefully, who issued you',
+            'the boundary has begun a verification that has several steps',
+        ),
+        strike='Notary declines to certify you, in writing, permanently.',
+        damage=3,
+        noise=2,
+        trace=6,
+        effects={'credential_check': 1},
+    ),
+    IceType(
+        'psalm', 'Psalm', 'sentry', ('chorus',),
+        (3, 6),
+        'A Chorus construct, and the only ICE in the city that will talk to '
+        'you first. It asks what you are doing here. It appears to be '
+        'genuinely interested in the answer.',
+        tells=(
+            'something has addressed you directly and is waiting',
+            'a voice underneath the network has asked you a question',
+            'the agreement has paused, politely, for you',
+        ),
+        strike='Psalm decides you are not one of them and says so, loudly, to '
+               'everybody.',
+        noise=6,
+        effects={'alert_jump': 1},
+    ),
+    IceType(
+        'congregant', 'Congregant', 'hunter', ('chorus',),
+        (4, 7),
+        'People, more or less. A Chorus run is defended by members who have '
+        'jacked in specifically to defend it, and who do not appear to mind '
+        'what happens to them in the course of doing so.',
+        tells=(
+            'something has committed to you completely and without hedging',
+            'a process just accepted damage it could have avoided',
+            'whatever is closing has no exit strategy at all',
+        ),
+        strike='Congregant closes on you and does not protect itself.',
+        damage=8,
+        noise=5,
+        trace=3,
+    ),
+    IceType(
+        'stringer', 'Stringer', 'probe', ('static',),
+        (2, 5),
+        'A Static process that is not looking for intruders. It is looking '
+        'for a story, and an intruder is one.',
+        tells=(
+            'something started recording about four seconds ago',
+            'a feed somewhere has swung round to face this segment',
+            'you are, quite suddenly, being documented',
+        ),
+        strike='Stringer publishes you. Not to security. To everybody.',
+        noise=4,
+        trace=5,
+        effects={'alert_jump': 1},
+    ),
+    IceType(
+        'undertow', 'Undertow', 'black', ('deepwater',),
+        (8, 10),
+        'Nothing about Undertow behaves like software. It does not scan, it '
+        'does not challenge, and it does not escalate. It notices, and then '
+        'the distance between you and it stops being a distance.',
+        tells=(
+            'the pressure has changed and you did not move',
+            'something very large is now much closer and you cannot say when',
+            'you have been noticed by something that does not have eyes',
+        ),
+        strike='Undertow arrives. There was no approach.',
+        damage=15,
+        noise=2,
+        trace=5,
+    ),
+    IceType(
+        'benthic', 'Benthic', 'herder', ('deepwater',),
+        (5, 8),
+        'Deepwater does not need to catch anybody. It simply makes the parts '
+        'of itself you are not wanted in stop existing while you are looking '
+        'at them.',
+        tells=(
+            'a route has closed the way a hand closes',
+            'the shape of this place has changed and nothing moved',
+            'somewhere you had been intending to go is no longer there',
+        ),
+        strike='Benthic closes. The network is smaller and you are further in.',
+        noise=1,
+        trace=3,
+        effects={'route_cut': 1},
+    ),
 )
 
 
@@ -364,7 +503,7 @@ ICE_KEYS: tuple[str, ...] = tuple(BY_KEY)
 #: Effect keys ICE may carry that the run layer implements specially. Anything
 #: outside this set plus `effects.ALL` is a validation error.
 ICE_RIDERS: frozenset[str] = frozenset({
-    'access_drop', 'alert_jump', 'credential_check',
+    'access_drop', 'alert_jump', 'credential_check', 'route_cut',
 })
 
 
