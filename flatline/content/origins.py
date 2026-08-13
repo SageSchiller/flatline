@@ -33,6 +33,8 @@ class Origin:
     cyberware: tuple[str, ...]
     programs: tuple[str, ...]
     deck: str
+    #: The shape they already wear in the net. See content/icons.py.
+    icon: str
     #: faction key -> starting reputation, on the -100..100 scale.
     standing: dict[str, int]
     passive: str
@@ -54,6 +56,7 @@ ORIGINS: tuple[Origin, ...] = (
         cyberware=('corp_neural_shunt',),
         programs=('sable', 'quietcastle', 'ledgerhand'),
         deck='kagawa_issue',
+        icon='corporate',
         standing={'kagawa': -45, 'aoyama': 10, 'fixers': 5},
         passive='Policy reader',
         passive_detail=(
@@ -77,6 +80,7 @@ ORIGINS: tuple[Origin, ...] = (
         cyberware=('salvage_reflex_loop',),
         programs=('crowbar', 'crowbar', 'blink'),
         deck='scrapdeck',
+        icon='plain',
         standing={'sixes': 20, 'kagawa': -10, 'fixers': -5},
         passive='Salvager',
         passive_detail=(
@@ -100,6 +104,7 @@ ORIGINS: tuple[Origin, ...] = (
         cyberware=('social_lattice',),
         programs=('sable', 'handshake', 'blink'),
         deck='midline',
+        icon='plain',
         standing={'fixers': 40, 'sixes': 10, 'nightwatch': -10},
         passive='Known quantity',
         passive_detail=(
@@ -123,6 +128,7 @@ ORIGINS: tuple[Origin, ...] = (
         cyberware=('cortex_annex',),
         programs=('lattice', 'sable', 'quietcastle'),
         deck='university_loan',
+        icon='plain',
         standing={'aoyama': 25, 'freeport': 15, 'sixes': -15},
         passive='First principles',
         passive_detail=(
@@ -147,6 +153,7 @@ ORIGINS: tuple[Origin, ...] = (
         cyberware=('threat_overlay',),
         programs=('cudgel', 'sable', 'mirrorbox'),
         deck='decommissioned',
+        icon='corporate',
         standing={'nightwatch': -60, 'sixes': -20, 'freeport': 20},
         passive='Read the room',
         passive_detail=(
@@ -172,6 +179,7 @@ ORIGINS: tuple[Origin, ...] = (
         cyberware=('spinal_bus', 'ocular_suite', 'reflex_governor'),
         programs=('crowbar', 'cudgel'),
         deck='midline',
+        icon='null',
         standing={'aoyama': -20, 'nightwatch': -15, 'sixes': 5},
         passive='Native',
         passive_detail=(

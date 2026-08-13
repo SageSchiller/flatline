@@ -12,6 +12,7 @@ a search.
 
 from __future__ import annotations
 
+from ..content import cyberspace
 from ..content import factions as fac_content
 from ..content import ice as ice_content
 from ..content import nodes as node_content
@@ -86,8 +87,13 @@ def cmd_jack_in(sess, args) -> None:
     c.rule('connected')
     c.say(f'[dim]Target: [/][err]{contract.target_data.name}[/][dim], posture '
           f'{int(contract.posture)}. Objective: {contract.objective}.[/]')
-    c.say(f'[dim]You are on [/][accent]{net.entry}[/][dim], a '
-          f'{net.node(net.entry).display_type}.[/]')
+    c.blank()
+    # What their cyberspace is made of. Printed once, because it is the visual
+    # key for the whole run and players learn to read it.
+    c.say(f'[ice]{cyberspace.signature(contract.target).arrival}[/]')
+    c.blank()
+    c.say(f'[dim]You come up on [/][accent]{net.entry}[/][dim]: '
+          f'{cyberspace.look(net.node(net.entry).type)}.[/]')
     if 'topology' in contract.intel:
         _reveal_topology(state)
         c.info('Your legwork holds. The shape of it is already in front of you.')
@@ -127,9 +133,16 @@ def _resolve(sess) -> None:
     c.blank()
     c.rule('disconnected')
     verdict = {
-        'clean': '[ok]You are out.[/]',
-        'burned': '[warn]You are out, without what you came for.[/]',
-        'severed': '[err]They cut you loose.[/]',
+        'clean': ('[ok]You are out.[/] The room comes back one sense at a '
+                  'time and your hands have gone cold on the arms of the '
+                  'chair. Nothing outside has noticed anything.'),
+        'burned': ('[warn]You are out, with nothing.[/] The same room, the '
+                   'same cold hands, and the specific hollow feeling of '
+                   'having spent a night making somebody else\'s security '
+                   'team better at their jobs.'),
+        'severed': ('[err]They cut you loose from the far end.[/] You come '
+                    'back badly, tasting copper, with the deck fans screaming '
+                    'and a nosebleed you did not feel start.'),
         'flatline': '[err][bold]FLATLINE.[/][/]',
     }.get(summary['outcome'], '')
     c.say(verdict)
@@ -147,9 +160,20 @@ def _resolve(sess) -> None:
         from .. import save as save_mod
         save_mod.bump_meta(flatlines=1)
         c.blank()
-        c.say('[err]The Coffin held long enough. Somebody will find the deck '
-              'still warm and the chair still occupied.[/]')
-        c.say(f'[dim]{game.char.handle} ran {game.char.runs} times.[/]')
+        c.say('[err]It held on long enough. There is no disconnection, no '
+              'room coming back, no cold hands: the feed simply stops being a '
+              'feed and becomes the last thing.[/]')
+        c.blank()
+        c.say('[dim]Somebody will find the deck still warm and the chair '
+              'still occupied. The building will bill the estate for the '
+              'cleaning. Nobody will run this address again for a year, out '
+              'of superstition rather than respect.[/]')
+        c.blank()
+        c.kv([('handle', game.char.handle),
+              ('ran as', game.alias.name),
+              ('runs', str(game.char.runs)),
+              ('earned', f'{game.earned:,}c'),
+              ('killed by', 'black ICE')])
         sess.autosave()
         return
 
@@ -177,6 +201,12 @@ def _resolve(sess) -> None:
         game.char.credits += take
         game.earned += take
         c.say(f'[credit]{take:,}c[/] for the rest of the haul.')
+
+    if 'creeping_dissonance' in game.char.riders():
+        game.char.dissonance += 1
+        c.say('[accent2]Something you are wearing has settled another '
+              'millimetre closer in.[/] [dim]Dissonance '
+              f'{game.char.dissonance}.[/]')
 
     gained = 2 + summary['ticks'] // 12 + (2 if summary.get('objective') else 0)
     game.char.xp += gained
@@ -326,10 +356,17 @@ def cmd_connect(sess, args) -> None:
     if ghost and not state.char.has_technique('ghost'):
         raise CommandError('you have not learned to ghost. Stealth rank 2.')
 
+    crossing = node.tier > state.net.nodes[state.here].tier
     state.here = uid
     _act(sess, 'connect', node=node,
          noise_scale=0.0 if ghost else 1.0,
          ticks=2 if ghost else 1)
+    if state.running and crossing:
+        # Depth has to feel like depth rather than a counter going up.
+        line = cyberspace.descent(node.zone, state.tick)
+        if line:
+            c.blank()
+            c.say(f'[ice]{line}[/]')
     if state.running:
         state.check_traps(node)
     if state.running:
@@ -415,6 +452,9 @@ def cmd_pretext(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     if not state.char.has_technique('pretext'):
         raise CommandError('Pretext is Subterfuge rank 2.')
+    if 'no_social' in state.char.riders():
+        raise CommandError('you are rendering as a scheduled job. Processes '
+                           'do not talk, and trying would drop the disguise.')
     node, svc = _target_service(state, args)
     if svc.cracked:
         raise CommandError('that is already open')
@@ -502,6 +542,8 @@ def cmd_impersonate(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     if not state.char.has_technique('impersonate'):
         raise CommandError('Impersonate is Subterfuge rank 4.')
+    if 'no_social' in state.char.riders():
+        raise CommandError('a process cannot claim to be a person.')
     if 'impersonate' in state.spent:
         raise CommandError('you have already used that name once tonight')
     if state.tier < 1:
@@ -1205,8 +1247,10 @@ def _show_node(sess, node, detail: bool = False) -> None:
     state, c = sess.run, sess.console
     tail = 'you are here' if node.uid == state.here else ''
     c.header(node.uid, tail)
-    c.say(f'[dim]{node.display_type} in the {node.zone}. '
-          f'{node_content.ZONE_BLURB[node.zone]}[/]')
+    look_type = 'workstation' if (node.type == 'honeypot' and node.disguised) \
+        else node.type
+    c.say(f'[dim]{cyberspace.look(look_type, len(node.uid)).capitalize()}. '
+          f'{node.display_type} in the {node.zone}.[/]')
 
     if not detail:
         c.say('[dim]Not probed. `probe` to see what it runs.[/]')

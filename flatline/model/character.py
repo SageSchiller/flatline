@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from ..content import attributes as attrs
-from ..content import cyberware, effects as fx, origins, programs, skills
+from ..content import cyberware, effects as fx, icons, origins, programs, skills
 from .deck import Deck
 
 
@@ -32,6 +32,12 @@ class Character:
     #: Programs owned but not necessarily loaded. The loadout decision of D12
     #: only exists because these two lists are different.
     library: list[str] = field(default_factory=list)
+
+    #: The shape you wear in cyberspace. The cheapest customisation axis to
+    #: change, and therefore the tactical one: carry several, wear the right
+    #: one for the job.
+    icon: str = icons.DEFAULT
+    icons: list[str] = field(default_factory=lambda: [icons.DEFAULT])
 
     credits: int = 0
     xp: int = 0
@@ -62,6 +68,8 @@ class Character:
             installed=list(origin.cyberware),
             deck=Deck.from_preset(origin.deck),
             library=list(origin.programs),
+            icon=origin.icon,
+            icons=sorted({icons.DEFAULT, origin.icon}),
             credits=origin.credits,
         )
         char.dissonance = sum(cyberware.BY_KEY[w].dissonance
@@ -95,6 +103,13 @@ class Character:
             if ware:
                 parts.append(ware.effects)
                 parts.append(ware.penalty)
+        icon = icons.BY_KEY.get(self.icon)
+        if icon:
+            parts.append(icon.effects)
+            parts.append(icon.penalty)
+            # An icon further from a human shape than your drift can carry
+            # fights you the whole time you wear it.
+            parts.append(icons.coherence_penalty(self.icon, self.dissonance))
         return fx.merge(*parts)
 
     def mult(self, key: str) -> float:
@@ -233,8 +248,21 @@ class Character:
 
     def riders(self) -> set[str]:
         """Rider keys currently active. The run layer special-cases these."""
-        return {cyberware.BY_KEY[k].rider for k in self.installed
-                if k in cyberware.BY_KEY and cyberware.BY_KEY[k].rider}
+        out = {cyberware.BY_KEY[k].rider for k in self.installed
+               if k in cyberware.BY_KEY and cyberware.BY_KEY[k].rider}
+        icon = icons.BY_KEY.get(self.icon)
+        if icon and icon.rider:
+            out.add(icon.rider)
+        return out
+
+    @property
+    def icon_data(self) -> icons.Icon:
+        return icons.BY_KEY.get(self.icon) or icons.BY_KEY[icons.DEFAULT]
+
+    @property
+    def coherence_gap(self) -> int:
+        """How far short of holding the current icon you are. Zero is a fit."""
+        return icons.coherence_gap(self.icon, self.dissonance)
 
     # ------------------------------------------------------------------
     # progression
@@ -296,6 +324,8 @@ class Character:
             'installed': list(self.installed),
             'deck': self.deck.to_dict(),
             'library': list(self.library),
+            'icon': self.icon,
+            'icons': list(self.icons),
             'credits': self.credits,
             'xp': self.xp,
             'points': self.points,
@@ -316,6 +346,8 @@ class Character:
             installed=list(d.get('installed') or []),
             deck=Deck.from_dict(d.get('deck') or {}),
             library=list(d.get('library') or []),
+            icon=d.get('icon') or icons.DEFAULT,
+            icons=list(d.get('icons') or [icons.DEFAULT]),
             credits=int(d.get('credits', 0)),
             xp=int(d.get('xp', 0)),
             points=int(d.get('points', 0)),

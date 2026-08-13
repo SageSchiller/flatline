@@ -12,9 +12,17 @@ updated: 2026-08-12
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-12.** Project created. Phase 0 and Phase 1 are the current work. Nothing is playable yet.
+> **State as of 2026-08-12.** **The game is playable end to end.** Phases 0, 1, 2 and most of 3 are done. `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **4615 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 11,600 lines.
+>
+> You can create a character six ways, spend an attribute and experience budget, take a contract, travel, do legwork, jack in, break into a procedurally generated network, steal something, and get out, and the residue you left turns into faction heat a shift later.
+>
+> **What is not done yet:** rivals acting on their own, bounties making districts dangerous, and the `escort` and `surveil` objectives are stubs that resolve as "did you take anything". Those are Phase 4. See the phase list.
 >
 > **What this is.** A netrunner sim you play by typing at a fake terminal. Two layers: a persistent city that keeps score, and procedurally generated corporate networks you break into one contract at a time. The character system is classless and deep enough that two players at the same credit total play nothing alike.
+>
+> **The tone is grim.** Not cynical-cool: grim. The city does not care whether you live, the clinics are the best and worst thing in it, every piece of chrome costs you something you do not get back, and the only true death in the game is telegraphed and then absolute. Everything ships in that register or it does not ship.
+>
+> **This is a netrunning game, not a combat game.** There are no guns and no street fights. The whole of the conflict layer is program against countermeasure, inside the net, through a deck. "Warfare" is the skill of attacking ICE constructs; it never leaves cyberspace.
 >
 > **The one-sentence pitch.** Every action you take in a network is loud, and the city remembers.
 >
@@ -156,6 +164,42 @@ No shared code, no shared content, no imports across projects. Prior art may be 
 The game must be fully playable at 80 columns, ASCII only, sixteen colours, and also look good at 120 columns with truecolour and Unicode. Colour is requested by semantic role (`accent`, `warn`, `err`), never by name, so `--theme ansi` maps everything onto the terminal's own palette.
 
 The default palette is lifted from the author's own `~/.config/doom/themes/doom-cyberpunk-neon-theme.el`, including its sixteen-colour fallbacks, so the game matches ghostty, tmux, fish, Doom, and neovim rather than visiting them. This is the one deliberate borrow from hone's approach, and it is a borrow of technique and of the author's own theme file, not of code.
+
+### D18: Your icon is the fourth build axis
+
+You render as *something* in the net, and what you choose is a real mechanical
+decision: how loud you are, how ICE classifies you, whether anything in there
+will talk to you at all.
+
+It is deliberately the **cheapest axis to change**. Skills cost experience,
+chrome costs Dissonance you never get back, the deck costs a trip to a market;
+an icon is a file. Carry several and wear the right one for the job. That makes
+icons the tactical layer of character building, sitting under the three
+permanent ones.
+
+**Coherence** is the constraint that ties it back to D11. An icon far from a
+human shape is hard to hold together, and holding one costs you unless your
+Dissonance has already done the work. That is the payoff arc for a chromed
+build: the same drift that makes you worse in the city makes you better at
+being something other than a person in here. A Process icon, which renders you
+as a scheduled maintenance job, needs 50 Dissonance and cannot speak to
+anything at all.
+
+### D19: Cyberspace is a place, and every faction's looks different
+
+The single most important thing stopping a run reading like a port scan is that
+a Kagawa fileserver and a Carrion fileserver do not look remotely alike from
+the inside. Kagawa render agricultural terraces of pale green process light.
+Carrion render a slaughterhouse corridor at a framerate chosen to make you
+sick. Freeport render the actual docks, to scale, with a public log running
+down the sky where anybody can read what you just did.
+
+This is pure flavour with no mechanical weight, which is exactly why it lives in
+its own file (`content/cyberspace.py`) and can be rewritten wholesale without
+touching a rule. Three composable layers: the faction **signature** printed on
+connection, the **node** description, and the **descent** text printed when you
+cross a zone boundary inward. Plus **trace pressure**: one line, at a threshold
+only, making the clock physical.
 
 ### D17: The finish line
 
@@ -313,6 +357,10 @@ Two contexts with two verb sets, plus a shared core.
 
 ## Phases
 
+> **Status:** Phases 0, 1 and 2 are complete. Phase 3 is complete except that
+> `escort` and `surveil` do not yet have their own resolution. Phase 4 is the
+> next work.
+
 ### Phase 0: harness
 
 The skeleton that runs and proves the invariants.
@@ -386,3 +434,21 @@ Named it **flatline**. In Gibson, to flatline is what black ICE does to you: the
 Surveyed `hone` for conventions and adopted them deliberately: plan document at the project root with a START HERE block, locked decisions with citable numbers, `validate.py` and `test.py` split by what-content-says versus what-app-does, stdlib only, `build.sh` producing a zipapp, and the author's own doom-cyberpunk-neon palette carrying all three capability rungs.
 
 The one significant departure from hone is D2. hone is a TUI with screens; flatline is a REPL. That was the user's call on interface, and it turns out to be load-bearing for testability: a shell session is strings in and strings out, so `test.py` can play whole runs.
+
+### 2026-08-12 (b): playable end to end
+
+Built Phases 0 through 3 in one sitting. The loop closes: create, take, travel, legwork, jack in, break in, take something, get out, and feel it a shift later.
+
+**Four bugs the harnesses caught that playing would not have.** `wrap()` used the length of the subsequent-indent as its "start of line" test, which silently ate every run of padding in `help` and `skills`. `validate.py` caught three techniques (`hotswap`, `falsify`, `daemon`) whose skill-tree entries promised shell verbs that did not exist, and one asymmetric faction relation. `test.py`'s command fuzz caught five commands that turned a typo like `rest zzz` into a traceback, which is now fixed centrally with `Args.int_at`.
+
+**Two balance problems visible only from generated output.** The Sixes, a gang whose doctrine promises "almost no ICE", were generating *more* countermeasures than Kagawa, because density scaled on posture alone. Density now scales on faction kind as well, and the gradient runs 0.37 ICE per node for the Sixes to 1.20 for Aoyama. Separately, wardens were placed at every zone boundary regardless of who owned the network, which gave a gang's back room a corporate Chamberlain on it; warden placement is now doctrine-sensitive too.
+
+### 2026-08-12 (c): tone and the VR layer
+
+Two directions from the author, both taken: grimmer and grittier, and lean into the deck and cyberspace rather than anything resembling combat.
+
+Added **D19**, cyberspace as a place, which is the change that stops a run reading like a port scan. Added **D18**, the icon system, which is both the most VR-native idea in the game and a fourth customisation axis: a cheap, swappable, tactical one under the three permanent ones. Icons tie back to the Dissonance arc through coherence, which finally gives a chromed build something it is *better* at rather than merely stranger.
+
+Rewrote the run outcomes in the grim register: the room coming back one sense at a time, the nosebleed you did not feel start, and a flatline that is not a disconnection but simply the last thing.
+
+Nothing in this project has ever had a gun in it and nothing will. The conflict layer is program against countermeasure, through a deck, and "Warfare" is a netrunning skill that never leaves cyberspace.

@@ -1,0 +1,178 @@
+"""Your icon: the shape you wear in cyberspace.
+
+Every netrunner renders as *something*. The deck has to put a body on you
+before the net will talk to you, and what you choose to be in there is a real
+decision with real mechanics, not a portrait.
+
+This is the fourth customisation axis, alongside skills, chrome, and the deck,
+and it is deliberately the cheapest one to change: an icon is a file. You can
+carry several and wear the right one for the job, which makes it the tactical
+layer of character building rather than the permanent one.
+
+**Coherence** is the constraint. An icon that is very far from a human shape is
+harder to hold together, and holding it costs you unless your Dissonance has
+already done the work. That is the payoff arc for a chromed build: the things
+that make you worse in the city make you better at being something other than
+a person in here.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+
+@dataclass(frozen=True, slots=True)
+class Icon:
+    key: str
+    name: str
+    blurb: str
+    #: What somebody watching the render actually sees.
+    render: str
+    price: int
+    #: Dissonance needed to wear it without penalty. Below this, the coherence
+    #: cost applies: the icon fights you.
+    coherence: int
+    effects: dict = field(default_factory=dict)
+    drawback: str = ''
+    penalty: dict = field(default_factory=dict)
+    #: Engine-implemented special behaviour.
+    rider: str = ''
+
+
+ICONS: tuple[Icon, ...] = (
+    Icon('plain', 'Unmarked',
+         'The default the deck ships with. A person-shaped absence of '
+         'personality, in the same grey as ten thousand others.',
+         'A human outline at working resolution. Nothing about it is '
+         'memorable, which on reflection is the entire feature.',
+         price=0, coherence=0,
+         effects={},
+         drawback='It is what everybody who has never thought about this looks '
+                  'like, and the net treats you accordingly.',
+         penalty={'pretext_bonus': -1}),
+
+    Icon('corporate', 'Compliance Shell',
+         'A licensed corporate avatar, the kind an auditor wears. Wearing one '
+         'you have no right to is a specific criminal offence.',
+         'Mid-forties, mid-level, holding a clipboard object that does '
+         'nothing. It renders with a badge you cannot quite read.',
+         price=3200, coherence=0,
+         effects={'pretext_bonus': 3, 'crack_bonus': 1},
+         drawback='It is registered hardware wearing a registered face. '
+                  'Corporate ICE checks the registry, and when it comes back '
+                  'wrong it comes back very wrong.',
+         penalty={'heat_mult': 1.25},
+         rider='registry_check'),
+
+    Icon('null', 'Null',
+         'No icon. A hole in the render where a person should be. Most decks '
+         'will not hold it and most people cannot stand being it.',
+         'Nothing. The environment simply fails to draw across a '
+         'person-shaped volume, and the eye keeps sliding off.',
+         price=7400, coherence=40,
+         effects={'noise_mult': 0.72, 'trace_mult': 0.88},
+         drawback='There is nothing there to reassure anybody. Any construct '
+                  'that does notice you escalates immediately: you are '
+                  'obviously not staff, not a process, and not confused.',
+         penalty={'pretext_bonus': -6},
+         rider='null_escalation'),
+
+    Icon('swarm', 'Swarm',
+         'You render as many small things rather than one large one. Lock-on '
+         'has to pick which, and picking wrong costs it a tick.',
+         'Somewhere between four hundred and nine hundred separate objects, '
+         'moving as one and not quite managing it at the edges.',
+         price=6100, coherence=25,
+         effects={'evade_bonus': 4},
+         drawback='Distributed attention is still attention. You cannot '
+                  'concentrate the way a single shape can, and precision work '
+                  'suffers for it.',
+         penalty={'crypto_bonus': -2, 'focus': -1},
+         rider='swarm_lock'),
+
+    Icon('predator', 'Predator',
+         'Something with teeth, rendered at a size the protocol was never '
+         'meant to allow. Gang runners wear these. It works on people.',
+         'Four metres of articulated dark, moving at a framerate the rest of '
+         'the environment cannot match.',
+         price=4800, coherence=20,
+         effects={'ice_damage': 3, 'composure': 2},
+         drawback='Nothing about it is subtle and nothing about it is '
+                  'deniable. Everything in the segment reacts to it.',
+         penalty={'noise_mult': 1.35}),
+
+    Icon('mirror', 'Mirror',
+         'Reflects whatever is looking at it. ICE that tries to classify you '
+         'gets its own signature back and has to think about it.',
+         'Your own shape, until something else looks, at which point it is '
+         'that thing\'s shape, a half-second out of step.',
+         price=8900, coherence=30,
+         effects={'evade_bonus': 2, 'tell_lead': 1},
+         drawback='It reflects allies too. Anything working alongside you, '
+                  'including your own daemons, has trouble telling which of '
+                  'you is you.',
+         penalty={},
+         rider='mirror_confusion'),
+
+    Icon('deadname', 'Deadname',
+         'Somebody else\'s icon, salvaged off a runner who did not need it '
+         'any more. Their credentials are still faintly attached to it.',
+         'A stranger, rendered with more care than you would spend on '
+         'yourself. Whoever built it, built it to be liked.',
+         price=5600, coherence=15,
+         effects={'pretext_bonus': 4, 'rep_mult': 1.1},
+         drawback='It is a dead person and some networks remember them. '
+                  'Wearing it accrues Dissonance the way chrome does: +1 every '
+                  'time you complete a run in it.',
+         penalty={},
+         rider='creeping_dissonance'),
+
+    Icon('process', 'Process',
+         'Not a person at all. You render as a scheduled job, which is what '
+         'most of a network expects to see and almost never inspects.',
+         'A maintenance task with a plausible name and a plausible owner, '
+         'doing plausible work at three in the morning.',
+         price=9800, coherence=50,
+         effects={'noise_mult': 0.6, 'residue_mult': 0.8},
+         drawback='A process has no standing and no voice. You cannot talk to '
+                  'anything, because processes do not talk, and any attempt to '
+                  'drops the disguise entirely.',
+         penalty={'pretext_bonus': -10},
+         rider='no_social'),
+)
+
+BY_KEY: dict[str, Icon] = {i.key: i for i in ICONS}
+ICON_KEYS: tuple[str, ...] = tuple(BY_KEY)
+
+DEFAULT = 'plain'
+
+#: Riders the engine implements. Anything outside this set is a content bug.
+RIDERS: frozenset[str] = frozenset({
+    'registry_check', 'null_escalation', 'swarm_lock', 'mirror_confusion',
+    'creeping_dissonance', 'no_social',
+})
+
+
+def coherence_gap(icon_key: str, dissonance: int) -> int:
+    """How far short of holding this shape you are. Zero means it fits."""
+    icon = BY_KEY.get(icon_key)
+    if icon is None:
+        return 0
+    return max(0, icon.coherence - dissonance)
+
+
+def coherence_penalty(icon_key: str, dissonance: int) -> dict:
+    """What an ill-fitting icon costs.
+
+    Scales with the gap rather than being a cliff, so wearing something
+    slightly beyond you is a real option with a real price, and wearing
+    something far beyond you is obviously a mistake before you try it.
+    """
+    gap = coherence_gap(icon_key, dissonance)
+    if not gap:
+        return {}
+    return {
+        'focus': -(1 + gap // 20),
+        'tick_mult': 1.0 + gap * 0.006,
+        'composure': -(gap // 10),
+    }

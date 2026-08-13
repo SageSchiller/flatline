@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from ..content import cyberspace
 from ..content import factions as fac_content
 from ..content import ice as ice_content
 from ..content import nodes as node_content
@@ -220,7 +221,15 @@ class RunState:
             if not self.running:
                 return
             self.tick += 1
+            was = self.trace_pct
             self.add_trace(TRACE_PER_TICK)
+            # The clock made physical. One line at most, and only on a
+            # threshold, because narrating every point of trace would turn
+            # the tensest number in the game into wallpaper.
+            felt = cyberspace.pressure(was, self.trace_pct)
+            if felt:
+                self.console.blank()
+                self.console.say(f'[trace]{felt}[/]')
             if self.nullsig > 0:
                 self.nullsig -= 1
                 if self.nullsig == 0:
@@ -367,17 +376,35 @@ class RunState:
         if data.behaviour == 'sentry':
             self.add_trace(data.trace + construct.rating * 0.5)
             self.escalate(1, f'{data.name} filed on your session.')
+            if 'null_escalation' in self.char.riders():
+                self.escalate(1, 'There was nothing there to file, which is '
+                                 'considerably worse than something.')
             construct.state = 'dormant'
             return
 
         if data.behaviour == 'warden':
             self.add_trace(data.trace)
+            if ('registry_check' in self.char.riders()
+                    and fac_content.BY_KEY[self.net.faction].kind == 'corp'):
+                # A licensed face on an unlicensed body. The registry answers.
+                self.console.say('[err]It queries the registry for your face '
+                                 'and the registry answers honestly.[/]')
+                self.add_trace(data.trace * 1.5)
+                self.escalate(1, 'A compliance shell failed audit.')
             self.take_damage(max(1, data.damage), black=False,
                              source=data.name)
             return
 
         # hunter and black: lock on and keep hitting.
         if construct not in self.locked:
+            if ('swarm_lock' in self.char.riders()
+                    and data.behaviour == 'hunter'
+                    and self.rng.chance(0.45)):
+                # It picked one of you, and it picked wrong.
+                self.console.say('[ok]It commits to one of you and closes on '
+                                 'a copy.[/]')
+                construct.telegraphed = False
+                return
             self.locked.append(construct)
             construct.state = 'locked'
         self.add_trace(data.trace)

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from ..content import attributes as attr_content
 from ..content import cyberware, districts, effects as fx, factions
-from ..content import hardware, origins, programs
+from ..content import hardware, icons, origins, programs
 from ..content import skills as skill_content
 from ..game import Game
 from ..model.character import Character
@@ -267,6 +267,97 @@ def cmd_deck(sess, args) -> None:
         c.blank()
         c.warn('No thermal headroom. Overclocking is not available until the '
                'cooling outpaces the components.')
+
+
+@command('icon', 'The shape you wear in the net.',
+         group='character', usage='icon [wear <key>] [buy <key>]',
+         detail='Your icon is what cyberspace renders you as, and it is a real '
+                'build axis: it changes how loud you are, how ICE reads you, '
+                'and whether anything in there will talk to you. It is also '
+                'the cheapest axis to change, so carry several and wear the '
+                'right one for the job. Icons far from a human shape need '
+                'Dissonance to hold: below that, they fight you.')
+def cmd_icon(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    char = game.char
+    action = (args.get(0) or '').lower()
+
+    if action in ('wear', 'buy'):
+        query = (args.get(1) or '').lower()
+        key = next((k for k in icons.ICON_KEYS
+                    if k == query or query in icons.BY_KEY[k].name.lower()), None)
+        if not key:
+            raise CommandError('no icon called that: '
+                               + ', '.join(icons.ICON_KEYS))
+        icon = icons.BY_KEY[key]
+
+        if action == 'buy':
+            if key in char.icons:
+                raise CommandError(f'you already own {icon.name}')
+            if 'workshop' not in game.city.district.services:
+                shops = ', '.join(d.name
+                                  for d in districts.with_service('workshop'))
+                raise CommandError(f'icons are cut at a workshop. Try: {shops}')
+            price = int(icon.price * game.city.district.price_mult
+                        * char.mult('price_mult'))
+            if price > char.credits:
+                raise CommandError(f'{icon.name} is {price:,}c and you have '
+                                   f'{char.credits:,}c')
+            char.credits -= price
+            char.icons.append(key)
+            c.ok(f'{icon.name} cut and keyed to your deck for '
+                 f'[credit]{price:,}c[/].')
+            return
+
+        if key not in char.icons:
+            raise CommandError(f'you do not own {icon.name}. `icon buy {key}` '
+                               f'at a workshop.')
+        if sess.run is not None:
+            raise CommandError('you cannot change what you are while you are '
+                               'wearing it.')
+        char.icon = key
+        c.ok(f'You are {icon.name} now.')
+        c.say(f'[dim]{icon.render}[/]')
+        gap = char.coherence_gap
+        if gap:
+            c.warn(f'It does not fit. You are {gap} short of the Dissonance '
+                   f'this shape needs, and holding it will cost you.')
+        return
+
+    icon = char.icon_data
+    c.header('Icon', icon.name)
+    c.say(icon.render)
+    c.blank()
+    c.say(f'[dim]{icon.blurb}[/]')
+    c.blank()
+    c.say(f'[warn]Drawback.[/] {icon.drawback}')
+    gap = char.coherence_gap
+    if gap:
+        c.blank()
+        c.err(f'Coherence gap {gap}. This shape needs {icon.coherence} '
+              f'Dissonance and you have {char.dissonance}.')
+        for key, value in icons.coherence_penalty(char.icon,
+                                                  char.dissonance).items():
+            if value and abs(value - (1.0 if 'mult' in key else 0)) > 1e-9:
+                c.raw(f'    [err]{fx.describe(key, value)}[/]')
+
+    c.blank()
+    c.rule('what you own')
+    rows = []
+    for key in icons.ICON_KEYS:
+        other = icons.BY_KEY[key]
+        owned = key in char.icons
+        fit = icons.coherence_gap(key, char.dissonance)
+        state = ('[accent]worn[/]' if key == char.icon
+                 else '[ok]owned[/]' if owned
+                 else f'[credit]{other.price:,}c[/]')
+        rows.append((key, other.name, str(other.coherence),
+                     '[err]too strange[/]' if fit else '[ok]fits[/]', state))
+    c.table(('key', 'icon', 'needs', 'for you', ''), rows,
+            roles=('dim', 'accent', 'dim', None, None))
+    c.blank()
+    c.say('[dim]`icon wear <key>` to change. `icon buy <key>` at a '
+          'workshop.[/]')
 
 
 @command('load', 'Put a program on the deck.',

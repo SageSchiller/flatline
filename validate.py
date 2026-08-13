@@ -18,8 +18,10 @@ import sys
 from flatline import commands  # noqa: F401  (registers the command table)
 from flatline import theme, ui
 from flatline.content import attributes as attr_content
-from flatline.content import cyberware, districts, effects as fx, factions
-from flatline.content import hardware, ice as ice_content, nodes as node_content
+from flatline.content import cyberspace, cyberware, districts
+from flatline.content import effects as fx, factions
+from flatline.content import hardware, ice as ice_content, icons
+from flatline.content import nodes as node_content
 from flatline.content import origins, programs, skills
 from flatline.model.character import Character
 from flatline.shell import CONTEXTS, GROUPS, REGISTRY
@@ -171,6 +173,77 @@ def check_hardware(rep: Report) -> None:
 # --------------------------------------------------------------------------
 
 
+def check_icons(rep: Report) -> None:
+    """Icons are the fourth build axis and follow the same honesty rule."""
+    for i in icons.ICONS:
+        where = f'icons/{i.key}'
+        rep.check(bool(i.render), where, 'has no render description')
+        rep.check(bool(i.blurb), where, 'has no blurb')
+        rep.check(bool(i.drawback), where, 'has no stated drawback')
+        rep.check(i.coherence >= 0, where, 'negative coherence requirement')
+        rep.check(i.price >= 0, where, 'negative price')
+        if not i.penalty and not i.rider:
+            rep.error(where, 'drawback is prose only: needs a penalty dict or '
+                             'a rider the engine implements')
+        if i.rider:
+            rep.check(i.rider in icons.RIDERS, where,
+                      f'rider {i.rider!r} is not in RIDERS')
+        for problems in (fx.check(i.effects, f'{where}/effects'),
+                         fx.check(i.penalty, f'{where}/penalty')):
+            for problem in problems:
+                rep.error('effects', problem)
+
+    rep.check(icons.DEFAULT in icons.BY_KEY, 'icons',
+              f'DEFAULT icon {icons.DEFAULT!r} does not exist')
+    rep.check(icons.BY_KEY[icons.DEFAULT].price == 0, 'icons',
+              'the default icon is not free')
+    rep.check(icons.BY_KEY[icons.DEFAULT].coherence == 0, 'icons',
+              'the default icon cannot be worn by a new character')
+
+    # The coherence penalty must always be a penalty, never a gift.
+    for i in icons.ICONS:
+        penalty = icons.coherence_penalty(i.key, 0)
+        for key, value in penalty.items():
+            if key in fx.MULTIPLICATIVE:
+                rep.check(value >= 1.0, f'icons/{i.key}',
+                          f'coherence gap improves {key}')
+            else:
+                rep.check(value <= 0, f'icons/{i.key}',
+                          f'coherence gap improves {key}')
+        rep.check(not icons.coherence_penalty(i.key, 999),
+                  f'icons/{i.key}', 'still penalised at maximum Dissonance')
+
+
+def check_cyberspace(rep: Report) -> None:
+    """Every faction has to look like something, or the run reads as a scan."""
+    for f in factions.FACTIONS:
+        if f.key not in cyberspace.BY_FACTION:
+            rep.error('cyberspace', f'{f.key} has no visual signature')
+    for sig in cyberspace.SIGNATURES:
+        where = f'cyberspace/{sig.faction}'
+        rep.check(sig.faction in factions.BY_KEY, where, 'unknown faction')
+        rep.check(bool(sig.arrival), where, 'has no arrival text')
+        rep.check(bool(sig.ice_wakes), where, 'has no ice-wakes text')
+        rep.check(len(sig.texture) >= 3, where, 'has fewer than three textures')
+
+    for n in node_content.NODE_TYPES:
+        if n.key not in cyberspace.NODE_LOOK:
+            rep.error('cyberspace', f'node type {n.key!r} has no description')
+    # Every zone below the perimeter is crossed into and needs descent text.
+    for zone in node_content.ZONES[1:]:
+        if zone not in cyberspace.DESCENT:
+            rep.error('cyberspace', f'zone {zone!r} has no descent text')
+
+    last = 0.0
+    for threshold, text in cyberspace.TRACE_PRESSURE:
+        rep.check(0.0 < threshold <= 1.0, 'cyberspace',
+                  f'trace threshold {threshold} out of range')
+        rep.check(threshold > last, 'cyberspace',
+                  'trace pressure thresholds must ascend')
+        last = threshold
+        rep.check(bool(text), 'cyberspace', 'empty trace pressure line')
+
+
 def check_origins(rep: Report) -> None:
     for o in origins.ORIGINS:
         where = f'origins/{o.key}'
@@ -186,6 +259,7 @@ def check_origins(rep: Report) -> None:
             rep.check(key in programs.BY_KEY, where, f'unknown program {key!r}')
         rep.check(o.deck in hardware.PRESETS_BY_KEY, where,
                   f'unknown deck preset {o.deck!r}')
+        rep.check(o.icon in icons.BY_KEY, where, f'unknown icon {o.icon!r}')
         for key in o.standing:
             rep.check(key in factions.BY_KEY, where, f'unknown faction {key!r}')
         rep.check(bool(o.passive and o.passive_detail), where,
@@ -515,6 +589,21 @@ def check_markup(rep: Report) -> None:
     for w in cyberware.WARE:
         collect(f'cyberware/{w.key}', w.blurb)
         collect(f'cyberware/{w.key}', w.drawback)
+    for i in icons.ICONS:
+        collect(f'icons/{i.key}', i.blurb)
+        collect(f'icons/{i.key}', i.render)
+        collect(f'icons/{i.key}', i.drawback)
+    for sig in cyberspace.SIGNATURES:
+        collect(f'cyberspace/{sig.faction}', sig.arrival)
+        collect(f'cyberspace/{sig.faction}', sig.ice_wakes)
+    for key, options in cyberspace.NODE_LOOK.items():
+        for text in options:
+            collect(f'cyberspace/node/{key}', text)
+    for key, options in cyberspace.DESCENT.items():
+        for text in options:
+            collect(f'cyberspace/descent/{key}', text)
+    for _, text in cyberspace.TRACE_PRESSURE:
+        collect('cyberspace/pressure', text)
     for p in programs.PROGRAMS:
         collect(f'programs/{p.key}', p.blurb)
         collect(f'programs/{p.key}', p.note)
@@ -585,7 +674,7 @@ def check_balance(rep: Report) -> None:
 
 CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
-    check_origins, check_skills, check_factions, check_districts,
+    check_icons, check_cyberspace, check_origins, check_skills, check_factions, check_districts,
     check_ice, check_nodes, check_contracts, check_commands,
     check_theme, check_markup, check_balance,
 )
