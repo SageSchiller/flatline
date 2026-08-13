@@ -22,7 +22,9 @@ from flatline.content import cyberspace, cyberware, districts
 from flatline.content import effects as fx, factions
 from flatline.content import hardware, ice as ice_content, icons
 from flatline.content import nodes as node_content
-from flatline.content import origins, programs, skills
+from flatline.content import origins, programs
+from flatline.content import rivals as rival_content
+from flatline.content import skills
 from flatline.model.character import Character
 from flatline.shell import CONTEXTS, GROUPS, REGISTRY
 from flatline.world import contracts as contract_mod
@@ -212,6 +214,48 @@ def check_icons(rep: Report) -> None:
                           f'coherence gap improves {key}')
         rep.check(not icons.coherence_penalty(i.key, 999),
                   f'icons/{i.key}', 'still penalised at maximum Dissonance')
+
+
+def check_rivals(rep: Report) -> None:
+    """Rivals are content and follow the same reference rules as anything else."""
+    for r in rival_content.RIVALS:
+        where = f'rivals/{r.key}'
+        rep.check(r.style in rival_content.STYLES, where,
+                  f'unknown style {r.style!r}')
+        rep.check(1 <= r.skill <= 10, where, f'skill {r.skill} out of range')
+        rep.check(bool(r.blurb and r.manner), where, 'has no description')
+        rep.check(bool(r.prefers), where, 'prefers no objectives')
+        for objective in r.prefers:
+            rep.check(objective in contract_mod.OBJECTIVES, where,
+                      f'prefers unknown objective {objective!r}')
+        for key in r.standing:
+            rep.check(key in factions.BY_KEY, where, f'unknown faction {key!r}')
+        rep.check(-100 <= r.disposition <= 100, where,
+                  'starting disposition out of range')
+        # Every rival can end up as an escort, and an escort that cannot speak
+        # when hurt is a missing line at the worst possible moment.
+        rep.check(bool(r.panic), where, 'has no panic lines')
+
+    for style in rival_content.STYLES:
+        rep.check(style in rival_content.STYLE_BLURB, 'rivals',
+                  f'style {style!r} has no blurb')
+        if not [r for r in rival_content.RIVALS if r.style == style]:
+            rep.warn('rivals', f'no rival uses style {style!r}')
+
+    # The band centred on zero has to contain zero, or a neutral rival reads
+    # as hostile on the one screen that shows it.
+    rep.check(rival_content.disposition_band(0) == 'neutral', 'rivals',
+              f'disposition 0 reads as '
+              f'{rival_content.disposition_band(0)!r}, not neutral')
+    last = -1000
+    for low, name in rival_content.DISPOSITION_BANDS:
+        rep.check(low > last, 'rivals', 'disposition bands must ascend')
+        last = low
+
+    for outcome in ('clean', 'messy', 'failed', 'dead'):
+        rep.check(outcome in rival_content.OUTCOME_LINES, 'rivals',
+                  f'no outcome lines for {outcome!r}')
+    rep.check(bool(rival_content.TAKEN_LINES), 'rivals', 'no taken lines')
 
 
 def check_cyberspace(rep: Report) -> None:
@@ -589,10 +633,20 @@ def check_markup(rep: Report) -> None:
     for w in cyberware.WARE:
         collect(f'cyberware/{w.key}', w.blurb)
         collect(f'cyberware/{w.key}', w.drawback)
+    for r in rival_content.RIVALS:
+        collect(f'rivals/{r.key}', r.blurb)
+        collect(f'rivals/{r.key}', r.manner)
+        for line in r.panic:
+            collect(f'rivals/{r.key}/panic', line)
     for i in icons.ICONS:
         collect(f'icons/{i.key}', i.blurb)
         collect(f'icons/{i.key}', i.render)
         collect(f'icons/{i.key}', i.drawback)
+    for r in rival_content.RIVALS:
+        collect(f'rivals/{r.key}', r.blurb)
+        collect(f'rivals/{r.key}', r.manner)
+        for line in r.panic:
+            collect(f'rivals/{r.key}/panic', line)
     for sig in cyberspace.SIGNATURES:
         collect(f'cyberspace/{sig.faction}', sig.arrival)
         collect(f'cyberspace/{sig.faction}', sig.ice_wakes)
@@ -674,7 +728,7 @@ def check_balance(rep: Report) -> None:
 
 CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
-    check_icons, check_cyberspace, check_origins, check_skills, check_factions, check_districts,
+    check_icons, check_cyberspace, check_rivals, check_origins, check_skills, check_factions, check_districts,
     check_ice, check_nodes, check_contracts, check_commands,
     check_theme, check_markup, check_balance,
 )

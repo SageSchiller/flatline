@@ -124,9 +124,16 @@ _JOB_WORDS = (
 
 
 def generate_board(rng: Stream, shift: int, alias, posture: dict,
-                   count: int = BOARD_SIZE, start_id: int = 1) -> list[Contract]:
-    """Produce a fresh board from current world state."""
+                   count: int = BOARD_SIZE, start_id: int = 1,
+                   avoid: set | None = None) -> list[Contract]:
+    """Produce a fresh board from current world state.
+
+    `avoid` is the set of titles already posted. Two jobs called Due Diligence
+    on one board is not a collision the player can be expected to hold in their
+    head, and it reads as a bug even though it is not.
+    """
     out: list[Contract] = []
+    used = set(avoid or ())
     cid = start_id
     patrons = _weighted_patrons(alias)
     for _ in range(count):
@@ -134,7 +141,8 @@ def generate_board(rng: Stream, shift: int, alias, posture: dict,
         target = _pick_target(rng, patron, alias)
         if target is None:
             continue
-        contract = _make(rng, cid, patron, target, shift, alias, posture)
+        contract = _make(rng, cid, patron, target, shift, alias, posture, used)
+        used.add(contract.title)
         out.append(contract)
         cid += 1
     return out
@@ -179,7 +187,7 @@ def _pick_target(rng: Stream, patron: str, alias) -> str | None:
 
 
 def _make(rng: Stream, cid: int, patron: str, target: str, shift: int,
-          alias, posture: dict) -> Contract:
+          alias, posture: dict, used: set | None = None) -> Contract:
     pfac, tfac = factions.BY_KEY[patron], factions.BY_KEY[target]
     objective = rng.weighted({o: (2.5 if o in pfac.wants else 0.7)
                               for o in OBJECTIVES})
@@ -198,7 +206,8 @@ def _make(rng: Stream, cid: int, patron: str, target: str, shift: int,
         pay = int(pay * 0.8)
 
     district = _where(rng, target)
-    title = rng.pick(_JOB_WORDS)
+    free = [w for w in _JOB_WORDS if w not in (used or ())]
+    title = rng.pick(free or _JOB_WORDS)
     blurb = _blurb(rng, patron, target, objective, pfac, tfac)
 
     return Contract(

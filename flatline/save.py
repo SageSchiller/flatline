@@ -49,6 +49,32 @@ def migration(from_version: int):
     return deco
 
 
+@migration(1)
+def _v1_to_v2(data: dict) -> dict:
+    """Phase 4 added rivals, icons, and bounties.
+
+    A schema-1 save predates all three. The rules for filling them in are the
+    same rules a new game uses, so a character opened after the upgrade finds a
+    city with the standard runner pool in it and themselves wearing the icon
+    their deck shipped with. Nothing is invented that the player would notice
+    as wrong; they simply arrive in a slightly larger world.
+    """
+    from .content import icons as icon_content
+    from .world import rivals as rival_mod
+
+    char = dict(data.get('character') or {})
+    char.setdefault('icon', icon_content.DEFAULT)
+    char.setdefault('icons', [icon_content.DEFAULT])
+    data['character'] = char
+
+    city = dict(data.get('city') or {})
+    if not city.get('rivals'):
+        city['rivals'] = [r.to_dict() for r in rival_mod.seed_pool()]
+    city.setdefault('bounties', {})
+    data['city'] = city
+    return data
+
+
 def migrate(data: dict) -> dict:
     """Bring a save up to the current schema, or explain why it cannot be."""
     version = int(data.get('schema', 0))

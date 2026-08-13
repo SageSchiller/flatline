@@ -19,6 +19,8 @@ from ..content import districts, factions
 from ..model.identity import Alias
 from ..rng import Rng
 from . import contracts as contract_mod
+from . import fallout as fallout_mod
+from . import rivals as rival_mod
 from . import market as market_mod
 from .contracts import Contract
 from .market import Listing
@@ -70,6 +72,8 @@ class City:
     stock: dict = field(default_factory=dict)
     stock_shift: int = -999
     pending: list = field(default_factory=list)
+    #: The other runners. They take work off the board while you deliberate.
+    rivals: list = field(default_factory=list)
     #: Free-text log of what the world did while you were not looking.
     news: list = field(default_factory=list)
 
@@ -79,6 +83,7 @@ class City:
     def new(cls, rng: Rng, alias: Alias) -> City:
         city = cls()
         city.posture = {k: f.posture for k, f in factions.BY_KEY.items()}
+        city.rivals = rival_mod.seed_pool()
         city.refresh_board(rng, alias)
         city.refresh_stock(rng)
         return city
@@ -110,6 +115,8 @@ class City:
             self._decay_posture()
             told.extend(self._apply_pending(alias))
             told.extend(self._expire(alias))
+            told.extend(self._rival_turn(rng))
+            told.extend(fallout_mod.bounty_check(alias, self, rng('events')))
             if self.shift % market_mod.REFRESH == 0:
                 self.refresh_stock(rng)
         # Top the board back up rather than replacing it, so a contract the
@@ -144,6 +151,22 @@ class City:
         self.pending = still
         return told
 
+    def _rival_turn(self, rng: Rng) -> list[str]:
+        """The other runners work. This is why sitting still is not free."""
+        if not self.rivals:
+            self.rivals = rival_mod.seed_pool()
+        taken, told = rival_mod.take_turn(
+            rng('rivals'), self.rivals, self.board, self.posture, self.shift,
+            protected=self.accepted)
+        if taken:
+            gone = {c.cid for c in taken}
+            self.board = [c for c in self.board if c.cid not in gone]
+        self.news.extend(told)
+        return told
+
+    def rival(self, key: str):
+        return next((r for r in self.rivals if r.key == key), None)
+
     def _expire(self, alias: Alias) -> list[str]:
         told: list[str] = []
         keep: list[Contract] = []
@@ -177,7 +200,8 @@ class City:
             return []
         fresh = contract_mod.generate_board(
             rng('contracts'), self.shift, alias, self.posture,
-            count=want - have, start_id=self.next_cid)
+            count=want - have, start_id=self.next_cid,
+            avoid={c.title for c in self.board})
         self.next_cid += len(fresh) + 1
         self.board.extend(fresh)
         return [f'[dim]{len(fresh)} new posting'
@@ -217,17 +241,19 @@ class City:
                            f'reach: {route}')
         return True, ''
 
-    def danger(self, alias: Alias, target: str) -> tuple[int, str]:
-        """How risky arriving in a district is, given who is looking for you."""
-        district = districts.BY_KEY[target]
-        watchers = (district.controller, *district.presence)
-        worst, who = 0, ''
-        for key in watchers:
-            score = alias.attention(key) + self.bounties.get(key, 0)
-            score = int(score * (0.5 + district.security / 100.0))
-            if score > worst:
-                worst, who = score, key
-        return worst, who
+    def danger(self, alias: Alias, target: str, rng: Rng | None = None):
+        """How risky arriving in a district is, given who is looking for you.
+
+        Lives in `world/fallout.py` so that travel, legwork, and anything else
+        that puts you on a street ask exactly the same question.
+        """
+        stream = rng('events') if rng is not None else None
+        if stream is None:
+            # Scoring is deterministic and needs no draws; the stream is only
+            # threaded for callers that go on to resolve an incident.
+            from ..rng import Rng as _Rng
+            stream = _Rng(0)('events')
+        return fallout_mod.arrival_risk(stream, alias, self, target)
 
     # -- consequences --------------------------------------------------
 
@@ -324,6 +350,7 @@ class City:
             'stock': {k: [l.to_dict() for l in v] for k, v in self.stock.items()},
             'stock_shift': self.stock_shift,
             'pending': [p.to_dict() for p in self.pending],
+            'rivals': [r.to_dict() for r in self.rivals],
             'news': list(self.news[-40:]),
         }
 
@@ -341,5 +368,7 @@ class City:
                    for k, v in (d.get('stock') or {}).items()},
             stock_shift=int(d.get('stock_shift', -999)),
             pending=[PendingFallout.from_dict(p) for p in (d.get('pending') or [])],
+            rivals=[rival_mod.Rival.from_dict(r)
+                    for r in (d.get('rivals') or [])] or rival_mod.seed_pool(),
             news=list(d.get('news') or []),
         )

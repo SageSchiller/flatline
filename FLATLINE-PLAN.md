@@ -201,6 +201,34 @@ connection, the **node** description, and the **descent** text printed when you
 cross a zone boundary inward. Plus **trace pressure**: one line, at a threshold
 only, making the clock physical.
 
+### D20: The city moves without you, and losing is a story
+
+Two halves of the same decision, and the thing that turns a contract board into
+a world.
+
+**Rivals act on the shift tick.** Seven named runners take work off the board
+while you deliberate, succeed or fail offscreen, and their successes raise the
+target's posture. Sitting on your hands for ten shifts is therefore not a free
+way to let heat decay: it is a way to let Vesper Okonkwo make Kagawa more
+expensive. Their turn resolves immediately rather than being simulated, because
+what matters to the player is not *how* she got in, it is that Kagawa is harder
+now and she is owed a favour.
+
+Three guards keep it pressure rather than denial: at most one job leaves the
+board per shift, nobody ever touches the contract the player has accepted, and
+rivals stop when the board is down to three postings.
+
+**The failure ladder is a ladder, not a cliff.** Sustained heat becomes a
+standing bounty; a bounty makes that faction's districts genuinely dangerous to
+walk into; walking in anyway can get you picked up, and being picked up costs
+you one specific thing: credits, a beating, a damaged deck component, a piece
+of chrome taken out of you in a room you did not choose, or the name itself.
+
+None of those is a game over, and that is the whole point. A player who has
+been caught twice is playing a different, worse, more interesting character than
+the one they built. The only thing that ends a character is black ICE, where
+they can see it coming.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -357,9 +385,10 @@ Two contexts with two verb sets, plus a shared core.
 
 ## Phases
 
-> **Status:** Phases 0, 1 and 2 are complete. Phase 3 is complete except that
-> `escort` and `surveil` do not yet have their own resolution. Phase 4 is the
-> next work.
+> **Status:** Phases 0 through 4 are complete. **D17's finish line is reached:**
+> the game is a complete thing and can sit here indefinitely without being
+> unfinished. Phases 5 and 6 are depth and breadth, for when the game is being
+> played and something specific is found to be missing.
 
 ### Phase 0: harness
 
@@ -452,3 +481,17 @@ Added **D19**, cyberspace as a place, which is the change that stops a run readi
 Rewrote the run outcomes in the grim register: the room coming back one sense at a time, the nosebleed you did not feel start, and a flatline that is not a disconnection but simply the last thing.
 
 Nothing in this project has ever had a gun in it and nothing will. The conflict layer is program against countermeasure, through a deck, and "Warfare" is a netrunning skill that never leaves cyberspace.
+
+### 2026-08-13 (a): Phase 4, and the finish line
+
+Built the consequences layer. **D17's finish line is reached.** `validate.py` clean, `test.py` green at **4943 checks**.
+
+Added **D20** in two halves. Rivals act on the shift tick and the world hardens without the player, which retroactively makes the whole city layer tenser: the board is now a queue you are competing for rather than a menu you are browsing. And the D6 failure ladder is finally a ladder, with bounties, dangerous districts, and five specific things that being picked up can cost you.
+
+`escort` and `surveil` stopped being stubs. Surveil inverts the run entirely: get somewhere valuable, then do nothing, for eight ticks, while every instinct the rest of the game has trained says take one more thing. Escort puts a named rival in the network generating noise you did not choose.
+
+**The escort's first implementation was wrong in an instructive way.** ICE only engaged them when the player was standing on the same node, which meant the correct play was to ignore the escort entirely and let them walk the network alone. That is the exact opposite of what the objective is for. They are now exposed wherever they are, they open their own doors badly, and the player's counterplay is to hold them still, clear the road ahead, or stand there and take it instead.
+
+Two smaller things the harness forced. Rivals initially stripped the board faster than a player could read it, roughly 1.5 contracts a shift against a five-slot board; capped now. And `disposition_band` labelled +15 as "cold", because the band boundaries had drifted off zero, which `validate.py` now asserts directly.
+
+**Schema 2 exists, and the migration is real.** D7 promised forward migrations and nothing had ever proved one. A schema-1 save now opens, gains a runner pool, an icon, and a bounty ledger, and round-trips cleanly. `test.py` proves it by forging a v1 save and loading it.

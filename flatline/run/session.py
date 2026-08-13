@@ -102,6 +102,17 @@ class RunState:
     #: Faction the residue will be blamed on, per Forensics rank 4.
     framed: str = ''
 
+    #: The runner you are covering on an escort job, as
+    #: {key, name, node, integrity, state, done}. Their noise is not your
+    #: decision, which is the entire design of the objective.
+    escort: dict | None = None
+    #: Consecutive ticks of clean residency, for a surveil job. Reset by the
+    #: alert going red, because being watched is the opposite of watching.
+    observed: int = 0
+    #: Set once a surveil job has banked enough. Latches: having held it, you
+    #: have held it, and the walk back out cannot take it away.
+    observed_enough: bool = False
+
     outcome: str = 'running'
     #: Human-readable record, shown by `log` and after the run.
     events: list[str] = field(default_factory=list)
@@ -241,7 +252,9 @@ class RunState:
                                       'yourself again.')
             self._heat_tick()
             self._daemon_tick()
+            self._escort_tick()
             self._ice_tick()
+            self._surveil_tick()
             self._decay_noise()
             self._check_trace()
 
@@ -313,6 +326,187 @@ class RunState:
         if 'thermal_load' in self.char.riders():
             # The coolant mesh routes heat through you. That has a price.
             self.take_damage(1, black=False, source='thermal load')
+
+    #: How many ticks of clean residency a surveil contract wants.
+    SURVEIL_TICKS = 8
+
+    def _escort_tick(self) -> None:
+        """The runner you are covering acts, and you did not choose how.
+
+        This is the whole point of the objective. An escort moves toward the
+        job on their own schedule, works loudly when they get there, and
+        panics when hurt. The player's problem is not "get to the vault", it is
+        "somebody else is generating your noise budget and will not stop".
+        """
+        escort = self.escort
+        if not escort or escort['state'] in ('out', 'dead'):
+            return
+        node = self.net.node(escort['node'])
+        if node is None:
+            return
+
+        if escort['state'] == 'hold':
+            # Held in place. Still breathing, still faintly audible.
+            node.noise += 1
+            return
+
+        target = self.net.objective_node
+        if escort['done'] or escort['state'] == 'leaving':
+            self._escort_walk(escort, self.net.entry, leaving=True)
+            return
+
+        self._escort_exposure(escort)
+        if escort['state'] in ('out', 'dead', 'hold'):
+            return
+        node = self.net.node(escort['node']) or node
+
+        if escort['node'] == target:
+            escort['progress'] = escort.get('progress', 0) + 1
+            # Working is loud, and they are not being careful about it.
+            node.noise += 4
+            self.leave_residue(3, node)
+            if escort['progress'] == 1:
+                self.console.blank()
+                self.console.say(f'[info]{escort["name"]} starts working on '
+                                 f'{node.uid}. They are not being quiet '
+                                 f'about it.[/]')
+            if escort['progress'] >= 4:
+                escort['done'] = True
+                escort['state'] = 'leaving'
+                self.console.blank()
+                self.console.ok(f'{escort["name"]} has what they came for. '
+                                f'They are heading out.')
+        else:
+            self._escort_walk(escort, target)
+
+    def _escort_exposure(self, escort: dict) -> None:
+        """Countermeasures where *they* are standing, not where you are.
+
+        Without this the correct play on an escort job is to ignore the escort
+        entirely and let them walk the network alone, which is the exact
+        opposite of what the objective is for. They are in danger wherever they
+        are; the player's counterplay is to hold them still, clear the road
+        ahead, or be standing there to take it instead.
+        """
+        node = self.net.node(escort['node'])
+        if node is None:
+            return
+        for construct in node.live_ice:
+            if construct.behaviour == 'trap':
+                continue
+            threshold = max(3, NOISE_WAKE - construct.rating)
+            if node.noise < threshold:
+                continue
+            if construct.state == 'dormant':
+                construct.state = 'awake'
+                self.console.blank()
+                self.console.say(
+                    f'[ice]Something on {node.uid} has noticed '
+                    f'{escort["name"]}.[/]')
+                continue
+            # If you are standing with them, you can take it instead.
+            if self.here == escort['node'] and self.rng.chance(0.5):
+                return
+            data = construct.data
+            if data.behaviour in ('hunter', 'warden', 'black'):
+                self.hurt_escort(data.damage + construct.rating // 2, data.name)
+            else:
+                self.add_trace(data.trace)
+                self.escalate(1, f'{data.name} reported {escort["name"]}.')
+            return
+
+    def _escort_walk(self, escort: dict, target: str, leaving: bool = False) -> None:
+        """One hop along the shortest path, opening what they have to."""
+        path = self._path(escort['node'], target)
+        if not path:
+            return
+        nxt = self.net.nodes[path[0]]
+        # They open their own doors, badly. A failure costs them a tick and
+        # makes a great deal of noise on a node they are standing on, which is
+        # the mechanism by which an unmanaged escort walks into trouble.
+        if not nxt.open:
+            skill = escort.get('skill', 6)
+            if self.rng.int(1, 10) + skill >= 11:
+                nxt.open = True
+                for svc in nxt.services[:1]:
+                    svc.cracked = True
+                nxt.noise += 5
+                self.leave_residue(2, nxt)
+            else:
+                node = self.net.node(escort['node'])
+                if node:
+                    node.noise += 7
+                    self.leave_residue(2, node)
+                return
+        escort['node'] = nxt.uid
+        nxt.noise += 2
+        if leaving and nxt.uid == self.net.entry:
+            escort['state'] = 'out'
+            self.console.blank()
+            self.console.ok(f'{escort["name"]} is out.')
+
+    def _path(self, start: str, goal: str) -> list[str]:
+        """Shortest hop list from start to goal, excluding start."""
+        if start == goal:
+            return []
+        frontier = [(start, [])]
+        seen = {start}
+        while frontier:
+            uid, path = frontier.pop(0)
+            for edge in self.net.nodes[uid].edges:
+                if edge in seen:
+                    continue
+                if edge == goal:
+                    return path + [edge]
+                seen.add(edge)
+                frontier.append((edge, path + [edge]))
+        return []
+
+    def hurt_escort(self, amount: int, source: str = '') -> None:
+        """ICE found the person you are covering instead of you."""
+        escort = self.escort
+        if not escort or escort['state'] in ('out', 'dead'):
+            return
+        escort['integrity'] -= amount
+        if escort['integrity'] > 0:
+            self.console.blank()
+            self.console.warn(f'{escort["name"]} takes it. '
+                              f'[dim]{escort["integrity"]} left.[/]')
+            if escort['integrity'] <= 6 and escort.get('panic'):
+                self.console.say(f'[err]{escort["panic"]}[/]')
+                escort['state'] = 'leaving'
+            return
+        escort['state'] = 'dead'
+        self.console.blank()
+        self.console.raw(f'[err][bold]{escort["name"]} flatlines on the far '
+                         f'end of the connection.[/][/]')
+        self.console.say('[dim]There is a sound over the shared channel that '
+                         'you will be able to describe for years.[/]')
+        self.log(f'escort dead: {escort["name"]}')
+
+    def _surveil_tick(self) -> None:
+        """Bank a tick of clean residency, or lose the lot.
+
+        Deliberately fragile at the top end: a surveil job asks you to be
+        somewhere valuable and do nothing, and the temptation to take one more
+        thing while you are there is the whole tension.
+        """
+        if not self.contract or self.contract.get('objective') != 'surveil':
+            return
+        if self.here != self.net.objective_node:
+            return
+        if self.alert in ('red', 'lockdown'):
+            if self.observed:
+                self.console.warn('They are looking. Whatever you were '
+                                  'listening to has stopped being said.')
+            self.observed = 0
+            return
+        self.observed += 1
+        if self.observed >= self.SURVEIL_TICKS and not self.observed_enough:
+            self.observed_enough = True
+            self.console.blank()
+            self.console.ok('You have enough. Every minute past this is a '
+                            'minute you are spending for free.')
 
     def _ice_tick(self) -> None:
         """Wake, telegraph, and strike. The fairness contract lives here."""
@@ -393,6 +587,16 @@ class RunState:
                 self.escalate(1, 'A compliance shell failed audit.')
             self.take_damage(max(1, data.damage), black=False,
                              source=data.name)
+            return
+
+        # If the person you are covering is standing here and making the
+        # noise that woke this thing up, it may well find them first.
+        escort = self.escort
+        if (escort and escort['state'] not in ('out', 'dead')
+                and escort['node'] == self.here
+                and data.behaviour in ('hunter', 'warden')
+                and self.rng.chance(0.4)):
+            self.hurt_escort(data.damage + construct.rating // 2, data.name)
             return
 
         # hunter and black: lock on and keep hitting.
@@ -529,7 +733,13 @@ class RunState:
         kind = self.contract.get('objective', 'exfiltrate')
         if kind == 'exfiltrate':
             return self.net.objective_asset in self.haul
-        if kind in ('corrupt', 'wipe', 'implant', 'surveil'):
+        if kind == 'surveil':
+            return self.observed_enough
+        if kind == 'escort':
+            # They have to have done the job and got out of it alive.
+            escort = self.escort
+            return bool(escort and escort['done'] and escort['state'] == 'out')
+        if kind in ('corrupt', 'wipe', 'implant'):
             return bool(self.done.get(kind))
         return bool(self.haul)
 
@@ -554,6 +764,8 @@ class RunState:
             'objective': self.objective_met(),
             'faction': self.net.faction,
             'framed': self.framed,
+            'observed': self.observed,
+            'escort': dict(self.escort) if self.escort else None,
             'hurt': self.hurt,
             'events': list(self.events),
         }

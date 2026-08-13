@@ -10,12 +10,14 @@ from __future__ import annotations
 from ..content import attributes as attr_content
 from ..content import cyberware, districts, effects as fx, factions
 from ..content import hardware, icons, origins, programs
+from ..content import rivals as rival_content
 from ..content import skills as skill_content
 from ..game import Game
 from ..model.character import Character
 from ..model.identity import ALIAS_COST, ALIAS_SHIFTS
 from ..rng import random_seed
 from ..shell import CommandError, command
+from ..world import fallout
 from ..world import market as market_mod
 
 
@@ -647,6 +649,10 @@ def cmd_take(sess, args) -> None:
     game.city.accepted = contract.cid
     c.ok(f'Taken: [accent]{contract.title}[/] against '
          f'{contract.target_data.short}, {contract.pay:,}c.')
+    from ..world import rivals as rival_world
+    for line in rival_world.on_player_took(game.rng('rivals'),
+                                           game.city.rivals, contract):
+        c.say(line)
     where = districts.BY_KEY[contract.district]
     if game.city.where != contract.district:
         c.info(f'The job is in {where.name}. `travel {where.key}`.')
@@ -700,17 +706,51 @@ def cmd_travel(sess, args) -> None:
     if not ok:
         raise CommandError(why)
 
-    danger, who = game.city.danger(game.alias, target)
+    danger, who = game.city.danger(game.alias, target, game.rng)
+    if danger >= fallout.INCIDENT_FLOOR and not args.has('anyway'):
+        fac = factions.BY_KEY[who]
+        raise CommandError(
+            f'{fac.name} have people in '
+            f'{districts.BY_KEY[target].name} and a number attached to your '
+            f'name. Going anyway is a real risk: `travel {target} --anyway`. '
+            f'Otherwise `rest` until it cools, or `burn` the name.')
+
     game.city.where = target
     district = districts.BY_KEY[target]
     _advance(sess, 1)
     c.blank()
     c.rule(district.name)
     c.say(district.arrival)
-    if danger >= 45:
+
+    if danger >= fallout.INCIDENT_FLOOR:
+        _resolve_incident(sess, who, danger)
+    elif danger >= 25:
         c.blank()
         c.warn(f'{factions.BY_KEY[who].short} have people here and they are '
                f'looking for your name. Do not linger.')
+
+
+def _resolve_incident(sess, faction: str, danger: int) -> None:
+    """You walked in somewhere they are paid to find you. Roll for it."""
+    game, c = sess.game, sess.console
+    stream = game.rng('events')
+    # The score is a percentage chance, capped so that even a hunted runner
+    # can sometimes cross a district. A guaranteed incident would make a high
+    # bounty a hard wall rather than a cost.
+    if not stream.chance(min(0.75, danger / 140)):
+        c.blank()
+        c.warn('You get most of the way across before somebody looks twice, '
+               'and you are around a corner before they finish looking.')
+        return
+    incident = fallout.pick_up(stream, game.char, game.alias, game.city,
+                               faction)
+    c.blank()
+    c.rule('picked up', role='err')
+    c.say(f'[err]{incident.text}[/]')
+    if incident.detail:
+        c.blank()
+        c.say(incident.detail)
+    sess.autosave()
 
 
 @command('rest', 'Lie low. Heals, cools heat, and passes time.',
@@ -972,3 +1012,68 @@ def _loaded_names(sess) -> list[str]:
         return []
     return [programs.BY_KEY[k].name.lower()
             for k in sess.game.char.deck.loaded if k in programs.BY_KEY]
+
+
+# --------------------------------------------------------------------------
+# the other runners
+# --------------------------------------------------------------------------
+
+
+@command('who', 'The other runners, and what they think of you.',
+         group='info', aliases=('rivals',), usage='who [name]',
+         detail='Rivals take work off the board while you deliberate, and '
+                'when they succeed the target hardens. Sitting still is not a '
+                'free way to let heat cool: it is a way to let somebody else '
+                'make the city more expensive.')
+def cmd_who(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    pool = game.city.rivals
+
+    if len(args):
+        query = args.rest().lower()
+        rival = next((r for r in pool
+                      if query in r.name.lower() or query == r.key), None)
+        if rival is None:
+            raise CommandError(f'nobody called {query!r}')
+        data = rival.data
+        c.header(data.name, data.handle)
+        c.say(data.blurb)
+        c.blank()
+        c.say(f'[dim]{data.manner}[/]')
+        c.blank()
+        c.kv([
+            ('style', f'{data.style} [dim]'
+                      f'{rival_content.STYLE_BLURB[data.style]}[/]'),
+            ('takes', ', '.join(data.prefers)),
+            ('jobs run', str(rival.jobs)),
+            ('thinks of you', f'{rival.disposition:+d} [dim]{rival.band}[/]'),
+        ])
+        if not rival.alive:
+            c.blank()
+            c.err(f'Dead. Shift {rival.died}.')
+        if rival.last:
+            c.blank()
+            c.say(f'[dim]Last heard: {rival.last}[/]')
+        standing = [(k, v) for k, v in sorted(rival.rep.items()) if v]
+        if standing:
+            c.blank()
+            c.rule('their standing')
+            c.kv([(factions.BY_KEY[k].short, f'{v:+d}') for k, v in standing])
+        return
+
+    living = [r for r in pool if r.alive]
+    c.header('Runners', f'{len(living)} still working')
+    rows = []
+    for rival in pool:
+        data = rival.data
+        rows.append((
+            data.handle,
+            data.style,
+            str(rival.jobs),
+            f'{rival.disposition:+d} {rival.band}' if rival.alive
+            else f'[err]dead, shift {rival.died}[/]',
+        ))
+    c.table(('who', 'style', 'jobs', 'about you'), rows,
+            roles=('accent', 'dim', 'dim', None))
+    c.blank()
+    c.say('[dim]`who <name>` for detail.[/]')

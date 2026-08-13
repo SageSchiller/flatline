@@ -21,7 +21,7 @@ TAGLINE_PARTS = ('everything you do is loud', 'the city remembers')
 
 #: Save format version. Bumped whenever the shape of a save changes; `save.py`
 #: owns the migration chain from 1 up to this number. Never reuse a number.
-SCHEMA = 1
+SCHEMA = 2
 
 #: D16: content is authored to fit here and `test.py` asserts nothing overflows.
 MIN_COLS = 80

@@ -81,6 +81,22 @@ def cmd_jack_in(sess, args) -> None:
 
     if 'credential' in contract.intel:
         state.tier = max(state.tier, 1)
+
+    # An escort job puts a named runner in the network with you, and their
+    # noise is not your decision. See RunState._escort_tick.
+    if contract.objective == 'escort':
+        from ..world import rivals as rival_world
+        who = rival_world.pick_escort(game.rng('rivals'), game.city.rivals,
+                                      contract.patron)
+        if who is not None:
+            data = who.data
+            state.escort = {
+                'key': who.key, 'name': data.name, 'node': net.entry,
+                'integrity': 14 + data.skill, 'state': 'working',
+                'skill': data.skill, 'done': False, 'progress': 0,
+                'panic': (game.rng('rivals').pick(data.panic)
+                          if data.panic else ''),
+            }
     sess.run = state
 
     c.blank()
@@ -106,6 +122,17 @@ def cmd_jack_in(sess, args) -> None:
         for node in net.nodes.values():
             if node.data:
                 node.known = True
+    if state.escort:
+        c.blank()
+        c.say(f'[info]{state.escort["name"]} comes up on the same entry node '
+              f'a half-second after you do.[/]')
+        c.say('[dim]They are not yours to command. `signal hold|move|out` is '
+              'advice, and they take it when they feel like it.[/]')
+    if contract.objective == 'surveil':
+        c.blank()
+        c.say(f'[info]Nobody is paying you to take anything. Get to '
+              f'[accent]{net.objective_node}[/][info], sit still, and '
+              f'`observe` until you have {state.SURVEIL_TICKS} clean ticks.[/]')
     c.blank()
     c.say('[dim]`scan` to look around. `status` for where you stand. '
           '`jack out` to leave.[/]')
@@ -786,6 +813,70 @@ def cmd_overload(sess, args) -> None:
         state.escalate(1, 'An overload is not subtle.')
 
 
+@command('observe', 'Sit still and listen. The surveil verb.',
+         group='action', contexts=('run',), ticks=2, usage='observe',
+         detail='A surveil contract wants residency, not theft. Stand on the '
+                'objective node with the alert below red and bank ticks. '
+                'Observing is nearly silent, and every other thing you might '
+                'do while you are in there is not.')
+def cmd_observe(sess, args) -> None:
+    state, c = sess.require_run(), sess.console
+    kind = (state.contract or {}).get('objective', '')
+    if kind != 'surveil':
+        raise CommandError('this is not a surveil job. Nobody is paying you '
+                           'to sit there.')
+    if state.here != state.net.objective_node:
+        raise CommandError(f'the job is on {state.net.objective_node}, and '
+                           f'you are not standing in it.')
+    if state.observed_enough:
+        raise CommandError('you already have what they wanted. Get out.')
+
+    _act(sess, 'scrub', noise_scale=0.35, ticks=2)
+    if not state.running:
+        return
+    if state.observed_enough:
+        return
+    left = max(0, state.SURVEIL_TICKS - state.observed)
+    c.ok(f'You hold still and let it come to you. '
+         f'[dim]{state.observed}/{state.SURVEIL_TICKS} banked'
+         + (f', {left} to go.' if left else '.') + '[/]')
+
+
+@command('signal', 'Tell the runner you are covering what to do.',
+         group='defence', contexts=('run',), usage='signal <hold|move|out>',
+         detail='On an escort job you do not control them, you advise them. '
+                '`hold` keeps them still and quiet, `move` sends them back to '
+                'work, `out` sends them for the door. They will ignore you if '
+                'they are hurt enough to have stopped listening.')
+def cmd_signal(sess, args) -> None:
+    state, c = sess.require_run(), sess.console
+    escort = state.escort
+    if not escort:
+        raise CommandError('you are running this one alone.')
+    if escort['state'] == 'dead':
+        raise CommandError(f'{escort["name"]} is not going to answer.')
+    if escort['state'] == 'out':
+        raise CommandError(f'{escort["name"]} is already clear.')
+
+    what = (args.get(0) or '').lower()
+    if what.startswith('h'):
+        escort['state'] = 'hold'
+        c.ok(f'{escort["name"]} stops where they are.')
+    elif what.startswith('m'):
+        if escort['done']:
+            raise CommandError(f'{escort["name"]} has what they came for. '
+                               f'There is nothing left to send them at.')
+        escort['state'] = 'working'
+        c.ok(f'{escort["name"]} moves off toward the job.')
+    elif what.startswith('o'):
+        escort['state'] = 'leaving'
+        c.ok(f'{escort["name"]} turns for the door.')
+        if not escort['done']:
+            c.warn('They have not finished. Nobody is paying for half of it.')
+    else:
+        raise CommandError('signal hold|move|out')
+
+
 @command('daemon', 'Deploy an autonomous process.',
          group='action', contexts=('run',), ticks=1,
          usage='daemon <hold|grind|noise> [host] [service]',
@@ -1076,6 +1167,24 @@ def cmd_status(sess, args) -> None:
         ('residue', f'[residue]{state.residue_total} across the network[/]'),
         ('haul', f'{len(state.haul)} assets'),
     ])
+    kind = (state.contract or {}).get('objective', '')
+    if kind == 'surveil':
+        c.blank()
+        c.raw('  ' + c.bar(min(1.0, state.observed / state.SURVEIL_TICKS),
+                           'accent', 24,
+                           f'observed {state.observed}/{state.SURVEIL_TICKS}'))
+    if state.escort:
+        e = state.escort
+        role = {'dead': 'err', 'out': 'ok'}.get(e['state'], 'info')
+        c.blank()
+        c.kv([('escort', f'[{role}]{e["name"]}[/] [dim]on {e["node"]}, '
+                         f'{e["state"]}, integrity {max(0, e["integrity"])}'
+                         + (', has the goods' if e['done'] else '') + '[/]')])
+    if state.daemons:
+        c.blank()
+        for d in state.daemons:
+            c.raw(f'  [accent]{d["uid"]}[/] [dim]{d["task"]} on {d["node"]}, '
+                  f'{d["life"]} ticks left[/]')
     if state.locked:
         c.blank()
         for construct in state.locked:

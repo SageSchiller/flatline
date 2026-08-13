@@ -878,9 +878,247 @@ def test_ui() -> None:
 # --------------------------------------------------------------------------
 
 
+def test_rivals() -> None:
+    T.section('rivals')
+    from flatline.content import rivals as rival_content
+    from flatline.world import rivals as rival_world
+
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=8829)
+    T.eq(len(game.city.rivals), len(rival_content.RIVALS),
+         'the city seeds the whole runner pool')
+
+    # They take work, but never so much that the board stops being a choice,
+    # and never the job the player has already accepted.
+    game.city.accepted = game.city.board[0].cid
+    protected = game.city.accepted
+    lows = []
+    for _ in range(30):
+        game.city.advance(game.rng, game.alias, 1)
+        lows.append(len(game.city.board))
+        T.checks += 1
+        if not any(c.cid == protected for c in game.city.board):
+            T.failures.append('rivals: took the contract the player accepted')
+            break
+    T.ok(min(lows) >= rival_world.BOARD_FLOOR,
+         f'the board never drops below the floor (low was {min(lows)})')
+
+    # Contract titles stay unique, or the board is unreadable.
+    titles = [c.title for c in game.city.board]
+    T.eq(len(titles), len(set(titles)), 'board titles are unique')
+
+    # Their successes harden the world even though the player did nothing.
+    game2 = Game.new(Character.from_origin('gutter', 'x'), seed=4242)
+    before = dict(game2.city.posture)
+    for _ in range(40):
+        game2.city.advance(game2.rng, game2.alias, 1)
+    moved = [k for k in before if game2.city.posture[k] > before[k]]
+    T.ok(moved, 'rival successes raise somebody\'s posture without the player')
+
+    # Disposition bands are labelled correctly around zero.
+    T.eq(rival_content.disposition_band(0), 'neutral', 'zero reads as neutral')
+    T.eq(rival_content.disposition_band(-100), 'will sell you',
+         'the floor reads as hostile')
+    T.eq(rival_content.disposition_band(100), 'owes you',
+         'the ceiling reads as friendly')
+
+    # They survive a save.
+    game.save('rivals')
+    back = Game.load('rivals')
+    T.eq([r.key for r in back.city.rivals], [r.key for r in game.city.rivals],
+         'the runner pool survives a save')
+    T.eq([r.jobs for r in back.city.rivals], [r.jobs for r in game.city.rivals],
+         'their job counts survive')
+    save_mod.delete('rivals')
+
+
+def test_objectives() -> None:
+    T.section('objectives')
+    from flatline.world.contracts import OBJECTIVES
+
+    # Every objective must have a resolution path that can actually be met.
+    net = net_mod.generate(Rng(5).fork('network', 'c1'), 'sixes', 30)
+    char = Character.from_origin('gutter', 'x')
+    console = quiet_console()
+    console.start_capture()
+
+    for objective in OBJECTIVES:
+        state = RunState.begin(net_mod.generate(
+            Rng(5).fork('network', objective), 'sixes', 30),
+            char, Rng(5)('combat'), console,
+            contract={'objective': objective})
+        T.ok(not state.objective_met(),
+             f'{objective} does not start already met')
+
+    # surveil: banks with residency, resets when the alert goes red, latches.
+    state = RunState.begin(net, char, Rng(5)('combat'), console,
+                           contract={'objective': 'surveil'})
+    state.here = state.net.objective_node
+    for _ in range(state.SURVEIL_TICKS):
+        state._surveil_tick()
+    T.ok(state.observed_enough, 'surveil banks with enough clean residency')
+    T.ok(state.objective_met(), 'a banked surveil is met')
+
+    state2 = RunState.begin(net, char, Rng(6)('combat'), console,
+                            contract={'objective': 'surveil'})
+    state2.here = state2.net.objective_node
+    state2._surveil_tick()
+    state2._surveil_tick()
+    T.ok(state2.observed > 0, 'residency accumulates')
+    state2.alert = 'red'
+    state2._surveil_tick()
+    T.eq(state2.observed, 0, 'being seen resets the count')
+    T.ok(not state2.objective_met(), 'a reset surveil is not met')
+
+    # Standing anywhere else banks nothing.
+    state3 = RunState.begin(net, char, Rng(7)('combat'), console,
+                            contract={'objective': 'surveil'})
+    state3.here = state3.net.entry
+    if state3.here != state3.net.objective_node:
+        for _ in range(state3.SURVEIL_TICKS + 2):
+            state3._surveil_tick()
+        T.eq(state3.observed, 0, 'residency only counts on the objective node')
+
+    # escort: has to finish the job AND get out.
+    state4 = RunState.begin(net, char, Rng(8)('combat'), console,
+                            contract={'objective': 'escort'})
+    state4.escort = {'key': 'moth', 'name': 'Moth', 'node': net.entry,
+                     'integrity': 20, 'state': 'working', 'skill': 6,
+                     'done': False, 'progress': 0, 'panic': 'x'}
+    T.ok(not state4.objective_met(), 'escort unmet while they are still in')
+    state4.escort['done'] = True
+    T.ok(not state4.objective_met(), 'escort unmet while they are still inside')
+    state4.escort['state'] = 'out'
+    T.ok(state4.objective_met(), 'escort met once they are done and out')
+    state4.escort['state'] = 'dead'
+    T.ok(not state4.objective_met(), 'a dead escort is not a completed job')
+
+    # They can actually die, and it is not fatal to the player.
+    state5 = RunState.begin(net, char, Rng(9)('combat'), console,
+                            contract={'objective': 'escort'})
+    state5.escort = {'key': 'moth', 'name': 'Moth', 'node': net.entry,
+                     'integrity': 4, 'state': 'working', 'skill': 6,
+                     'done': False, 'progress': 0, 'panic': 'x'}
+    state5.hurt_escort(99)
+    T.eq(state5.escort['state'], 'dead', 'enough damage kills the escort')
+    T.ok(state5.running, 'the player survives their escort dying')
+
+    # An escort walks the network on its own and does not wander off it.
+    state6 = RunState.begin(net_mod.generate(
+        Rng(11).fork('network', 'walk'), 'sixes', 30),
+        char, Rng(11)('combat'), console, contract={'objective': 'escort'})
+    state6.escort = {'key': 'ledger', 'name': 'Ledger', 'node': state6.net.entry,
+                     'integrity': 200, 'state': 'working', 'skill': 10,
+                     'done': False, 'progress': 0, 'panic': 'x'}
+    for _ in range(80):
+        state6._escort_tick()
+        T.checks += 1
+        if state6.escort['node'] not in state6.net.nodes:
+            T.failures.append('objectives: escort walked off the network')
+            break
+        if state6.escort['state'] == 'out':
+            break
+    T.ok(state6.escort['done'], 'a competent escort reaches the job')
+    T.ok(state6.escort['state'] == 'out', 'and finds its own way back out')
+
+    console.end_capture()
+
+
+def test_fallout() -> None:
+    T.section('fallout')
+    from flatline.world import fallout
+
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=99)
+    T.ok(not game.city.bounties.get('sixes'), 'no bounty to begin with')
+
+    # Sustained heat becomes a bounty.
+    game.alias.add_heat('sixes', 90)
+    for _ in range(3):
+        game.city.advance(game.rng, game.alias, 1)
+    T.ok(game.city.bounties.get('sixes', 0) > 0,
+         'sustained heat becomes a standing bounty')
+
+    # A bounty makes their districts dangerous.
+    score, who = game.city.danger(game.alias, 'ninth', game.rng)
+    T.ok(score >= fallout.INCIDENT_FLOOR,
+         f'a bounty makes their turf risky (score {score})')
+    T.eq(who, 'sixes', 'and names who is looking')
+
+    # Every rung of the ladder costs something and none of them is fatal.
+    stream = Rng(1)('events')
+    for _ in range(60):
+        char = Character.from_origin('chromed', 'x')
+        char.credits = 5000
+        alias = Alias(name='x')
+        before = (char.credits, char.hurt, len(char.installed),
+                  sum(char.deck.damage.values()))
+        incident = fallout.pick_up(stream, char, alias, game.city, 'sixes')
+        after = (char.credits, char.hurt, len(char.installed),
+                 sum(char.deck.damage.values()))
+        T.ok(incident.kind in fallout.OUTCOMES,
+             f'incident kind {incident.kind!r} is one of the declared ones')
+        T.ok(bool(incident.text), 'the incident describes itself')
+        T.ok(char.integrity > 0, 'no incident kills the character (D6)')
+        if incident.kind != 'burn':
+            T.ok(after != before,
+                 f'{incident.kind} actually costs something')
+
+    # Bounties decay once the heat behind them is gone.
+    game.alias.heat.clear()
+    for _ in range(40):
+        game.city.advance(game.rng, game.alias, 1)
+    T.ok(not game.city.bounties.get('sixes'),
+         'a bounty eventually comes off the board')
+
+
+def test_migration() -> None:
+    T.section('migration')
+    import json
+
+    from flatline.config import save_path
+
+    # A save written under schema 1 must still open, with everything Phase 4
+    # added filled in by the same rules a new game uses.
+    game = Game.new(Character.from_origin('gutter', 'legacy'), seed=7)
+    game.char.credits = 4321
+    raw = game.to_dict()
+    raw['schema'] = 1
+    raw['character'].pop('icon', None)
+    raw['character'].pop('icons', None)
+    raw['city'].pop('rivals', None)
+    raw['city'].pop('bounties', None)
+    path = save_path('legacy')
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(raw), encoding='utf-8')
+
+    back = Game.load('legacy')
+    T.eq(back.char.handle, 'legacy', 'the character survives the migration')
+    T.eq(back.char.credits, 4321, 'and their credits')
+    T.ok(back.char.icon, 'the migration fills in an icon')
+    T.ok(back.char.icon in back.char.icons, 'and it is one they own')
+    T.ok(back.city.rivals, 'the migration seeds the runner pool')
+    T.eq(back.city.bounties, {}, 'and an empty bounty ledger')
+
+    # Migrating is idempotent through a save/load cycle.
+    back.save('legacy')
+    again = Game.load('legacy')
+    T.eq(again.char.icon, back.char.icon, 'a migrated save round-trips')
+    T.eq(len(again.city.rivals), len(back.city.rivals),
+         'without duplicating what the migration added')
+    save_mod.delete('legacy')
+
+    # Every step in the chain exists and is a callable that returns a dict.
+    for version in range(1, save_mod.SCHEMA):
+        step = save_mod.MIGRATIONS.get(version)
+        T.ok(callable(step), f'migration {version} exists')
+        if step:
+            out = step({'schema': version})
+            T.ok(isinstance(out, dict), f'migration {version} returns a dict')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
-    test_networks, test_run_mechanics, test_city, test_shell,
+    test_networks, test_run_mechanics, test_city, test_rivals,
+    test_objectives, test_fallout, test_migration, test_shell,
     test_playthrough, test_ui,
 )
 
