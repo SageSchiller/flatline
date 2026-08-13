@@ -12,13 +12,11 @@ updated: 2026-08-13
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5058 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 14,200 lines.
+> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5114 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 15,000 lines.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
-> **What is not done, in the order I would do it:**
-> 1. **The Dissonance arc has no city-side content.** High Dissonance is mechanically real (prices, pretext, icon coherence) but nothing in the city is *written* for it: no clinic that will only see you if you are far enough gone, no contact who only talks to people like that.
-> 2. **Breadth.** More chrome, programs, ICE, districts. Content, not systems.
+> **What is not done:** breadth. More chrome, programs, ICE, districts, and origins. Content, not systems: every system the plan set out to build is built. The right way to choose what to add is to play it and notice what is missing.
 >
 > **What this is.** A netrunner sim you play by typing at a fake terminal. Two layers: a persistent city that keeps score, and procedurally generated corporate networks you break into one contract at a time. The character system is classless and deep enough that two players at the same credit total play nothing alike.
 >
@@ -298,6 +296,33 @@ Two supporting rules. A skipped step says it was skipped, because a script
 that silently does nothing is indistinguishable from one that is broken. And
 scripts are saved with the character, because a script library is a build
 investment in exactly the way a program library is.
+
+### D23: The drift is an arc, with doors on both sides
+
+D11 made Dissonance a permanent one-way cost with net-side payoffs. What it
+never had was anything *written* for it, and a number that only shows up in a
+price multiplier is a spreadsheet entry rather than an arc.
+
+**Passages** fire once, when you cross a band, and they are the emotional
+payload: the half-second where you have to decide which of two rooms you are
+in, the beat of lag somebody else politely adjusts around, the point at which
+the meat world becomes the thing on the far side of a window.
+
+**Doors open as well as closing.** The single most important rule here is that
+**restricted chrome is sold nowhere else**: tier-3 implants never appear on an
+open shelf, only in the back of a clinic, and the back only opens to somebody
+already past 50. So the best hardware in the city is available exclusively to
+people who have stopped being customers and started being colleagues, which is
+the payoff the whole axis was missing. Legwork moves the same way: `resonance`
+opens at 50 because you are closer to the network than to people now, and
+`employee` closes at 75 because a pretext needs a voice that does not lag.
+
+**Grounding** is the valve, and it is deliberately bad value: expensive, slow,
+partial, and it hurts. It exists so the arc is a decision rather than a
+ratchet. It cannot take you below what your installed chrome accounts for,
+which keeps D11 honest: you can walk back what the work did to you, never the
+hardware while it is still in you. Taking chrome out still does not lower the
+number, it only lowers the floor.
 
 ### D17: The finish line
 
@@ -611,3 +636,21 @@ them, and the command refuses to deploy a script that names nothing a daemon
 can do rather than silently ignoring half of it.
 
 `validate.py` clean, `test.py` green at **5058 checks**.
+
+### 2026-08-13 (d): the drift arc
+
+Added **D23**, the city-side half of Dissonance, which was the last real
+systems gap on the list.
+
+The design turn that made it work was noticing that the arc needed a **door
+that opens**, not just penalties that accumulate. Restricted chrome now exists
+nowhere except the back of a clinic, and the back only opens above 50
+Dissonance. That single rule converts the whole axis from a tax into a
+bargain: the best hardware in the city is sold only to people who have already
+gone too far to be sold anything else.
+
+Grounding is the counterweight and is priced to be a bad deal on purpose. It
+cannot go below the chrome floor, which is what keeps D11's one-way rule
+intact while still letting a player change their mind at real cost.
+
+`validate.py` clean, `test.py` green at **5114 checks**.

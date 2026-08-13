@@ -44,6 +44,7 @@ from flatline.run.session import RunState  # noqa: E402
 from flatline.session import Session  # noqa: E402
 from flatline.shell import REGISTRY, CommandError  # noqa: E402
 from flatline.ui import Caps, ColorLevel, Console, GlyphLevel  # noqa: E402
+from flatline.world import market as market_mod  # noqa: E402
 from flatline.world.city import City  # noqa: E402
 
 
@@ -931,6 +932,108 @@ def test_rivals() -> None:
     save_mod.delete('rivals')
 
 
+def test_dissonance() -> None:
+    T.section('dissonance')
+    from flatline.commands.city import LEGWORK_DRIFT, _legwork_allowed
+    from flatline.content import dissonance as drift
+
+    # Passages fire once each, in order, and a jump can carry two at once.
+    T.eq([p.band for p in drift.crossed(0, 10)], [],
+         'no passage below the first band')
+    T.eq([p.band for p in drift.crossed(0, 30)], [25],
+         'one band crossed fires one passage')
+    T.eq([p.band for p in drift.crossed(0, 80)], [25, 50, 75],
+         'a big jump fires every band it passed')
+    T.eq([p.band for p in drift.crossed(50, 80)], [75],
+         'and never re-fires one already behind you')
+
+    char = Character.from_origin('gutter', 'x')
+    char.dissonance = 30
+    T.eq([p.band for p in char.new_passages()], [25], 'the character sees it')
+    T.eq(char.new_passages(), [], 'and does not see it twice')
+    char.dissonance = 90
+    T.eq([p.band for p in char.new_passages()], [50, 75],
+         'and picks up everything it skipped')
+
+    # The chrome floor: you cannot ground below what is still in you.
+    chromed = Character.from_origin('chromed', 'x')
+    T.eq(chromed.chrome_dissonance,
+         sum(cyberware.BY_KEY[k].dissonance for k in chromed.installed),
+         'the floor is the sum of what is fitted')
+    chromed.dissonance = chromed.chrome_dissonance + 30
+    floor = chromed.chrome_dissonance
+    chromed.dissonance = max(floor, chromed.dissonance - 999)
+    T.eq(chromed.dissonance, floor, 'grounding stops at the chrome floor')
+
+    # D11 still holds: taking chrome out does not lower the number.
+    before = chromed.dissonance
+    key = chromed.installed[0]
+    chromed.uninstall(key)
+    T.eq(chromed.dissonance, before,
+         'removing chrome leaves the drift where it was (D11)')
+    T.ok(chromed.chrome_dissonance < before,
+         'but it does lower the floor, so grounding can go further')
+
+    # The back room is invisible until you are far enough gone, and the best
+    # chrome in the city exists nowhere else.
+    for district in ('green', 'glasshouse', 'vertical'):
+        listings = market_mod.restock(Rng(3)('market'), district, 0)
+        shelf = [l for l in listings if l.kind == 'ware' and not l.deep]
+        deep = [l for l in listings if l.deep]
+        T.ok(deep, f'{district} has a back room')
+        for listing in shelf:
+            T.ok(cyberware.BY_KEY[listing.key].tier < 3,
+                 f'{district}: no restricted chrome on the open shelf')
+        for listing in deep:
+            T.ok(cyberware.BY_KEY[listing.key].tier >= 3,
+                 f'{district}: the back room carries restricted chrome')
+
+    # Districts with no clinic have no back room at all.
+    listings = market_mod.restock(Rng(3)('market'), 'ninth', 0)
+    T.ok(not [l for l in listings if l.deep],
+         'a district with no clinic has no back room')
+
+    # And the city filters it by who is asking.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=4242)
+    game.city.where = 'glasshouse'
+    T.ok(game.city.listings('ware', deep=True), 'the stock exists')
+    T.ok(not [l for l in game.city.listings('ware', deep=False) if l.deep],
+         'and the shop floor never includes it')
+
+    # Legwork gates open and close in the right directions.
+    low = Character.from_origin('gutter', 'x')
+    low.dissonance = 0
+    high = Character.from_origin('gutter', 'x')
+    high.dissonance = 90
+    ok, _ = _legwork_allowed(low, 'resonance')
+    T.ok(not ok, 'resonance is closed to somebody still grounded')
+    ok, _ = _legwork_allowed(high, 'resonance')
+    T.ok(ok, 'and open to somebody far enough gone')
+    ok, _ = _legwork_allowed(low, 'employee')
+    T.ok(ok, 'social legwork is open to somebody who can still pass')
+    ok, _ = _legwork_allowed(high, 'employee')
+    T.ok(not ok, 'and closed to somebody who cannot')
+    ok, _ = _legwork_allowed(high, 'perimeter')
+    T.ok(ok, 'ungated legwork is always available')
+
+    # Every gate names real legwork and a real band.
+    for key, (kind, threshold) in LEGWORK_DRIFT.items():
+        T.ok(threshold in drift.BANDS, f'{key} gates on a real band')
+        T.ok(kind in ('floor', 'ceiling'), f'{key} has a real gate kind')
+
+    # The drift survives a save, including what has already been shown.
+    game.char.dissonance = 60
+    game.char.new_passages()
+    seen = game.char.drift_seen
+    game.save('drift')
+    back = Game.load('drift')
+    T.eq(back.char.dissonance, 60, 'dissonance survives')
+    T.eq(back.char.drift_seen, seen, 'and so does what you have already read')
+    T.eq(back.char.new_passages(), [],
+         'so a loaded character is not told it all again')
+    save_mod.delete('drift')
+
+
 def test_scripting() -> None:
     T.section('scripting')
     from flatline import script as script_mod
@@ -1414,7 +1517,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_scripting, test_social, test_objectives, test_fallout, test_migration, test_shell,
+    test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_migration, test_shell,
     test_playthrough, test_ui,
 )
 

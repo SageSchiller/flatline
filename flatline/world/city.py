@@ -225,9 +225,16 @@ class City:
                       for d in districts.DISTRICTS}
         self.stock_shift = self.shift
 
-    def listings(self, kind: str | None = None) -> list[Listing]:
+    def listings(self, kind: str | None = None,
+                 deep: bool | None = None) -> list[Listing]:
+        """What is for sale here. `deep` filters the back-room stock: None is
+        everything, False is the shop floor, True is only what the back
+        room carries."""
         here = self.stock.get(self.where, [])
-        return [l for l in here if (kind is None or l.kind == kind) and l.stock > 0]
+        return [l for l in here
+                if (kind is None or l.kind == kind)
+                and (deep is None or bool(l.deep) is deep)
+                and l.stock > 0]
 
     # -- travel --------------------------------------------------------
 

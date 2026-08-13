@@ -13,7 +13,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from ..content import attributes as attrs
-from ..content import cyberware, effects as fx, icons, origins, programs, skills
+from ..content import cyberware, dissonance as drift
+from ..content import effects as fx, icons, origins, programs, skills
 from .deck import Deck
 
 
@@ -47,6 +48,9 @@ class Character:
     points: int = 0
     dissonance: int = 0
 
+    #: Highest Dissonance band whose passage has already been printed. The
+    #: drift only gets told to you once per band, however you got there.
+    drift_seen: int = 0
     #: Damage carried out of a run. Heals with rest, never spontaneously.
     hurt: int = 0
     runs: int = 0
@@ -200,6 +204,30 @@ class Character:
     def dissonance_band(self) -> tuple[int, str, str]:
         return cyberware.band(self.dissonance)
 
+    def new_passages(self) -> list:
+        """Drift passages not yet shown, and mark them shown.
+
+        Called after anything that moves Dissonance. Returning a list rather
+        than one handles the case where a single expensive implant carries
+        somebody through two bands at once, which would otherwise silently
+        lose the only writing a band ever gets.
+        """
+        due = [p for p in drift.PASSAGES
+               if self.drift_seen < p.band <= self.dissonance]
+        if due:
+            self.drift_seen = max(p.band for p in due)
+        return due
+
+    @property
+    def chrome_dissonance(self) -> int:
+        """Dissonance the installed hardware alone accounts for.
+
+        Grounding cannot take you below this: you can walk back what the work
+        did to you, not the hardware while it is still in you.
+        """
+        return sum(cyberware.BY_KEY[k].dissonance for k in self.installed
+                   if k in cyberware.BY_KEY)
+
     # ------------------------------------------------------------------
     # chrome
     # ------------------------------------------------------------------
@@ -330,6 +358,7 @@ class Character:
             'xp': self.xp,
             'points': self.points,
             'dissonance': self.dissonance,
+            'drift_seen': self.drift_seen,
             'hurt': self.hurt,
             'runs': self.runs,
         }
@@ -352,6 +381,7 @@ class Character:
             xp=int(d.get('xp', 0)),
             points=int(d.get('points', 0)),
             dissonance=int(d.get('dissonance', 0)),
+            drift_seen=int(d.get('drift_seen', 0)),
             hurt=int(d.get('hurt', 0)),
             runs=int(d.get('runs', 0)),
         )

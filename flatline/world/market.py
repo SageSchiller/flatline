@@ -15,7 +15,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from ..content import cyberware, districts, factions, hardware, programs
+from ..content import cyberware, dissonance, districts, factions
+from ..content import hardware, programs
 from ..rng import Stream
 
 #: Shifts between stock rotations.
@@ -36,15 +37,21 @@ class Listing:
     key: str
     price: int       # list price before the buyer's own modifiers
     stock: int = 1
+    #: Sold out of the back of a clinic to people the front of the clinic can
+    #: no longer help. Only visible above `dissonance.DEEP_CLINIC_BAND`.
+    deep: bool = False
 
     def to_dict(self) -> dict:
-        return {'kind': self.kind, 'key': self.key,
-                'price': self.price, 'stock': self.stock}
+        out = {'kind': self.kind, 'key': self.key,
+               'price': self.price, 'stock': self.stock}
+        if self.deep:
+            out['deep'] = True
+        return out
 
     @classmethod
     def from_dict(cls, d: dict) -> Listing:
         return cls(kind=d['kind'], key=d['key'], price=int(d['price']),
-                   stock=int(d.get('stock', 1)))
+                   stock=int(d.get('stock', 1)), deep=bool(d.get('deep')))
 
 
 def _catalogue(kind: str):
@@ -65,8 +72,16 @@ def restock(rng: Stream, district_key: str, shift: int) -> list[Listing]:
 
     for service in district.services:
         for kind in STOCK_KINDS.get(service, ()):
+            ceiling = district.max_tier
+            if kind == 'ware':
+                # Restricted chrome is never sold over a counter. The only
+                # route to a tier-3 implant is the back room, and the back
+                # room only opens to somebody already far enough gone: that
+                # is the payoff for the whole Dissonance arc, and it stops
+                # working the moment the same pieces appear on the shelf.
+                ceiling = min(ceiling, 2)
             pool = [(k, t, p) for k, t, p in _catalogue(kind)
-                    if t <= district.max_tier]
+                    if t <= ceiling]
             if not pool:
                 continue
             # A fence carries less and stranger stock than a shop.
@@ -83,10 +98,23 @@ def restock(rng: Stream, district_key: str, shift: int) -> list[Listing]:
                 out.append(Listing(kind=kind, key=key,
                                    price=max(1, int(round(price * markup))),
                                    stock=1 if service == 'fence' else rng.int(1, 3)))
+
+    # The back of the clinic. Restricted chrome, at a discount, sold to people
+    # the front of the clinic has stopped being able to help. Generated for
+    # every clinic district regardless of the buyer, because stock is a
+    # property of the world; whether it is *visible* is a property of you.
+    if 'clinic' in district.services:
+        deep_pool = [(w.key, w.price) for w in cyberware.WARE if w.tier >= 3]
+        for key, price in rng.sample(deep_pool, min(3, len(deep_pool))):
+            out.append(Listing(
+                kind='ware', key=key,
+                price=max(1, int(round(price * district.price_mult
+                                       * dissonance.DEEP_CLINIC_DISCOUNT))),
+                stock=1, deep=True))
     return out
 
 
-def quote(listing: Listing, district_key: str, alias, dissonance: int,
+def quote(listing: Listing, district_key: str, alias, drift: int,
           price_mult: float = 1.0) -> tuple[int, list[tuple[str, float]]]:
     """What this costs *you*, itemised.
 
@@ -104,7 +132,7 @@ def quote(listing: Listing, district_key: str, alias, dissonance: int,
         terms.append((f'{factions.BY_KEY[district.controller].short} standing', mult))
         total *= mult
 
-    band = cyberware.band(dissonance)[0]
+    band = cyberware.band(drift)[0]
     if band >= 50:
         mult = 1.0 + (band / 100.0) * 0.35
         terms.append(('what you look like', mult))

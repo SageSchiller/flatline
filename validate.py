@@ -19,7 +19,9 @@ from flatline import commands  # noqa: F401  (registers the command table)
 from flatline import script as script_mod
 from flatline import theme, ui
 from flatline.content import attributes as attr_content
-from flatline.content import cyberspace, cyberware, districts
+from flatline.content import cyberspace, cyberware
+from flatline.content import dissonance as drift
+from flatline.content import districts
 from flatline.content import effects as fx, factions
 from flatline.content import hardware, ice as ice_content, icons
 from flatline.content import nodes as node_content
@@ -297,6 +299,73 @@ def check_rivals(rep: Report) -> None:
         if price > 6000:
             rep.warn(f'rivals/{r.key}',
                      f'hire price {price:,}c is more than an early contract pays')
+
+
+def check_dissonance(rep: Report) -> None:
+    """The drift arc: bands, passages, and the doors they open and close."""
+    floors = tuple(f for f, _, _ in cyberware.DISSONANCE_BANDS)
+    rep.check(drift.BANDS == floors, 'dissonance',
+              f'band floors {drift.BANDS} disagree with cyberware '
+              f'{floors}, so a passage would land on the wrong band')
+
+    # Every band above the first needs writing, or crossing it says nothing.
+    for floor in drift.BANDS[1:]:
+        passage = drift.BY_BAND.get(floor)
+        if passage is None:
+            rep.error('dissonance', f'band {floor} has no passage')
+            continue
+        rep.check(bool(passage.title), f'dissonance/{floor}', 'passage has no title')
+        rep.check(len(passage.text) > 80, f'dissonance/{floor}',
+                  'passage is too short to be worth firing')
+    rep.check(0 not in drift.BY_BAND, 'dissonance',
+              'the bottom band has a passage, which would fire at creation')
+
+    last = -1
+    for passage in drift.PASSAGES:
+        rep.check(passage.band > last, 'dissonance',
+                  'passages must be in ascending band order')
+        last = passage.band
+
+    # The doors have to sit inside the band range to be reachable.
+    for name, value in (('DEEP_CLINIC_BAND', drift.DEEP_CLINIC_BAND),
+                        ('RESONANCE_BAND', drift.RESONANCE_BAND),
+                        ('SOCIAL_FLOOR_BAND', drift.SOCIAL_FLOOR_BAND)):
+        rep.check(0 < value <= 100, 'dissonance',
+                  f'{name} is {value}, outside a reachable range')
+        rep.check(value in drift.BANDS, 'dissonance',
+                  f'{name} is {value}, which is not a band floor')
+
+    rep.check(0 < drift.DEEP_CLINIC_DISCOUNT < 1.0, 'dissonance',
+              'the back room is not actually cheaper')
+    lo, hi = drift.GROUND_POINTS
+    rep.check(0 < lo <= hi, 'dissonance', 'grounding returns a bad range')
+    lo, hi = drift.GROUND_HURT
+    rep.check(0 < lo <= hi, 'dissonance', 'grounding damage is a bad range')
+    rep.check(drift.GROUND_COST > 0, 'dissonance', 'grounding is free')
+    rep.check(drift.GROUND_SHIFTS > 0, 'dissonance', 'grounding takes no time')
+
+    for name in ('DEEP_CLINIC_ARRIVAL', 'DEEP_CLINIC_REFUSED', 'RESONANCE_TEXT',
+                 'SOCIAL_REFUSED', 'GROUND_TEXT', 'GROUND_FLOOR_TEXT'):
+        rep.check(bool(getattr(drift, name)), 'dissonance', f'{name} is empty')
+
+    # The back room must have something to sell, or the arc unlocks nothing.
+    restricted = [w for w in cyberware.WARE if w.tier >= 3]
+    rep.check(len(restricted) >= 3, 'dissonance',
+              f'only {len(restricted)} restricted implants exist, so the back '
+              f'room is thin')
+
+    # Legwork gates must name legwork that exists.
+    from flatline.commands.city import LEGWORK, LEGWORK_DRIFT
+    for key, (kind, threshold) in LEGWORK_DRIFT.items():
+        rep.check(key in LEGWORK, 'dissonance',
+                  f'drift gate names unknown legwork {key!r}')
+        rep.check(kind in ('floor', 'ceiling'), 'dissonance',
+                  f'drift gate {key!r} has unknown kind {kind!r}')
+        rep.check(threshold in drift.BANDS, 'dissonance',
+                  f'drift gate {key!r} sits at {threshold}, not a band floor')
+    for key, (cost, blurb, gives) in LEGWORK.items():
+        rep.check(bool(blurb), f'legwork/{key}', 'has no description')
+        rep.check(cost >= 0, f'legwork/{key}', 'costs a negative amount')
 
 
 def check_cyberspace(rep: Report) -> None:
@@ -720,6 +789,8 @@ def check_markup(rep: Report) -> None:
         collect(f'rivals/{r.key}', r.manner)
         for line in r.panic:
             collect(f'rivals/{r.key}/panic', line)
+    for passage in drift.PASSAGES:
+        collect(f'dissonance/{passage.band}', passage.text)
     for i in icons.ICONS:
         collect(f'icons/{i.key}', i.blurb)
         collect(f'icons/{i.key}', i.render)
@@ -810,7 +881,8 @@ def check_balance(rep: Report) -> None:
 
 CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
-    check_icons, check_cyberspace, check_rivals, check_origins, check_skills, check_factions, check_districts,
+    check_icons, check_dissonance, check_cyberspace, check_rivals,
+    check_origins, check_skills, check_factions, check_districts,
     check_ice, check_nodes, check_contracts, check_commands,
     check_scripting, check_theme, check_markup, check_balance,
 )

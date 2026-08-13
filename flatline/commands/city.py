@@ -8,7 +8,8 @@ that quietly spends three of it is a command that has lied.
 from __future__ import annotations
 
 from ..content import attributes as attr_content
-from ..content import cyberware, districts, effects as fx, factions
+from ..content import cyberware, dissonance as drift, districts
+from ..content import effects as fx, factions
 from ..content import hardware, icons, origins, programs
 from ..content import rivals as rival_content
 from ..content import skills as skill_content
@@ -414,6 +415,11 @@ def cmd_install(sess, args) -> None:
     c.info(f'Dissonance {game.char.dissonance} '
            f'({game.char.dissonance_band[1]}). '
            f'Bandwidth {game.char.bandwidth_used}/{game.char.bandwidth}.')
+    gap = game.char.coherence_gap
+    if gap:
+        c.info(f'{game.char.icon_data.name} fits you better now.'
+               if gap == 0 else
+               f'{game.char.icon_data.name} is still {gap} short of fitting.')
     _advance(sess, 1)
 
 
@@ -475,7 +481,8 @@ def cmd_market(sess, args) -> None:
     kind = {'program': 'program', 'ware': 'ware', 'cyberware': 'ware',
             'component': 'component', 'part': 'component'}.get(want)
 
-    listings = game.city.listings(kind)
+    qualifies = game.char.dissonance >= drift.DEEP_CLINIC_BAND
+    listings = game.city.listings(kind, deep=None if qualifies else False)
     if not listings:
         raise CommandError('nothing of that kind here.')
 
@@ -505,7 +512,8 @@ def cmd_buy(sess, args) -> None:
     if not len(args):
         raise CommandError('buy what?')
     query = args.rest().lower()
-    listings = game.city.listings()
+    qualifies = game.char.dissonance >= drift.DEEP_CLINIC_BAND
+    listings = game.city.listings(deep=None if qualifies else False)
     matches = []
     for listing in listings:
         item = _item(listing)
@@ -863,6 +871,15 @@ LEGWORK = {
     'intel': (900, 'Buy what a fixer already knows.', 'ice'),
     'employee': (350, 'Find somebody who works there and be charming.', 'credential'),
     'tap': (600, 'Put something physical on a line.', 'assets'),
+    # Only available once you are far enough gone to do it, per the drift arc.
+    'resonance': (0, 'Sit near it and let the shape arrive.', 'ice'),
+}
+
+#: Legwork gated on how far into the drift you are. `floor` needs at least
+#: that much Dissonance; `ceiling` stops working at or above it.
+LEGWORK_DRIFT = {
+    'resonance': ('floor', drift.RESONANCE_BAND),
+    'employee': ('ceiling', drift.SOCIAL_FLOOR_BAND),
 }
 
 
@@ -882,8 +899,16 @@ def cmd_legwork(sess, args) -> None:
         c.header('Legwork', contract.title)
         rows = []
         for key, (cost, blurb, gives) in LEGWORK.items():
-            have = '[ok]done[/]' if key in contract.intel else ''
-            rows.append((key, f'{cost:,}c' if cost else 'free', blurb, have))
+            ok, why = _legwork_allowed(game.char, key)
+            if not ok:
+                state = f'[err]{why}[/]'
+            elif key in contract.intel:
+                state = '[ok]done[/]'
+            elif gives in contract.intel:
+                state = '[dim]covered[/]'
+            else:
+                state = ''
+            rows.append((key, f'{cost:,}c' if cost else 'free', blurb, state))
         c.table(('approach', 'cost', 'what it is', ''), rows,
                 roles=('accent', 'credit', 'dim', None))
         c.say('[dim]Each also costs one shift.[/]')
@@ -896,6 +921,11 @@ def cmd_legwork(sess, args) -> None:
     key = matches[0]
     if key in contract.intel:
         raise CommandError(f'you have already done the {key} work')
+    ok, why = _legwork_allowed(game.char, key)
+    if not ok:
+        c.blank()
+        c.say(f'[err]{_legwork_refusal(key)}[/]')
+        raise CommandError(why)
 
     cost, _, gives = LEGWORK[key]
     if cost > game.char.credits:
@@ -909,10 +939,39 @@ def cmd_legwork(sess, args) -> None:
                            contract.objective, contract.size_mod)
 
     bonus = game.char.bonus('legwork_bonus')
+    if key == 'resonance':
+        bonus += 1  # you are not looking at it, you are listening to it
+        c.blank()
+        c.say(f'[accent2]{drift.RESONANCE_TEXT}[/]')
+        c.blank()
     contract.intel[gives] = _legwork_result(net, gives, bonus, game)
+    contract.intel.setdefault(key, contract.intel[gives])
     c.ok(f'{key.title()} done.')
     c.say(contract.intel[gives])
     _advance(sess, 1)
+
+
+def _legwork_allowed(char, key: str) -> tuple[bool, str]:
+    """Whether the drift lets you do this kind of legwork."""
+    rule = LEGWORK_DRIFT.get(key)
+    if rule is None:
+        return True, ''
+    kind, threshold = rule
+    if kind == 'floor' and char.dissonance < threshold:
+        return False, (f'that is not something you can do yet. It needs '
+                       f'{threshold} Dissonance and you have '
+                       f'{char.dissonance}.')
+    if kind == 'ceiling' and char.dissonance >= threshold:
+        return False, ('nobody is going to have that conversation with you '
+                       'any more.')
+    return True, ''
+
+
+def _legwork_refusal(key: str) -> str:
+    if key == 'employee':
+        return drift.SOCIAL_REFUSED
+    return ('You try. Whatever the trick is, it is not one you have yet, and '
+            'you spend an hour listening to traffic that stays traffic.')
 
 
 def _legwork_result(net, gives: str, bonus: int, game) -> str:
@@ -962,7 +1021,25 @@ def _advance(sess, shifts: int) -> None:
     told = game.city.advance(game.rng, game.alias, shifts)
     for line in told:
         sess.console.say(line)
+    _drift(sess)
     sess.autosave()
+
+
+def _drift(sess) -> None:
+    """Print any Dissonance passage the player has newly earned.
+
+    Called from `_advance` and from anything that moves Dissonance directly,
+    so a band is never crossed silently however it happened: chrome fitted, a
+    creeping-dissonance rider ticking over after a run, or grounding walking
+    it back and then forward again later.
+    """
+    game, c = sess.game, sess.console
+    if game is None:
+        return
+    for passage in game.char.new_passages():
+        c.blank()
+        c.rule(passage.title, role='accent2')
+        c.say(f'[accent2]{passage.text}[/]')
 
 
 def _item(listing):
@@ -1343,3 +1420,143 @@ def cmd_sell_out(sess, args) -> None:
     game.city.news.append(f'You sold {rival.name} to '
                           f'{factions.BY_KEY[match].short}.')
     sess.autosave()
+
+
+# --------------------------------------------------------------------------
+# the clinic, and the drift
+# --------------------------------------------------------------------------
+
+
+@command('clinic', 'What a clinic will do to you, and for you.',
+         group='character', usage='clinic',
+         detail='Clinics fit chrome, take it out again, and past a certain '
+                'point sell you things the front desk does not list. They are '
+                'also the only place that will try to walk your Dissonance '
+                'back, which is expensive, slow, and does not undo what the '
+                'chrome already cost.')
+def cmd_clinic(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    char = game.char
+    if 'clinic' not in game.city.district.services:
+        where = ', '.join(d.name for d in districts.with_service('clinic'))
+        raise CommandError(f'no clinic here. Try: {where}')
+
+    band = char.dissonance_band
+    c.header(f'{game.city.district.name} clinic',
+             f'Dissonance {char.dissonance}, {band[1]}')
+    c.say(f'[dim]{band[2]}[/]')
+
+    listings = game.city.listings('ware', deep=False)
+    if listings:
+        c.blank()
+        c.rule('on the shelf')
+        rows = []
+        for listing in listings:
+            ware = cyberware.BY_KEY.get(listing.key)
+            if ware is None:
+                continue
+            price, _ = market_mod.quote(listing, game.city.where, game.alias,
+                                        char.dissonance,
+                                        char.mult('price_mult'))
+            rows.append((ware.name, ware.location,
+                         f'{ware.bandwidth}bw {ware.dissonance}dis',
+                         f'{price:,}c'))
+        c.table(('chrome', 'slot', 'costs you', 'price'), rows,
+                roles=('accent', 'dim', 'dim', 'credit'))
+
+    # The back room, per the drift arc.
+    deep = game.city.listings('ware', deep=True)
+    if char.dissonance >= drift.DEEP_CLINIC_BAND and deep:
+        c.blank()
+        c.rule('the back of the clinic', role='accent2')
+        c.say(f'[dim]{drift.DEEP_CLINIC_ARRIVAL}[/]')
+        c.blank()
+        rows = []
+        for listing in deep:
+            ware = cyberware.BY_KEY.get(listing.key)
+            if ware is None:
+                continue
+            price, _ = market_mod.quote(listing, game.city.where, game.alias,
+                                        char.dissonance,
+                                        char.mult('price_mult'))
+            rows.append((ware.name, ware.location,
+                         f'{ware.bandwidth}bw {ware.dissonance}dis',
+                         f'{price:,}c'))
+        c.table(('chrome', 'slot', 'costs you', 'price'), rows,
+                roles=('accent2', 'dim', 'dim', 'credit'))
+    elif deep:
+        c.blank()
+        c.say(f'[dim]{drift.DEEP_CLINIC_REFUSED}[/]')
+
+    c.blank()
+    c.rule('grounding')
+    floor = char.chrome_dissonance
+    if char.dissonance <= floor:
+        c.say(f'[dim]{drift.GROUND_FLOOR_TEXT}[/]')
+        c.info(f'Your chrome accounts for all {floor} of it. Take something '
+               f'out first.')
+    else:
+        c.kv([('cost', f'[credit]{drift.GROUND_COST:,}c[/]'),
+              ('takes', f'{drift.GROUND_SHIFTS} shifts'),
+              ('returns', f'{drift.GROUND_POINTS[0]} to '
+                          f'{drift.GROUND_POINTS[1]} Dissonance'),
+              ('floor', f'{floor}, which is what your chrome accounts for')])
+        c.say('[dim]`ground --confirm` to book it.[/]')
+
+    c.blank()
+    c.say('[dim]`buy <name>` here, `install <name>` to have it fitted, '
+          '`uninstall <name>` to have it taken out.[/]')
+
+
+@command('ground', 'Have your Dissonance walked back. Expensive and partial.',
+         group='character', usage='ground [--confirm]',
+         detail='Three shifts of neurological work that hurts and does not '
+                'finish the job. It cannot take you below what your installed '
+                'chrome accounts for, because you can walk back what the work '
+                'did to you and not the hardware while it is still in you.')
+def cmd_ground(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    char = game.char
+    if 'clinic' not in game.city.district.services:
+        raise CommandError('grounding needs a clinic.')
+
+    floor = char.chrome_dissonance
+    if char.dissonance <= floor:
+        raise CommandError(
+            f'they will not take you below {floor}, which is what your chrome '
+            f'accounts for. Take something out first.')
+    if char.credits < drift.GROUND_COST:
+        raise CommandError(f'the course is {drift.GROUND_COST:,}c and you have '
+                           f'{char.credits:,}c')
+
+    if not args.has('confirm'):
+        c.warn(f'{drift.GROUND_COST:,}c and {drift.GROUND_SHIFTS} shifts, for '
+               f'{drift.GROUND_POINTS[0]} to {drift.GROUND_POINTS[1]} '
+               f'Dissonance back and a real amount of damage.')
+        c.say('[dim]It does not return anything the chrome already cost you. '
+              '`ground --confirm`.[/]')
+        return
+
+    stream = game.rng('events')
+    before = char.dissonance
+    given = stream.int(*drift.GROUND_POINTS)
+    char.dissonance = max(floor, char.dissonance - given)
+    hurt = stream.int(*drift.GROUND_HURT)
+    char.hurt = min(char.integrity_max - 1, char.hurt + hurt)
+    char.credits -= drift.GROUND_COST
+
+    c.blank()
+    c.rule('grounding')
+    c.say(drift.GROUND_TEXT)
+    c.blank()
+    c.kv([('Dissonance', f'{before} -> [accent]{char.dissonance}[/] '
+                         f'[dim]({char.dissonance_band[1]})[/]'),
+          ('cost', f'[credit]{drift.GROUND_COST:,}c[/]'),
+          ('damage', f'[err]{hurt}[/] integrity')])
+
+    gap = char.coherence_gap
+    if gap:
+        c.blank()
+        c.warn(f'{char.icon_data.name} does not fit you any more. You are '
+               f'{gap} short of the drift it needs.')
+    _advance(sess, drift.GROUND_SHIFTS)
