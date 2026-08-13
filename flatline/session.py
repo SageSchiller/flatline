@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from . import save as save_mod
 from .config import APP_TITLE, TAGLINE_PARTS, history_path
 from .game import Game
+from .script import MAX_DISPATCH, ScriptError, parse
 from .shell import REGISTRY, CommandError, Invocation, Quit, resolve, split_line
 from .ui import Caps, Console
 
@@ -35,7 +36,9 @@ class Session:
     slot: str = 'default'
     #: Shell aliases: typed word -> replacement line.
     shell_aliases: dict = field(default_factory=dict)
-    #: Saved command sequences, unlocked by Daemonology rank 2.
+    #: Saved scripts by name, unlocked by Daemonology rank 2. Held on the
+    #: session but persisted with the game: a script library is a build
+    #: investment and losing it on quit would make the whole feature a toy.
     scripts: dict = field(default_factory=dict)
     #: Set while a script is executing, to stop a script calling itself.
     in_script: bool = False
@@ -154,18 +157,60 @@ class Session:
     # ------------------------------------------------------------------
 
     def run_script(self, name: str) -> None:
-        lines = self.scripts.get(name)
-        if lines is None:
+        """Execute a script, checking its conditions against live state.
+
+        The conditions are the whole point (see `script.py`). A step whose
+        condition is false is skipped and *said to be skipped*, because a
+        script that silently does nothing is indistinguishable from a script
+        that is broken, and the player has to be able to tell.
+        """
+        script = self.scripts.get(name)
+        if script is None:
             raise CommandError(f'no script called {name!r}')
         if self.in_script:
             raise CommandError('a script cannot call another script')
+        try:
+            steps = script.steps
+        except ScriptError as e:
+            raise CommandError(f'{name}: {e}') from None
+
+        state = self.run
+        dispatched = 0
         self.in_script = True
         try:
-            for line in lines[:MAX_SCRIPT]:
-                if not self.running or self.run is None and self.context == 'run':
+            for step in steps:
+                if not self.running:
                     break
-                self.console.raw(f'[dim]> {line}[/]')
-                self.execute(line)
+                # Conditions read run state, so outside a run they are all
+                # unanswerable and the script runs as a plain sequence.
+                if step.condition is not None and state is not None:
+                    if self.run is None:
+                        break
+                    truth = step.condition.evaluate(self.run)
+                    if step.kind == 'stop':
+                        if truth:
+                            self.console.warn(
+                                f'[dim]{name}:[/] stopped, {step.condition}.')
+                            return
+                        continue
+                    if not truth:
+                        self.console.raw(
+                            f'[dim]  skipped ({step.condition}): '
+                            f'{step.command}[/]')
+                        continue
+                elif step.kind == 'stop':
+                    continue
+
+                for _ in range(step.count):
+                    if not self.running or dispatched >= MAX_DISPATCH:
+                        break
+                    # A run command after the run has ended is not an error,
+                    # it is simply the rest of the script becoming moot.
+                    if state is not None and self.run is None:
+                        return
+                    dispatched += 1
+                    self.console.raw(f'[dim]> {step.command}[/]')
+                    self.execute(step.command)
         finally:
             self.in_script = False
 
@@ -262,6 +307,7 @@ class Session:
         because a save that is quietly not happening is the worst outcome."""
         if self.game is None:
             return
+        self.sync_scripts()
         try:
             self.game.save(self.slot)
         except OSError as e:
@@ -274,3 +320,9 @@ class Session:
             raise CommandError(str(e)) from None
         self.slot = slot
         self.run = None
+        self.scripts = dict(self.game.scripts)
+
+    def sync_scripts(self) -> None:
+        """Push the session's script library back onto the game before a save."""
+        if self.game is not None:
+            self.game.scripts = dict(self.scripts)

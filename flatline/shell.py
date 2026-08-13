@@ -102,6 +102,15 @@ class Args:
     def rest(self, i: int = 0) -> str:
         return ' '.join(self.positional[i:])
 
+    def raw_rest(self, i: int = 0) -> str:
+        """Everything from token `i` on, flags included, as typed.
+
+        `rest` returns positionals only, which is right for most callers and
+        exactly wrong for anything storing a command to run later: `script
+        write mine pull --all` must keep the `--all`.
+        """
+        return ' '.join(self.raw[i:])
+
     def has(self, flag: str) -> bool:
         return flag in self.flags
 

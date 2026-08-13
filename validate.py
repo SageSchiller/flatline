@@ -16,6 +16,7 @@ from __future__ import annotations
 import sys
 
 from flatline import commands  # noqa: F401  (registers the command table)
+from flatline import script as script_mod
 from flatline import theme, ui
 from flatline.content import attributes as attr_content
 from flatline.content import cyberspace, cyberware, districts
@@ -595,6 +596,47 @@ def check_contracts(rep: Report) -> None:
 # --------------------------------------------------------------------------
 
 
+def check_scripting(rep: Report) -> None:
+    """The scripting language, per D22, and everything it ships with."""
+    for name, (reader, blurb) in script_mod.NUMERIC.items():
+        rep.check(bool(blurb), f'script/{name}', 'condition has no description')
+        rep.check(callable(reader), f'script/{name}', 'condition has no reader')
+    for name, (reader, blurb) in script_mod.FLAGS.items():
+        rep.check(bool(blurb), f'script/{name}', 'flag has no description')
+        rep.check(callable(reader), f'script/{name}', 'flag has no reader')
+    overlap = set(script_mod.NUMERIC) & set(script_mod.FLAGS)
+    rep.check(not overlap, 'script',
+              f'names are both numeric and flags: {sorted(overlap)}')
+    rep.check('alert' not in script_mod.NUMERIC
+              and 'alert' not in script_mod.FLAGS, 'script',
+              'alert must stay its own case, not a number or a flag')
+
+    # Every shipped example must parse, and every command it names must exist.
+    for name, lines in script_mod.EXAMPLES.items():
+        where = f'script/example/{name}'
+        try:
+            steps = script_mod.parse(lines)
+        except script_mod.ScriptError as e:
+            rep.error(where, f'does not parse: {e}')
+            continue
+        rep.check(bool(steps), where, 'is empty')
+        for step in steps:
+            if not step.command:
+                continue
+            head = step.command.split()[0].lower()
+            if REGISTRY.lookup(head) is None:
+                # Two-word verbs like `jack out` resolve on the pair.
+                pair = ' '.join(step.command.split()[:2]).lower()
+                if REGISTRY.lookup(pair) is None:
+                    rep.error(where, f'names no command: {step.command!r}')
+        rep.check(any(s.condition is not None for s in steps), where,
+                  'has no conditions, so it teaches nothing a macro would not')
+
+    rep.check(script_mod.MAX_STEPS > 0, 'script', 'MAX_STEPS is not positive')
+    rep.check(script_mod.MAX_DISPATCH >= script_mod.MAX_STEPS, 'script',
+              'MAX_DISPATCH is below MAX_STEPS, so a legal script cannot run')
+
+
 def check_commands(rep: Report) -> None:
     for name, cmd in REGISTRY.commands.items():
         where = f'commands/{name}'
@@ -770,7 +812,7 @@ CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
     check_icons, check_cyberspace, check_rivals, check_origins, check_skills, check_factions, check_districts,
     check_ice, check_nodes, check_contracts, check_commands,
-    check_theme, check_markup, check_balance,
+    check_scripting, check_theme, check_markup, check_balance,
 )
 
 

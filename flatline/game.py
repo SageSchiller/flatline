@@ -17,6 +17,7 @@ from . import save as save_mod
 from .model.character import Character
 from .model.identity import Alias, generate_name
 from .rng import Rng, random_seed
+from .script import Script
 from .world.city import City
 
 
@@ -29,6 +30,9 @@ class Game:
     #: kept rather than deleted, because the history is worth reading and
     #: because a burned name still exists in the world's memory.
     aliases: list = field(default_factory=list)
+    #: Saved scripts by name. Persisted because a script library is a build
+    #: investment, not session scratch.
+    scripts: dict = field(default_factory=dict)
     #: Total credits earned across the character's life, for the epitaph.
     earned: int = 0
     #: Set when the character is dead. A flatlined save is readable, not
@@ -78,6 +82,7 @@ class Game:
             'city': self.city.to_dict(),
             'rng': self.rng.getstate(),
             'aliases': [a.to_dict() for a in self.aliases],
+            'scripts': {k: v.to_dict() for k, v in self.scripts.items()},
             'earned': self.earned,
             'over': self.over,
         }
@@ -92,6 +97,8 @@ class Game:
             city=City.from_dict(d.get('city') or {}),
             rng=Rng.fromstate(d.get('rng') or {'seed': 0}),
             aliases=aliases,
+            scripts={k: Script.from_dict(v)
+                     for k, v in (d.get('scripts') or {}).items()},
             earned=int(d.get('earned', 0)),
             over=d.get('over', ''),
         )

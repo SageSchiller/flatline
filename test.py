@@ -931,6 +931,127 @@ def test_rivals() -> None:
     save_mod.delete('rivals')
 
 
+def test_scripting() -> None:
+    T.section('scripting')
+    from flatline import script as script_mod
+
+    # All four statement forms parse.
+    T.eq(script_mod.parse_line('scan').kind, 'cmd', 'a bare command parses')
+    T.eq(script_mod.parse_line('if ice: strike').kind, 'if', 'if parses')
+    T.eq(script_mod.parse_line('stop if trace > 60').kind, 'stop',
+         'stop parses')
+    step = script_mod.parse_line('repeat 3: scan')
+    T.eq(step.kind, 'repeat', 'repeat parses')
+    T.eq(step.count, 3, 'and keeps its count')
+    T.eq(script_mod.parse_line('# a comment'), None, 'comments are skipped')
+    T.eq(script_mod.parse_line('   '), None, 'blank lines are skipped')
+
+    # Bad input is a readable error, never a traceback.
+    for bad in ('if ice strike', 'if : scan', 'repeat 0: scan',
+                'repeat 99: scan', 'repeat 3', 'stop',
+                'if florble > 3: scan', 'if ice > 3: scan',
+                'if trace > banana: scan', 'if alert > purple: scan'):
+        T.raises(lambda b=bad: script_mod.parse_line(b),
+                 f'{bad!r} is rejected')
+
+    # Length is bounded.
+    T.raises(lambda: script_mod.parse(['scan'] * (script_mod.MAX_STEPS + 1)),
+             'an over-long script is rejected')
+
+    # Conditions read live state and mean what they say.
+    net = net_mod.generate(Rng(5).fork('network', 'script'), 'sixes', 30)
+    char = Character.from_origin('gutter', 'x')
+    console = quiet_console()
+    console.start_capture()
+    state = RunState.begin(net, char, Rng(5)('combat'), console)
+
+    state.trace = 50.0
+    T.ok(script_mod.parse_condition('trace > 40').evaluate(state),
+         'trace > 40 is true at 50')
+    T.ok(not script_mod.parse_condition('trace > 60').evaluate(state),
+         'trace > 60 is false at 50')
+    T.ok(script_mod.parse_condition('trace < 60').evaluate(state),
+         'trace < 60 is true at 50')
+    T.ok(script_mod.parse_condition('trace >= 50').evaluate(state),
+         'trace >= 50 is true at 50')
+    T.ok(script_mod.parse_condition('trace != 40').evaluate(state),
+         'trace != 40 is true at 50')
+
+    # Negation inverts, on both kinds.
+    T.ok(script_mod.parse_condition('not trace > 60').evaluate(state),
+         'not inverts a numeric condition')
+    open_now = script_mod.parse_condition('open').evaluate(state)
+    T.eq(script_mod.parse_condition('not open').evaluate(state), not open_now,
+         'not inverts a flag')
+
+    # Alert compares by rank, not alphabetically.
+    state.alert = 'red'
+    T.ok(script_mod.parse_condition('alert >= red').evaluate(state),
+         'alert >= red is true at red')
+    T.ok(script_mod.parse_condition('alert >= amber').evaluate(state),
+         'alert >= amber is true at red')
+    T.ok(not script_mod.parse_condition('alert >= lockdown').evaluate(state),
+         'alert >= lockdown is false at red')
+    state.alert = 'green'
+    T.ok(not script_mod.parse_condition('alert').evaluate(state),
+         'bare alert is false at green')
+    T.ok(script_mod.parse_condition('not alert').evaluate(state),
+         'and negates correctly')
+
+    # Every declared condition evaluates against a real state without raising.
+    for name in list(script_mod.NUMERIC) + list(script_mod.FLAGS) + ['alert']:
+        try:
+            script_mod.parse_condition(name).evaluate(state)
+            T.checks += 1
+        except Exception:
+            T.failures.append(f'scripting: condition {name!r} raised:\n'
+                              + traceback.format_exc())
+    console.end_capture()
+
+    # A script runs, skips what it should, and stops when told.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=8829)
+    game.char.base_skills['daemonology'] = 2
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    sess, _ = play([f'take {contract.cid}', 'jack in --force'], game=game)
+    T.ok(sess.run is not None, 'the run started')
+
+    sess.scripts['t'] = script_mod.Script(
+        name='t', lines=['scan', 'stop if trace > 0', 'pull --all'])
+    sess.console.start_capture()
+    sess.run_script('t')
+    out = sess.console.end_capture()
+    T.ok('stopped' in out, 'a stop condition abandons the rest')
+    T.ok('pull' not in out, 'and nothing after it runs')
+
+    # Flags survive being stored, which `--all` depends on.
+    sess.scripts['f'] = script_mod.Script(name='f', lines=['pull --all'])
+    T.eq(sess.scripts['f'].lines[0], 'pull --all', 'flags are kept verbatim')
+
+    # A broken script is reported, not raised.
+    sess.scripts['bad'] = script_mod.Script(name='bad', lines=['if oops: scan'])
+    T.raises(lambda: sess.run_script('bad'), 'a broken script errors cleanly')
+    T.raises(lambda: sess.run_script('nope'), 'an unknown script errors')
+
+    # Scripts belong to the character and survive a save.
+    sess.sync_scripts()
+    sess.game.save('scripts')
+    back = Game.load('scripts')
+    T.ok('t' in back.scripts, 'scripts survive a save')
+    T.eq(back.scripts['t'].lines, sess.scripts['t'].lines,
+         'and keep their lines exactly')
+    save_mod.delete('scripts')
+
+    # Every shipped example parses and is made of real commands.
+    for name, lines in script_mod.EXAMPLES.items():
+        try:
+            steps = script_mod.parse(lines)
+            T.ok(bool(steps), f'example {name} parses to something')
+        except script_mod.ScriptError:
+            T.failures.append(f'scripting: example {name} does not parse')
+            T.checks += 1
+
+
 def test_social() -> None:
     T.section('social')
     from flatline.content import rivals as rival_content
@@ -1245,7 +1366,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_social, test_objectives, test_fallout, test_migration, test_shell,
+    test_scripting, test_social, test_objectives, test_fallout, test_migration, test_shell,
     test_playthrough, test_ui,
 )
 

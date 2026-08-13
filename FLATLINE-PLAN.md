@@ -12,11 +12,14 @@ updated: 2026-08-12
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-12.** **The game is playable end to end.** Phases 0, 1, 2 and most of 3 are done. `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **4615 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 11,600 lines.
+> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5044 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 13,500 lines.
 >
-> You can create a character six ways, spend an attribute and experience budget, take a contract, travel, do legwork, jack in, break into a procedurally generated network, steal something, and get out, and the residue you left turns into faction heat a shift later.
+> The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
-> **What is not done yet:** rivals acting on their own, bounties making districts dangerous, and the `escort` and `surveil` objectives are stubs that resolve as "did you take anything". Those are Phase 4. See the phase list.
+> **What is not done, in the order I would do it:**
+> 1. **Scripting is thin.** `script` records and replays, but the Daemonology fantasy is scripts that *react* to conditions. That is the deepest remaining hole and the most on-theme.
+> 2. **The Dissonance arc has no city-side content.** High Dissonance is mechanically real (prices, pretext, icon coherence) but nothing in the city is *written* for it: no clinic that will only see you if you are far enough gone, no contact who only talks to people like that.
+> 3. **Breadth.** More chrome, programs, ICE, districts. Content, not systems.
 >
 > **What this is.** A netrunner sim you play by typing at a fake terminal. Two layers: a persistent city that keeps score, and procedurally generated corporate networks you break into one contract at a time. The character system is classless and deep enough that two players at the same credit total play nothing alike.
 >
@@ -260,6 +263,36 @@ through it, which is worth more disposition than anything else in the game. So
 the objective that seemed like the odd one out turns out to be the engine: it
 is where relationships are made, and relationships are what make hiring cheap
 and favours possible.
+
+### D22: Scripts check before they act
+
+A script that only replays a recorded sequence is a macro, and a macro is not
+what a netrunner writes. What they write is something that checks before it
+acts and gets out when the numbers turn. So scripts have conditions.
+
+Four statement forms and nothing else:
+
+```
+scan                          a plain command
+if trace > 40: mask           runs only when the condition holds
+stop if alert >= red          abandons the rest of the script
+repeat 3: crack gw01 shell    bounded, one to ten
+```
+
+Conditions read live run state by name: `trace`, `noise`, `focus`,
+`integrity`, `tick`, `haul`, `residue`, `tier` as numbers; `ice`, `locked`,
+`open`, `data`, `mapped`, `ally`, `escort` as yes-or-no; and `alert`, which
+compares by rank rather than alphabetically.
+
+**There are no variables, no arithmetic, and no user-defined anything, and
+that ceiling is the point.** A real expression grammar would be a second game
+sitting beside the first one. The interesting decision is *which checks are
+worth writing*, not how cleverly you can write them.
+
+Two supporting rules. A skipped step says it was skipped, because a script
+that silently does nothing is indistinguishable from one that is broken. And
+scripts are saved with the character, because a script library is a build
+investment in exactly the way a program library is.
 
 ### D17: The finish line
 
@@ -538,4 +571,31 @@ Rivals became a system you act on rather than a feed you read. `hire`, `ask`, an
 
 **One design call worth recording.** `betray` is its own verb rather than an overload of `sell`. The command registry refused the duplicate, which was the right refusal for the wrong reason: selling a program and selling a person should not share a word.
 
-`validate.py` clean, `test.py` green at **4987 checks**.
+`validate.py` clean, `test.py` green at **5044 checks**.
+
+### 2026-08-13 (c): Phase 5 continued, reactive scripting
+
+Added **D22**. `script` stopped being a macro recorder and became a small
+conditional language, which is the Daemonology payoff and the most on-theme
+feature left in the game. Four statement forms, sixteen readable conditions,
+three shipped examples that double as the tutorial, and a `script help` that
+prints the whole vocabulary.
+
+The language lives in `flatline/script.py` and is pure: parsing produces `Step`
+objects and evaluation reads a state object, with the session doing the
+dispatch. That split is why `validate.py` can check every shipped example
+parses and names real commands, and why `test.py` can evaluate every declared
+condition without standing up a run.
+
+**One bug worth recording.** `script write mine pull --all` stored `pull`,
+because the command layer parses `--all` into a flag set and `Args.rest()`
+returns positionals only. Anything that stores a command to run later needs the
+text as typed, so `Args.raw_rest()` now exists and the two are documented
+against each other.
+
+**Still open, and deliberately.** A daemon that runs a script rather than a
+single task would close the Daemonology loop completely (rank 2 writes them,
+rank 4 sets them running unattended). It is the obvious next thing and it is
+not done, because reactive scripts are worth playing with first.
+
+`validate.py` clean, `test.py` green at **5044 checks**.

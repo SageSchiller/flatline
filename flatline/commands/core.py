@@ -10,6 +10,7 @@ from __future__ import annotations
 from .. import save as save_mod
 from ..config import APP_TITLE
 from ..content import skills as skill_content
+from .. import script as script_mod
 from ..shell import GROUPS, REGISTRY, CommandError, Quit, command
 
 GROUP_TITLES = {
@@ -162,12 +163,13 @@ def cmd_bind(sess, args) -> None:
     sess.console.ok(f'{word} -> {args.rest(1)}')
 
 
-@command('script', 'Record and replay a sequence of commands.',
-         group='session', usage='script [save|run|list|drop] [name]',
-         detail='Needs Daemonology rank 2. `script save <name> <n>` takes the '
-                'last n commands you typed. `script run <name>` replays them, '
-                'and inside a run costs one tick less than the sum of its '
-                'parts, to a minimum of one.')
+@command('script', 'Write, keep, and run automation.',
+         group='session',
+         usage='script [list|show|write|save|run|drop|help] [name] [line]',
+         detail='Needs Daemonology rank 2. A script is not a macro: it checks '
+                'before it acts. `script write <name> if trace > 60: jack out` '
+                'appends a line. `script help` lists everything a condition '
+                'can read. Scripts are saved with the character.')
 def cmd_script(sess, args) -> None:
     game = sess.require_game()
     if not game.char.has_technique('script'):
@@ -176,31 +178,114 @@ def cmd_script(sess, args) -> None:
     action = (args.get(0) or 'list').lower()
     c = sess.console
 
-    if action == 'list':
-        if not sess.scripts:
-            c.info('No scripts.')
-            return
-        for name, lines in sorted(sess.scripts.items()):
-            c.raw(f'[accent]{name}[/] [dim]({len(lines)} steps)[/]')
+    if action == 'help':
+        c.header('Script conditions', 'what a step can check')
+        c.say('[dim]Four forms. A plain command runs. `if <cond>: <command>` '
+              'runs only when the condition holds. `stop if <cond>` abandons '
+              'the rest of the script. `repeat <n>: <command>` runs it up to '
+              'ten times.[/]')
+        c.blank()
+        c.rule('numbers')
+        c.kv([(name, blurb) for name, (_, blurb)
+              in sorted(script_mod.NUMERIC.items())])
+        c.say('[dim]Compare with > < >= <= = != against a whole number.[/]')
+        c.blank()
+        c.rule('yes or no')
+        c.kv([(name, blurb) for name, (_, blurb)
+              in sorted(script_mod.FLAGS.items())])
+        c.say('[dim]Use bare, or negate with `not`: `if not open: crack`.[/]')
+        c.blank()
+        c.rule('alert')
+        c.say('[dim]`alert` compares against '
+              + ', '.join(script_mod.ALERT_LEVELS)
+              + ': `stop if alert >= red`.[/]')
+        c.blank()
+        c.rule('examples you can copy')
+        for name, lines in script_mod.EXAMPLES.items():
+            c.blank()
+            c.raw(f'  [accent]{name}[/]')
             for line in lines:
                 c.raw(f'    [dim]{line}[/]')
+        c.blank()
+        c.say('[dim]`script example <name>` copies one into your library.[/]')
+        return
+
+    if action == 'list':
+        if not sess.scripts:
+            c.info('No scripts. `script help` for how to write one, or '
+                   '`script example bailout` to start from a shipped one.')
+            return
+        c.header('Scripts', f'{len(sess.scripts)} saved')
+        for name, script in sorted(sess.scripts.items()):
+            try:
+                count = len(script.steps)
+                problem = ''
+            except script_mod.ScriptError as e:
+                count, problem = 0, str(e)
+            tail = f'[err]{problem}[/]' if problem else f'[dim]{count} steps[/]'
+            c.raw(f'  [accent]{name:<14}[/] {tail}')
+        c.blank()
+        c.say('[dim]`script show <name>` to read one.[/]')
         return
 
     name = args.get(1)
     if not name:
         raise CommandError('which script?')
 
+    if action == 'example':
+        lines = script_mod.EXAMPLES.get(name)
+        if lines is None:
+            raise CommandError('shipped examples: '
+                               + ', '.join(script_mod.EXAMPLES))
+        sess.scripts[name] = script_mod.Script(name=name, lines=list(lines))
+        c.ok(f'{name} copied into your library.')
+        for line in lines:
+            c.raw(f'    [dim]{line}[/]')
+        return
+
+    if action == 'show':
+        script = sess.scripts.get(name)
+        if script is None:
+            raise CommandError(f'no script called {name!r}')
+        c.header(name, f'{len(script.lines)} lines')
+        for i, line in enumerate(script.lines, start=1):
+            c.raw(f'  [dim]{i:2}[/]  {line}')
+        try:
+            script.steps
+        except script_mod.ScriptError as e:
+            c.blank()
+            c.err(str(e))
+        return
+
+    if action == 'write':
+        line = args.raw_rest(2)
+        if not line:
+            raise CommandError('write what? `script write bail stop if '
+                               'trace > 70`')
+        try:
+            script_mod.parse_line(line)
+        except script_mod.ScriptError as e:
+            raise CommandError(str(e)) from None
+        script = sess.scripts.setdefault(
+            name, script_mod.Script(name=name, lines=[]))
+        if len(script.lines) >= script_mod.MAX_STEPS:
+            raise CommandError(f'{name} is already {script_mod.MAX_STEPS} '
+                               f'lines, which is the limit')
+        script.lines.append(line)
+        c.ok(f'{name} line {len(script.lines)}: [dim]{line}[/]')
+        return
+
     if action == 'save':
         count = args.int_at(2, 5, 'how many commands')
-        # The `script save` line is itself in the history; drop it.
         source = [l for l in sess.typed[:-1] if not l.startswith('script')]
         lines = source[-max(1, count):]
         if not lines:
             raise CommandError('nothing recent to record')
-        sess.scripts[name] = lines
+        sess.scripts[name] = script_mod.Script(name=name, lines=list(lines))
         c.ok(f'{name}: {len(lines)} steps recorded.')
         for line in lines:
             c.raw(f'    [dim]{line}[/]')
+        c.say('[dim]`script write` to add conditions to it.[/]')
         return
 
     if action == 'run':
@@ -213,7 +298,7 @@ def cmd_script(sess, args) -> None:
         c.ok(f'{name} dropped.')
         return
 
-    raise CommandError('script save|run|list|drop')
+    raise CommandError('script list|show|write|save|run|drop|example|help')
 
 
 @command('techniques', 'What your training lets you do.',
