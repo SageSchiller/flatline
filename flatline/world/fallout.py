@@ -127,7 +127,8 @@ def pick_up(rng: Stream, char, alias, city, faction: str) -> Incident:
             f'having done something specific to it. The message is the '
             f'point.',
             f'{name} damaged [dim]({level}/3)[/]. '
-            f'[dim]Repairs: {char.deck.repair_cost():,}c[/]')
+            f'[dim]Repairs: '
+            f'{char.deck.repair_cost(char.mult("repair_mult")):,}c[/]')
 
     if kind == 'chrome':
         fitted = [k for k in char.installed if k in cyberware.BY_KEY]

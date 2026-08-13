@@ -932,6 +932,143 @@ def test_rivals() -> None:
     save_mod.delete('rivals')
 
 
+def test_passives_and_debt() -> None:
+    T.section('passives and debt')
+    from flatline.world import debt as debt_mod
+
+    # Every origin's headline ability has a mechanical half. This is the check
+    # that stops a passive being a sentence that does nothing, which several
+    # of them were before this suite existed.
+    for key in origins.ORIGIN_KEYS:
+        origin = origins.BY_KEY[key]
+        T.ok(bool(origin.effects or origin.rider),
+             f'{key} passive has a mechanical half')
+        if origin.rider:
+            T.ok(origin.rider in origins.RIDERS,
+                 f'{key} rider is declared')
+            char = Character.from_origin(key, 'x')
+            T.ok(origin.rider in char.riders(),
+                 f'{key} rider reaches the character')
+        for fx_key in origin.effects:
+            T.ok(fx_key in fx.ALL, f'{key} effect {fx_key!r} is a real key')
+
+    # Repair discounts are real money, not prose.
+    plain = Character.from_origin('protege', 'x')
+    salvager = Character.from_origin('gutter', 'x')
+    company = Character.from_origin('bonded', 'x')
+    for char in (plain, salvager, company):
+        char.deck.damage['cpu'] = 2
+    base = plain.deck.repair_cost(plain.mult('repair_mult'))
+    T.ok(salvager.deck.repair_cost(salvager.mult('repair_mult'))
+         < salvager.deck.repair_cost(1.0),
+         'Salvager pays less to repair')
+    T.ok(company.mult('repair_mult') < salvager.mult('repair_mult'),
+         'Company Hardware beats Salvager on repairs')
+    T.ok(base > 0, 'an undiscounted repair still costs something')
+    T.eq(plain.deck.repair_cost(0.0), 0, 'a free repair is free')
+
+    # Known Quantity is worth money on a payout.
+    T.ok(plain.mult('pay_mult') > 1.0, 'the protege negotiates better')
+
+    # Nobody: cheaper, faster names and faster forgetting.
+    ghost = Character.from_origin('ghost', 'x')
+    T.ok('no_history' in ghost.riders(), 'the ghost has no history')
+    alias_a, alias_b = Alias(name='a'), Alias(name='b')
+    for alias in (alias_a, alias_b):
+        alias.add_heat('kagawa', 60)
+    for _ in range(6):
+        alias_a.decay_heat(1.0)
+        alias_b.decay_heat(1.4)
+    T.ok(alias_b.attention('kagawa') < alias_a.attention('kagawa'),
+         'heat with nothing to attach to fades faster')
+
+    # Been here before: everything identified from the first tick.
+    net = net_mod.generate(Rng(4).fork('network', 'vet'), 'kagawa', 60)
+    console = quiet_console()
+    console.start_capture()
+    burnout = Character.from_origin('burnout', 'x')
+    state = RunState.begin(net, burnout, Rng(4)('combat'), console)
+    constructs = [i for n in state.net.nodes.values() for i in n.ice]
+    if constructs:
+        T.ok(all(i.known for i in constructs),
+             'the burnout knows every construct on sight')
+    # And somebody else does not.
+    net2 = net_mod.generate(Rng(4).fork('network', 'vet'), 'kagawa', 60)
+    fresh = RunState.begin(net2, Character.from_origin('courier', 'x'),
+                           Rng(4)('combat'), console)
+    others = [i for n in fresh.net.nodes.values() for i in n.ice]
+    if others:
+        T.ok(not all(i.known for i in others),
+             'and somebody without the passive does not')
+
+    # Native: the run opens with an action already in hand.
+    net3 = net_mod.generate(Rng(4).fork('network', 'nat'), 'sixes', 30)
+    chromed = RunState.begin(net3, Character.from_origin('chromed', 'x'),
+                             Rng(4)('combat'), console)
+    T.eq(chromed.free_actions, 1, 'the chromed origin opens with a free action')
+    T.eq(fresh.free_actions, 0, 'and nobody else does')
+    console.end_capture()
+
+    # --- debt ---------------------------------------------------------
+    game = Game.new(Character.from_origin('academic', 'x'), seed=7)
+    T.ok(game.debt.owed, 'the academic starts owing somebody')
+    T.ok(game.debt.lender in factions.BY_KEY, 'and the lender is real')
+    bonded = Game.new(Character.from_origin('bonded', 'x'), seed=7)
+    T.ok(bonded.debt.amount > game.debt.amount,
+         'the indentured origin owes more')
+    clean = Game.new(Character.from_origin('gutter', 'x'), seed=7)
+    T.ok(not clean.debt.owed, 'and most origins owe nothing')
+
+    # It compounds, and the lender eventually turns up.
+    start = game.debt.amount
+    for _ in range(debt_mod.GRACE - 1):
+        game.city.advance(game.rng, game.alias, 1,
+                          debt=game.debt, char=game.char)
+    T.ok(game.debt.amount > start, 'debt compounds while you ignore it')
+    T.ok(not game.debt.due(game.city.shift), 'nobody calls during the grace')
+    # The warning lands at the grace boundary; the first collection is one
+    # COLLECT_EVERY after it, which is the gap the player gets to find money in.
+    game.city.advance(game.rng, game.alias, debt_mod.COLLECT_EVERY + 2,
+                      debt=game.debt, char=game.char)
+    T.ok(game.debt.last_collected >= 0, 'and then somebody does')
+
+    # D6: a debt must be survivable. Collections have to outpace interest.
+    solo = debt_mod.Debt(amount=20000, lender='sixes', opened=0)
+    for shift in range(1, 200):
+        solo.accrue()
+        if solo.due(shift):
+            solo.collect(shift)
+        if not solo.owed:
+            break
+    T.ok(solo.amount < 20000,
+         f'an ignored debt shrinks under collection rather than spiralling '
+         f'(ended at {solo.amount})')
+
+    # Paying works and cannot go negative.
+    payable = debt_mod.Debt(amount=1000, lender='sixes')
+    T.eq(payable.pay(300), 300, 'a payment applies')
+    T.eq(payable.amount, 700, 'and reduces the balance')
+    T.eq(payable.pay(9999), 700, 'overpaying applies only what is owed')
+    T.eq(payable.amount, 0, 'and clears it')
+    T.ok(not payable.owed, 'a cleared debt is not owed')
+    T.eq(payable.pay(100), 0, 'and paying more does nothing')
+
+    # It survives a save.
+    game.save('debt')
+    back = Game.load('debt')
+    T.eq(back.debt.amount, game.debt.amount, 'debt survives a save')
+    T.eq(back.debt.lender, game.debt.lender, 'and so does the lender')
+    save_mod.delete('debt')
+
+    # The city remembers where you have been, which the Courier reads.
+    T.ok(game.city.visited, 'the city remembers somewhere')
+    T.ok(game.city.where in game.city.visited, 'including where you are')
+    game.save('visited')
+    T.eq(Game.load('visited').city.visited, game.city.visited,
+         'and that survives a save')
+    save_mod.delete('visited')
+
+
 def test_dissonance() -> None:
     T.section('dissonance')
     from flatline.commands.city import LEGWORK_DRIFT, _legwork_allowed
@@ -1517,7 +1654,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_migration, test_shell,
+    test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_migration, test_shell,
     test_playthrough, test_ui,
 )
 

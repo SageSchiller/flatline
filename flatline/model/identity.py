@@ -84,13 +84,18 @@ class Alias:
         self.heat[faction] = value
         return value
 
-    def decay_heat(self) -> None:
-        """One shift of forgetting. Corps forget faster than gangs."""
+    def decay_heat(self, rate: float = 1.0) -> None:
+        """One shift of forgetting. Corps forget faster than gangs.
+
+        `rate` scales it, which is how the Legally Dead origin's passive
+        becomes real: there is nothing to attach the heat to.
+        """
         for key in list(self.heat):
             fac = factions.BY_KEY.get(key)
             if not fac:
                 continue
-            self.heat[key] = max(0, int(round(self.heat[key] - fac.heat_decay)))
+            self.heat[key] = max(
+                0, int(round(self.heat[key] - fac.heat_decay * rate)))
             if not self.heat[key]:
                 del self.heat[key]
 

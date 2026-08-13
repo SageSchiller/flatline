@@ -110,6 +110,9 @@ class RunState:
     #: {key, name, node, integrity, state, skill, style, cut}. The mirror of
     #: `escort`: this one is here to help, and takes a share of the haul.
     ally: dict | None = None
+    #: Actions that cost no ticks, spent before ordinary ones. The Chromed
+    #: origin opens a run with one.
+    free_actions: int = 0
     #: Consecutive ticks of clean residency, for a surveil job. Reset by the
     #: alert going red, because being watched is the opposite of watching.
     observed: int = 0
@@ -134,6 +137,16 @@ class RunState:
         node = net.node(net.entry)
         if node:
             node.known = node.open = node.mapped = True
+        riders = char.riders()
+        if 'veteran_eye' in riders:
+            # Been here before: you have seen all of this, traps included.
+            for other in net.nodes.values():
+                for construct in other.ice:
+                    construct.known = True
+        if 'native' in riders:
+            # The net is your first language. One action already spent before
+            # anybody else has finished arriving.
+            state.free_actions = 1
         return state
 
     # ------------------------------------------------------------------
@@ -785,6 +798,9 @@ class RunState:
             check = Check(name='composure', resistance=12)
             check.add('composure', self.char.composure)
             check.add('nerve', self.char.attr('nerve'))
+            if 'native' in self.char.riders():
+                check.add('the net is your first language',
+                          self.char.dissonance // 4)
             if 'deadlight' in self.char.deck.loaded:
                 check.add('Deadlight', 4)
             check.resolve(self.rng)

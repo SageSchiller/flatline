@@ -107,6 +107,9 @@ class Character:
             if ware:
                 parts.append(ware.effects)
                 parts.append(ware.penalty)
+        origin = origins.BY_KEY.get(self.origin)
+        if origin and origin.effects:
+            parts.append(origin.effects)
         icon = icons.BY_KEY.get(self.icon)
         if icon:
             parts.append(icon.effects)
@@ -281,6 +284,9 @@ class Character:
         icon = icons.BY_KEY.get(self.icon)
         if icon and icon.rider:
             out.add(icon.rider)
+        origin = origins.BY_KEY.get(self.origin)
+        if origin and origin.rider:
+            out.add(origin.rider)
         return out
 
     @property

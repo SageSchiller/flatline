@@ -1253,6 +1253,10 @@ def cmd_status(sess, args) -> None:
         if hot:
             from ..content import factions
             c.kv([('heat', f'[heat]{factions.BY_KEY[hot].short} {heat}[/]')])
+        if game.debt.owed:
+            c.kv([('owed', f'[err]{game.debt.amount:,}c[/] '
+                           f'[dim]to {fac_content.BY_KEY[game.debt.lender].short}'
+                           f'[/]')])
         return
 
     state = sess.run
@@ -1355,6 +1359,9 @@ def _act(sess, verb: str, node=None, ticks: int | None = None,
         state.leave_residue(base_residue * residue_scale, node)
 
     spend = base_ticks if ticks is None else ticks
+    if spend and state.free_actions > 0:
+        state.free_actions -= 1
+        spend = 0
     if state.overclock:
         # Overclocking buys actions, which is modelled as ticks costing less.
         spend = max(0, spend - (1 if state.overclock >= 2 else 0))

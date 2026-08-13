@@ -18,6 +18,7 @@ from .model.character import Character
 from .model.identity import Alias, generate_name
 from .rng import Rng, random_seed
 from .script import Script
+from .world.debt import Debt
 from .world.city import City
 
 
@@ -33,6 +34,8 @@ class Game:
     #: Saved scripts by name. Persisted because a script library is a build
     #: investment, not session scratch.
     scripts: dict = field(default_factory=dict)
+    #: What you owe, and to whom. At most one at a time.
+    debt: Debt = field(default_factory=Debt)
     #: Total credits earned across the character's life, for the epitaph.
     earned: int = 0
     #: Set when the character is dead. A flatlined save is readable, not
@@ -64,6 +67,21 @@ class Game:
         if character.origin == 'expolice':
             game.city.bounties['nightwatch'] = 25
             alias.add_heat('nightwatch', 30)
+        # Nor are the debts. Both of these have said "it is compounding" in
+        # their complication text since the beginning; now it does.
+        if character.origin == 'academic':
+            game.debt = Debt(
+                amount=9400, lender='sixes', opened=0,
+                note='The department did not lend you the deck. Somebody in '
+                     'the Ninth did, against the department\'s name, and the '
+                     'department has since stopped answering.')
+        elif character.origin == 'bonded':
+            game.debt = Debt(
+                amount=26000, lender='kagawa', opened=0,
+                note='A buyout figure, calculated by Kagawa, for a contract '
+                     'Kagawa wrote. It is not a debt in any sense a court '
+                     'would recognise. It is the price of the rest of your '
+                     'life and they will take instalments.')
         return game
 
     def new_alias(self, name: str = '') -> Alias:
@@ -83,6 +101,7 @@ class Game:
             'rng': self.rng.getstate(),
             'aliases': [a.to_dict() for a in self.aliases],
             'scripts': {k: v.to_dict() for k, v in self.scripts.items()},
+            'debt': self.debt.to_dict(),
             'earned': self.earned,
             'over': self.over,
         }
@@ -99,6 +118,7 @@ class Game:
             aliases=aliases,
             scripts={k: Script.from_dict(v)
                      for k, v in (d.get('scripts') or {}).items()},
+            debt=Debt.from_dict(d.get('debt') or {}),
             earned=int(d.get('earned', 0)),
             over=d.get('over', ''),
         )

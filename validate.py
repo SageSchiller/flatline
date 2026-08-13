@@ -418,6 +418,15 @@ def check_origins(rep: Report) -> None:
             rep.check(key in factions.BY_KEY, where, f'unknown faction {key!r}')
         rep.check(bool(o.passive and o.passive_detail), where,
                   'has no passive')
+        # A passive that is only prose is a promise the game does not keep.
+        if not o.effects and not o.rider:
+            rep.error(where, 'passive has no mechanical half: needs an '
+                             'effects dict or a rider the engine implements')
+        if o.rider:
+            rep.check(o.rider in origins.RIDERS, where,
+                      f'rider {o.rider!r} is not in origins.RIDERS')
+        for problem in fx.check(o.effects, f'{where}/effects'):
+            rep.error('effects', problem)
         rep.check(bool(o.complication), where, 'has no complication')
         rep.check(bool(o.story), where, 'has no story')
 
@@ -446,6 +455,32 @@ def check_origins(rep: Report) -> None:
 # --------------------------------------------------------------------------
 # skills
 # --------------------------------------------------------------------------
+
+
+def check_debt(rep: Report) -> None:
+    """The debt clock. Above all, it has to be survivable (D6)."""
+    from flatline.world import debt as debt_mod
+
+    rep.check(0 < debt_mod.RATE < 0.2, 'debt',
+              f'interest of {debt_mod.RATE} per shift is not a rate anybody '
+              f'can live with')
+    rep.check(debt_mod.GRACE > 0, 'debt', 'no grace period at all')
+    rep.check(debt_mod.COLLECT_EVERY > 0, 'debt', 'collection interval is zero')
+    rep.check(0 < debt_mod.COLLECT_FRACTION <= 1.0, 'debt',
+              'collection fraction out of range')
+
+    # The load-bearing invariant: a collection must remove more than the
+    # interest accrued between collections, or the debt is a death sentence
+    # and D6 says nothing but black ICE is one.
+    growth = (1.0 + debt_mod.RATE) ** debt_mod.COLLECT_EVERY - 1.0
+    rep.check(debt_mod.COLLECT_FRACTION > growth, 'debt',
+              f'interest grows {growth:.0%} between collections but a '
+              f'collection only takes {debt_mod.COLLECT_FRACTION:.0%}, so the '
+              f'debt is unpayable and the character is dead (D6)')
+
+    for name in ('FIRST_VISIT', 'IN_KIND'):
+        rep.check(bool(getattr(debt_mod, name)), 'debt', f'{name} is empty')
+    rep.check(bool(debt_mod.COLLECT_LINES), 'debt', 'no collection lines')
 
 
 def check_skills(rep: Report) -> None:
@@ -881,7 +916,7 @@ def check_balance(rep: Report) -> None:
 
 CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
-    check_icons, check_dissonance, check_cyberspace, check_rivals,
+    check_icons, check_dissonance, check_cyberspace, check_rivals, check_debt,
     check_origins, check_skills, check_factions, check_districts,
     check_ice, check_nodes, check_contracts, check_commands,
     check_scripting, check_theme, check_markup, check_balance,

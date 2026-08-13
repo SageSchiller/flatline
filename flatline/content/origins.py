@@ -40,6 +40,12 @@ class Origin:
     passive: str
     passive_detail: str
     complication: str
+    #: The numeric half of the passive, merged into the character like chrome.
+    #: `validate.py` checks the keys, which is the only reason a passive
+    #: cannot quietly become prose that does nothing.
+    effects: dict = field(default_factory=dict)
+    #: The half the engine has to special-case. Must be in `RIDERS`.
+    rider: str = ''
 
 
 ORIGINS: tuple[Origin, ...] = (
@@ -66,6 +72,7 @@ ORIGINS: tuple[Origin, ...] = (
         complication=(
             'Kagawa Vertical wants the laptop back, and they have not decided '
             'yet whether they want you with it.'),
+        rider='policy_reader',
     ),
     Origin(
         'gutter', 'Gutter runner',
@@ -90,6 +97,8 @@ ORIGINS: tuple[Origin, ...] = (
         complication=(
             'The Sixes consider you theirs. They have not asked for anything '
             'yet. They will.'),
+        effects={'repair_mult': 0.7},
+        rider='salvager',
     ),
     Origin(
         'protege', 'Fixer\'s protege',
@@ -114,6 +123,8 @@ ORIGINS: tuple[Origin, ...] = (
         complication=(
             'Mara is owed something and has never once said what. She is '
             'patient in the way that people are when they are certain.'),
+        effects={'pay_mult': 1.1},
+        rider='known_quantity',
     ),
     Origin(
         'academic', 'Academic',
@@ -138,6 +149,7 @@ ORIGINS: tuple[Origin, ...] = (
         complication=(
             'The loan on the deck is real, it is compounding, and the lender is '
             'not a bank.'),
+        rider='first_principles',
     ),
     Origin(
         'expolice', 'Ex-enforcement',
@@ -164,6 +176,7 @@ ORIGINS: tuple[Origin, ...] = (
         complication=(
             'There is a live bounty on you, filed by people who have your '
             'biometrics on record and your service history in a drawer.'),
+        rider='read_the_room',
     ),
     Origin(
         'chromed', 'Chromed',
@@ -190,6 +203,120 @@ ORIGINS: tuple[Origin, ...] = (
             'You start at 35 Dissonance. Clinics charge you more, fixers meet '
             'you outdoors, and something in the ocular suite has begun '
             'reporting to a maintenance address you did not configure.'),
+        rider='native',
+    ),
+    Origin(
+        'bonded', 'Indentured',
+        'Corporate property with a buyout figure. Best gear, worst terms.',
+        'You signed at nineteen because the alternative was the Terraces and '
+        'a lifetime of somebody else\'s stairwell. Kagawa trained you, chromed '
+        'you, and priced you, and the price has never once gone down. You are '
+        'not running away from them. You are running to afford them.',
+        attrs={'logic': 1, 'grit': 1, 'nerve': 1, 'guile': -1},
+        skills={'intrusion': 1, 'cryptography': 1},
+        credits=600,
+        cyberware=('corp_neural_shunt', 'archivist'),
+        programs=('sable', 'handshake', 'housecall'),
+        deck='kagawa_issue',
+        icon='corporate',
+        standing={'kagawa': 20, 'freeport': -15, 'sixes': -10},
+        passive='Company hardware',
+        passive_detail=(
+            'Everything you own is corporate issue and corporately '
+            'maintained. Deck repairs cost half, and Kagawa networks read '
+            'your credentials as current until somebody checks them against '
+            'the buyout ledger.'),
+        complication=(
+            'You owe Kagawa twenty-six thousand credits and it compounds '
+            'every shift. They are extremely patient and they have never once '
+            'had to be anything else.'),
+        effects={'repair_mult': 0.5},
+        rider='company_hardware',
+    ),
+    Origin(
+        'burnout', 'Burnout',
+        'Was one of the best. Eight years ago.',
+        'There was a stretch where people said your name in the same sentence '
+        'as Ledger\'s. Then a Sendai job went wrong in a way you still cannot '
+        'describe in order, and you spent four years doing something else, and '
+        'the chrome you came back with is a generation behind and the hands '
+        'are not what they were. You still know more than almost anybody. '
+        'Knowing is the part that got cheaper.',
+        attrs={'reflex': -2, 'grit': -1, 'logic': 1, 'nerve': 2},
+        skills={'intrusion': 2, 'forensics': 1, 'warfare': 1, 'stealth': 1},
+        credits=900,
+        cyberware=('salvage_reflex_loop', 'nictitating'),
+        programs=('sable', 'cudgel', 'quietcastle', 'housecall'),
+        deck='scrapdeck',
+        icon='plain',
+        standing={'fixers': 15, 'sendai': -30, 'sixes': 10},
+        passive='Been here before',
+        passive_detail=(
+            'You have seen all of this. You start with every countermeasure '
+            'type already identified on sight, traps included, and you take '
+            'no unfamiliarity penalty against anything. What you cannot do is '
+            'move like you used to.'),
+        complication=(
+            'Your deck starts damaged, your Reflex is gone, and somebody at '
+            'Sendai still has the incident file with your working name on the '
+            'cover.'),
+        rider='veteran_eye',
+    ),
+    Origin(
+        'ghost', 'Legally dead',
+        'No record, no history, no heat. Also no friends.',
+        'The death certificate is real, filed, and eleven months old. You do '
+        'not remember arranging it and you have stopped assuming you did. '
+        'What you have instead of a life is a clean slate in the most literal '
+        'sense: nothing in this city has an opinion about you, because as far '
+        'as this city is concerned there is nobody here to have one about.',
+        attrs={'guile': 1, 'reflex': 1, 'nerve': 1, 'grit': -1},
+        skills={'stealth': 2, 'subterfuge': 1},
+        credits=1100,
+        cyberware=('ghost_layer',),
+        programs=('skeleton', 'quietcastle', 'blink'),
+        deck='midline',
+        icon='deadname',
+        standing={},
+        passive='Nobody',
+        passive_detail=(
+            'You have no history to burn. New identities cost you half what '
+            'they cost anybody else and take one shift instead of two, and '
+            'all faction heat decays 40% faster, because there is nothing to '
+            'attach it to.'),
+        complication=(
+            'You start knowing nobody and owed nothing. Every relationship in '
+            'this city has to be built from zero, and somebody, somewhere, '
+            'is currently using the name you had before.'),
+        rider='no_history',
+    ),
+    Origin(
+        'courier', 'Courier',
+        'Carried data through the streets before ever going through a wire.',
+        'Nine years of moving things across this city on foot, on a bike, and '
+        'twice in your own abdomen. You know which stairwells connect, which '
+        'gate guards read their screens, and what time the Terraces shift '
+        'changes. The net is the part you learned last and it still feels '
+        'like somewhere you are visiting.',
+        attrs={'reflex': 2, 'grit': 2, 'logic': -2, 'guile': 1},
+        skills={'subterfuge': 1, 'hardware': 1},
+        credits=1600,
+        cyberware=('quiet_hands',),
+        programs=('crowbar', 'blink', 'siphon'),
+        deck='midline',
+        icon='plain',
+        standing={'fixers': 20, 'sixes': 15, 'freeport': 15, 'kagawa': -5},
+        passive='Knows the streets',
+        passive_detail=(
+            'You move through this city the way other people move through '
+            'their own flat. Travel to any district you have already visited '
+            'costs no shift, and arriving anywhere is 40% less likely to go '
+            'badly however much heat you are carrying.'),
+        complication=(
+            'There is a package you never delivered. You still have it, you '
+            'have never opened it, and the person who gave it to you has been '
+            'dead for two years.'),
+        rider='streetwise',
     ),
 )
 
@@ -198,6 +325,15 @@ BY_KEY: dict[str, Origin] = {o.key: o for o in ORIGINS}
 
 #: Every origin starts here before its `attrs` delta is applied.
 BASE_ATTR = 3
+
+#: Riders the engine implements. A passive naming anything else is a
+#: validation error, which is what stops an origin's headline ability from
+#: being a sentence that does nothing.
+RIDERS: frozenset[str] = frozenset({
+    'policy_reader', 'salvager', 'known_quantity', 'first_principles',
+    'read_the_room', 'native', 'company_hardware', 'veteran_eye',
+    'no_history', 'streetwise',
+})
 
 #: The Chromed origin's opening Dissonance. Named rather than inline because
 #: the city layer reads it when deciding how merchants behave on shift one.

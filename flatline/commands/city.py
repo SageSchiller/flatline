@@ -18,6 +18,7 @@ from ..model.character import Character
 from ..model.identity import ALIAS_COST, ALIAS_SHIFTS
 from ..rng import random_seed
 from ..shell import CommandError, command
+from ..world import debt as debt_mod
 from ..world import fallout
 from ..world import rivals as rival_world
 from ..world import market as market_mod
@@ -716,6 +717,9 @@ def cmd_travel(sess, args) -> None:
         raise CommandError(why)
 
     danger, who = game.city.danger(game.alias, target, game.rng)
+    if 'streetwise' in game.char.riders():
+        # Knows the streets: you move through this city like your own flat.
+        danger = int(danger * 0.6)
     if danger >= fallout.INCIDENT_FLOOR and not args.has('anyway'):
         fac = factions.BY_KEY[who]
         raise CommandError(
@@ -724,12 +728,22 @@ def cmd_travel(sess, args) -> None:
             f'name. Going anyway is a real risk: `travel {target} --anyway`. '
             f'Otherwise `rest` until it cools, or `burn` the name.')
 
+    known = target in game.city.visited
     game.city.where = target
+    game.city.visited.add(target)
     district = districts.BY_KEY[target]
-    _advance(sess, 1)
+    free = known and 'streetwise' in game.char.riders()
+    if free:
+        # You have walked this one before. You know which stairwells connect.
+        _drift(sess)
+        sess.autosave()
+    else:
+        _advance(sess, 1)
     c.blank()
     c.rule(district.name)
     c.say(district.arrival)
+    if free:
+        c.info('You know the way. It does not cost you a shift.')
 
     if danger >= fallout.INCIDENT_FLOOR:
         _resolve_incident(sess, who, danger)
@@ -812,8 +826,12 @@ def cmd_alias(sess, args) -> None:
         c.say('[dim]Burned: '
               + ', '.join(a.name for a in game.aliases[:-1]) + '[/]')
     c.blank()
-    c.say(f'[dim]`burn` to take a new name: {ALIAS_COST:,}c and '
-          f'{ALIAS_SHIFTS} shifts, and everything above goes with it.[/]')
+    ghost = 'no_history' in game.char.riders()
+    cost = ALIAS_COST // 2 if ghost else ALIAS_COST
+    shifts = 1 if ghost else ALIAS_SHIFTS
+    c.say(f'[dim]`burn` to take a new name: {cost:,}c and '
+          f'{shifts} shift{"s" if shifts != 1 else ""}, and everything above '
+          f'goes with it.[/]')
 
 
 @command('burn', 'Abandon this identity and establish another.',
@@ -821,8 +839,12 @@ def cmd_alias(sess, args) -> None:
 def cmd_burn(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     alias = game.alias
-    if game.char.credits < ALIAS_COST:
-        raise CommandError(f'a new name costs {ALIAS_COST:,}c and you have '
+    # Nobody: you have no history to burn, so a new name is cheap and quick.
+    ghost = 'no_history' in game.char.riders()
+    cost = ALIAS_COST // 2 if ghost else ALIAS_COST
+    shifts = 1 if ghost else ALIAS_SHIFTS
+    if game.char.credits < cost:
+        raise CommandError(f'a new name costs {cost:,}c and you have '
                            f'{game.char.credits:,}c')
     if not args.has('confirm'):
         c.warn(f'Burning [accent]{alias.name}[/] destroys '
@@ -834,9 +856,9 @@ def cmd_burn(sess, args) -> None:
         c.say(f'[dim]`burn --confirm` to go through with it.[/]')
         return
     name = args.get(0) or ''
-    game.char.credits -= ALIAS_COST
+    game.char.credits -= cost
     fresh = game.new_alias(name)
-    _advance(sess, ALIAS_SHIFTS)
+    _advance(sess, shifts)
     c.ok(f'{alias.name} is gone. You are [accent]{fresh.name}[/] now.')
 
 
@@ -1018,7 +1040,8 @@ def _advance(sess, shifts: int) -> None:
     """Move time and report what the world did. Every shift-spending command
     routes through here so nothing can silently skip fallout."""
     game = sess.require_game()
-    told = game.city.advance(game.rng, game.alias, shifts)
+    told = game.city.advance(game.rng, game.alias, shifts,
+                             debt=game.debt, char=game.char)
     for line in told:
         sess.console.say(line)
     _drift(sess)
@@ -1560,3 +1583,108 @@ def cmd_ground(sess, args) -> None:
         c.warn(f'{char.icon_data.name} does not fit you any more. You are '
                f'{gap} short of the drift it needs.')
     _advance(sess, drift.GROUND_SHIFTS)
+
+
+@command('debt', 'What you owe, to whom, and what it is doing.',
+         group='city', aliases=('owe',), usage='debt [pay <amount>|pay all]',
+         detail='Debt compounds every shift and the lender is not a bank. '
+                'After a grace period they start collecting in person, and if '
+                'the account is empty they take it out of the room instead. '
+                'It is survivable: collections reduce it faster than interest '
+                'grows it, so it is a spiral you get dragged down rather than '
+                'one you fall out of the bottom of.')
+def cmd_debt(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    owed = game.debt
+
+    if not owed.owed:
+        c.info('You do not owe anybody anything. Enjoy it.')
+        return
+
+    if args.get(0, '').lower() == 'pay':
+        target = args.get(1, '')
+        if target.lower() == 'all':
+            amount = min(game.char.credits, owed.amount)
+        else:
+            amount = args.int_at(1, 0, 'an amount, or `all`')
+        if amount <= 0:
+            raise CommandError('pay how much? `debt pay 2000` or `debt pay all`')
+        if amount > game.char.credits:
+            raise CommandError(f'you have {game.char.credits:,}c')
+        applied = owed.pay(amount)
+        game.char.credits -= applied
+        c.ok(f'[credit]{applied:,}c[/] against it. '
+             f'[dim]{owed.amount:,}c outstanding.[/]')
+        if not owed.owed:
+            c.blank()
+            c.say('[ok]That is the last of it.[/] [dim]Nobody sends a letter. '
+                  'The number simply stops being a thing you carry.[/]')
+        return
+
+    lender = factions.BY_KEY.get(owed.lender)
+    shifts_in = game.city.shift - owed.opened
+    c.header('Outstanding', lender.name if lender else owed.lender)
+    if owed.note:
+        c.say(f'[dim]{owed.note}[/]')
+        c.blank()
+    per_shift = int(owed.amount * debt_mod.RATE)
+    if shifts_in < debt_mod.GRACE:
+        when = f'{debt_mod.GRACE - shifts_in} shifts before they call'
+    elif owed.last_collected < 0:
+        when = 'they are collecting'
+    else:
+        due = owed.last_collected + debt_mod.COLLECT_EVERY - game.city.shift
+        when = (f'{max(0, due)} shifts to the next collection')
+    c.kv([('amount', f'[err]{owed.amount:,}c[/]'),
+          ('growing by', f'[warn]{per_shift:,}c[/] a shift'),
+          ('status', when),
+          ('you have', f'[credit]{game.char.credits:,}c[/]')])
+    c.blank()
+    c.say('[dim]`debt pay <amount>` or `debt pay all`.[/]')
+
+
+@command('repair', 'Have the deck put back together. Needs a workshop.',
+         group='character', usage='repair [--confirm]',
+         detail='Damage degrades a component rather than killing it outright, '
+                'so a scratched deck still works and a neglected one quietly '
+                'stops being the deck you built. The curve is steep on '
+                'purpose: letting damage accumulate is a real mistake.')
+def cmd_repair(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    char = game.char
+    if 'workshop' not in game.city.district.services:
+        where = ', '.join(d.name for d in districts.with_service('workshop'))
+        raise CommandError(f'no workshop here. Try: {where}')
+
+    damaged = [(slot, level) for slot, level in sorted(char.deck.damage.items())
+               if level]
+    if not damaged:
+        c.info('Nothing on the deck needs work.')
+        return
+
+    mult = char.mult('repair_mult')
+    cost = char.deck.repair_cost(mult)
+    c.header('Repairs', f'{cost:,}c')
+    rows = []
+    for slot, level in damaged:
+        comp = char.deck.component(slot)
+        state = 'destroyed' if level >= 3 else f'damage {level}/3'
+        rows.append((slot, comp.name if comp else '-', state))
+    c.table(('slot', 'component', 'state'), rows,
+            roles=('dim', 'accent', 'warn'))
+    if mult != 1.0:
+        c.blank()
+        c.say(f'[dim]{char.origin_data.passive}: '
+              f'{fx.describe("repair_mult", mult)}.[/]')
+
+    if not args.has('confirm'):
+        c.blank()
+        c.say(f'[dim]`repair --confirm` for {cost:,}c.[/]')
+        return
+    if cost > char.credits:
+        raise CommandError(f'that is {cost:,}c and you have '
+                           f'{char.credits:,}c')
+    char.credits -= cost
+    char.deck.repair()
+    c.ok(f'Deck rebuilt for [credit]{cost:,}c[/].')
+    _advance(sess, 1)

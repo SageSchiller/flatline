@@ -167,8 +167,12 @@ class Deck:
         self.damage[slot] = level
         return level
 
-    def repair_cost(self) -> int:
-        """What it costs to bring everything back to zero damage."""
+    def repair_cost(self, mult: float = 1.0) -> int:
+        """What it costs to bring everything back to zero damage.
+
+        `mult` is the character's `repair_mult`, which is how the Salvager and
+        Company Hardware passives become real rather than prose.
+        """
         total = 0
         for slot in hardware.SLOTS:
             level = self.damage.get(slot, 0)
@@ -178,7 +182,7 @@ class Deck:
                 # one is cheap. The curve is steep so that letting damage
                 # accumulate is a real mistake rather than a rounding error.
                 total += int(comp.price * (0.12, 0.30, 0.65)[level - 1])
-        return total
+        return max(0, int(round(total * mult)))
 
     def repair(self, slot: str | None = None) -> None:
         if slot is None:

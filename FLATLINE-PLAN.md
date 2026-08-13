@@ -12,11 +12,11 @@ updated: 2026-08-13
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5133 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 15,600 lines.
+> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5257 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 16,300 lines.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
-> **What is not done:** nothing structural. Every system the plan set out to build is built, and the catalogue has had one breadth pass (26 chrome, 36 programs, 20 ICE, 8 icons, 7 rivals, 6 origins, 6 districts, 8 factions). More districts and origins are the obvious next content, but **the right way to choose is to play it and notice what is missing**, which nobody has done yet. Treat any further content added without play as a guess.
+> **What is not done:** nothing structural. Every system the plan set out to build is built, and the catalogue has had one breadth pass (26 chrome, 36 programs, 20 ICE, 8 icons, 7 rivals, 10 origins, 9 districts, 8 factions). More districts and origins are the obvious next content, but **the right way to choose is to play it and notice what is missing**, which nobody has done yet. Treat any further content added without play as a guess.
 >
 > **What this is.** A netrunner sim you play by typing at a fake terminal. Two layers: a persistent city that keeps score, and procedurally generated corporate networks you break into one contract at a time. The character system is classless and deep enough that two players at the same credit total play nothing alike.
 >
@@ -323,6 +323,41 @@ ratchet. It cannot take you below what your installed chrome accounts for,
 which keeps D11 honest: you can walk back what the work did to you, never the
 hardware while it is still in you. Taking chrome out still does not lower the
 number, it only lowers the floor.
+
+### D24: A passive with no mechanical half is a lie
+
+Every origin's headline ability must carry either an `effects` dict or a
+`rider` the engine implements, and `validate.py` fails the build otherwise.
+
+This exists because an audit found several that did not. The Gutter runner's
+Salvager passive had promised "deck components cost 30% less to repair" since
+the first day and there was no repair command at all. The Chromed origin's
+"one additional action in the first tick" was a sentence. The protege's "10%
+higher" was a sentence. They read convincingly, they shipped, and they did
+nothing, which is the most expensive kind of content because it costs the
+player's trust rather than their credits.
+
+The rule generalises past origins and is already applied to chrome (D11) and
+icons (D18): if the drawback or the benefit cannot be stated in numbers or in
+a named rider, it does not ship.
+
+### D25: Debt is a clock that is not the trace
+
+Two origins ship owing somebody money, and one of them had said "it is
+compounding" in its complication text since the beginning while compounding
+nothing.
+
+Debt grows every shift, and after a grace period the lender starts collecting
+in person. If the account is empty they take it out of the room instead,
+routed through the same D6 fallout ladder as everything else. What it buys is
+a second kind of pressure: heat decays if you wait, so waiting is a strategy,
+and a debt makes waiting expensive in a way nothing else did.
+
+**It has to be survivable**, and `validate.py` asserts the invariant directly:
+a collection must remove more than the interest accrued between collections.
+Otherwise the debt is unpayable and the character is dead, and D6 says nothing
+but black ICE ends a character. It is a spiral you get dragged down, never one
+you fall out of the bottom of.
 
 ### D17: The finish line
 
@@ -683,3 +718,35 @@ factions, **all twenty ICE types and all fifteen services appear**, so nothing
 was added that the generator cannot reach.
 
 `validate.py` clean, `test.py` green at **5133 checks**.
+
+### 2026-08-13 (f): the city, and ten ways into it
+
+Districts nine, origins ten, and one systems addition to make one of them work.
+
+**Three districts, chosen so every faction that holds ground has somewhere.**
+Nightwatch got a precinct with a surplus counter nobody has audited; Carrion
+got the Shambles, which is cheap for a reason; and Kagawa got the Terraces,
+which exists for tone rather than mechanics. The Terraces is the one district
+where nobody is in this business, and its whole job is to be the thing the rest
+of the city is happening to. A game about a city that does not care whether you
+live needs somewhere that shows you what it is not caring about.
+
+**Four origins**, chosen to open play that did not exist: the Indentured, who
+are running to afford a corporation rather than away from one; the Burnout, who
+knows everything and cannot move any more; the Legally Dead, who start with no
+standing, no heat, and nobody; and the Courier, who learned the streets first
+and the net last.
+
+**The audit that mattered.** Writing the Indentured's debt meant checking what
+the other passives actually did, and several did nothing at all: the Gutter
+runner's repair discount pointed at a repair command that had never been
+written, and the Chromed origin's opening action and the protege's pay
+negotiation were both prose. That became **D24**, which `validate.py` now
+enforces, and every passive in the game has a mechanical half.
+
+**D25** is the debt system that the Indentured needed and that the academic's
+complication had been promising since the first session. The invariant that
+makes it shippable is checked rather than hoped for: collections must outpace
+interest, or the debt is a death sentence and D6 forbids those.
+
+`validate.py` clean, `test.py` green at **5257 checks**.

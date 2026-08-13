@@ -19,6 +19,7 @@ from ..content import districts, factions
 from ..model.identity import Alias
 from ..rng import Rng
 from . import contracts as contract_mod
+from . import debt as debt_mod
 from . import fallout as fallout_mod
 from . import rivals as rival_mod
 from . import market as market_mod
@@ -69,6 +70,9 @@ class City:
     accepted: str = ''
     #: A rival paid to run alongside you on the next job.
     hired: str = ''
+    #: Districts you have set foot in. Read by the Courier's passive, and a
+    #: reasonable thing for a city to remember about somebody in any case.
+    visited: set = field(default_factory=set)
     next_cid: int = 1
     #: district -> listings, and the shift they were rolled.
     stock: dict = field(default_factory=dict)
@@ -86,6 +90,7 @@ class City:
         city = cls()
         city.posture = {k: f.posture for k, f in factions.BY_KEY.items()}
         city.rivals = rival_mod.seed_pool()
+        city.visited = {city.where}
         city.refresh_board(rng, alias)
         city.refresh_stock(rng)
         return city
@@ -108,17 +113,22 @@ class City:
     def district(self) -> districts.District:
         return districts.BY_KEY[self.where]
 
-    def advance(self, rng: Rng, alias: Alias, shifts: int = 1) -> list[str]:
+    def advance(self, rng: Rng, alias: Alias, shifts: int = 1,
+                debt=None, char=None) -> list[str]:
         """Move time forward. Returns everything the player should be told."""
         told: list[str] = []
         for _ in range(max(1, shifts)):
             self.shift += 1
-            alias.decay_heat()
+            alias.decay_heat(
+                1.4 if (char is not None and 'no_history' in char.riders())
+                else 1.0)
             self._decay_posture()
             told.extend(self._apply_pending(alias))
             told.extend(self._expire(alias))
             told.extend(self._rival_turn(rng))
             told.extend(fallout_mod.bounty_check(alias, self, rng('events')))
+            if debt is not None:
+                told.extend(self._debt_turn(rng, alias, debt, char))
             if self.shift % market_mod.REFRESH == 0:
                 self.refresh_stock(rng)
         # Top the board back up rather than replacing it, so a contract the
@@ -151,6 +161,35 @@ class City:
             if item.note:
                 told.append(item.note)
         self.pending = still
+        return told
+
+    def _debt_turn(self, rng: Rng, alias: Alias, debt, char) -> list[str]:
+        """Interest, and the lender turning up when it has been long enough."""
+        told: list[str] = []
+        interest, note = debt_mod.tick(debt, self.shift)
+        if note:
+            told.append(note)
+        if not debt.due(self.shift):
+            return told
+
+        take = debt.collect(self.shift)
+        stream = rng('events')
+        if char is not None and char.credits >= take:
+            char.credits -= take
+            told.append(f'[heat]{stream.pick(debt_mod.COLLECT_LINES)}[/] '
+                        f'[dim]{take:,}c. {debt.amount:,}c outstanding.[/]')
+        elif char is not None:
+            # Nothing in the account, so they take it out of the room. This
+            # routes through the same ladder as everything else, per D6.
+            paid = max(0, char.credits)
+            char.credits -= paid
+            incident = fallout_mod.pick_up(stream, char, alias,
+                                           self, debt.lender)
+            told.append(f'[err]{debt_mod.IN_KIND}[/]')
+            told.append(f'[err]{incident.text}[/]')
+            if incident.detail:
+                told.append(incident.detail)
+            told.append(f'[dim]{debt.amount:,}c outstanding.[/]')
         return told
 
     def _rival_turn(self, rng: Rng) -> list[str]:
@@ -357,6 +396,7 @@ class City:
             'bounties': dict(self.bounties),
             'board': [c.to_dict() for c in self.board],
             'accepted': self.accepted, 'hired': self.hired,
+            'visited': sorted(self.visited),
             'next_cid': self.next_cid,
             'stock': {k: [l.to_dict() for l in v] for k, v in self.stock.items()},
             'stock_shift': self.stock_shift,
@@ -375,6 +415,7 @@ class City:
             board=[Contract.from_dict(c) for c in (d.get('board') or [])],
             accepted=d.get('accepted', ''),
             hired=d.get('hired', ''),
+            visited=set(d.get('visited') or ()),
             next_cid=int(d.get('next_cid', 1)),
             stock={k: [Listing.from_dict(l) for l in v]
                    for k, v in (d.get('stock') or {}).items()},

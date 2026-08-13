@@ -1,8 +1,18 @@
-"""Six districts. Where you are changes what you can buy and who will meet you.
+"""The city. Where you are changes what you can buy and who will meet you.
 
-Districts are deliberately few and strongly characterised. Six places a player
+Districts are deliberately few and strongly characterised. Nine places a player
 can hold in their head, each with one clear reason to go there and one clear
 reason not to, beats twenty interchangeable ones.
+
+Every faction that holds ground has somewhere, which matters more than it
+sounds: a Nightwatch precinct and a Carrion street are places the player can
+choose to walk into, and choosing to walk into them is a different act from
+reading about them on a reputation screen.
+
+**The Terraces exist for tone rather than mechanics.** It is the one district
+where nobody is in this business, and its whole job is to be the place the rest
+of the city is happening to. A game about a city that does not care whether you
+live needs somewhere that shows you what it is not caring about.
 
 Travel costs a shift, which is the whole economy of the city layer: everything
 you do is priced in time, and the contract board does not wait.
@@ -47,7 +57,7 @@ DISTRICTS: tuple[District, ...] = (
         'at you yet, which in the Ninth is a decision rather than an accident.',
         services=('market', 'fence', 'workshop', 'safehouse'),
         security=25, price_mult=0.85, max_tier=1,
-        neighbours=('marrow', 'freeport'),
+        neighbours=('marrow', 'freeport', 'terraces', 'shambles'),
         presence=('carrion', 'fixers'),
     ),
     District(
@@ -60,7 +70,7 @@ DISTRICTS: tuple[District, ...] = (
         'landlines.',
         services=('market', 'fixer', 'safehouse', 'fence'),
         security=40, price_mult=1.0, max_tier=2,
-        neighbours=('ninth', 'vertical', 'glasshouse', 'freeport'),
+        neighbours=('ninth', 'vertical', 'glasshouse', 'freeport', 'precinct'),
         presence=('sixes', 'freeport', 'nightwatch'),
     ),
     District(
@@ -73,7 +83,7 @@ DISTRICTS: tuple[District, ...] = (
         'still.',
         services=('market', 'clinic'),
         security=80, price_mult=1.35, max_tier=3,
-        neighbours=('marrow', 'green'),
+        neighbours=('marrow', 'green', 'terraces', 'precinct'),
         presence=('nightwatch',),
     ),
     District(
@@ -109,8 +119,50 @@ DISTRICTS: tuple[District, ...] = (
         'is either community-printed or fell off something.',
         services=('market', 'workshop', 'fence', 'safehouse', 'fixer'),
         security=30, price_mult=0.92, max_tier=2,
-        neighbours=('ninth', 'marrow', 'glasshouse'),
+        neighbours=('ninth', 'marrow', 'glasshouse', 'shambles'),
         presence=('carrion', 'fixers', 'sixes'),
+    ),
+
+    District(
+        'precinct', 'The Precinct', 'nightwatch',
+        'Contracted enforcement, run as a business, with a surplus counter '
+        'nobody upstairs has audited in years.',
+        'The Precinct is open-plan and lit at a level somebody costed. There '
+        'is a public counter for filing complaints and a queue for it that '
+        'has not moved since you arrived. Everybody here is on shift and '
+        'nobody here is in a hurry.',
+        services=('market', 'fence'),
+        security=85, price_mult=0.9, max_tier=2,
+        neighbours=('marrow', 'vertical'),
+        presence=('kagawa',),
+    ),
+    District(
+        'shambles', 'The Shambles', 'carrion',
+        'Carrion territory. Cheap chrome, cheaper surgery, and nobody asks '
+        'where anything came from because everybody already knows.',
+        'The Shambles smells of solvent and something underneath the solvent. '
+        'There are people on this street with more hardware than skin and '
+        'they watch you the way a butcher watches a queue. Nothing here is '
+        'expensive, and there is a reason for that.',
+        services=('clinic', 'fence', 'workshop'),
+        security=15, price_mult=0.7, max_tier=2,
+        neighbours=('ninth', 'freeport'),
+        presence=('sixes',),
+    ),
+    District(
+        'terraces', 'The Terraces', 'kagawa',
+        'Where the people who are not in this business live. Kagawa housing '
+        'stacked over Kagawa farms, and about a third of the city in it.',
+        'The Terraces at shift change is eleven thousand people coming home '
+        'through a stairwell that smells of wet concrete and growing things. '
+        'Somebody is arguing about a parking allocation. A child on the '
+        'landing above is doing homework by the light of a vending machine. '
+        'None of these people have ever heard of you and that is the nicest '
+        'thing about the place.',
+        services=('market', 'safehouse'),
+        security=35, price_mult=0.95, max_tier=1,
+        neighbours=('vertical', 'ninth'),
+        presence=('nightwatch', 'sixes'),
     ),
 )
 
@@ -118,7 +170,7 @@ BY_KEY: dict[str, District] = {d.key: d for d in DISTRICTS}
 DISTRICT_KEYS: tuple[str, ...] = tuple(BY_KEY)
 
 #: Where a new character wakes up. Marrow because it is neutral, has a fixer,
-#: and touches four of the six other districts.
+#: and touches more of the city than anywhere else.
 START = 'marrow'
 
 
