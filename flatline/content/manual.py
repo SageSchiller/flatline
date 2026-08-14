@@ -261,7 +261,7 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] breadth gets you more verbs, depth gets you '
         'better odds on the ones you have. Two techniques at rank 2 in '
         'different lines will change how a run plays more than one rank 4.',
-        see=('attributes', 'techniques', 'traits', 'checks'),
+        see=('attributes', 'techniques', 'traits', 'origins', 'checks'),
         commands=('skills', 'train', 'techniques'),
         group='character'),
     Topic(
@@ -354,7 +354,7 @@ TOPICS: tuple[Topic, ...] = (
         'enough slots, so take the two that make the character a person '
         'rather than the two that look strongest. The optimisation is not '
         'where the value is.',
-        see=('skills', 'chrome', 'attributes'),
+        see=('skills', 'chrome', 'attributes', 'origins'),
         commands=('trait',),
         group='character'),
     Topic(
@@ -678,4 +678,4 @@ BY_KEY: dict[str, Topic] = {t.key: t for t in TOPICS}
 TOPIC_KEYS: tuple[str, ...] = tuple(BY_KEY)
 
 #: What `help` suggests to somebody who has just started.
-STARTER = ('basics', 'firstrun', 'triangle')
+STARTER = ('basics', 'firstrun', 'triangle', 'origins')
