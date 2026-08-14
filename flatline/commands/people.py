@@ -13,6 +13,7 @@ from __future__ import annotations
 from ..content import factions
 from ..content import npcs as npc_content
 from ..content import threads as thread_content
+from ..content import appearance
 from ..content import shifts
 from ..shell import CommandError, command
 from ..world import story as story_mod
@@ -69,12 +70,30 @@ def cmd_look(sess, args) -> None:
         if first:
             c.raw(f'[accent2][bold]{npc.name}[/][/]  [dim]{npc.epithet}[/]')
             c.say(npc.first)
+            _noticed(sess)
         else:
             c.raw(f'[accent]{npc.name}[/]  [dim]{npc.epithet}[/]')
     c.blank()
     c.say('[dim]`talk <name>` to say something. `ask <name> <topic>` if you '
           'want something specific.[/]')
     _check_story(sess)
+
+
+def _noticed(sess) -> None:
+    """What the person in front of you does about how you look.
+
+    Occasional rather than every time, and only for the genuinely striking,
+    because a city that remarks on you constantly is a city of very rude
+    people. This is what stops `memorable` being a number the sheet prints
+    and nothing else: a stranger's eyes going to the same place every time is
+    the evidence for the claim.
+    """
+    game = sess.game
+    said = appearance.remark(game.rng('events'), game.char.look,
+                             game.char.marks, game.char.memorable)
+    if said:
+        sess.console.blank()
+        sess.console.say(f'[dim]{said}[/]')
 
 
 @command('talk', 'Say something to somebody.',
@@ -87,6 +106,7 @@ def cmd_talk(sess, args) -> None:
     c.raw(f'[accent]{npc.name}[/]  [dim]{npc.epithet}[/]')
     c.blank()
     c.say(line)
+    _noticed(sess)
     if npc.topics:
         c.blank()
         c.say('[dim]They will talk about: '

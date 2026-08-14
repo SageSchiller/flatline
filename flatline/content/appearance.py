@@ -689,6 +689,126 @@ def effects(look: dict[str, str], marks: list[str] | None = None) -> dict:
 
 
 # --------------------------------------------------------------------------
+# being noticed
+# --------------------------------------------------------------------------
+
+#: What people do about the striking things. One line per feature, written
+#: from outside: this is the city noticing you, not you narrating yourself.
+#:
+#: Only features at memorable 3 or above get one, which is the point. A
+#: number on a sheet is a claim, and a stranger's eyes going to the same place
+#: every time is the evidence for it. If nobody ever reacts, "unmistakable" is
+#: just a word the character sheet prints.
+REMARKS: dict[tuple[str, str], str] = {
+    ('face', 'scarred'):
+        'Their eyes go to the scar, then away, then back, and they lose the '
+        'thread of what they were saying.',
+    ('face', 'burned'):
+        'They talk to the unburned side of your face for the whole '
+        'conversation and do not appear to know they are doing it.',
+    ('face', 'unfinished'):
+        'They look at you for slightly too long, working out what it is, and '
+        'then decide not to ask, which is worse.',
+    ('eyes', 'mismatched'):
+        'They find the wrong eye first, correct, and then keep correcting.',
+    ('eyes', 'optics'):
+        'The aperture moves and they hear it, and their whole posture changes '
+        'a degree or two.',
+    ('eyes', 'blackout'):
+        'They keep trying to find where you are looking, and there is nowhere '
+        'to find.',
+    ('eyes', 'flickering'):
+        'The driver drops a frame mid-sentence and for a quarter of a second '
+        'they are talking to nobody. They pretend it did not happen.',
+    ('hair', 'dyed'):
+        'Somebody at the next table has already described you to somebody '
+        'else by the colour and nothing else.',
+    ('marks', 'gang'):
+        'They see the wrist mark. Nothing in their face moves, and the price '
+        'they were about to say is not the price they say.',
+    ('marks', 'burns'):
+        'They have seen feedback burns before and they know what number of '
+        'hours produces that pattern, and they adjust accordingly.',
+    ('marks', 'brand'):
+        'They see the brand on your hand and do the sum, and are careful with '
+        'you in the way people are careful with something owed.',
+    ('marks', 'subdermal'):
+        'They cannot stop looking at the ridging, and they are trying to work '
+        'out what it does. It does not do anything.',
+    ('dress', 'expensive'):
+        'They price the one good thing you are wearing, price the rest, and '
+        'arrive somewhere you would rather they had not.',
+    ('dress', 'bright'):
+        'Three people have looked at you since you came in. Nobody who is '
+        'hiding wears this, which is the entire argument for wearing it.',
+    ('bearing', 'imperious'):
+        'They straighten slightly before they have decided to, and they '
+        'notice themselves doing it, and they resent it.',
+    ('voice', 'rough'):
+        'They wait a beat after everything you say, in case there is more, '
+        'because the damage makes it hard to tell when you have finished.',
+    ('voice', 'accented'):
+        'They place the accent, or think they do, and their manner changes to '
+        'suit wherever they have decided you are from.',
+    ('voice', 'synthetic'):
+        'The consonants land a fraction early and it puts them off their '
+        'rhythm for the first minute.',
+    # The earned ones. These read differently: nobody is admiring the work.
+    ('marks', 'flatline_scar'):
+        'They see the trode burn and know exactly what it is, and they are '
+        'kind about it in the specific way that means they have seen it end '
+        'the other way.',
+    ('marks', 'black_ice'):
+        'Somebody sees the fern pattern and stops talking. In this city that '
+        'is a mark people can read, and what it says is that you were on the '
+        'wrong end of something that does not usually leave anybody.',
+    ('marks', 'bounty_mark'):
+        'They recognise the kind of mark it is, which means they know '
+        'somebody was paid, and they do not ask whether it was collected.',
+    ('marks', 'drift_pallor'):
+        'They watch you cross the room and their expression settles into the '
+        'one people use around somebody who is further gone than they are.',
+}
+
+#: How likely somebody is to say anything at all, per memorable band. A city
+#: that remarks on you every single time is a city of very rude people.
+REMARK_CHANCE = 0.22
+
+
+def striking(look: dict[str, str], marks: list[str] | None = None) -> list[str]:
+    """The remarks available for this character, most striking first."""
+    out: list[tuple[int, str]] = []
+    for slot, key in (look or {}).items():
+        line = REMARKS.get((slot, key))
+        feature = ALL_BY_KEY.get((slot, key))
+        if line and feature:
+            out.append((feature.memorable, line))
+    for key in marks or ():
+        line = REMARKS.get(('marks', key))
+        feature = EARNED_BY_KEY.get(key)
+        if line and feature:
+            out.append((feature.memorable, line))
+    out.sort(key=lambda pair: -pair[0])
+    return [line for _, line in out]
+
+
+def remark(rng, look: dict[str, str], marks: list[str] | None = None,
+           memorable: int = 0) -> str:
+    """One thing somebody does about how you look, or nothing.
+
+    Weighted toward the most striking thing about you rather than picked
+    evenly, because that is what a stranger's eye actually does.
+    """
+    lines = striking(look, marks)
+    if not lines:
+        return ''
+    chance = REMARK_CHANCE + max(0, memorable) * 0.012
+    if not rng.chance(min(0.55, chance)):
+        return ''
+    return lines[0] if rng.chance(0.5) else rng.pick(lines)
+
+
+# --------------------------------------------------------------------------
 # the table
 # --------------------------------------------------------------------------
 

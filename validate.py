@@ -664,6 +664,29 @@ def check_appearance(rep: Report) -> None:
               'reconstruction is free of drift, which no other body work in '
               'this game is')
 
+    # Remarks. Every genuinely striking feature has to draw a reaction, or
+    # `memorable` is a number the character sheet prints and nothing else.
+    for f in list(appearance.FEATURES) + list(appearance.EARNED):
+        if f.memorable < 3:
+            continue
+        rep.check((f.slot, f.key) in appearance.REMARKS,
+                  f'appearance/{f.slot}/{f.key}',
+                  f'memorable {f.memorable} and nobody ever reacts to it')
+    for (slot, key), line in appearance.REMARKS.items():
+        where = f'appearance/remark/{slot}/{key}'
+        rep.check((slot, key) in appearance.ALL_BY_KEY, where,
+                  'is a reaction to a feature that does not exist')
+        # Written from outside. A remark that starts with "You" is the
+        # character narrating themselves, which is the one voice this cannot
+        # be in: the whole point is that somebody else did the noticing.
+        rep.check(not ui.plain(line).startswith('You '), where,
+                  'is written from the inside; a remark is somebody else '
+                  'noticing you')
+        rep.check(ui.plain(line).rstrip().endswith(('.', '!', '?')), where,
+                  'does not end in a full stop')
+    rep.check('appearance.remark(' in _command_source(), 'appearance/remark',
+              'twenty-two reactions exist and nothing ever draws one')
+
     # Sigils. A mark one column wider than its neighbours reads as a
     # rendering fault rather than as a design, so they are held to a
     # rectangle at both rungs of the ladder.

@@ -2397,6 +2397,37 @@ def test_appearance() -> None:
         _, out = play(['new Face --origin gutter --seed 11', line])
         T.ok(out.strip(), f'{line!r} says something')
 
+    # Being noticed. Every striking feature draws a reaction, or `memorable`
+    # is a number the sheet prints and nothing else.
+    for f in list(appearance.FEATURES) + list(appearance.EARNED):
+        if f.memorable >= 3:
+            T.ok((f.slot, f.key) in appearance.REMARKS,
+                 f'{f.slot}/{f.key} draws a reaction')
+    plainest = Character.from_origin('ghost', 'x')
+    T.eq(appearance.striking(plainest.look, plainest.marks), [],
+         'and a forgettable character draws none')
+    loud = Character.from_origin('chromed', 'x')
+    T.ok(appearance.striking(loud.look, loud.marks),
+         'while a chromed one draws several')
+    T.ok(appearance.striking(loud.look, loud.marks)
+         != appearance.striking(loud.look, loud.marks + ['black_ice']),
+         'and an earned mark adds one')
+
+    class _Never:
+        def chance(self, p): return False
+        def pick(self, seq): return seq[0]
+
+    class _Always:
+        def chance(self, p): return True
+        def pick(self, seq): return seq[0]
+
+    T.eq(appearance.remark(_Never(), loud.look, loud.marks, 20), '',
+         'a remark is occasional, not guaranteed')
+    T.ok(appearance.remark(_Always(), loud.look, loud.marks, 20),
+         'and does fire when the roll lands')
+    T.eq(appearance.remark(_Always(), plainest.look, plainest.marks, 0), '',
+         'nobody remarks on somebody unremarkable, whatever the roll')
+
     # Presence has to do something. It shipped once as a number the sheet
     # printed and nothing consumed, which is this project's oldest bug.
     T.eq(appearance.social_bonus(0), 0, 'no presence, no modifier')
