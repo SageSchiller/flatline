@@ -16,9 +16,12 @@ memorable earns more reputation per job and converts more residue into heat.
 Low memorable is safe and forgettable, and forgettable people get offered
 forgettable work.
 
-**Presence.** How much weight you carry in a conversation. Feeds pretext, and
-therefore feeds everything social: asking around, hiring, talking your way past
-something that expected a badge.
+**Presence.** How much weight you carry in a conversation. It applies in the
+city and nowhere else, which is the correct reading rather than a limitation:
+inside a run you are an icon and not a body, and what talks in there is the
+shape you are wearing. That is what `pretext_bonus` on an icon is for. Out
+here it improves what you get out of legwork, and it lowers what somebody has
+to think of you before they will do you a favour.
 
 **Chrome sets a floor under memorable and you cannot get back under it.** By
 Submerged there is no such thing as an unremarkable netrunner: whatever you
@@ -649,6 +652,19 @@ def band(memorable: int) -> tuple[str, str]:
 #: dominates skills and chrome.
 HEAT_PER_POINT = 0.02
 REP_PER_POINT = 0.015
+
+
+#: How presence converts into a modifier the city layer can add to something.
+#: Deliberately coarse. Presence runs from about -4 to +12 across the content,
+#: and dividing by four turns that into -1 to +3, which is a thumb on the
+#: scale rather than a replacement for having a skill.
+PRESENCE_PER_POINT = 4
+
+
+def social_bonus(presence: int) -> int:
+    """Presence as a small modifier. Truncates toward zero on purpose:
+    floor division would make a presence of -1 cost you a whole point."""
+    return int(presence / PRESENCE_PER_POINT)
 
 
 def heat_mult(memorable: int) -> float:

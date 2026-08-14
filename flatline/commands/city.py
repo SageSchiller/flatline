@@ -1014,6 +1014,10 @@ def cmd_legwork(sess, args) -> None:
     bonus = game.char.bonus('legwork_bonus')
     if key == 'resonance':
         bonus += 1  # you are not looking at it, you are listening to it
+    else:
+        # Everything else here is asking people things, and how much people
+        # tell you depends on who they think they are talking to.
+        bonus += appearance.social_bonus(game.char.presence)
         c.blank()
         c.say(f'[accent2]{drift.RESONANCE_TEXT}[/]')
         c.blank()
@@ -1385,7 +1389,7 @@ def cmd_ask(sess, args) -> None:
                            + ', '.join(rival_content.FAVOURS))
     kind = matches[0]
 
-    ok, why = rival_world.can_ask(rival, kind)
+    ok, why = rival_world.can_ask(rival, kind, game.char)
     if not ok:
         c.blank()
         c.say(f'[err]{game.rng("events").pick(rival_content.REFUSALS)}[/]')
@@ -2101,7 +2105,8 @@ def cmd_self(sess, args) -> None:
     c.rule('how the city reads you')
     c.kv([
         ('memorable', f'{memorable}  [accent]{label}[/]'),
-        ('presence', f'{presence:+d}'),
+        ('presence', f'{presence:+d}  [dim]legwork and favours '
+                     f'{appearance.social_bonus(presence):+d}[/]'),
         ('heat from work',
          f'{(appearance.heat_mult(memorable) - 1) * 100:+.0f}%'),
         ('standing from work',

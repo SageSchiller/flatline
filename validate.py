@@ -688,11 +688,23 @@ def check_appearance(rep: Report) -> None:
     rep.check('cyberspace.sigil(' in _command_source(), 'cyberspace/sigil',
               'twelve sigils exist and nothing ever draws one')
 
-    # And the numbers they feed have to be read somewhere that matters.
-    for promise, needle in (('memorable feeds heat', 'appearance.heat_mult'),
-                            ('memorable feeds standing', 'appearance.rep_mult')):
-        rep.check(needle in _world_source(), 'appearance/hooks',
+    # And the numbers they feed have to be read somewhere that matters. Both
+    # of them. `presence` shipped once as a number the character sheet printed
+    # and nothing anywhere consumed, which is this project's oldest bug wearing
+    # the newest hat.
+    hooks = _world_source() + _command_source() + _engine_source()
+    for promise, needle in (
+            ('memorable feeds heat', 'appearance.heat_mult'),
+            ('memorable feeds standing', 'appearance.rep_mult'),
+            ('presence feeds the social layer', 'appearance.social_bonus')):
+        rep.check(needle in hooks, 'appearance/hooks',
                   f'{promise}, but {needle} is never called')
+    # Once is not enough for presence: it is displayed on the character sheet,
+    # and a single call site that is itself the display would satisfy the
+    # check above while still doing nothing.
+    rep.check(hooks.count('appearance.social_bonus') >= 3, 'appearance/hooks',
+              'presence is read in fewer than two places outside its own '
+              'display, which is not "everything social"')
 
 
 

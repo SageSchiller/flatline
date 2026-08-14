@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import io
 import os
+from pathlib import Path
 import random
 import json
 import os
@@ -2395,6 +2396,54 @@ def test_appearance() -> None:
                  'self --set nonsense grey', 'self set', 'self --set'):
         _, out = play(['new Face --origin gutter --seed 11', line])
         T.ok(out.strip(), f'{line!r} says something')
+
+    # Presence has to do something. It shipped once as a number the sheet
+    # printed and nothing consumed, which is this project's oldest bug.
+    T.eq(appearance.social_bonus(0), 0, 'no presence, no modifier')
+    T.eq(appearance.social_bonus(12), 3, 'and a lot of it is worth three')
+    T.eq(appearance.social_bonus(-1), 0,
+         'a single negative point does not cost a whole modifier')
+    T.eq(appearance.social_bonus(-8), -2, 'but a lot of it does')
+
+    # Favours: presence lowers what somebody has to think of you first.
+    from flatline.world import rivals as rival_world
+    from flatline.content import rivals as rival_content
+    game = Game.new(Character.from_origin('protege', 'face'), seed=12)
+    rival = next(r for r in game.city.rivals if r.alive)
+    kind = sorted(rival_content.FAVOURS)[0]
+    rival.disposition = rival_world.favour_cost(kind) - 1
+    T.ok(not rival_world.can_ask(rival, kind)[0],
+         'a favour just out of reach is refused')
+    T.ok(rival_world.can_ask(rival, kind, game.char)[0],
+         'and presence closes the gap')
+    plain = Character.from_origin('academic', 'plain')
+    T.ok(not rival_world.can_ask(rival, kind, plain)[0],
+         'for somebody who has it, and not for somebody who does not')
+
+    # Legwork: how much people tell you depends on who they think you are.
+    # `assets` lists 3 + bonus items, so the difference is visible in the
+    # output rather than only in the arithmetic.
+    def asset_count(origin: str) -> int:
+        g = Game.new(Character.from_origin(origin, 'lw'), seed=8829)
+        g.char.credits = 90000
+        contract = g.city.board[0]
+        g.city.accepted = contract.cid
+        s2, _ = play([f'travel {contract.district}'], game=g)
+        while g.city.where != contract.district:
+            nxt = next(k for k in districts.BY_KEY[g.city.where].neighbours)
+            s2.execute(f'travel {nxt}')
+            s2.execute(f'travel {contract.district}')
+        s2.execute('legwork assets')
+        return (contract.intel.get('assets') or '').count(';')
+
+    loud, quiet = asset_count('protege'), asset_count('academic')
+    T.ok(loud >= quiet,
+         'presence never makes people tell you less')
+    T.ok(appearance.social_bonus(
+        Character.from_origin('protege', 'x').presence)
+        > appearance.social_bonus(
+            Character.from_origin('academic', 'x').presence),
+         'and the two origins really do differ on it')
 
     # Reconstruction: the expensive half of `self`, and the escape hatch from
     # a face that has been circulated. It has to cost enough that the two-

@@ -338,13 +338,23 @@ def favour_cost(kind: str) -> int:
     return FAVOURS[kind][0]
 
 
-def can_ask(rival: Rival, kind: str) -> tuple[bool, str]:
+def can_ask(rival: Rival, kind: str, char=None) -> tuple[bool, str]:
+    """Whether this runner will do this for you.
+
+    `char` is optional because two callers only want to know what a favour
+    nominally costs. When it is supplied, presence moves the bar: somebody who
+    carries a room needs to be thought slightly less well of before they get
+    asked a favour, which is most of what presence is for.
+    """
+    from ..content import appearance
     from ..content.rivals import FAVOURS
     if kind not in FAVOURS:
         return False, f'no such favour: {kind}'
     if not rival.alive:
         return False, f'{rival.name} is dead.'
     cost = favour_cost(kind)
+    if char is not None:
+        cost -= appearance.social_bonus(char.presence)
     if rival.disposition < cost:
         return False, (f'{rival.name} is not going to do that for you. '
                        f'That favour needs them at {cost} and they are at '
