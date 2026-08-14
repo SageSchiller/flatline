@@ -159,11 +159,19 @@ class Session:
 
     @property
     def shell(self) -> dict:
-        """The saved look, filled in with defaults for anything unset."""
+        """The saved look, filled in with defaults for anything unset.
+
+        Anything the catalogue does not recognise is dropped rather than
+        carried, so a preference saved under a build that shipped a set this
+        one does not falls back to the default instead of reaching the
+        renderer. The `(kind, key)` pair is the test: checking the kind alone
+        would let `palette: nonsense` through, which happens to degrade safely
+        and would still be a saved preference nothing can honour.
+        """
         meta = save_mod.read_meta()
         out = dict(rice.DEFAULTS)
         out.update({k: v for k, v in (meta.get('shell') or {}).items()
-                    if (k, v) in rice.BY_KEY or k in rice.DEFAULTS})
+                    if (k, v) in rice.BY_KEY})
         return out
 
     def apply_shell(self) -> None:

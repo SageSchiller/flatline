@@ -3173,6 +3173,21 @@ def _rice_body(T, rice, prompt_mod, anim, Caps, ColorLevel, GlyphLevel,
     sess, _ = play(['rice --reset'])
     T.eq(sess.shell, rice.DEFAULTS, 'reset puts everything back')
 
+    # A preference saved by a build that shipped something this one does not
+    # falls back rather than reaching the renderer.
+    meta = save_mod.read_meta()
+    meta['shell'] = {'palette': 'from-the-future', 'frame': 'gone',
+                     'nonsense': 'whatever', 'bars': 'shaded'}
+    save_mod.write_meta(meta)
+    stale, _ = play([])
+    stale.apply_shell()
+    T.eq(stale.shell['palette'], rice.DEFAULTS['palette'],
+         'an unknown palette falls back to the default')
+    T.eq(stale.shell['frame'], rice.DEFAULTS['frame'], 'and an unknown frame')
+    T.ok('nonsense' not in stale.shell, 'and an unknown axis is dropped')
+    T.eq(stale.shell['bars'], 'shaded', 'while the valid part survives')
+    save_mod.write_meta({**meta, 'shell': {}})
+
     # `--try` shows without keeping, which is the most useful thing a
     # customisation menu can do.
     sess, out = play(['rice --reset', 'rice palette phosphor --try'])
