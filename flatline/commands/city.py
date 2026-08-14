@@ -2130,7 +2130,11 @@ def cmd_self(sess, args) -> None:
 
     floor = appearance.floor_from_chrome(char.dissonance)
     chosen = appearance.score(char.look, char.marks, 0)[0]
-    if floor > chosen:
+    # `floor > chosen` alone is not enough: a floor of zero is no floor, and
+    # a character with no chrome at all scores below it, so the most
+    # deliberately forgettable build in the game was being told it could not
+    # be forgettable.
+    if floor > 0 and floor > chosen:
         c.blank()
         c.warn('You cannot get under it any more. Whatever you have had done '
                'shows in how you hold still, and no haircut fixes that.')

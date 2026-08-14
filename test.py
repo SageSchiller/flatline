@@ -2319,6 +2319,23 @@ def test_appearance() -> None:
     T.ok(appearance.band(ghost.memorable)[0] == 'forgettable',
          'and lands in the band named for it')
 
+    # The floor warning only fires when there is a floor. A floor of zero is
+    # not a floor, and the most forgettable build in the game was being told
+    # it could not be forgettable.
+    _, out = play(['new Zero --origin ghost --seed 1', 'self'])
+    T.ok('cannot get under it' not in out,
+         'an unchromed character is not warned about a chrome floor')
+    # The case the warning exists for: somebody who built for anonymity and
+    # then spent it on hardware. Not a Chromed character, whose memorability
+    # comes from their own choices and sits well above any floor.
+    wired = Game.new(Character.from_origin('ghost', 'wired'), seed=1)
+    wired.char.dissonance = 90
+    sess, out = play(['self'], game=wired)
+    T.ok('cannot get under it' in out,
+         'and somebody who wired away their anonymity is told so')
+    T.ok(wired.char.memorable > 0,
+         'and it really has cost them the thing they built for')
+
     # Chrome puts a floor under it that no haircut gets below.
     ghost.dissonance = 90
     floored = ghost.memorable
