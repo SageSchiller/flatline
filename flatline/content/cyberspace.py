@@ -277,3 +277,131 @@ def pressure(before: float, after: float) -> str:
         if before < threshold <= after:
             return text
     return ''
+
+
+# --------------------------------------------------------------------------
+# sigils
+# --------------------------------------------------------------------------
+
+#: A mark per faction, printed on connection above their arrival text.
+#:
+#: Four rows, eleven columns, and every one of them is drawn from what that
+#: faction's cyberspace already says it is rather than from a logo brief.
+#: Kagawa render as agricultural terraces, so Kagawa get terraces. Deepwater
+#: is a shape nobody has established, so Deepwater get a shape that does not
+#: resolve. The point is that after five runs a player should know whose
+#: network they are looking at before they have read a word of it.
+#:
+#: `validate.py` holds them to a rectangle and to the ASCII fallback, because
+#: a sigil one column wider than its neighbours reads as a rendering fault.
+SIGIL_WIDTH = 11
+SIGIL_HEIGHT = 4
+
+SIGILS: dict[str, tuple[str, ...]] = {
+    # Terraces, stepping down. Boring, endless, and feeding a third of the city.
+    'kagawa': ('▄▄▄▄▄▄▄▄▄▄▄',
+               '  ▄▄▄▄▄▄▄▄▄',
+               '    ▄▄▄▄▄▄▄',
+               '      ▄▄▄▄▄'),
+    # A clean growth curve under glass. The aftercare really is excellent.
+    'aoyama': ('┌─────────┐',
+               '│    ▄▄▄▄▄│',
+               '│▄▄▀▀    ▀│',
+               '└─────────┘'),
+    # A nerve, and the interface clamped onto it.
+    'sendai': ('  ╱╲   ╱╲  ',
+               '─╱──╲─╱──╲─',
+               '  ▀▀   ▀▀  ',
+               '     ▮     '),
+    # Six marks. Nobody in the Ninth needs it explained.
+    'sixes': ('▚  ▚  ▚  ▚ ',
+              ' ▚  ▚  ▚  ▚',
+              '▚  ▚  ▚  ▚ ',
+              '   ▚▚▚▚▚   '),
+    # A hook, and the things hung off it.
+    'carrion': ('  ╔═════╗  ',
+                '  ║ ╱▓╲ ║  ',
+                '  ╚╤═══╤╝  ',
+                '   ▓   ▓   '),
+    # A switchboard. Three landlines and no name over the door.
+    'fixers': ('●─┬─●─┬─●─┐',
+               '  │   │   │',
+               '●─┴─●─┴─●─┤',
+               '          ●'),
+    # A grid, patrolled, with the beat drawn on it.
+    'nightwatch': ('┼──┼──┼──┼─',
+                   '│▪ │  │ ▪│ ',
+                   '┼──┼──┼──┼─',
+                   '│  │ ▪│  │▪'),
+    # Containers, stacked by people who own the crane.
+    'freeport': ('▛▀▀▜▛▀▀▜▛▀▜',
+                 '▙▄▄▟▙▄▄▟▙▄▟',
+                 '▛▀▀▜▛▀▀▜▛▀▜',
+                 '▙▄▄▟▙▄▄▟▙▄▟'),
+    # A ledger line, and the compounding under it.
+    'meridian': ('═══════════',
+                 '▁▁▂▂▃▃▄▅▆▇█',
+                 '═══════════',
+                 '  ▪ ▪ ▪ ▪  '),
+    # Voices arriving at the same place from different directions.
+    'chorus': ('╲  ╲ │ ╱  ╱',
+               ' ╲  ╲│╱  ╱ ',
+               '  ╲ ─◉─ ╱  ',
+               '   ╲ │ ╱   '),
+    # Carrier, interference, and somebody publishing anyway.
+    'static': ('▒░▓░▒▓░▒░▓▒',
+               '░▓▒▓░▒▓░▓▒░',
+               '▓▒░▒▓░▒▓▒░▓',
+               '▒░▓▒░▓▒░▒▓░'),
+    # Nobody has established what Deepwater is. Neither has this.
+    'deepwater': ('           ',
+                  '   ▁▂▃▂▁   ',
+                  '  ▂▃   ▃▂  ',
+                  '   ▔▔▔▔▔   '),
+}
+
+#: The ASCII rung. Not a transliteration of the above: a block character
+#: mapped one-to-one onto `#` produces twelve identical grey squares, which
+#: is worse than no sigil at all. Each is redrawn to keep its own shape.
+SIGILS_ASCII: dict[str, tuple[str, ...]] = {
+    'kagawa': ('===========', '  =========', '    =======', '      ====='),
+    'aoyama': ('+---------+', '|    ..---|', '|..--     |', '+---------+'),
+    'sendai': ('  /\\   /\\  ', '-/--\\-/--\\-', "  ''   ''  ", '     I     '),
+    'sixes': ('\\  \\  \\  \\ ', ' \\  \\  \\  \\', '\\  \\  \\  \\ ', '   \\\\\\\\    '),
+    'carrion': ('  +=====+  ', '  | /X\\ |  ', '  +-+---+-+', '    X   X  '),
+    'fixers': ('o-+-o-+-o-+', '  |   |   |', 'o-+-o-+-o-+', '          o'),
+    'nightwatch': ('+--+--+--+-', '|. |  | .| ', '+--+--+--+-', '|  | .|  |.'),
+    'freeport': ('[==][==][=]', '[==][==][=]', '[==][==][=]', '[==][==][=]'),
+    'meridian': ('===========', '..,,;;coCO0', '===========', '  . . . .  '),
+    'chorus': ('\\  \\ | /  /', ' \\  \\|/  / ', '  \\ -O- /  ', '   \\ | /   '),
+    'static': (':.::.:.::.:', '.::.:.::.:.', '::.:.::.:.:', ':.::.:.::.:'),
+    'deepwater': ('           ', '   .-~-.   ', '  .-   -.  ', '   `````   '),
+}
+
+
+def sigil(faction: str, ascii_only: bool = False) -> tuple[str, ...]:
+    """The mark, or an empty tuple for a faction that has none."""
+    table = SIGILS_ASCII if ascii_only else SIGILS
+    return table.get(faction, ())
+
+
+#: Palette role per faction kind, so a sigil is not just a shape but a colour
+#: the player learns. Corps render cold, the people who hurt you render hot,
+#: and the two that are not really organisations get their own.
+SIGIL_ROLE: dict[str, str] = {
+    'corp': 'ice',
+    'gang': 'err',
+    'law': 'info',
+    'broker': 'ok',
+    'collective': 'credit',
+    'press': 'noise',
+    'cult': 'residue',
+    'construct': 'accent2',
+}
+
+
+def sigil_role(faction: str) -> str:
+    """What colour this faction's mark renders in."""
+    from . import factions
+    data = factions.BY_KEY.get(faction)
+    return SIGIL_ROLE.get(data.kind if data else '', 'ice')

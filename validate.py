@@ -651,6 +651,43 @@ def check_appearance(rep: Report) -> None:
               'reconstruction is free of drift, which no other body work in '
               'this game is')
 
+    # Sigils. A mark one column wider than its neighbours reads as a
+    # rendering fault rather than as a design, so they are held to a
+    # rectangle at both rungs of the ladder.
+    for fac in factions.FACTIONS:
+        for label, table in (('unicode', cyberspace.SIGILS),
+                             ('ascii', cyberspace.SIGILS_ASCII)):
+            rows = table.get(fac.key)
+            where = f'cyberspace/sigil/{fac.key}'
+            if rows is None:
+                rep.error(where, f'has no {label} sigil')
+                continue
+            rep.check(len(rows) == cyberspace.SIGIL_HEIGHT, where,
+                      f'{label} is {len(rows)} rows, not '
+                      f'{cyberspace.SIGIL_HEIGHT}')
+            widths = {ui.width(r) for r in rows}
+            rep.check(widths == {cyberspace.SIGIL_WIDTH}, where,
+                      f'{label} rows are {sorted(widths)} columns wide, not '
+                      f'{cyberspace.SIGIL_WIDTH}')
+        ascii_rows = cyberspace.SIGILS_ASCII.get(fac.key) or ()
+        rep.check(all(ord(ch) < 128 for row in ascii_rows for ch in row),
+                  f'cyberspace/sigil/{fac.key}',
+                  'the ascii sigil is not ascii')
+        rep.check(fac.kind in cyberspace.SIGIL_ROLE,
+                  f'cyberspace/sigil/{fac.key}',
+                  f'no colour declared for faction kind {fac.kind!r}')
+    for role in cyberspace.SIGIL_ROLE.values():
+        rep.check(role in theme.ROLES, 'cyberspace/sigil',
+                  f'unknown palette role {role!r}')
+    # Two factions with the same mark defeats the point of having marks.
+    seen_sigils: dict[tuple, str] = {}
+    for key, rows in cyberspace.SIGILS.items():
+        rep.check(tuple(rows) not in seen_sigils, f'cyberspace/sigil/{key}',
+                  f'identical to {seen_sigils.get(tuple(rows))}')
+        seen_sigils[tuple(rows)] = key
+    rep.check('cyberspace.sigil(' in _command_source(), 'cyberspace/sigil',
+              'twelve sigils exist and nothing ever draws one')
+
     # And the numbers they feed have to be read somewhere that matters.
     for promise, needle in (('memorable feeds heat', 'appearance.heat_mult'),
                             ('memorable feeds standing', 'appearance.rep_mult')):

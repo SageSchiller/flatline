@@ -2759,6 +2759,25 @@ def test_topology() -> None:
     T.eq([u for _, u in uni], [u for _, u in ascii_rows],
          'and draws exactly the same shape')
 
+    # Faction sigils. Every faction has one, at both rungs, and they are all
+    # the same size or the block reads as broken.
+    from flatline.content import cyberspace as cs
+    for fac in factions.FACTIONS:
+        for ascii_only in (False, True):
+            rows = cs.sigil(fac.key, ascii_only)
+            T.eq(len(rows), cs.SIGIL_HEIGHT, f'{fac.key} sigil is 4 rows')
+            T.eq({ui.width(r) for r in rows}, {cs.SIGIL_WIDTH},
+                 f'{fac.key} sigil is a rectangle')
+        T.ok(all(ord(c) < 128 for r in cs.sigil(fac.key, True) for c in r),
+             f'{fac.key} degrades to ascii')
+        T.ok(cs.sigil_role(fac.key) in theme.ROLES,
+             f'{fac.key} sigil has a real palette role')
+    T.eq(cs.sigil('nonexistent'), (), 'an unknown faction has no sigil')
+    T.eq(cs.sigil_role('nonexistent'), 'ice',
+         'and falls back to a real role rather than crashing')
+    T.eq(len({tuple(v) for v in cs.SIGILS.values()}), len(cs.SIGILS),
+         'no two factions share a mark')
+
     # The trace sparkline. Its whole job is shape, and it must not lie about
     # the shape or about how much history it is showing.
     caps = quiet_console().caps

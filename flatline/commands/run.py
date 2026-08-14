@@ -128,6 +128,9 @@ def cmd_jack_in(sess, args) -> None:
     c.say(f'[dim]Target: [/][err]{contract.target_data.name}[/][dim], posture '
           f'{int(contract.posture)}. Objective: {contract.objective}.[/]')
     c.blank()
+    # Whose network this is, as a shape before it is a sentence. After five
+    # runs a player knows the mark without reading the name under it.
+    _sigil(c, contract.target)
     # What their cyberspace is made of. Printed once, because it is the visual
     # key for the whole run and players learn to read it.
     c.say(f'[ice]{cyberspace.signature(contract.target).arrival}[/]')
@@ -473,6 +476,22 @@ def cmd_map(sess, args) -> None:
     c.blank()
     c.say('[dim]`map --flat` for the list by zone. '
           '`scan` to reach further.[/]')
+
+
+def _sigil(c, faction: str) -> None:
+    """The faction's mark, beside their name."""
+    rows = cyberspace.sigil(faction,
+                            c.caps.glyphs is ui.GlyphLevel.ASCII)
+    if not rows:
+        return
+    role = cyberspace.sigil_role(faction)
+    name = fac_content.BY_KEY[faction].name
+    # Name on the second row so the block reads as a mark with a caption
+    # rather than as a heading with a picture under it.
+    for i, row in enumerate(rows):
+        tail = f'   [dim]{name}[/]' if i == 1 else ''
+        c.raw(f'  [{role}]{row}[/]{tail}')
+    c.blank()
 
 
 def _map_label(state, node) -> str:
