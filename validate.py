@@ -58,6 +58,7 @@ def _command_source() -> str:
 _ENGINE_SOURCE: str = ''
 _MODEL_SOURCE: str = ''
 _WORLD_SOURCE: str = ''
+_CONTENT_SOURCE: str = ''
 
 
 def _model_source() -> str:
@@ -69,6 +70,17 @@ def _model_source() -> str:
             p.read_text(encoding='utf-8')
             for p in sorted(pathlib.Path('flatline/model').glob('*.py')))
     return _MODEL_SOURCE
+
+
+def _content_source() -> str:
+    """Every content module, for checks about a field being consumed at all."""
+    global _CONTENT_SOURCE
+    if not _CONTENT_SOURCE:
+        import pathlib
+        _CONTENT_SOURCE = '\n'.join(
+            p.read_text(encoding='utf-8')
+            for p in sorted(pathlib.Path('flatline/content').glob('*.py')))
+    return _CONTENT_SOURCE
 
 
 def _world_source() -> str:
@@ -803,6 +815,53 @@ def check_events(rep: Report) -> None:
               'nothing in the city layer ever picks an ambient event')
     rep.check('city.ambient' in _command_source(), 'events/hooks',
               'ambient events are picked but never printed')
+
+
+
+def check_dead_fields(rep: Report) -> None:
+    """Every field of a content record has to be read by something.
+
+    This is the standing check for the bug class that has cost this project
+    more than any other: a field that is written, validated, shipped, and
+    consumed by nothing. It has appeared as an origin passive, an ICE rider, a
+    technique flag, four pieces of display prose, a board-size argument, and
+    most recently as `presence`, a number the character sheet printed and
+    nothing anywhere used.
+
+    Attribute access is the signal, because a bare field name like `key` or
+    `name` occurs everywhere and proves nothing. `ALLOWED` is for the handful
+    of fields that genuinely exist for `validate.py` itself; each one needs a
+    reason written next to it.
+    """
+    import dataclasses
+
+    #: field -> why it is allowed to have no reader outside validation.
+    ALLOWED = {
+        'Npc.tone': 'exists so validate can assert the cast spans registers',
+        'Event.tone': 'exists so validate can enforce the tonal budget',
+        'Slot.fixed': 'read through FIXED_SLOTS and FREE_SLOTS, which are\n'
+                      'built from it, rather than by attribute',
+    }
+
+    source = (_engine_source() + _command_source() + _model_source()
+              + _world_source() + _content_source())
+
+    records = [
+        appearance.Feature, appearance.Slot, events.Event,
+        cyberspace.Signature, npc_content.Npc, trait_content.Trait,
+        icons.Icon, origins.Origin,
+    ]
+    for record in records:
+        for field in dataclasses.fields(record):
+            name = f'{record.__name__}.{field.name}'
+            if name in ALLOWED:
+                continue
+            # Counted across the whole codebase including content, because a
+            # field consumed only by the module that declares it is still
+            # consumed.
+            uses = source.count(f'.{field.name}')
+            rep.check(uses > 0, 'dead-fields',
+                      f'{name} is declared and nothing ever reads it')
 
 
 def check_debt(rep: Report) -> None:
@@ -1658,7 +1717,7 @@ def check_balance(rep: Report) -> None:
 CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
     check_icons, check_dissonance, check_cyberspace, check_rivals, check_debt,
-    check_origins, check_appearance, check_events, check_skills, check_factions, check_districts,
+    check_origins, check_appearance, check_events, check_dead_fields, check_skills, check_factions, check_districts,
     check_ice, check_nodes, check_contracts, check_commands,
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_markup, check_balance,

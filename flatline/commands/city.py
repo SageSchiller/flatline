@@ -122,6 +122,10 @@ def cmd_char(sess, args) -> None:
         ('credits', f'[credit]{char.credits:,}c[/]'),
         ('integrity', f'{char.integrity}/{char.integrity_max}'),
         ('dissonance', f'{char.dissonance} [dim]({char.dissonance_band[1]})[/]'),
+        ('looks', f'[dim]{appearance.summary(char.look)}[/]'),
+        ('read as', f'{char.memorable_band[0]} '
+                    f'[dim]({char.memorable} memorable, '
+                    f'{char.presence:+d} presence, `self` for detail)[/]'),
     ])
 
     c.blank()
@@ -2053,9 +2057,8 @@ def cmd_self(sess, args) -> None:
     char = game.char
 
     if args.has('roll'):
-        for slot in appearance.FREE_SLOTS:
-            char.look[slot] = game.rng('appearance').pick(
-                [f.key for f in appearance.BY_SLOT[slot]])
+        char.look.update(appearance.roll(game.rng('appearance'),
+                                         appearance.FREE_SLOTS))
         c.ok('You have changed what you can change.')
         c.blank()
         sess.autosave()

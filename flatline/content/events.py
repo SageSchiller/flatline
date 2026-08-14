@@ -59,8 +59,6 @@ class Event:
     districts: tuple[str, ...] = ()
     #: Which shift. Empty means any.
     phases: tuple[str, ...] = ()
-    #: A story flag this sets when seen, for threads to pick up later.
-    flag: str = ''
 
 
 EVENTS: tuple[Event, ...] = (

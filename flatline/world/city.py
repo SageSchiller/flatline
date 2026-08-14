@@ -92,8 +92,6 @@ class City:
     #: than to forbid them: a city that never repeats itself is as
     #: unconvincing as one with four days in it.
     events_seen: set = field(default_factory=set)
-    #: Flags set by ambient events, for threads to pick up later.
-    event_flags: set = field(default_factory=set)
     #: Scenery from the most recent `advance`, kept apart from the news it
     #: returns. Mechanical news is a consequence and an ambient event is a
     #: window, and printing them in one block turns both into a wall of grey.
@@ -173,8 +171,6 @@ class City:
         if event is None:
             return []
         self.events_seen.add(event.key)
-        if event.flag:
-            self.event_flags.add(event.flag)
         return [f'[dim]{event.text}[/]']
 
     def _decay_posture(self) -> None:
@@ -463,7 +459,6 @@ class City:
             'rivals': [r.to_dict() for r in self.rivals],
             'news': list(self.news[-NEWS_KEPT:]),
             'events_seen': sorted(self.events_seen),
-            'event_flags': sorted(self.event_flags),
         }
 
     @classmethod
@@ -486,5 +481,4 @@ class City:
                     for r in (d.get('rivals') or [])] or rival_mod.seed_pool(),
             news=list(d.get('news') or []),
             events_seen=set(d.get('events_seen') or ()),
-            event_flags=set(d.get('event_flags') or ()),
         )

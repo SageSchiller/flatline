@@ -738,9 +738,14 @@ def default() -> dict[str, str]:
             'bearing': 'watchful', 'voice': 'flat'}
 
 
-def roll(rng) -> dict[str, str]:
-    """A complete appearance, for a player who does not want to pick eight."""
-    return {s.key: rng.pick([f.key for f in BY_SLOT[s.key]]) for s in SLOTS}
+def roll(rng, slots: tuple[str, ...] = SLOT_KEYS) -> dict[str, str]:
+    """A look, for a player who does not want to pick eight things.
+
+    Takes the slots to fill so that `self --roll` can reroll only what a
+    person could actually change between one shift and the next, and creation
+    can roll the lot.
+    """
+    return {key: rng.pick([f.key for f in BY_SLOT[key]]) for key in slots}
 
 
 def describe(look: dict[str, str], marks: list[str] | None = None) -> list[str]:

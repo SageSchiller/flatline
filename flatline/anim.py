@@ -117,19 +117,11 @@ def paint(text: str, role: str, caps: Caps) -> str:
     return f'{code}{text}{RESET}' if code else text
 
 
-def gradient(rows: list[str], palette: Palette, caps: Caps,
-             lit: int | None = None) -> list[str]:
-    """Colour the mark top to bottom, accent into accent2.
-
-    `lit` reveals only the first N columns, which is what the wipe animates.
-    Everything past it is dropped rather than dimmed: a half-drawn logo should
-    look like it is still arriving, not like it rendered wrong.
-    """
+def gradient(rows: list[str], palette: Palette, caps: Caps) -> list[str]:
+    """Colour the mark top to bottom, accent into accent2."""
     top, bottom = palette.accent.rgb, palette.accent2.rgb
     out = []
     for i, row in enumerate(rows):
-        if lit is not None:
-            row = row[:lit]
         t = i / max(1, len(rows) - 1)
         code = _fg(_lerp(top, bottom, t), caps,
                    palette.accent.ansi if t < 0.5 else palette.accent2.ansi)
