@@ -381,7 +381,7 @@ def cmd_script(sess, args) -> None:
 
 
 @command('techniques', 'What your training lets you do.',
-         group='info', aliases=('tech',))
+         group='info', aliases=('tech',), usage='techniques')
 def cmd_techniques(sess, args) -> None:
     game = sess.require_game()
     c = sess.console

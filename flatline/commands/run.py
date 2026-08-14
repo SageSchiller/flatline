@@ -128,7 +128,7 @@ def cmd_jack_in(sess, args) -> None:
     c.say(f'[ice]{cyberspace.signature(contract.target).arrival}[/]')
     c.blank()
     c.say(f'[dim]You come up on [/][accent]{net.entry}[/][dim]: '
-          f'{cyberspace.look(net.node(net.entry).type)}.[/]')
+          f'{cyberspace.look(net.node(net.entry).type, 0, contract.target)}.[/]')
     if 'topology' in contract.intel:
         _reveal_topology(state)
         c.info('Your legwork holds. The shape of it is already in front of you.')
@@ -1641,7 +1641,7 @@ def _show_node(sess, node, detail: bool = False) -> None:
     c.header(node.uid, tail)
     look_type = 'workstation' if (node.type == 'honeypot' and node.disguised) \
         else node.type
-    c.say(f'[dim]{cyberspace.look(look_type, len(node.uid)).capitalize()}. '
+    c.say(f'[dim]{cyberspace.look(look_type, len(node.uid), state.net.faction)}. '
           f'{node.display_type} in the {node.zone}.[/]')
 
     if not detail:

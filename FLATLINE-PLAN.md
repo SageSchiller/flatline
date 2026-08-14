@@ -12,7 +12,7 @@ updated: 2026-08-13
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5832 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 24,000 lines.
+> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5832 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 24,300 lines.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
@@ -1047,5 +1047,34 @@ character could ever see. `validate.py` now rejects that class outright.
 **D32** came from the observation that everything an origin gave was a
 modifier, so two characters forty shifts apart could still do all the same
 things. Ten signature verbs, one apiece, unpurchasable.
+
+`validate.py` clean, `test.py` green at **6245 checks**.
+
+### 2026-08-13 (l): verification pass
+
+A check-everything sweep before the first real play session. Two classes of
+problem, both of them things the harnesses could not see because both were
+about content and commands being *correct but not connected*.
+
+**Twenty-seven city commands were legal inside a run.** `contexts` defaults to
+`('any',)`, and almost nothing in `commands/city.py` had ever declared
+otherwise, so `travel`, `market`, `install`, `take` and two dozen others could
+be typed while jacked into somebody's network. D9's stated example is that
+"`market` does not exist while you are inside somebody's network" and it had
+not been true for weeks. `validate.py` now rejects any `city` or `prep` command
+that has not declared its context.
+
+**Four fields of written content were never displayed.** A sweep of every
+content dataclass field against the whole engine found: `Signature.ice_wakes`,
+twelve pieces of per-faction menace that had never once printed;
+`Signature.texture`, the faction's materials, unused; `Ware.maker`, on all
+thirty-four implants, never shown; and `Attribute.governs` and
+`.failure`, written to tell a player what an attribute is for and shown
+nowhere. All four are wired in now, and the sweep is worth repeating whenever
+content grows.
+
+The only field deliberately left content-only is `Npc.tone`, which exists so
+`validate.py` can assert the cast spans registers. That is now said in the
+field comment so the next sweep does not flag it.
 
 `validate.py` clean, `test.py` green at **6245 checks**.

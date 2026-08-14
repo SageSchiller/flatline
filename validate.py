@@ -1145,6 +1145,8 @@ def check_commands(rep: Report) -> None:
     for name, cmd in REGISTRY.commands.items():
         where = f'commands/{name}'
         rep.check(bool(cmd.summary), where, 'has no summary (D9)')
+        rep.check(bool(cmd.usage), where,
+                  'has no usage line, so `help` cannot show how to type it')
         rep.check(cmd.group in GROUPS, where, f'unknown group {cmd.group!r}')
         for c in cmd.contexts:
             rep.check(c in CONTEXTS, where, f'unknown context {c!r}')
@@ -1155,6 +1157,15 @@ def check_commands(rep: Report) -> None:
             rep.warn(where, 'summary does not end with a full stop')
         if cmd.ticks and 'run' not in cmd.contexts:
             rep.error(where, 'costs ticks but is not a run command')
+        # D9's whole point: `market` must not exist while you are inside
+        # somebody's network. `contexts` defaults to ('any',), so anything
+        # that transacts, travels, spends shifts or changes the build has to
+        # say so explicitly. Twenty-seven of them did not, and were legal
+        # mid-run for weeks.
+        if cmd.group in ('city', 'prep') and 'any' in cmd.contexts:
+            if cmd.name not in ('look',):
+                rep.error(where, 'is city work but is legal inside a run: '
+                                 "declare contexts=('city',)")
 
     # Both contexts need to be usable on their own.
     for context in ('city', 'run'):

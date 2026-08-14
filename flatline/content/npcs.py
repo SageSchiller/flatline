@@ -42,6 +42,9 @@ class Npc:
     where: str
     #: A district service you must be able to use to run into them, or ''.
     at: str
+    #: Read only by `validate.py`, which asserts the cast spans registers.
+    #: Deliberately not a runtime field: the tone belongs in the writing,
+    #: not in a label the player is shown.
     tone: str
     offers: tuple[str, ...]
     #: The first sight of them. Second person, present tense.

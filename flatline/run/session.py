@@ -111,6 +111,9 @@ class RunState:
     #: {key, name, node, integrity, state, skill, style, cut}. The mirror of
     #: `escort`: this one is here to help, and takes a share of the haul.
     ally: dict | None = None
+    #: Set once the network's own wake-up line has been used. It is written
+    #: per faction and it is strong, so it fires once rather than every time.
+    woken: bool = False
     #: Ex-enforcement Playbook: every construct telegraphs a tick early.
     playbook: bool = False
     #: Chromed Native: ticks of moving through the net as a room.
@@ -683,6 +686,12 @@ class RunState:
                 threshold = max(3, NOISE_WAKE - construct.rating)
                 if self.node.noise >= threshold and construct in self.node.ice:
                     construct.state = 'awake'
+                    if not self.woken:
+                        self.woken = True
+                        self.console.blank()
+                        wakes = cyberspace.signature(
+                            self.net.faction).ice_wakes
+                        self.console.say(f'[ice]{wakes}[/]')
                     self._tell(construct)
                 continue
 

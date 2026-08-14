@@ -31,7 +31,7 @@ from ..world import market as market_mod
 
 
 @command('new', 'Make a character.',
-         group='character', bare=True,
+         contexts=('city',), group='character', bare=True,
          usage='new [handle] --origin <key> [--seed n]',
          detail='With no arguments, lists the origins. Creation gives you an '
                 'attribute budget and an experience budget, which you spend '
@@ -107,7 +107,8 @@ def cmd_new(sess, args) -> None:
 
 
 @command('char', 'Your build, in full.',
-         group='character', aliases=('sheet', 'me'), usage='char [--effects]')
+         group='character', aliases=('sheet', 'me'),
+         usage='char [--effects] [--attributes]')
 def cmd_char(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     char = game.char
@@ -123,6 +124,16 @@ def cmd_char(sess, args) -> None:
     ])
 
     c.blank()
+    if args.has('attributes'):
+        for a in attr_content.ATTRIBUTES:
+            c.blank()
+            c.raw(f'[accent]{a.name}[/] [dim]{a.short}, '
+                  f'{char.attr(a.key)}[/]')
+            c.say(a.governs, indent='  ', subsequent='  ')
+            c.say(f'[dim]Short on it: {a.failure}[/]',
+                  indent='  ', subsequent='  ')
+        return
+
     rows = []
     arrow = c.caps.g('arrow')
     for a in attr_content.ATTRIBUTES:
@@ -190,7 +201,7 @@ def cmd_skills(sess, args) -> None:
 
 
 @command('boost', 'Spend an attribute point.',
-         group='character', usage='boost <attribute>',
+         contexts=('city',), group='character', usage='boost <attribute>',
          complete=lambda sess, prefix: list(attr_content.ATTR_KEYS))
 def cmd_boost(sess, args) -> None:
     game, c = sess.require_game(), sess.console
@@ -205,14 +216,16 @@ def cmd_boost(sess, args) -> None:
     ok, why = game.char.can_boost(match[0])
     if not ok:
         raise CommandError(why)
+    attribute = attr_content.BY_KEY[match[0]]
     value = game.char.boost(match[0])
-    c.ok(f'{attr_content.BY_KEY[match[0]].name} is now {value}. '
+    c.ok(f'{attribute.name} is now {value}. '
          f'[dim]{game.char.points} point'
          f'{"s" if game.char.points != 1 else ""} left.[/]')
+    c.say(f'[dim]{attribute.governs}[/]')
 
 
 @command('train', 'Buy the next rank in a skill.',
-         group='character', usage='train <skill>',
+         contexts=('city',), group='character', usage='train <skill>',
          complete=lambda sess, prefix: list(skill_content.SKILL_KEYS))
 def cmd_train(sess, args) -> None:
     game, c = sess.require_game(), sess.console
@@ -289,7 +302,7 @@ def cmd_deck(sess, args) -> None:
 
 
 @command('icon', 'The shape you wear in the net.',
-         group='character', usage='icon [wear <key>] [buy <key>]',
+         contexts=('city',), group='character', usage='icon [wear <key>] [buy <key>]',
          detail='Your icon is what cyberspace renders you as, and it is a real '
                 'build axis: it changes how loud you are, how ICE reads you, '
                 'and whether anything in there will talk to you. It is also '
@@ -380,7 +393,7 @@ def cmd_icon(sess, args) -> None:
 
 
 @command('load', 'Put a program on the deck.',
-         group='prep', usage='load <program>',
+         contexts=('city',), group='prep', usage='load <program>',
          complete=lambda sess, prefix: _library_names(sess))
 def cmd_load(sess, args) -> None:
     game, c = sess.require_game(), sess.console
@@ -396,7 +409,7 @@ def cmd_load(sess, args) -> None:
 
 
 @command('unload', 'Take a program off the deck.',
-         group='prep', usage='unload <program>',
+         contexts=('city',), group='prep', usage='unload <program>',
          complete=lambda sess, prefix: _loaded_names(sess))
 def cmd_unload(sess, args) -> None:
     game, c = sess.require_game(), sess.console
@@ -409,7 +422,7 @@ def cmd_unload(sess, args) -> None:
 
 
 @command('install', 'Have cyberware fitted. Needs a clinic.',
-         group='character', usage='install <ware>')
+         contexts=('city',), group='character', usage='install <ware>')
 def cmd_install(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     if 'clinic' not in game.city.district.services:
@@ -443,7 +456,7 @@ def cmd_install(sess, args) -> None:
 
 
 @command('uninstall', 'Have cyberware removed. The Dissonance stays.',
-         group='character', usage='uninstall <ware>')
+         contexts=('city',), group='character', usage='uninstall <ware>')
 def cmd_uninstall(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     if 'clinic' not in game.city.district.services:
@@ -476,7 +489,7 @@ def cmd_chrome(sess, args) -> None:
             c.raw('  [dim]nothing[/]')
         for key in fitted:
             w = cyberware.BY_KEY[key]
-            c.raw(f'  [accent]{w.name}[/] [dim]{w.bandwidth}bw '
+            c.raw(f'  [accent]{w.name}[/] [dim]{w.maker}, {w.bandwidth}bw '
                   f'{w.dissonance}dis[/]')
             c.say(f'[dim]{w.drawback}[/]', indent='    ', subsequent='    ')
 
@@ -487,7 +500,7 @@ def cmd_chrome(sess, args) -> None:
 
 
 @command('market', 'What is for sale here.',
-         group='city', aliases=('shop',),
+         contexts=('city',), group='city', aliases=('shop',),
          usage='market [programs|ware|components]')
 def cmd_market(sess, args) -> None:
     game, c = sess.require_game(), sess.console
@@ -525,7 +538,7 @@ def cmd_market(sess, args) -> None:
 
 
 @command('buy', 'Buy something from the local market.',
-         group='city', usage='buy <name> [--why]')
+         contexts=('city',), group='city', usage='buy <name> [--why]')
 def cmd_buy(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     if not len(args):
@@ -577,7 +590,7 @@ def cmd_buy(sess, args) -> None:
 
 
 @command('sell', 'Sell something. Needs a fence or a market.',
-         group='city', usage='sell <name>')
+         contexts=('city',), group='city', usage='sell <name>')
 def cmd_sell(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     if not any(s in game.city.district.services for s in ('fence', 'market')):
@@ -605,7 +618,7 @@ def cmd_sell(sess, args) -> None:
 
 
 @command('board', 'Work currently on offer.',
-         group='city', aliases=('jobs',), usage='board [id]')
+         contexts=('city',), group='city', aliases=('jobs',), usage='board [id]')
 def cmd_board(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     city = game.city
@@ -664,7 +677,7 @@ def _show_contract(sess, contract) -> None:
 
 
 @command('take', 'Accept a contract.',
-         group='city', usage='take <id>')
+         contexts=('city',), group='city', usage='take <id>')
 def cmd_take(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     if game.city.accepted:
@@ -689,7 +702,7 @@ def cmd_take(sess, args) -> None:
 
 
 @command('drop', 'Abandon the accepted contract.',
-         group='city', usage='drop')
+         contexts=('city',), group='city', usage='drop')
 def cmd_drop(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     contract = game.city.current
@@ -707,7 +720,7 @@ def cmd_drop(sess, args) -> None:
 
 
 @command('travel', 'Move to another district. Costs a shift.',
-         group='city', aliases=('go',), usage='travel <district>',
+         contexts=('city',), group='city', aliases=('go',), usage='travel <district>',
          complete=lambda sess, prefix: list(districts.DISTRICT_KEYS))
 def cmd_travel(sess, args) -> None:
     game, c = sess.require_game(), sess.console
@@ -800,7 +813,7 @@ def _resolve_incident(sess, faction: str, danger: int) -> None:
 
 
 @command('rest', 'Lie low. Heals, cools heat, and passes time.',
-         group='city', usage='rest [shifts]')
+         contexts=('city',), group='city', usage='rest [shifts]')
 def cmd_rest(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     shifts = max(1, min(12, args.int_at(0, 1, 'a number of shifts')))
@@ -833,7 +846,7 @@ def cmd_rest(sess, args) -> None:
 
 
 @command('alias', 'The name you are running under, and what it carries.',
-         group='prep', usage='alias')
+         contexts=('city',), group='prep', usage='alias')
 def cmd_alias(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     alias = game.alias
@@ -869,7 +882,7 @@ def cmd_alias(sess, args) -> None:
 
 
 @command('burn', 'Abandon this identity and establish another.',
-         group='prep', usage='burn [name] [--confirm]')
+         contexts=('city',), group='prep', usage='burn [name] [--confirm]')
 def cmd_burn(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     alias = game.alias
@@ -940,7 +953,7 @@ LEGWORK_DRIFT = {
 
 
 @command('legwork', 'Learn about the target before you go in.',
-         group='prep', usage='legwork [perimeter|intel|employee|tap]',
+         contexts=('city',), group='prep', usage='legwork [perimeter|intel|employee|tap]',
          detail='Each costs a shift and most cost money. What you learn is '
                 'real: known topology, known ICE placement, a credential that '
                 'skips a boundary, or where the valuable assets actually are. '
@@ -1241,7 +1254,7 @@ def cmd_who(sess, args) -> None:
 
 
 @command('hire', 'Pay a runner to come in with you.',
-         group='prep', usage='hire [name] [--confirm]',
+         contexts=('city',), group='prep', usage='hire [name] [--confirm]',
          detail='An ally runs alongside you on your next job. What they are '
                 'worth depends entirely on their style: a chromed one steps '
                 'into strikes aimed at you, a quiet one keeps the room quiet, '
@@ -1317,7 +1330,7 @@ def cmd_hire(sess, args) -> None:
 
 
 @command('ask', 'Ask somebody about something, or a runner for a favour.',
-         group='prep', usage='ask <name> <topic|favour>',
+         contexts=('city',), group='prep', usage='ask <name> <topic|favour>',
          detail='With one of the city\'s people, asks about a subject they '
                 'have an opinion on: `look` around to find them first. With a '
                 'rival runner, calls in a favour, which is priced in '
@@ -1438,7 +1451,7 @@ def _grant_favour(sess, rival, kind: str) -> None:
 
 
 @command('betray', 'Sell a runner\'s name to somebody who wants it.',
-         group='prep', usage='betray <name> [buyer] [--confirm]',
+         contexts=('city',), group='prep', usage='betray <name> [buyer] [--confirm]',
          aliases=('sellout',),
          detail='The most lucrative thing in the game and the most expensive. '
                 'Everybody who worked with them cools on you, permanently, and '
@@ -1523,7 +1536,7 @@ def cmd_sell_out(sess, args) -> None:
 
 
 @command('clinic', 'What a clinic will do to you, and for you.',
-         group='character', usage='clinic',
+         contexts=('city',), group='character', usage='clinic',
          detail='Clinics fit chrome, take it out again, and past a certain '
                 'point sell you things the front desk does not list. They are '
                 'also the only place that will try to walk your Dissonance '
@@ -1553,11 +1566,11 @@ def cmd_clinic(sess, args) -> None:
             price, _ = market_mod.quote(listing, game.city.where, game.alias,
                                         char.dissonance,
                                         char.mult('price_mult'))
-            rows.append((ware.name, ware.location,
+            rows.append((ware.name, ware.maker, ware.location,
                          f'{ware.bandwidth}bw {ware.dissonance}dis',
                          f'{price:,}c'))
-        c.table(('chrome', 'slot', 'costs you', 'price'), rows,
-                roles=('accent', 'dim', 'dim', 'credit'))
+        c.table(('chrome', 'made by', 'slot', 'costs you', 'price'), rows,
+                roles=('accent', 'dim', 'dim', 'dim', 'credit'))
 
     # The back room, per the drift arc.
     deep = game.city.listings('ware', deep=True)
@@ -1574,11 +1587,11 @@ def cmd_clinic(sess, args) -> None:
             price, _ = market_mod.quote(listing, game.city.where, game.alias,
                                         char.dissonance,
                                         char.mult('price_mult'))
-            rows.append((ware.name, ware.location,
+            rows.append((ware.name, ware.maker, ware.location,
                          f'{ware.bandwidth}bw {ware.dissonance}dis',
                          f'{price:,}c'))
-        c.table(('chrome', 'slot', 'costs you', 'price'), rows,
-                roles=('accent2', 'dim', 'dim', 'credit'))
+        c.table(('chrome', 'made by', 'slot', 'costs you', 'price'), rows,
+                roles=('accent2', 'dim', 'dim', 'dim', 'credit'))
     elif deep:
         c.blank()
         c.say(f'[dim]{drift.DEEP_CLINIC_REFUSED}[/]')
@@ -1604,7 +1617,7 @@ def cmd_clinic(sess, args) -> None:
 
 
 @command('ground', 'Have your Dissonance walked back. Expensive and partial.',
-         group='character', usage='ground [--confirm]',
+         contexts=('city',), group='character', usage='ground [--confirm]',
          detail='Three shifts of neurological work that hurts and does not '
                 'finish the job. It cannot take you below what your installed '
                 'chrome accounts for, because you can walk back what the work '
@@ -1658,7 +1671,7 @@ def cmd_ground(sess, args) -> None:
 
 
 @command('debt', 'What you owe, to whom, and what it is doing.',
-         group='city', aliases=('owe',), usage='debt [pay <amount>|pay all]',
+         contexts=('city',), group='city', aliases=('owe',), usage='debt [pay <amount>|pay all]',
          detail='Debt compounds every shift and the lender is not a bank. '
                 'After a grace period they start collecting in person, and if '
                 'the account is empty they take it out of the room instead. '
@@ -1716,7 +1729,7 @@ def cmd_debt(sess, args) -> None:
 
 
 @command('repair', 'Have the deck put back together. Needs a workshop.',
-         group='character', usage='repair [--confirm]',
+         contexts=('city',), group='character', usage='repair [--confirm]',
          detail='Damage degrades a component rather than killing it outright, '
                 'so a scratched deck still works and a neglected one quietly '
                 'stops being the deck you built. The curve is steep on '
@@ -1764,7 +1777,7 @@ def cmd_repair(sess, args) -> None:
 
 @command('trait', 'What you are like. Permanent, and there are never enough '
                   'slots.',
-         group='character', aliases=('traits',),
+         contexts=('city',), group='character', aliases=('traits',),
          usage='trait [<key>] [--confirm]',
          detail='Skills say what you can do; traits say what you are like. '
                 'You pick two at creation and earn one more every six runs, '

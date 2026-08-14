@@ -240,9 +240,26 @@ def signature(faction: str) -> Signature:
     return BY_FACTION.get(faction) or SIGNATURES[0]
 
 
-def look(node_type: str, index: int = 0) -> str:
+def look(node_type: str, index: int = 0, faction: str = '') -> str:
+    """What a node presents as, in the owner's visual language.
+
+    The generic description carries the shape and the faction's texture
+    carries the material, which is why a Kagawa fileserver and a Carrion
+    fileserver read as different places while sharing one line of writing.
+    """
     options = NODE_LOOK.get(node_type) or NODE_LOOK['relay']
-    return options[index % len(options)]
+    body = options[index % len(options)]
+    if not faction:
+        return body
+    sig = BY_FACTION.get(faction)
+    if sig is None or not sig.texture:
+        return body
+    # Two beats rather than a label: the material, then the shape. A colon
+    # read like a database field and this reads like somebody describing a
+    # room they are standing in.
+    texture = sig.texture[index % len(sig.texture)]
+    return f'{texture.capitalize()}. {body[0].upper()}{body[1:]}'
+
 
 
 def descent(zone: str, index: int = 0) -> str:
