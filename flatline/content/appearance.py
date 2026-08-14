@@ -20,10 +20,11 @@ forgettable work.
 therefore feeds everything social: asking around, hiring, talking your way past
 something that expected a badge.
 
-**Chrome sets a floor under memorable and you cannot get back under it.** Past
-about forty Dissonance there is no such thing as an unremarkable netrunner:
-whatever you have had done shows, in the way you hold still and the way you do
-not, and no haircut fixes it. This is the appearance layer paying the same rent
+**Chrome sets a floor under memorable and you cannot get back under it.** By
+Submerged there is no such thing as an unremarkable netrunner: whatever you
+have had done shows, in the way you hold still and the way you do not, and no
+haircut fixes it. The floor is gentle at first and compounds, so a lightly
+chromed runner keeps their anonymity and a heavily chromed one has spent it. This is the appearance layer paying the same rent
 as everything else in this game. You do not get the benefits of the hardware
 and the anonymity of not having it.
 
@@ -577,7 +578,7 @@ ALL_BY_KEY: dict[tuple[str, str], Feature] = {
 #: Past this you cannot be forgettable however you dress, because the thing
 #: people notice is not something you are wearing.
 FLOOR_FROM = 25
-FLOOR_STEP = 18
+FLOOR_STEP = 8
 
 #: Memorable is reported on this scale rather than raw, so the player has a
 #: word rather than a number to reason about.
@@ -669,6 +670,44 @@ def effects(look: dict[str, str], marks: list[str] | None = None) -> dict:
         if feature is not None and feature.effects:
             parts.append(feature.effects)
     return fx.merge(*parts)
+
+
+# --------------------------------------------------------------------------
+# the table
+# --------------------------------------------------------------------------
+
+#: What a clinic charges to change one of the four permanent features, and
+#: how long you are on the table for it. Deliberately expensive: this is the
+#: escape hatch from a memorable face, and if it were cheap the whole two-
+#: sided design of the system collapses into "look striking, get surgery
+#: before anything goes wrong".
+SURGERY_COST: dict[str, int] = {
+    'eyes': 5200,
+    'face': 9800,
+    'build': 14500,
+    # Not for sale at any price. Marks are a record of what has been done to
+    # this character, and a record you can buy your way out of is not one.
+    'marks': 0,
+}
+SURGERY_SHIFTS = 3
+#: What it does to you. Reconstructive work is still work, and the body does
+#: not distinguish between chrome and a new jaw.
+SURGERY_DISSONANCE = 2
+
+
+def can_change(slot_key: str) -> tuple[bool, str]:
+    """Whether a clinic will touch this feature at all."""
+    slot = SLOT_BY_KEY.get(slot_key)
+    if slot is None:
+        return False, f'no such feature: {slot_key}'
+    if not slot.fixed:
+        return False, (f'{slot.name} is not surgery. '
+                       f'`self --set {slot_key} <key>`.')
+    if not SURGERY_COST.get(slot_key):
+        return False, ('Nobody will take those off you. They are a record of '
+                       'what has happened to you, and a record you can buy '
+                       'your way out of is not one.')
+    return True, ''
 
 
 # --------------------------------------------------------------------------

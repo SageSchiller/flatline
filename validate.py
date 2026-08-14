@@ -634,6 +634,23 @@ def check_appearance(rep: Report) -> None:
               f'highest band starts at {appearance.BANDS[-1][0]} but the '
               f'content only reaches {hi}, so it is unreachable')
 
+    # Surgery. The `self` command refuses a fixed slot by telling the player
+    # to go to a clinic, and that sentence has to be true.
+    for key in appearance.FIXED_SLOTS:
+        cost = appearance.SURGERY_COST.get(key)
+        rep.check(cost is not None, 'appearance/surgery',
+                  f'{key} is fixed but has no entry in SURGERY_COST, so the '
+                  f'refusal message points at a service that does not exist')
+    for key in appearance.FREE_SLOTS:
+        rep.check(not appearance.SURGERY_COST.get(key), 'appearance/surgery',
+                  f'{key} can be changed for free and is also priced')
+    rep.check("args.opt('face')" in _command_source(), 'appearance/surgery',
+              '`self` refuses fixed slots by pointing at `clinic --face`, '
+              'and no command reads that option')
+    rep.check(appearance.SURGERY_DISSONANCE > 0, 'appearance/surgery',
+              'reconstruction is free of drift, which no other body work in '
+              'this game is')
+
     # And the numbers they feed have to be read somewhere that matters.
     for promise, needle in (('memorable feeds heat', 'appearance.heat_mult'),
                             ('memorable feeds standing', 'appearance.rep_mult')):

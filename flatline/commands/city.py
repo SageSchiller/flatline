@@ -1559,6 +1559,11 @@ def cmd_clinic(sess, args) -> None:
         where = ', '.join(d.name for d in districts.with_service('clinic'))
         raise CommandError(f'no clinic here. Try: {where}')
 
+    if args.opt('face') or args.has('face'):
+        _reconstruct(sess, (args.opt('face') or '').lower(),
+                     (args.get(0) or '').lower(), args.has('confirm'))
+        return
+
     band = char.dissonance_band
     c.header(f'{game.city.district.name} clinic',
              f'Dissonance {char.dissonance}, {band[1]}')
@@ -1622,8 +1627,105 @@ def cmd_clinic(sess, args) -> None:
         c.say('[dim]`ground --confirm` to book it.[/]')
 
     c.blank()
+    c.rule('reconstruction')
+    c.say('[dim]They will change what you were born with, for money and for '
+          'time on a table. It does not come off your Dissonance; the body '
+          'does not distinguish between chrome and a new jaw.[/]')
+    c.blank()
+    c.table(('feature', 'now', 'price', 'takes'),
+            [(appearance.SLOT_BY_KEY[k].name,
+              appearance.ALL_BY_KEY[(k, char.look[k])].name,
+              f'{cost:,}c', f'{appearance.SURGERY_SHIFTS} shifts')
+             for k, cost in appearance.SURGERY_COST.items() if cost],
+            roles=('accent', 'dim', 'credit', 'dim'))
+    c.say('[dim]`clinic --face <feature>` to see the options, '
+          '`clinic --face <feature> <key> --confirm` to book it.[/]')
+
+    c.blank()
     c.say('[dim]`buy <name>` here, `install <name>` to have it fitted, '
           '`uninstall <name>` to have it taken out.[/]')
+
+
+def _reconstruct(sess, slot_key: str, choice: str,
+                 confirmed: bool) -> None:
+    """Change a feature you were born with. The expensive half of `self`.
+
+    Deliberately costly in credits, in shifts, and in Dissonance. This is the
+    escape hatch from a face somebody has circulated, and if it were cheap the
+    two-sided design of memorability would collapse into "look striking, book
+    surgery before anything goes wrong".
+    """
+    game, c = sess.game, sess.console
+    char = game.char
+    slot = appearance.SLOT_BY_KEY.get(slot_key)
+    if slot is None:
+        raise CommandError(
+            f'no such feature: {slot_key!r}. They will work on: '
+            f'{", ".join(k for k, v in appearance.SURGERY_COST.items() if v)}.')
+    ok, why = appearance.can_change(slot_key)
+    if not ok:
+        raise CommandError(why)
+    cost = appearance.SURGERY_COST[slot_key]
+
+    if not choice:
+        _look_options(sess, slot_key)
+        c.blank()
+        c.kv([('price', f'[credit]{cost:,}c[/]'),
+              ('you have', f'[credit]{char.credits:,}c[/]'),
+              ('takes', f'{appearance.SURGERY_SHIFTS} shifts'),
+              ('costs you', f'{appearance.SURGERY_DISSONANCE} Dissonance')])
+        c.say(f'[dim]`clinic --face {slot_key} <key> --confirm` to book it.[/]')
+        return
+
+    feature = appearance.BY_KEY.get((slot_key, choice))
+    if feature is None:
+        _look_options(sess, slot_key)
+        raise CommandError(f'no {slot.name.lower()} called {choice!r}.')
+    if char.look.get(slot_key) == feature.key:
+        raise CommandError(f'that is already your {slot.name.lower()}.')
+    if char.credits < cost:
+        raise CommandError(f'{cost:,}c, and you have {char.credits:,}c.')
+
+    if not confirmed:
+        c.blank()
+        c.rule(f'{slot.name}: {feature.name}', role='accent2')
+        c.say(f'[dim]{slot.stem} {feature.look}.[/]')
+        c.blank()
+        after = dict(char.look)
+        after[slot.key] = feature.key
+        now = char.memorable
+        then = appearance.score(after, char.marks,
+                                char.dissonance
+                                + appearance.SURGERY_DISSONANCE)[0]
+        c.kv([('price', f'[credit]{cost:,}c[/]'),
+              ('takes', f'{appearance.SURGERY_SHIFTS} shifts'),
+              ('costs you', f'{appearance.SURGERY_DISSONANCE} Dissonance, '
+                            f'permanently'),
+              ('memorable', f'{now} [dim]to[/] {then} '
+                            f'[accent]{appearance.band(then)[0]}[/]')])
+        c.blank()
+        c.warn('This is permanent and the Dissonance does not come back. '
+               f'[dim]`clinic --face {slot.key} {feature.key} --confirm`[/]')
+        return
+
+    before = char.memorable
+    char.credits -= cost
+    char.look[slot.key] = feature.key
+    char.dissonance += appearance.SURGERY_DISSONANCE
+    c.blank()
+    c.rule('reconstruction')
+    c.say('[dim]Three shifts of somebody else deciding what you look like, '
+          'and a week of not recognising the transition between rooms.[/]')
+    c.blank()
+    c.ok(f'{slot.name}: {feature.name}. [credit]{cost:,}c[/] gone.')
+    after = char.memorable
+    if after != before:
+        c.info(f'Memorable {before} to {after}, '
+               f'[accent]{char.memorable_band[0]}[/].')
+    for passage in char.new_passages():
+        c.blank()
+        c.say(f'[residue]{passage.text}[/]')
+    _advance(sess, appearance.SURGERY_SHIFTS)
 
 
 @command('ground', 'Have your Dissonance walked back. Expensive and partial.',

@@ -2396,6 +2396,53 @@ def test_appearance() -> None:
         _, out = play(['new Face --origin gutter --seed 11', line])
         T.ok(out.strip(), f'{line!r} says something')
 
+    # Reconstruction: the expensive half of `self`, and the escape hatch from
+    # a face that has been circulated. It has to cost enough that the two-
+    # sided design does not collapse into "look striking, book surgery".
+    T.ok(appearance.SURGERY_COST['build'] > appearance.SURGERY_COST['eyes'],
+         'reworking a whole frame costs more than a pair of eyes')
+    T.ok(min(v for v in appearance.SURGERY_COST.values() if v) > 3000,
+         'and none of it is impulse money')
+    T.ok(not appearance.SURGERY_COST['marks'],
+         'marks are not for sale at any price')
+    T.ok(not appearance.can_change('marks')[0], 'and the clinic refuses them')
+    T.ok(not appearance.can_change('hair')[0],
+         'a free feature is not surgery')
+    T.ok(appearance.can_change('face')[0], 'a fixed one is')
+
+    rich = Game.new(Character.from_origin('chromed', 'rich'), seed=8829)
+    rich.char.credits = 40000
+    was = (rich.char.credits, rich.char.dissonance, rich.city.shift)
+    sess, out = play(['travel glasshouse', 'clinic --face face plain'],
+                     game=rich)
+    T.eq((rich.char.credits, rich.char.dissonance), was[:2],
+         'quoting surgery costs nothing')
+    T.ok('permanent' in out, 'and warns that it is not reversible')
+
+    sess, out = play(['clinic --face face plain --confirm'], game=rich)
+    T.eq(rich.char.look['face'], 'plain', 'confirming changes the feature')
+    T.eq(rich.char.credits, was[0] - appearance.SURGERY_COST['face'],
+         'and charges for it')
+    T.eq(rich.char.dissonance, was[1] + appearance.SURGERY_DISSONANCE,
+         'and costs Dissonance that does not come back')
+    T.ok(rich.city.shift > was[2], 'and takes time on a table')
+
+    _, out = play(['clinic --face face plain --confirm'], game=rich)
+    T.ok('already' in out, 'booking the face you already have is refused')
+    _, out = play(['clinic --face marks clean --confirm'], game=rich)
+    T.ok('record' in out, 'and marks are refused with a reason')
+    for line in ('clinic --face', 'clinic --face nonsense',
+                 'clinic --face face nonsense', 'clinic --face hair long'):
+        _, out = play([line], game=rich)
+        T.ok(out.strip(), f'{line!r} says something rather than crashing')
+
+    broke = Game.new(Character.from_origin('gutter', 'broke'), seed=3)
+    broke.char.credits = 10
+    _, out = play(['travel glasshouse', 'clinic --face face plain --confirm'],
+                  game=broke)
+    T.eq(broke.char.look['face'], origins.BY_KEY['gutter'].look['face'],
+         'surgery you cannot afford does not happen')
+
     # And the whole thing survives a save.
     game = Game.new(Character.from_origin('courier', 'keeper'), seed=3)
     game.char.mark('bounty_mark')
