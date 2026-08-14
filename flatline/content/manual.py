@@ -232,17 +232,26 @@ TOPICS: tuple[Topic, ...] = (
         commands=('char', 'boost'),
         group='character'),
     Topic(
-        'skills', 'The eight skill lines',
+        'skills', 'The twelve skill lines',
         'What each buys, and why ranks 2 and 4 are the ones that matter.',
         '  [accent]Intrusion[/]     breaking services. The bread and butter.\n'
         '  [accent]Cryptography[/]  encrypted stores and key material.\n'
+        '  [accent]Architecture[/]  reading a network as a structure.\n'
+        '  [accent]Daemonology[/]   automation that acts without you.\n'
         '  [accent]Subterfuge[/]    talking your way in instead.\n'
-        '  [accent]Hardware[/]      deck tuning, overclocking, hotswaps.\n'
+        '  [accent]Sabotage[/]      breaking things so it looks like they '
+        'broke.\n'
         '  [accent]Stealth[/]       making everything you do quieter.\n'
+        '  [accent]Signal[/]        traffic rather than machines.\n'
         '  [accent]Warfare[/]       killing countermeasures instead of '
         'avoiding them.\n'
-        '  [accent]Forensics[/]     managing what you leave behind.\n'
-        '  [accent]Daemonology[/]   automation that acts without you.\n\n'
+        '  [accent]Psyche[/]        the part of you that is actually in '
+        'there.\n'
+        '  [accent]Hardware[/]      deck tuning, overclocking, hotswaps.\n'
+        '  [accent]Forensics[/]     managing what you leave behind.\n\n'
+        '[warn]Every attribute governs at least two of them[/], three lines '
+        'apiece for Logic and two for everybody else, so there is no '
+        'attribute you can safely ignore and no single best one.\n\n'
         '[warn]Ranks 2 and 4 of every line unlock a technique[/], which is a '
         'new verb in the shell or a new option on an existing one. Ranks 1, 3 '
         'and 5 are numeric fill. That is the whole shape of progression here: '
@@ -252,12 +261,12 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] breadth gets you more verbs, depth gets you '
         'better odds on the ones you have. Two techniques at rank 2 in '
         'different lines will change how a run plays more than one rank 4.',
-        see=('attributes', 'techniques', 'checks'),
+        see=('attributes', 'techniques', 'traits', 'checks'),
         commands=('skills', 'train', 'techniques'),
         group='character'),
     Topic(
         'techniques', 'Techniques',
-        'The sixteen things ranks 2 and 4 unlock.',
+        'The twenty-four things ranks 2 and 4 unlock.',
         'Every skill unlocks one technique at rank 2 and another at rank 4. '
         '[fg]techniques[/] lists the ones you have; [fg]skills[/] shows the '
         'next one coming.\n\n'
@@ -282,6 +291,31 @@ TOPICS: tuple[Topic, ...] = (
         'character yours.',
         see=('skills', 'scripting'),
         commands=('techniques', 'train'),
+        group='character'),
+    Topic(
+        'traits', 'Traits',
+        'The axis where the pool is much bigger than the slots.',
+        'Skills say what you can do. Chrome says what you are made of. '
+        '[accent]Traits say what you are like.[/]\n\n'
+        'You pick two at creation and earn one more every six runs, to a '
+        'maximum of five, out of a pool of twenty-six. That asymmetry is the '
+        'entire point: no two characters are taking the same five, so the '
+        'question stops being "what is optimal" and becomes "what is this '
+        'person".\n\n'
+        'Every one of them cuts both ways. Impatient makes everything you do '
+        'faster and takes away a tick of warning before ICE strikes. Greedy '
+        'gives you better legwork and means you physically cannot leave a '
+        'node with anything still on it. Nobody Taught You makes you better '
+        'with hardware and worse with anything genuinely unfamiliar.\n\n'
+        'Some of them refuse to sit together. You cannot be both Impatient '
+        'and Methodical, and you cannot have never had chrome and also be '
+        'Wired For It.\n\n'
+        '[warn]The decision:[/] traits are permanent and there are never '
+        'enough slots, so take the two that make the character a person '
+        'rather than the two that look strongest. The optimisation is not '
+        'where the value is.',
+        see=('skills', 'chrome', 'attributes'),
+        commands=('trait',),
         group='character'),
     Topic(
         'chrome', 'Cyberware and Dissonance',

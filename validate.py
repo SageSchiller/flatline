@@ -29,6 +29,7 @@ from flatline.content import nodes as node_content
 from flatline.content import origins, programs
 from flatline.content import rivals as rival_content
 from flatline.content import skills
+from flatline.content import traits as trait_content
 from flatline.model.character import Character
 from flatline.shell import CONTEXTS, GROUPS, REGISTRY
 from flatline.world import contracts as contract_mod
@@ -834,6 +835,67 @@ def check_scripting(rep: Report) -> None:
               'MAX_DISPATCH is below MAX_STEPS, so a legal script cannot run')
 
 
+def check_traits(rep: Report) -> None:
+    """Traits follow the same honesty rule as chrome, origins and icons."""
+    engine = _engine_source() + _command_source()
+    for t in trait_content.TRAITS:
+        where = f'traits/{t.key}'
+        rep.check(t.group in trait_content.GROUPS, where,
+                  f'unknown group {t.group!r}')
+        rep.check(bool(t.blurb), where, 'has no description')
+        rep.check(bool(t.drawback), where, 'has no stated drawback')
+        if not t.effects:
+            rep.error(where, 'has no benefit, so nobody would ever take it')
+        if not t.penalty and not t.rider:
+            rep.error(where, 'drawback is prose only: needs a penalty dict or '
+                             'a rider the engine implements')
+        if t.rider:
+            rep.check(t.rider in trait_content.RIDERS, where,
+                      f'rider {t.rider!r} is not in traits.RIDERS')
+        for problems in (fx.check(t.effects, f'{where}/effects'),
+                         fx.check(t.penalty, f'{where}/penalty')):
+            for problem in problems:
+                rep.error('effects', problem)
+        for other in t.excludes:
+            rep.check(other in trait_content.BY_KEY, where,
+                      f'excludes unknown trait {other!r}')
+            back = trait_content.BY_KEY.get(other)
+            if back and t.key not in back.excludes:
+                rep.error(where, f'excludes {other!r}, which does not exclude '
+                                 f'it back')
+
+    for rider in sorted(trait_content.RIDERS):
+        if rider not in engine:
+            rep.error('traits', f'rider {rider!r} is declared and read nowhere')
+        if not any(t.rider == rider for t in trait_content.TRAITS):
+            rep.warn('traits', f'rider {rider!r} is declared but unused')
+
+    for group in trait_content.GROUPS:
+        rep.check(group in trait_content.GROUP_TITLES, 'traits',
+                  f'group {group!r} has no title')
+        if not [t for t in trait_content.TRAITS if t.group == group]:
+            rep.warn('traits', f'group {group!r} is empty')
+
+    # The pool has to be much larger than the slots, or every character
+    # converges on the same picks and the axis does nothing.
+    rep.check(len(trait_content.TRAITS) >= trait_content.MAX_TRAITS * 4,
+              'traits',
+              f'{len(trait_content.TRAITS)} traits for '
+              f'{trait_content.MAX_TRAITS} slots is not enough spread')
+    rep.check(trait_content.CREATION_PICKS < trait_content.MAX_TRAITS,
+              'traits', 'creation hands out every slot at once')
+
+    # A fresh character must be able to pick, and exclusions must never
+    # empty the pool.
+    fresh = Character.from_origin('gutter', 'validate')
+    rep.check(len(trait_content.available(fresh.traits, fresh)) > 10,
+              'traits', 'too few traits open to a new character')
+    for t in trait_content.TRAITS:
+        after = trait_content.available([t.key], fresh)
+        rep.check(len(after) >= 5, f'traits/{t.key}',
+                  'taking it closes off almost everything else')
+
+
 def check_manual(rep: Report) -> None:
     """The manual has to be reachable, linked correctly, and about something."""
     for t in manual.TOPICS:
@@ -988,6 +1050,9 @@ def check_markup(rep: Report) -> None:
     for w in cyberware.WARE:
         collect(f'cyberware/{w.key}', w.blurb)
         collect(f'cyberware/{w.key}', w.drawback)
+    for t in trait_content.TRAITS:
+        collect(f'traits/{t.key}', t.blurb)
+        collect(f'traits/{t.key}', t.drawback)
     for t in manual.TOPICS:
         collect(f'manual/{t.key}', t.summary)
     for step in tut.STEPS:
@@ -1005,6 +1070,9 @@ def check_markup(rep: Report) -> None:
         collect(f'icons/{i.key}', i.blurb)
         collect(f'icons/{i.key}', i.render)
         collect(f'icons/{i.key}', i.drawback)
+    for t in trait_content.TRAITS:
+        collect(f'traits/{t.key}', t.blurb)
+        collect(f'traits/{t.key}', t.drawback)
     for t in manual.TOPICS:
         collect(f'manual/{t.key}', t.summary)
     for step in tut.STEPS:
@@ -1100,7 +1168,7 @@ CHECKS = (
     check_icons, check_dissonance, check_cyberspace, check_rivals, check_debt,
     check_origins, check_skills, check_factions, check_districts,
     check_ice, check_nodes, check_contracts, check_commands,
-    check_scripting, check_manual, check_tutorial, check_theme, check_markup, check_balance,
+    check_traits, check_scripting, check_manual, check_tutorial, check_theme, check_markup, check_balance,
 )
 
 

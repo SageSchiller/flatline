@@ -13,6 +13,7 @@ from ..content import effects as fx, factions
 from ..content import hardware, icons, origins, programs
 from ..content import rivals as rival_content
 from ..content import skills as skill_content
+from ..content import traits as trait_content
 from ..game import Game
 from ..model.character import Character
 from ..model.identity import ALIAS_COST, ALIAS_SHIFTS
@@ -88,7 +89,8 @@ def cmd_new(sess, args) -> None:
                        f'{char.xp} experience')])
     c.blank()
     c.say('[dim]`char` to see the build, `boost <attribute>` and '
-          '`train <skill>` to spend, `board` when you are ready to work.[/]')
+          '`train <skill>` to spend, and `trait` to decide what kind of '
+          'person this is. `board` when you are ready to work.[/]')
 
 
 # --------------------------------------------------------------------------
@@ -405,6 +407,10 @@ def cmd_install(sess, args) -> None:
     ware = cyberware.BY_KEY[key]
     if key not in game.char.library and key not in game.char.installed:
         raise CommandError(f'you do not own a {ware.name}. Buy one first.')
+    if 'no_chrome' in game.char.riders():
+        raise CommandError('you have never had anything put in you and you '
+                           'have opinions about people who have. Nothing is '
+                           'going in now.')
     ok, why = game.char.can_install(key)
     if not ok:
         raise CommandError(why)
@@ -717,9 +723,14 @@ def cmd_travel(sess, args) -> None:
         raise CommandError(why)
 
     danger, who = game.city.danger(game.alias, target, game.rng)
-    if 'streetwise' in game.char.riders():
+    riders = game.char.riders()
+    if 'streetwise' in riders:
         # Knows the streets: you move through this city like your own flat.
         danger = int(danger * 0.6)
+    if 'findable' in riders:
+        # Everybody knows where you drink, including everybody you would
+        # rather did not.
+        danger = int(danger * 1.3)
     if danger >= fallout.INCIDENT_FLOOR and not args.has('anyway'):
         fac = factions.BY_KEY[who]
         raise CommandError(
@@ -784,6 +795,13 @@ def cmd_rest(sess, args) -> None:
     safe = 'safehouse' in game.city.district.services
     before = game.char.hurt
     heal = (2 if safe else 1) * shifts
+    riders = game.char.riders()
+    # Whatever they used to restart you has never entirely stopped, and three
+    # hours a night for eleven years is not rest.
+    if 'slow_healing' in riders:
+        heal = heal // 2
+    if 'poor_rest' in riders:
+        heal = int(heal * 0.6)
     game.char.hurt = max(0, game.char.hurt - heal)
     _advance(sess, shifts)
     healed = before - game.char.hurt
@@ -791,6 +809,10 @@ def cmd_rest(sess, args) -> None:
          + (f' [ok]Integrity +{healed}.[/]' if healed else ''))
     if not safe:
         c.info('No safehouse here. You did not sleep well.')
+    if 'slow_healing' in game.char.riders():
+        c.info('You heal the way you have healed since the table.')
+    elif 'poor_rest' in game.char.riders():
+        c.info('Three hours, like every night.')
 
 
 # --------------------------------------------------------------------------
@@ -1044,8 +1066,34 @@ def _advance(sess, shifts: int) -> None:
                              debt=game.debt, char=game.char)
     for line in told:
         sess.console.say(line)
+    _rot(sess, shifts)
     _drift(sess)
     sess.autosave()
+
+
+def _rot(sess, shifts: int) -> None:
+    """Hoarder: a deck full of things that nearly work gets worse on its own.
+
+    Only touches components that are already damaged, so it is a tax on
+    neglect rather than on owning a deck.
+    """
+    game = sess.game
+    if game is None or 'rot' not in game.char.riders():
+        return
+    deck = game.char.deck
+    hurt = [slot for slot, level in deck.damage.items() if 0 < level < 3]
+    if not hurt:
+        return
+    stream = game.rng('events')
+    for _ in range(shifts):
+        if hurt and stream.chance(0.12):
+            slot = stream.pick(hurt)
+            level = deck.hurt(slot, 1)
+            comp = deck.component(slot)
+            sess.console.warn(
+                f'{comp.name if comp else slot} has got worse sitting there '
+                f'[dim](damage {level}/3)[/].')
+            hurt = [s for s, l in deck.damage.items() if 0 < l < 3]
 
 
 def _drift(sess) -> None:
@@ -1304,7 +1352,13 @@ def cmd_ask(sess, args) -> None:
         c.say(f'[dim]{why}[/]')
         return
 
-    rival.adjust_disposition(-rival_world.favour_cost(kind))
+    cost = rival_world.favour_cost(kind)
+    if 'owes_a_favour' in game.char.riders():
+        # The street knows you are already carrying one.
+        cost = int(cost * 1.4)
+        c.say('[dim]They mention, without mentioning it, that you already owe '
+              'somebody.[/]')
+    rival.adjust_disposition(-cost)
     _grant_favour(sess, rival, kind)
 
 
@@ -1688,3 +1742,110 @@ def cmd_repair(sess, args) -> None:
     char.deck.repair()
     c.ok(f'Deck rebuilt for [credit]{cost:,}c[/].')
     _advance(sess, 1)
+
+
+@command('trait', 'What you are like. Permanent, and there are never enough '
+                  'slots.',
+         group='character', aliases=('traits',),
+         usage='trait [<key>] [--confirm]',
+         detail='Skills say what you can do; traits say what you are like. '
+                'You pick two at creation and earn one more every six runs, '
+                'to a maximum of five, out of a pool of twenty-six. Nothing '
+                'here is purely good and nothing here can be taken back.')
+def cmd_trait(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    char = game.char
+
+    key = (args.get(0) or '').lower()
+    if key:
+        match = next((k for k in trait_content.TRAIT_KEYS
+                      if k == key
+                      or key in trait_content.BY_KEY[k].name.lower()), None)
+        if match is None:
+            raise CommandError(f'no trait called {key!r}')
+        trait = trait_content.BY_KEY[match]
+
+        if match in char.traits:
+            _show_trait(c, trait, held=True)
+            return
+        ok, why = char.can_take_trait(match)
+        if not args.has('confirm'):
+            _show_trait(c, trait, held=False)
+            c.blank()
+            if ok:
+                c.say(f'[warn]This is permanent.[/] '
+                      f'[dim]`trait {match} --confirm` to take it.[/]')
+            else:
+                c.err(why)
+            return
+        if not ok:
+            raise CommandError(why)
+        char.take_trait(match)
+        c.blank()
+        c.ok(f'You are {trait.name.lower()} now.')
+        c.say(f'[dim]{trait.blurb}[/]')
+        c.blank()
+        c.say(f'[warn]{trait.drawback}[/]')
+        sess.autosave()
+        return
+
+    c.header('Traits', f'{len(char.traits)}/{char.trait_slots} taken')
+    if char.traits:
+        for held in char.traits:
+            trait = trait_content.BY_KEY[held]
+            c.blank()
+            c.raw(f'[accent][bold]{trait.name}[/][/]  [dim]{trait.key}[/]')
+            c.say(f'[dim]{trait.blurb}[/]', indent='  ', subsequent='  ')
+            c.say(f'[warn]{trait.drawback}[/]', indent='  ', subsequent='  ')
+    else:
+        c.say('[dim]None yet.[/]')
+
+    if not char.trait_picks:
+        c.blank()
+        nxt = ((trait_content.earned(char.runs) + 1)
+               * trait_content.EARN_EVERY)
+        if len(char.traits) >= trait_content.MAX_TRAITS:
+            c.say('[dim]That is all of them. Five is the ceiling.[/]')
+        else:
+            c.say(f'[dim]Next slot at {nxt} runs. You have {char.runs}.[/]')
+        return
+
+    c.blank()
+    c.rule(f'{char.trait_picks} to spend')
+    open_now = trait_content.available(char.traits, char)
+    for group in trait_content.GROUPS:
+        pool = [t for t in open_now if t.group == group]
+        if not pool:
+            continue
+        c.blank()
+        c.raw(f'[accent2]{trait_content.GROUP_TITLES[group]}[/]')
+        width = max(len(t.key) for t in pool)
+        for trait in pool:
+            pad = ' ' * (width - len(trait.key))
+            c.say(f'  [fg]{trait.key}[/]{pad}  [dim]{trait.name}[/]',
+                  subsequent=' ' * (width + 4))
+    c.blank()
+    c.say('[dim]`trait <key>` to read one properly. Nothing here is purely '
+          'good, and nothing here comes back off.[/]')
+
+
+def _show_trait(c, trait, held: bool) -> None:
+    c.header(trait.name, 'held' if held else trait.key)
+    c.say(trait.blurb)
+    c.blank()
+    c.say(f'[warn]{trait.drawback}[/]')
+    rows = []
+    for key, value in sorted(trait.effects.items()):
+        rows.append((fx.describe(key, value), '[ok]for you[/]'))
+    for key, value in sorted(trait.penalty.items()):
+        rows.append((fx.describe(key, value), '[err]against you[/]'))
+    if trait.rider:
+        rows.append((f'{trait.rider.replace("_", " ")}', '[warn]a rule[/]'))
+    if rows:
+        c.blank()
+        c.kv(rows)
+    if trait.excludes:
+        c.blank()
+        c.say('[dim]Does not go with: '
+              + ', '.join(trait_content.BY_KEY[k].name
+                          for k in trait.excludes) + '[/]')

@@ -932,6 +932,133 @@ def test_rivals() -> None:
     save_mod.delete('rivals')
 
 
+def test_traits_and_spread() -> None:
+    T.section('traits and spread')
+    from flatline.content import traits as trait_mod
+
+    # The whole point of the axis is that the pool dwarfs the slots. If it
+    # does not, every character converges and the axis does nothing.
+    T.ok(len(trait_mod.TRAITS) >= trait_mod.MAX_TRAITS * 4,
+         f'{len(trait_mod.TRAITS)} traits for {trait_mod.MAX_TRAITS} slots')
+    T.ok(trait_mod.CREATION_PICKS < trait_mod.MAX_TRAITS,
+         'creation does not hand out every slot')
+
+    # Every attribute must govern at least two skill lines. Logic used to
+    # govern five of eight and Grit none, which made Logic mandatory, Grit a
+    # dump stat, and every character's opening spread identical.
+    from collections import Counter
+    governs = Counter(s.attr for s in skills.SKILLS)
+    for key in attr_content.ATTR_KEYS:
+        T.ok(governs.get(key, 0) >= 2,
+             f'{key} governs at least two skills (governs '
+             f'{governs.get(key, 0)})')
+    T.ok(max(governs.values()) - min(governs.values()) <= 2,
+         f'the spread is not lopsided ({dict(governs)})')
+
+    # Every skill still unlocks at ranks 2 and 4, including the new lines.
+    for skill in skills.SKILLS:
+        ranks = sorted(t.rank for t in skill.techniques)
+        T.eq(ranks, [2, 4], f'{skill.key} unlocks at 2 and 4')
+        for tech in skill.techniques:
+            if tech.verb:
+                head = tech.verb.split()[0].split('--')[0].strip()
+                T.ok(REGISTRY.lookup(head) is not None,
+                     f'{tech.key} names a real command ({head})')
+
+    # Traits reach the character and cut both ways.
+    char = Character.from_origin('gutter', 'x')
+    T.eq(char.trait_picks, trait_mod.CREATION_PICKS,
+         'a new character has creation picks')
+    for trait in trait_mod.TRAITS:
+        T.ok(bool(trait.effects), f'{trait.key} has a benefit')
+        T.ok(bool(trait.penalty or trait.rider),
+             f'{trait.key} has a mechanical drawback')
+
+    fresh = Character.from_origin('gutter', 'x')
+    base_tick = fresh.mult('tick_mult')
+    fresh.take_trait('impatient')
+    T.ok(fresh.mult('tick_mult') < base_tick, 'a trait changes the numbers')
+    T.ok(fresh.bonus('tell_lead') < 0, 'and its drawback lands too')
+
+    # Exclusions hold both ways and are enforced.
+    ok, why = fresh.can_take_trait('methodical')
+    T.ok(not ok, 'an excluded trait is refused')
+    T.ok('does not go with' in why, 'and says why')
+    for trait in trait_mod.TRAITS:
+        for other in trait.excludes:
+            T.ok(trait.key in trait_mod.BY_KEY[other].excludes,
+                 f'{trait.key}/{other} exclusion is mutual')
+
+    # Slots are earned, not granted.
+    counter = Character.from_origin('gutter', 'x')
+    T.eq(counter.trait_slots, trait_mod.CREATION_PICKS, 'two at the start')
+    counter.runs = trait_mod.EARN_EVERY
+    T.eq(counter.trait_slots, trait_mod.CREATION_PICKS + 1,
+         'one more after the first stretch of runs')
+    counter.runs = 10_000
+    T.eq(counter.trait_slots, trait_mod.MAX_TRAITS, 'and it caps')
+
+    # You cannot take more than you have.
+    spent = Character.from_origin('gutter', 'x')
+    spent.take_trait('cold')
+    spent.take_trait('logreader')
+    ok, why = spent.can_take_trait('fast')
+    T.ok(not ok, 'a third pick is refused at creation')
+    T.raises(lambda: spent.take_trait('fast'), 'and taking it raises')
+
+    # Riders reach the character and are read by the engine.
+    engine = _source_of('flatline/run', 'flatline/commands')
+    for rider in trait_mod.RIDERS:
+        T.ok(rider in engine, f'trait rider {rider!r} is read by the engine')
+    rider_char = Character.from_origin('gutter', 'x')
+    rider_char.take_trait('hoarder')
+    T.ok('rot' in rider_char.riders(), 'a trait rider reaches riders()')
+
+    # Traits survive a save.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=5)
+    game.char.take_trait('sensitive')
+    game.char.take_trait('known')
+    game.save('traits')
+    back = Game.load('traits')
+    T.eq(back.char.traits, game.char.traits, 'traits survive a save')
+    T.eq(back.char.mult('ice_dr'), game.char.mult('ice_dr'),
+         'and so does what they do')
+    save_mod.delete('traits')
+
+    # The new techniques all work as commands, gated on the rank.
+    net = net_mod.generate(Rng(4).fork('network', 'newskills'), 'sixes', 30)
+    console = quiet_console()
+    console.start_capture()
+    for skill_key, tech_key, verb in (
+            ('architecture', 'chart', 'chart'),
+            ('signal', 'listen', 'listen'),
+            ('sabotage', 'misdirect', 'misdirect'),
+            ('psyche', 'steady', 'steady')):
+        blocked = Character.from_origin('gutter', 'x')
+        T.ok(not blocked.has_technique(tech_key),
+             f'{tech_key} is locked without the rank')
+        trained = Character.from_origin('gutter', 'x')
+        trained.base_skills[skill_key] = 2
+        T.ok(trained.has_technique(tech_key),
+             f'{tech_key} unlocks at rank 2 of {skill_key}')
+    console.end_capture()
+
+    # Dissociate genuinely redirects damage away from the body.
+    console.start_capture()
+    char = Character.from_origin('gutter', 'x')
+    char.base_skills['psyche'] = 4
+    state = RunState.begin(net, char, Rng(4)('combat'), console)
+    state.dissociated = 3
+    before_hurt = state.hurt
+    before_deck = sum(state.char.deck.damage.values())
+    state.take_damage(20, black=True, source='test')
+    T.eq(state.hurt, before_hurt, 'dissociated damage misses the body')
+    T.ok(sum(state.char.deck.damage.values()) > before_deck,
+         'and lands on the deck instead')
+    T.ok(state.running, 'and lethal damage cannot end you through it')
+    console.end_capture()
+
+
 def test_regressions() -> None:
     """Three bugs found by audit on 2026-08-13. None had a test; all three
     were reachable in ordinary play."""
@@ -1937,7 +2064,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_migration, test_shell,
+    test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_migration, test_shell,
     test_playthrough, test_ui,
 )
 

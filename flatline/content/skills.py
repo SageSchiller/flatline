@@ -1,4 +1,4 @@
-"""The eight skill lines and the techniques they unlock.
+"""The twelve skill lines and the techniques they unlock.
 
 The design rule for this file: **a rank must change what you can type, not
 just what you roll.** Ranks 2 and 4 of every line unlock a technique, which is
@@ -8,6 +8,12 @@ Daemonology build plays a different game rather than the same game better.
 
 Ranks 1, 3, and 5 are the numeric fill between them. They matter, but they are
 not what a player is buying toward.
+
+**Every attribute governs at least two lines.** That was not true for a long
+time: Logic governed five of the original eight and Grit governed none, which
+made Logic mandatory, Grit a dump stat, and every character's attribute spread
+the same shape. `validate.py` now enforces the spread, because a customisation
+system whose optimal opening is identical for everybody is not one.
 """
 
 from __future__ import annotations
@@ -104,7 +110,7 @@ SKILLS: tuple[Skill, ...] = (
                       'authorised, which is a different and better thing.'),
         )),
     Skill(
-        'hardware', 'Hardware', 'logic',
+        'hardware', 'Hardware', 'grit',
         'Deck tuning, overclocking, physical taps.',
         'The deck is not a fixed quantity. Hardware is the line that treats it '
         'as something you are operating rather than something you own.',
@@ -158,7 +164,7 @@ SKILLS: tuple[Skill, ...] = (
                       'number you see all session. Worth it exactly once.'),
         )),
     Skill(
-        'forensics', 'Forensics', 'logic',
+        'forensics', 'Forensics', 'grit',
         'Anti-forensics. Managing what you leave behind.',
         'The run ends when you jack out. The consequences do not. Forensics is '
         'the only line that operates on residue, which is the only quantity in '
@@ -194,6 +200,93 @@ SKILLS: tuple[Skill, ...] = (
                       'crack while you are elsewhere. It has its own noise '
                       'signature and it is not smart. Two of them will get you '
                       'caught. Two of them will also get you out with the data.'),
+        )),
+
+    Skill(
+        'architecture', 'Architecture', 'logic',
+        'Reading a network as a structure rather than a list.',
+        'Everybody else sees hosts. You see how somebody decided to arrange '
+        'them, which tells you where they put the thing worth arranging '
+        'around. Nobody builds a network without leaving their reasoning in '
+        'the shape of it.',
+        (
+            Technique('chart', 'Chart', 2, 'chart',
+                      'Read the shape of the segment without touching it.',
+                      'Reveals topology two hops out, edges included, at a '
+                      'fraction of a scan\'s noise and without probing '
+                      'anything. What it does not tell you is contents: this '
+                      'is a map, not an inventory.'),
+            Technique('backdoor', 'Backdoor', 4, 'backdoor',
+                      'Find a route that was not on the map.',
+                      'Opens a connection between the node you hold and one '
+                      'two hops away, once per run. The counter to a herder, '
+                      'to a lockdown, and to having gone in the wrong way: '
+                      'there is always another door if you understand why the '
+                      'building is shaped like that.'),
+        )),
+    Skill(
+        'signal', 'Signal', 'reflex',
+        'Traffic rather than machines. What a network says to itself.',
+        'A host is a thing you break. A conversation between two hosts is a '
+        'thing you read, and it is generally more honest, because nobody '
+        'encrypts what they assume nobody is standing next to.',
+        (
+            Technique('listen', 'Listen', 2, 'listen',
+                      'Collect passively from where you stand.',
+                      'Reveals the data and countermeasures on every '
+                      'neighbouring node without probing any of them. Costs '
+                      'two ticks and makes no noise at all, which makes it '
+                      'the reconnaissance a stealth build actually wants.'),
+            Technique('intercept', 'Intercept', 4, 'intercept',
+                      'Take a credential out of the traffic.',
+                      'Three ticks of residency on a node carrying live '
+                      'traffic buys you an access tier without cracking '
+                      'anything. Silent, and the fastest legitimate route '
+                      'into a restricted zone in the game.'),
+        )),
+    Skill(
+        'sabotage', 'Sabotage', 'guile',
+        'Breaking things so that it looks like they broke.',
+        'Any idiot can destroy a record. The trade is destroying it in a way '
+        'that reads as a disk fault, a bad migration, or somebody upstairs '
+        'having done something stupid in a hurry.',
+        (
+            Technique('misdirect', 'Misdirect', 2, 'misdirect',
+                      'Make your noise register somewhere it is not.',
+                      'Moves the noise on your current node to a node of your '
+                      'choosing. The countermeasures wake up over there, and '
+                      'the alert escalates on their reading rather than '
+                      'yours. Costs a tick and it is not subtle twice.'),
+            Technique('collapse', 'Collapse', 4, 'collapse',
+                      'Take a node out of the network entirely.',
+                      'Destroys the node you are standing on: its data, its '
+                      'countermeasures, and its routes. Once per run, '
+                      'enormously loud, and it satisfies a wipe contract '
+                      'outright. You have to be somewhere else by the time '
+                      'anybody works out which node it was.'),
+        )),
+    Skill(
+        'psyche', 'Psyche', 'nerve',
+        'The part of you that is actually in there.',
+        'Everything else on this list is about the network. This one is about '
+        'the fact that a person is jacked into it, that the person can be '
+        'hurt through it, and that with enough practice the person can decide '
+        'not to be there for a moment.',
+        (
+            Technique('steady', 'Steady', 2, 'steady',
+                      'Take a breath. Recover Focus mid-run.',
+                      'Restores Focus, which nothing else in the game does '
+                      'once a run has started, and clears a lock-on if your '
+                      'Nerve is up to it. Two ticks and no noise: this is the '
+                      'button you press when it has gone wrong and you need '
+                      'it to not be worse.'),
+            Technique('dissociate', 'Dissociate', 4, 'dissociate',
+                      'Stop being present in the thing that is hurting you.',
+                      'For a few ticks, every point of damage lands on the '
+                      'deck instead of on you, and black ICE cannot reach you '
+                      'at all. Once per run. It is the only counter to a '
+                      'Coffin that does not involve killing it, and the deck '
+                      'pays for all of it.'),
         )),
 )
 

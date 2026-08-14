@@ -169,10 +169,18 @@ def cmd_jack_out(sess, args) -> None:
     c = sess.console
     # The Grave Governor holds a session open, and does not distinguish
     # between one you want held and one you are trying to leave.
-    slow = 'slow_exit' in state.char.riders()
+    riders = state.char.riders()
+    slow = 'slow_exit' in riders
     if slow:
         c.say('[warn]The Governor does not want to let go. It takes a moment '
               'to convince it.[/]')
+    # Greedy: you have never left a node with anything still on it, and you
+    # are not about to start.
+    if ('cannot_leave' in riders
+            and any(not a.taken for a in state.node.data)):
+        slow = True
+        c.say('[warn]There is still something on this node. You spend a '
+              'moment not leaving.[/]')
     _act(sess, 'jack out', ticks=2 if slow else None)
     if sess.run is None:
         # Leaving cost you the last tick you had. `_act` has already settled.
@@ -1672,3 +1680,273 @@ def _show_node(sess, node, detail: bool = False) -> None:
         c.blank()
         c.raw(f'  [residue]residue {node.residue}[/] '
               f'[dim]left here by you[/]')
+
+
+# --------------------------------------------------------------------------
+# architecture, signal, sabotage, psyche
+# --------------------------------------------------------------------------
+
+
+@command('chart', 'Read the shape of the segment without touching it.',
+         group='recon', contexts=('run',), ticks=1, usage='chart',
+         detail='Architecture rank 2. Reveals topology two hops out, edges '
+                'included, at a fraction of a scan\'s noise. It is a map, not '
+                'an inventory: it will not tell you what is on anything.')
+def cmd_chart(sess, args) -> None:
+    state, c = sess.require_run(), sess.console
+    if not state.char.has_technique('chart'):
+        raise CommandError('Chart is Architecture rank 2.')
+    found = _reveal(state, state.here, 2)
+    _act(sess, 'scan', noise_scale=0.25)
+    if not state.running:
+        return
+    c.blank()
+    if found:
+        rows = [(uid, state.net.nodes[uid].display_type,
+                 state.net.nodes[uid].zone,
+                 str(len(state.net.nodes[uid].edges)))
+                for uid in found]
+        c.table(('host', 'type', 'zone', 'links'), rows,
+                roles=('accent', 'dim', 'info', 'dim'))
+    else:
+        c.info('Nothing new in the shape of it.')
+    c.say('[dim]Structure only. `probe` still tells you what is on anything.[/]')
+
+
+@command('backdoor', 'Open a route that was not on the map.',
+         group='access', contexts=('run',), ticks=2, usage='backdoor <host>',
+         detail='Architecture rank 4, once per run. Connects the node you '
+                'hold to one two hops away. The counter to a herder, to a '
+                'lockdown, and to having come in the wrong way.')
+def cmd_backdoor(sess, args) -> None:
+    state, c = sess.require_run(), sess.console
+    if not state.char.has_technique('backdoor'):
+        raise CommandError('Backdoor is Architecture rank 4.')
+    if 'backdoor' in state.spent:
+        raise CommandError('you only find one of those a run')
+    uid = args.require(0, 'a host to reach')
+    node = _node(state, uid)
+    if uid == state.here:
+        raise CommandError('you are standing in it')
+    if uid in state.node.edges:
+        raise CommandError(f'{uid} already touches {state.here}')
+
+    # Two hops only: this finds a route that plausibly exists, not one that
+    # would have to have been built.
+    reachable = set()
+    for edge in state.node.edges:
+        reachable.update(state.net.nodes[edge].edges)
+    if uid not in reachable:
+        raise CommandError(f'{uid} is further than two hops. There is no '
+                           f'argument for a route that is not there.')
+
+    state.spent.add('backdoor')
+    state.node.edges.append(uid)
+    node.edges.append(state.here)
+    node.known = True
+    _act(sess, 'connect', noise_scale=0.4, ticks=2)
+    if state.running:
+        c.ok(f'There is a route from {state.here} to [accent]{uid}[/]. '
+             f'There was always going to be.')
+
+
+@command('listen', 'Collect passively from where you stand.',
+         group='recon', contexts=('run',), ticks=2, usage='listen',
+         detail='Signal rank 2. Reveals the data and countermeasures on every '
+                'neighbouring node without probing any of them, and makes no '
+                'noise at all.')
+def cmd_listen(sess, args) -> None:
+    state, c = sess.require_run(), sess.console
+    if not state.char.has_technique('listen'):
+        raise CommandError('Listen is Signal rank 2.')
+    neighbours = [state.net.nodes[e] for e in state.node.edges
+                  if e in state.net.nodes]
+    _act(sess, 'scrub', noise_scale=0.0, ticks=2)
+    if not state.running:
+        return
+    if not neighbours:
+        c.info('Nothing is talking to this node.')
+        return
+    c.blank()
+    for node in neighbours:
+        node.known = True
+        node.mapped = True
+        for construct in node.ice:
+            construct.known = True
+        marks = []
+        live = [i for i in node.live_ice]
+        if live:
+            marks.append(f'[ice]{", ".join(i.data.name for i in live)}[/]')
+        assets = [a for a in node.data if not a.taken]
+        if assets:
+            marks.append(f'[credit]{len(assets)} assets, '
+                         f'{sum(a.value for a in assets):,}c[/]')
+        c.raw(f'  [accent]{node.uid:<12}[/] [dim]{node.display_type:<12}[/] '
+              + '  '.join(marks or ['[dim]nothing worth the trip[/]']))
+
+
+@command('intercept', 'Take a credential out of the traffic.',
+         group='access', contexts=('run',), ticks=3, usage='intercept',
+         detail='Signal rank 4. Three ticks of residency on a node carrying '
+                'live traffic buys an access tier without cracking anything. '
+                'Silent.')
+def cmd_intercept(sess, args) -> None:
+    state, c = sess.require_run(), sess.console
+    if not state.char.has_technique('intercept'):
+        raise CommandError('Intercept is Signal rank 4.')
+    node = state.node
+    if not node.open:
+        raise CommandError('you cannot read traffic you are not inside')
+    if state.tier >= 3:
+        raise CommandError('there is nothing above the tier you already hold')
+
+    check = Check(name='intercept', resistance=8 + state.net.posture // 6)
+    check.add('signal', state.char.skill('signal') * 2)
+    check.add('reflex', state.char.attr('reflex'))
+    if node.type in ('auth', 'controller', 'relay'):
+        check.add('this node is a junction', 4)
+    check.resolve(state.rng)
+
+    _act(sess, 'sidechannel', noise_scale=0.0, ticks=3)
+    if not state.running:
+        return
+    c.blank()
+    if check.success:
+        state.tier += 1
+        c.ok(f'Somebody authenticated while you were listening. Access tier '
+             f'{state.tier}.')
+    else:
+        c.err('Nothing useful went past.')
+        c.say(check.explain())
+
+
+@command('misdirect', 'Make your noise register somewhere else.',
+         group='defence', contexts=('run',), ticks=1,
+         usage='misdirect <host>',
+         detail='Sabotage rank 2. Moves the noise on this node onto another '
+                'one. Their countermeasures wake up, and the alert escalates '
+                'on their reading rather than yours.')
+def cmd_misdirect(sess, args) -> None:
+    state, c = sess.require_run(), sess.console
+    if not state.char.has_technique('misdirect'):
+        raise CommandError('Misdirect is Sabotage rank 2.')
+    uid = args.require(0, 'a host to blame')
+    node = _node(state, uid)
+    if uid == state.here:
+        raise CommandError('that is where the noise already is')
+    if not node.known:
+        raise CommandError(f'{uid} has not been found yet')
+
+    moved = state.node.noise
+    if moved <= 0:
+        raise CommandError('you have not made any noise to move')
+    state.node.noise = 0
+    node.noise += moved
+    _act(sess, 'pretext', noise_scale=0.2)
+    if state.running:
+        c.ok(f'{moved} points of somebody else\'s problem, on '
+             f'[accent]{uid}[/].')
+        c.say('[dim]Whatever is over there is about to have an opinion.[/]')
+
+
+@command('collapse', 'Take a node out of the network entirely.',
+         group='action', contexts=('run',), ticks=2, usage='collapse',
+         detail='Sabotage rank 4, once per run. Destroys the node you are '
+                'standing on: data, countermeasures, and routes. Enormously '
+                'loud, and it satisfies a wipe contract outright.')
+def cmd_collapse(sess, args) -> None:
+    state, c = sess.require_run(), sess.console
+    if not state.char.has_technique('collapse'):
+        raise CommandError('Collapse is Sabotage rank 4.')
+    if 'collapse' in state.spent:
+        raise CommandError('once a run')
+    node = state.node
+    if node.uid == state.net.entry:
+        raise CommandError('that is the way out. Think about it.')
+    if not args.has('confirm'):
+        c.warn(f'This destroys {node.uid} and everything on it, including '
+               f'anything you have not already taken.')
+        c.say('[dim]`collapse --confirm`.[/]')
+        return
+
+    # Leave by a route that still exists. Collapsing the node you are on
+    # while standing on it would strand you, which is the one thing the run
+    # layer is not allowed to do to a player.
+    exits = [e for e in node.edges if e in state.net.nodes]
+    if not exits:
+        raise CommandError('there is nowhere to go from here afterwards')
+    state.spent.add('collapse')
+    lost = sum(a.value for a in node.data if not a.taken)
+    for asset in node.data:
+        asset.taken = True
+    for construct in node.ice:
+        construct.state = 'dead'
+    state.locked = [i for i in state.locked if i not in node.ice]
+    state.done['wipe'] = node.uid
+    for edge in list(node.edges):
+        other = state.net.nodes.get(edge)
+        if other and node.uid in other.edges:
+            other.edges.remove(node.uid)
+    node.edges.clear()
+    state.here = exits[0]
+    node.edges.append(exits[0])
+    state.net.nodes[exits[0]].edges.append(node.uid)
+
+    _act(sess, 'overload', node=state.node)
+    if state.running:
+        c.blank()
+        c.ok(f'{node.uid} is gone.')
+        if lost:
+            c.say(f'[dim]{lost:,}c of things nobody will ever read went with '
+                  f'it.[/]')
+        c.say(f'[dim]You are on {state.here}.[/]')
+        state.escalate(1, 'A host stopped existing.')
+
+
+@command('steady', 'Take a breath. Recover Focus.',
+         group='defence', contexts=('run',), ticks=2, usage='steady',
+         detail='Psyche rank 2. The only thing in the game that restores '
+                'Focus once a run has started, and it can shake a lock-on if '
+                'your Nerve is up to it. Silent.')
+def cmd_steady(sess, args) -> None:
+    state, c = sess.require_run(), sess.console
+    if not state.char.has_technique('steady'):
+        raise CommandError('Steady is Psyche rank 2.')
+    check = Check(name='steady', resistance=10)
+    check.add('psyche', state.char.skill('psyche') * 2)
+    check.add('nerve', state.char.attr('nerve'))
+    check.add('composure', state.char.composure // 2)
+    check.resolve(state.rng)
+
+    gained = 1 + state.char.skill('psyche') // 2
+    state.focus += gained
+    _act(sess, 'scrub', noise_scale=0.0, ticks=2)
+    if not state.running:
+        return
+    c.blank()
+    c.ok(f'Focus {state.focus} [dim](+{gained})[/].')
+    if check.success and state.locked:
+        shaken = state.locked.pop(0)
+        shaken.state = 'awake'
+        shaken.telegraphed = False
+        c.say(f'[ok]{shaken.data.name} loses you.[/]')
+    elif state.locked:
+        c.say('[dim]It is still on you.[/]')
+
+
+@command('dissociate', 'Stop being present in what is hurting you.',
+         group='defence', contexts=('run',), usage='dissociate',
+         detail='Psyche rank 4, once per run. For a few ticks every point of '
+                'damage lands on the deck instead of on you, and black ICE '
+                'cannot reach you at all. The deck pays for all of it.')
+def cmd_dissociate(sess, args) -> None:
+    state, c = sess.require_run(), sess.console
+    if not state.char.has_technique('dissociate'):
+        raise CommandError('Dissociate is Psyche rank 4.')
+    if 'dissociate' in state.spent:
+        raise CommandError('once a run')
+    state.spent.add('dissociate')
+    state.dissociated = 2 + state.char.skill('psyche') // 2
+    c.ok(f'You put the room somewhere else for {state.dissociated} ticks.')
+    c.say('[dim]Everything that reaches you now reaches the deck. Nothing '
+          'lethal can find you at all.[/]')

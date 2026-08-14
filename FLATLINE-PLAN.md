@@ -12,11 +12,11 @@ updated: 2026-08-13
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5832 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 16,900 lines.
+> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5832 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 19,000 lines.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
-> **What is not done:** nothing structural. Every system the plan set out to build is built, and the catalogue has had one breadth pass (26 chrome, 36 programs, 28 ICE, 8 icons, 7 rivals, 10 origins, 9 districts, 12 factions). More districts and origins are the obvious next content, but **the right way to choose is to play it and notice what is missing**, which nobody has done yet. Treat any further content added without play as a guess.
+> **What is not done:** nothing structural. Every system the plan set out to build is built, and the catalogue has had one breadth pass (12 skills with 24 techniques, 26 traits, 26 chrome, 36 programs, 28 ICE, 8 icons, 7 rivals, 10 origins, 9 districts, 12 factions, 21 manual topics). More districts and origins are the obvious next content, but **the right way to choose is to play it and notice what is missing**, which nobody has done yet. Treat any further content added without play as a guess.
 >
 > **What this is.** A netrunner sim you play by typing at a fake terminal. Two layers: a persistent city that keeps score, and procedurally generated corporate networks you break into one contract at a time. The character system is classless and deep enough that two players at the same credit total play nothing alike.
 >
@@ -380,6 +380,51 @@ tests connectivity from the player's position to both the entry and the job,
 and rolls back anything that fails. If nothing is safe to close, the construct
 simply has nothing to do that tick. `test.py` proves it over sixty networks and
 roughly two thousand cuts.
+
+### D27: Help explains systems, not just verbs
+
+`help <command>` told you what a verb did and never told you what Nerve was
+for. That is most of the game, and none of it was written anywhere a player
+could reach.
+
+The manual is twenty-one topics under four headings, written to one rule:
+**every topic ends with a decision**. A reference entry that explains a number
+without saying what to do differently is a glossary, and a glossary is not
+help. `validate.py` warns on any topic that only describes.
+
+**The tutorial watches rather than leads.** Fourteen steps, each an instruction
+plus a condition checked after every command, so the player is always doing the
+thing they were just told about and never reading ahead. Nothing is forced.
+Conditions must be total, and `validate.py` calls every one against an empty
+session to prove they cope with nothing existing yet: a tutorial is optional
+and a bug in one is never worth a traceback in the middle of somebody's run.
+
+### D28: Traits, and a pool bigger than the slots
+
+Skills say what you can do, chrome says what you are made of, and traits say
+what you are **like**. Twenty-six of them, two picked at creation, one more
+every six runs, five maximum.
+
+**The asymmetry is the whole design.** Any axis where you can eventually have
+everything converges: given enough runs, two characters become the same
+character. Traits cannot be completed, so they cannot converge, and the
+question stops being "what is optimal" and becomes "what is this person".
+
+They follow the D11 rule and the D24 rule together: every one has an honest
+mechanical drawback, and every rider is implemented rather than described.
+Some refuse to sit together, and `validate.py` checks the exclusions are
+mutual.
+
+### D29: Every attribute governs at least two skills
+
+Logic governed five of the original eight lines and Grit governed none. That
+made Logic mandatory, Grit a dump stat that only bought derived numbers, and
+every character's opening attribute spread the same shape.
+
+Twelve lines now, three apiece for Logic and two for everybody else, and
+`validate.py` enforces the spread. **A customisation system whose optimal
+opening is identical for everybody is not one**, and that is worth a build
+check rather than good intentions.
 
 ### D17: The finish line
 
@@ -859,3 +904,34 @@ guess.
 
 `validate.py` clean, `test.py` green at **5832 checks**, with regression
 coverage for every bug above.
+
+### 2026-08-13 (i): the manual, the tutorial, traits, and four more skills
+
+The largest single session of content, in response to two asks: a help system
+that explains how things interact, and deeper customisation.
+
+**D27** is the manual and the tutorial. Twenty-one topics and fourteen watched
+steps, both checked by the build.
+
+**D28** is traits: twenty-six of them, five slots at most, every one cutting
+both ways. This is the axis that was missing, and the reason it works is that
+it can never be completed.
+
+**D29** came out of writing the new skill lines and counting the old ones.
+Logic governed five of eight and Grit governed none, which meant everybody's
+opening spread was identical and the customisation on offer was partly an
+illusion. Hardware and Forensics moved to Grit, the four new lines went to
+Logic, Reflex, Guile and Nerve, and the spread is now a build check.
+
+Four new lines with eight new verbs: **Architecture** (chart, backdoor),
+**Signal** (listen, intercept), **Sabotage** (misdirect, collapse), and
+**Psyche** (steady, dissociate). Between them they give stealth builds real
+reconnaissance, wipe contracts a real answer, and black ICE a counter that is
+not "kill it".
+
+**One latent bug found on the way.** `crack_check` held its own literal copy of
+the skill-to-attribute mapping, which would have silently gone stale the moment
+Hardware moved to Grit: every Hardware check would have kept rolling against
+Logic. It now reads the attribute off the skill definition.
+
+`validate.py` clean, `test.py` green at **6004 checks**.

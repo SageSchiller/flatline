@@ -28,6 +28,7 @@ from ..content import factions as fac_content
 from ..content import ice as ice_content
 from ..content import nodes as node_content
 from ..content import programs
+from ..content import skills as skill_content
 from ..model.character import Character
 from ..rng import Stream
 from ..ui import Console
@@ -110,6 +111,9 @@ class RunState:
     #: {key, name, node, integrity, state, skill, style, cut}. The mirror of
     #: `escort`: this one is here to help, and takes a share of the haul.
     ally: dict | None = None
+    #: Ticks of Dissociate remaining: damage lands on the deck, and black ICE
+    #: cannot reach you at all.
+    dissociated: int = 0
     #: Overclock credits: each real tick spent at N steps earns N of them,
     #: and each pays for one tick of a later action. See `_act`.
     oc_credit: float = 0.0
@@ -141,6 +145,11 @@ class RunState:
         if node:
             node.known = node.open = node.mapped = True
         riders = char.riders()
+        if 'slow_start' in riders:
+            # Overprepared: you begin every run sorting through what you
+            # brought, and it costs you the first tick.
+            state.tick = 1
+            state.trace = TRACE_PER_TICK * char.mult('trace_mult')
         if 'veteran_eye' in riders:
             # Been here before: you have seen all of this, traps included.
             for other in net.nodes.values():
@@ -265,6 +274,11 @@ class RunState:
                 self.nullsig -= 1
                 if self.nullsig == 0:
                     self.console.info('Nullsig window closes. You are visible again.')
+            if self.dissociated > 0:
+                self.dissociated -= 1
+                if self.dissociated == 0:
+                    self.console.info('You come back into it. Everything that '
+                                      'was waiting is still waiting.')
             if self.impersonating > 0:
                 self.impersonating -= 1
                 if self.impersonating == 0:
@@ -842,6 +856,15 @@ class RunState:
         amount = max(0, int(round(amount * self.char.mult('ice_dr'))))
         if not amount:
             return
+        # Psyche rank 4: you are not present for this. The deck is.
+        if self.dissociated > 0:
+            black = False
+            to_body = False
+            slot = self.rng.pick(list(self.char.deck.parts))
+            level = self.char.deck.hurt(slot, DECK_HIT)
+            self.console.warn(f'It lands on the {slot} instead of on you '
+                              f'[dim](damage {level}/3)[/].')
+            return
         # The Deepjack routes everything through you rather than the deck.
         to_body = black or 'deep_jack' in self.char.installed
 
@@ -1026,8 +1049,10 @@ def crack_check(state: RunState, node: Node, svc: net_mod.ServiceInstance,
 
     check = Check(name=f'crack {svc.key}', resistance=svc.difficulty * 2)
     check.add(f'{skill_key}', state.char.skill(skill_key) * 2)
-    attr = {'intrusion': 'logic', 'cryptography': 'logic',
-            'subterfuge': 'guile', 'hardware': 'logic'}[skill_key]
+    # Read the governing attribute from the skill itself rather than a second
+    # copy of the mapping: the literal that used to live here went stale the
+    # moment Hardware moved from Logic to Grit.
+    attr = skill_content.BY_KEY[skill_key].attr
     check.add(attr, state.char.attr(attr))
     if program:
         check.add(program.name, program.rating * 2)

@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from ..content import attributes as attrs
 from ..content import cyberware, dissonance as drift
 from ..content import effects as fx, icons, origins, programs, skills
+from ..content import traits as trait_content
 from .deck import Deck
 
 
@@ -39,6 +40,10 @@ class Character:
     #: one for the job.
     icon: str = icons.DEFAULT
     icons: list[str] = field(default_factory=lambda: [icons.DEFAULT])
+
+    #: What you are like. Permanent, chosen from a pool much larger than the
+    #: number of slots, which is what stops two characters converging.
+    traits: list[str] = field(default_factory=list)
 
     credits: int = 0
     xp: int = 0
@@ -110,6 +115,11 @@ class Character:
         origin = origins.BY_KEY.get(self.origin)
         if origin and origin.effects:
             parts.append(origin.effects)
+        for key in self.traits:
+            trait = trait_content.BY_KEY.get(key)
+            if trait:
+                parts.append(trait.effects)
+                parts.append(trait.penalty)
         icon = icons.BY_KEY.get(self.icon)
         if icon:
             parts.append(icon.effects)
@@ -287,7 +297,53 @@ class Character:
         origin = origins.BY_KEY.get(self.origin)
         if origin and origin.rider:
             out.add(origin.rider)
+        for key in self.traits:
+            trait = trait_content.BY_KEY.get(key)
+            if trait and trait.rider:
+                out.add(trait.rider)
         return out
+
+    # ------------------------------------------------------------------
+    # traits
+    # ------------------------------------------------------------------
+
+    @property
+    def trait_slots(self) -> int:
+        """How many traits this character is entitled to right now."""
+        return (trait_content.CREATION_PICKS
+                + trait_content.earned(self.runs))
+
+    @property
+    def trait_picks(self) -> int:
+        """Unspent trait slots."""
+        return max(0, self.trait_slots - len(self.traits))
+
+    def can_take_trait(self, key: str) -> tuple[bool, str]:
+        trait = trait_content.BY_KEY.get(key)
+        if trait is None:
+            return False, f'no such trait: {key}'
+        if key in self.traits:
+            return False, f'you are already {trait.name.lower()}'
+        if not self.trait_picks:
+            return False, (f'no slots left. The next one comes at '
+                           f'{(trait_content.earned(self.runs) + 1) * trait_content.EARN_EVERY} '
+                           f'runs.')
+        if trait not in trait_content.available(self.traits, self):
+            clash = next((self.traits[i] for i, k in enumerate(self.traits)
+                          if k in trait.excludes
+                          or key in trait_content.BY_KEY[k].excludes), None)
+            if clash:
+                return False, (f'{trait.name} does not go with '
+                               f'{trait_content.BY_KEY[clash].name}.')
+            return False, f'{trait.name} is not open to you.'
+        return True, ''
+
+    def take_trait(self, key: str) -> trait_content.Trait:
+        ok, why = self.can_take_trait(key)
+        if not ok:
+            raise ValueError(why)
+        self.traits.append(key)
+        return trait_content.BY_KEY[key]
 
     @property
     def icon_data(self) -> icons.Icon:
@@ -360,6 +416,7 @@ class Character:
             'library': list(self.library),
             'icon': self.icon,
             'icons': list(self.icons),
+            'traits': list(self.traits),
             'credits': self.credits,
             'xp': self.xp,
             'points': self.points,
@@ -383,6 +440,7 @@ class Character:
             library=list(d.get('library') or []),
             icon=d.get('icon') or icons.DEFAULT,
             icons=list(d.get('icons') or [icons.DEFAULT]),
+            traits=list(d.get('traits') or []),
             credits=int(d.get('credits', 0)),
             xp=int(d.get('xp', 0)),
             points=int(d.get('points', 0)),
