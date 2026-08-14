@@ -18,6 +18,7 @@ from ..content import ice as ice_content
 from ..content import nodes as node_content
 from ..content import origins as origin_content
 from ..content import programs
+from ..content import shifts
 from ..run import network as net_mod
 from ..run import session as session_mod
 from ..run.checks import Check
@@ -81,7 +82,8 @@ def cmd_jack_in(sess, args) -> None:
     net = net_mod.generate(stream, contract.target, int(contract.posture),
                            contract.objective, contract.size_mod)
     state = RunState.begin(net, game.char, game.rng('combat'), c,
-                           contract=contract.to_dict())
+                           contract=contract.to_dict(),
+                           phase=game.city.phase)
 
     if 'credential' in contract.intel:
         state.tier = max(state.tier, 1)
@@ -1515,9 +1517,12 @@ def cmd_status(sess, args) -> None:
         c.raw(f'  [trace]{spark}[/] [dim]{history[0]:.0f} to {history[-1]:.0f} '
               f'over {len(history)} ticks, {rate:+.1f}/tick[/]')
     c.blank()
+    when = shifts.phase(state.phase)
     c.kv([
         ('alert', f'[warn]{state.alert}[/] [dim]'
                   f'{ice_content.ALERT_BLURB[state.alert]}[/]'),
+        ('shift', f'{when.name.lower()} [dim]trace at '
+                  f'{when.trace * 100:.0f}% of nominal[/]'),
         ('zone', f'{node.zone} [dim](tier {node.tier}, you hold '
                  f'{state.tier})[/]'),
         ('integrity', f'{state.char.integrity_max - state.char.hurt - state.hurt}'

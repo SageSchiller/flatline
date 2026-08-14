@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 
 from ..content import cyberware, dissonance, districts, factions
 from ..content import hardware, programs
+from ..content import shifts
 from ..rng import Stream
 
 #: Shifts between stock rotations.
@@ -115,7 +116,8 @@ def restock(rng: Stream, district_key: str, shift: int) -> list[Listing]:
 
 
 def quote(listing: Listing, district_key: str, alias, drift: int,
-          price_mult: float = 1.0) -> tuple[int, list[tuple[str, float]]]:
+          price_mult: float = 1.0,
+          phase: str = 'morning') -> tuple[int, list[tuple[str, float]]]:
     """What this costs *you*, itemised.
 
     Returns the final price and the list of multipliers that produced it, so
@@ -124,6 +126,11 @@ def quote(listing: Listing, district_key: str, alias, drift: int,
     district = districts.BY_KEY[district_key]
     terms: list[tuple[str, float]] = []
     total = float(listing.price)
+
+    when = shifts.phase(phase)
+    if when.price != 1.0:
+        terms.append((f'{when.name.lower()} rates', when.price))
+        total *= when.price
 
     rep = alias.reputation(district.controller)
     if rep:

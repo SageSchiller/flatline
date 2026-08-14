@@ -13,6 +13,7 @@ from ..content import cyberware, dissonance as drift, districts
 from ..content import effects as fx, factions
 from ..content import hardware, icons, origins, programs
 from ..content import rivals as rival_content
+from ..content import shifts
 from ..content import skills as skill_content
 from ..content import traits as trait_content
 from ..game import Game
@@ -336,7 +337,8 @@ def cmd_icon(sess, args) -> None:
                                   for d in districts.with_service('workshop'))
                 raise CommandError(f'icons are cut at a workshop. Try: {shops}')
             price = int(icon.price * game.city.district.price_mult
-                        * char.mult('price_mult'))
+                        * char.mult('price_mult')
+                        * shifts.phase(game.city.phase).price)
             if price > char.credits:
                 raise CommandError(f'{icon.name} is {price:,}c and you have '
                                    f'{char.credits:,}c')
@@ -532,7 +534,8 @@ def cmd_market(sess, args) -> None:
             continue
         price, _ = market_mod.quote(listing, game.city.where, game.alias,
                                     game.char.dissonance,
-                                    game.char.mult('price_mult'))
+                                    game.char.mult('price_mult'),
+                                    game.city.phase)
         detail = _listing_detail(listing, item)
         rows.append((item.name, listing.kind, detail, f'{price:,}c'))
     c.table(('item', 'kind', 'what it does', 'price'), rows,
@@ -565,7 +568,8 @@ def cmd_buy(sess, args) -> None:
 
     price, terms = market_mod.quote(listing, game.city.where, game.alias,
                                     game.char.dissonance,
-                                    game.char.mult('price_mult'))
+                                    game.char.mult('price_mult'),
+                                    game.city.phase)
     if args.has('why'):
         c.header(item.name, f'{price:,}c')
         c.kv([('list', f'{listing.price:,}c')]
@@ -1020,8 +1024,10 @@ def cmd_legwork(sess, args) -> None:
         bonus += 1  # you are not looking at it, you are listening to it
     else:
         # Everything else here is asking people things, and how much people
-        # tell you depends on who they think they are talking to.
+        # tell you depends on who they think they are talking to, and on
+        # whether there is anybody about to ask.
         bonus += appearance.social_bonus(game.char.presence)
+        bonus += shifts.phase(game.city.phase).legwork
         c.blank()
         c.say(f'[accent2]{drift.RESONANCE_TEXT}[/]')
         c.blank()
@@ -1588,7 +1594,8 @@ def cmd_clinic(sess, args) -> None:
                 continue
             price, _ = market_mod.quote(listing, game.city.where, game.alias,
                                         char.dissonance,
-                                        char.mult('price_mult'))
+                                        char.mult('price_mult'),
+                                        game.city.phase)
             rows.append((ware.name, ware.maker, ware.location,
                          f'{ware.bandwidth}bw {ware.dissonance}dis',
                          f'{price:,}c'))
@@ -1609,7 +1616,8 @@ def cmd_clinic(sess, args) -> None:
                 continue
             price, _ = market_mod.quote(listing, game.city.where, game.alias,
                                         char.dissonance,
-                                        char.mult('price_mult'))
+                                        char.mult('price_mult'),
+                                        game.city.phase)
             rows.append((ware.name, ware.maker, ware.location,
                          f'{ware.bandwidth}bw {ware.dissonance}dis',
                          f'{price:,}c'))

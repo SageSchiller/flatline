@@ -20,6 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..content import cyberware, districts, factions, hardware
+from ..content import shifts
 from ..rng import Stream
 
 #: Heat at which a faction stops merely noticing and starts paying for names.
@@ -166,10 +167,14 @@ def arrival_risk(rng: Stream, alias, city, target: str) -> tuple[int, str]:
     """
     district = districts.BY_KEY[target]
     watchers = (district.controller, *district.presence)
+    # How many people are on the street to be one of the ones who recognises
+    # you. The clock is not decoration: crossing a district that wants you is
+    # a different proposition at three in the afternoon and at three at night.
+    when = shifts.phase(city.phase).danger
     worst, who = 0, ''
     for key in watchers:
         score = alias.attention(key) + int(city.bounties.get(key, 0)) * 1.5
-        score = int(score * (0.5 + district.security / 100.0))
+        score = int(score * (0.5 + district.security / 100.0) * when)
         if score > worst:
             worst, who = score, key
     return worst, who

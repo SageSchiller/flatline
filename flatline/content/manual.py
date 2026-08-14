@@ -510,7 +510,7 @@ TOPICS: tuple[Topic, ...] = (
         'that faction hardens for you too.\n\n'
         '[warn]The decision:[/] doing nothing is a real strategy with a real '
         'price, and knowing when to pay it is most of the city layer.',
-        see=('heat', 'rivals', 'contracts', 'reading'),
+        see=('heat', 'rivals', 'contracts', 'reading', 'clock'),
         commands=('travel', 'rest', 'board'),
         group='city'),
     Topic(
@@ -762,8 +762,42 @@ TOPICS: tuple[Topic, ...] = (
         'mentioned, which matters more than it sounds in a game whose whole '
         'tension is one rising number that you need to find at a glance in a '
         'wall of scrollback.',
-        see=('triangle', 'city', 'basics'),
+        see=('triangle', 'city', 'basics', 'clock'),
         commands=('look', 'rest', 'log'),
+        group='city'),
+
+    Topic(
+        'clock', 'The shift clock',
+        'When you do something matters as much as where.',
+        'The city runs on three shifts a day and every one of them is a '
+        'different city.\n\n'
+        '[accent]The street and the net want opposite hours.[/] That is the '
+        'whole system and it is worth holding in your head.\n\n'
+        'At [accent]peak[/], the afternoon, every walkway is at capacity. '
+        'That is bad for you out here: more people, and a worse chance that '
+        'one of them is somebody with your name on a list. It is good for you '
+        'in there, because all of those people are also generating traffic, '
+        'and ten thousand legitimate sessions is the best mask money cannot '
+        'buy. The trace runs slower.\n\n'
+        'At [accent]night[/] the street empties and nobody is looking at you. '
+        'So does the network. Your session is the only session, the trace has '
+        'nothing to sort you out of, and it runs faster. Half the market is '
+        'shuttered and the other half has adjusted its prices.\n\n'
+        '[accent]Morning[/] is the middle of both, and it is when stock '
+        'lands.\n\n'
+        '[warn]The decision:[/] there is no correct shift to work, only a '
+        'shift that suits the run you are about to do. Peak for a long '
+        'careful job on a network you need time inside. Night for crossing a '
+        'district that wants you. Morning for buying. The tension is that '
+        'waiting for the right one is priced in the only currency this city '
+        'actually charges in, which is time, and the contract board does not '
+        'wait for you.\n\n'
+        '`look` tells you what the current shift is doing, in the two places '
+        'it is doing it. Inside a run, `status` shows the rate you are on: '
+        'that is fixed at the moment you jacked in and does not change '
+        'under you.',
+        see=('city', 'triangle', 'contracts', 'heat'),
+        commands=('look', 'rest', 'travel', 'status'),
         group='city'),
 )
 

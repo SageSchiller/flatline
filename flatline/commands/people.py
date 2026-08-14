@@ -13,6 +13,7 @@ from __future__ import annotations
 from ..content import factions
 from ..content import npcs as npc_content
 from ..content import threads as thread_content
+from ..content import shifts
 from ..shell import CommandError, command
 from ..world import story as story_mod
 
@@ -32,12 +33,35 @@ def cmd_look(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     here = story_mod.present(game, game.story)
     district = game.city.district
+    when = shifts.phase(game.city.phase)
 
-    c.header(district.name, f'{len(here)} worth talking to')
+    c.header(district.name, game.city.when)
+    # Where you are, not just who is standing in it. `travel` prints the
+    # district once on arrival and then never again, so a player who has been
+    # somewhere for six shifts had nothing to look at.
+    c.say(f'[dim]{district.blurb}[/]')
+    c.blank()
+    c.say(when.scene)
+
+    # What the clock is doing to you, in the two places it is doing it.
+    parts = []
+    if when.danger != 1.0:
+        parts.append(f'street {"busier" if when.danger > 1 else "quieter"}')
+    if when.trace != 1.0:
+        parts.append(f'trace {"faster" if when.trace > 1 else "slower"} in '
+                     f'there')
+    if when.price != 1.0:
+        parts.append(f'prices up {(when.price - 1) * 100:.0f}%')
+    if parts:
+        c.blank()
+        c.info(f'{", ".join(parts)}. [dim]{when.why}[/]')
+
+    c.blank()
     if not here:
         c.say('[dim]Nobody here is interested in you, which in this district '
               'is a mercy.[/]')
         return
+    c.rule(f'{len(here)} worth talking to')
 
     for npc in here:
         first = game.story.meet(npc.key)

@@ -20,6 +20,7 @@ from flatline import script as script_mod
 from flatline import theme, ui
 from flatline.content import appearance
 from flatline.content import events
+from flatline.content import shifts
 from flatline.world import city as city_mod
 from flatline.content import attributes as attr_content
 from flatline.content import cyberspace, cyberware
@@ -862,6 +863,55 @@ def check_dead_fields(rep: Report) -> None:
             uses = source.count(f'.{field.name}')
             rep.check(uses > 0, 'dead-fields',
                       f'{name} is declared and nothing ever reads it')
+
+
+
+def check_shifts(rep: Report) -> None:
+    """The clock, and the tension it is supposed to create.
+
+    The design is that the street and the net want opposite hours: peak is
+    dangerous outside and safe inside, night is the reverse. That only works
+    if `danger` and `trace` actually pull in opposite directions, which is
+    exactly the kind of thing that survives one careless retune and then
+    quietly stops being a decision.
+    """
+    from flatline.world import city as city_layer
+    rep.check(tuple(p.key for p in shifts.PHASES) == city_layer.SHIFT_NAMES,
+              'shifts', 'the phases do not match the city clock')
+    for phase in shifts.PHASES:
+        where = f'shifts/{phase.key}'
+        rep.check(bool(phase.scene) and bool(phase.why), where,
+                  'has no scene or no explanation')
+        for field_name in ('danger', 'trace', 'price'):
+            value = getattr(phase, field_name)
+            rep.check(0.5 <= value <= 1.6, where,
+                      f'{field_name} is {value}, which is past a thumb on the '
+                      f'scale and into making a shift unplayable')
+
+    # The inversion. Whichever shift is worst on the street has to be best in
+    # the net, or the clock is a tax rather than a choice.
+    worst_street = max(shifts.PHASES, key=lambda p: p.danger)
+    worst_net = max(shifts.PHASES, key=lambda p: p.trace)
+    rep.check(worst_street is not worst_net, 'shifts',
+              f'{worst_street.key} is the worst shift both outside and '
+              f'inside, so there is no decision in the clock')
+    rep.check(min(p.danger for p in shifts.PHASES) < 1.0
+              and max(p.danger for p in shifts.PHASES) > 1.0, 'shifts',
+              'every shift is at or above baseline danger, so waiting never '
+              'helps')
+    rep.check(min(p.trace for p in shifts.PHASES) < 1.0
+              and max(p.trace for p in shifts.PHASES) > 1.0, 'shifts',
+              'every shift is at or above baseline trace')
+
+    # And all four hooks have to be real.
+    hooks = _world_source() + _command_source() + _engine_source()
+    for what, needle in (('travel danger', 'shifts.phase(city.phase).danger'),
+                         ('the trace', 'shifts.phase(self.phase).trace'),
+                         ('market prices', 'when.price'),
+                         ('legwork', 'shifts.phase(game.city.phase).legwork')):
+        rep.check(needle in hooks, 'shifts/hooks',
+                  f'the clock is declared to affect {what}, and {needle} is '
+                  f'never evaluated')
 
 
 def check_debt(rep: Report) -> None:
@@ -1717,7 +1767,7 @@ def check_balance(rep: Report) -> None:
 CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
     check_icons, check_dissonance, check_cyberspace, check_rivals, check_debt,
-    check_origins, check_appearance, check_events, check_dead_fields, check_skills, check_factions, check_districts,
+    check_origins, check_appearance, check_events, check_shifts, check_dead_fields, check_skills, check_factions, check_districts,
     check_ice, check_nodes, check_contracts, check_commands,
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_markup, check_balance,

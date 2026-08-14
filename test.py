@@ -2878,6 +2878,74 @@ def test_topology() -> None:
 
 
 
+
+def test_clock() -> None:
+    T.section('clock')
+    from flatline.content import shifts
+    from flatline.world import city as city_mod, fallout, market as market_mod
+
+    T.eq(tuple(p.key for p in shifts.PHASES), city_mod.SHIFT_NAMES,
+         'the phases are the city clock')
+    T.eq(shifts.phase('nonsense').key, 'morning',
+         'an unknown phase falls back rather than crashing')
+
+    # The design is an inversion: the shift that is worst on the street has
+    # to be the best in the net, or the clock is a tax and not a decision.
+    street = max(shifts.PHASES, key=lambda p: p.danger)
+    net = max(shifts.PHASES, key=lambda p: p.trace)
+    T.ok(street is not net, 'no shift is worst both outside and inside')
+    T.eq(street.key, 'afternoon', 'peak is the dangerous one to walk through')
+    T.eq(net.key, 'night', 'and the small hours are the exposed one to run in')
+
+    # Travel danger really moves with the clock.
+    game = Game.new(Character.from_origin('gutter', 'clock'), seed=5)
+    game.alias.add_heat('kagawa', 60)
+    scores = {}
+    for phase_i, name in enumerate(city_mod.SHIFT_NAMES):
+        game.city.shift = phase_i
+        T.eq(game.city.phase, name, 'the clock reports the phase it is on')
+        scores[name] = game.city.danger(game.alias, 'vertical')[0]
+    T.ok(scores['afternoon'] > scores['morning'] > scores['night'],
+         f'danger tracks the shift: {scores}')
+
+    # So do prices, and the reason is itemised rather than hidden.
+    listing = game.city.listings()[0]
+    day, _ = market_mod.quote(listing, 'marrow', game.alias, 0, 1.0, 'morning')
+    dark, terms = market_mod.quote(listing, 'marrow', game.alias, 0, 1.0,
+                                   'night')
+    T.ok(dark > day, 'out of hours costs more')
+    T.ok(any('night' in label for label, _ in terms),
+         'and says so in the itemisation')
+
+    # And the trace. Same run, same everything, different shift.
+    def trace_after(phase: str) -> float:
+        g = Game.new(Character.from_origin('gutter', 'r'), seed=8829)
+        contract = g.city.board[0]
+        stream = g.rng.fork('network', contract.cid)
+        net_ = net_mod.generate(stream, contract.target, int(contract.posture),
+                                contract.objective, contract.size_mod)
+        from flatline.run.session import RunState
+        st = RunState.begin(net_, g.char, g.rng('combat'), quiet_console(),
+                            contract=contract.to_dict(), phase=phase)
+        st.advance(10)
+        return st.trace
+
+    night, peak = trace_after('night'), trace_after('afternoon')
+    T.ok(night > peak,
+         f'the trace runs faster with nobody to hide behind ({night} vs {peak})')
+    T.ok(night / max(peak, 0.01) < 1.5,
+         'but not so much faster that off-peak is unplayable')
+
+    # The whole thing has to be visible, or it is a hidden system.
+    _, out = play(['new Clock --origin gutter --seed 8829', 'look'])
+    T.ok('shutters' in out.lower() or 'getting up' in out.lower(),
+         '`look` describes the shift')
+    _, out = play(['new Clock --origin gutter --seed 8829', 'rest 2', 'look'])
+    T.ok('quieter' in out or 'prices up' in out,
+         'and says what the clock is costing you')
+
+
+
 def test_migration() -> None:
     T.section('migration')
     import json
@@ -2938,7 +3006,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_topology, test_migration, test_shell,
+    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_topology, test_clock, test_migration, test_shell,
     test_playthrough, test_ui,
 )
 

@@ -24,6 +24,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from ..content import cyberspace
+from ..content import shifts
 from ..content import factions as fac_content
 from ..content import ice as ice_content
 from ..content import nodes as node_content
@@ -77,6 +78,11 @@ class RunState:
 
     here: str = ''
     tick: int = 0
+    #: Which shift you jacked in on. A trace is a search through everybody's
+    #: traffic, so how much traffic there is decides how long you have. Fixed
+    #: at connection: the shift does not tick over mid-run, and a run that
+    #: straddled a shift boundary would need the whole clock in here.
+    phase: str = 'morning'
     trace: float = 0.0
     #: Trace at the end of every tick, for the sparkline in `status`. Bounded
     #: because a run that somehow reached ten thousand ticks should not also
@@ -156,9 +162,10 @@ class RunState:
 
     @classmethod
     def begin(cls, net: Network, char: Character, rng: Stream,
-              console: Console, contract: dict | None = None) -> RunState:
+              console: Console, contract: dict | None = None,
+              phase: str = 'morning') -> RunState:
         state = cls(net=net, char=char, rng=rng, console=console,
-                    contract=contract, here=net.entry)
+                    contract=contract, here=net.entry, phase=phase)
         state.focus = char.focus
         node = net.node(net.entry)
         if node:
@@ -237,6 +244,9 @@ class RunState:
             return
         amount *= self.char.mult('trace_mult')
         amount *= ice_content.ALERT_TRACE_MULT[self.alert]
+        # Cover traffic. At peak there are ten thousand legitimate sessions to
+        # sort you out of, and at three in the morning there is one.
+        amount *= shifts.phase(self.phase).trace
         self.trace = min(TRACE_MAX, self.trace + max(0.0, amount))
 
     def leave_residue(self, amount: float, node: Node | None = None) -> int:
