@@ -610,6 +610,40 @@ one for every feature striking enough to draw one, fired occasionally rather
 than every time, because a city that remarks on you constantly is a city of
 very rude people.
 
+
+### D38: The shell is the player's, and the city does not get it
+
+One system in this game costs nothing and takes nothing. Six axes of terminal
+customisation, forty-two pieces, most of them earned by playing: palette,
+prompt, frame, bars, marks, banner.
+
+**It lives in meta rather than in the save.** The deck's interface belongs to
+the player and not to the character, so it survives a flatline. That is the
+entire reason it is stored there: you lose everything else, and the terminal
+you spent a week getting right is still yours when you sit down with somebody
+new.
+
+Two promises, both enforced rather than intended:
+
+- **Nothing here affects play.** `test.py` rices three axes and asserts that
+  credits, experience, memorability, the contract board and every RNG stream
+  are byte-identical afterwards. A cosmetic that moved a number would be a
+  build decision hiding in a menu.
+- **Nothing here is bought.** Every condition is a thing you did.
+  `validate.py` rejects a catalogue where any single condition covers more
+  than 45% of the unlocks, so the reward channel cannot decay into one number
+  going up.
+
+The one hard rule inside it: **whatever the prompt style does, the trace
+survives**. Everything else on the prompt is one `status` away and costs
+nothing to ask for. The trace is the number that ends the character. The
+`path` style dropped it in the first draft, which is why that rule is a test
+rather than a comment.
+
+Capability still beats preference, as everywhere else: an ASCII terminal
+ignores every set here, and a saved preference for something a later build no
+longer ships degrades to the default rather than raising.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -1286,3 +1320,37 @@ by adding a dead field on purpose and watching it fail.
 `validate.py` clean, `test.py` green at **6739 checks**. Both soaks clean, and
 a scripted run played end to end: 41 ticks, trace 77, jacked out at the line,
 residue 81 converting to heat 46 and a posted bounty a shift later.
+
+### 2026-08-14 (a): the shell, and a bug that had made the game greyscale
+
+**D38.** Terminal customisation as a cosmetic reward channel, at the author's
+suggestion, and the framing that made it work was realising it should not live
+in the save. The city takes the runner and does not get the shell.
+
+**The find of the session was not the feature.** Measuring whether the new
+palettes kept their roles apart turned up that no palette did, including the
+shipped one, because `_to_256` was mapping almost everything to grey.
+
+Its grey branch computed error as the distance from the colour's *average* to
+the nearest step on the grey ramp, which asks "is this colour's brightness
+close to a grey" and is true of every saturated colour there is. Pure cyan
+scored a near-perfect grey match and won. `accent` rendered as index 248.
+
+That is not a subtle wrongness. **The entire game rendered in greyscale for
+anybody whose `TERM` says 256 and whose `COLORTERM` does not say truecolor**,
+which is most terminals over ssh, most tmux sessions, and a lot of default
+configurations. It had been true since the theme layer was written.
+
+`check_palette_separation` is the standing version: every pair of roles in
+every palette at least 20 apart in RGB *and* not quantising onto the same 256
+index, with the four deliberate twins exempted, plus a direct assertion that
+saturated probes never land on the grey ramp at all.
+
+Three smaller ones, all found by looking at output rather than at code: the
+palette swatches were written with role markup so every scheme in the list
+rendered in the scheme already on and all eleven looked identical; the Bracket
+prompt's sample rendered as `[1,200c] $` because `[marrow]` is valid tag
+syntax and the parser ate it; and `rice --preview` could never fire because
+the no-argument branch was tested first and a bare flag has no positionals.
+
+`validate.py` clean, `test.py` green at **7476 checks**. Both soaks clean.

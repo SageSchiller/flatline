@@ -3173,8 +3173,21 @@ def _rice_body(T, rice, prompt_mod, anim, Caps, ColorLevel, GlyphLevel,
     sess, _ = play(['rice --reset'])
     T.eq(sess.shell, rice.DEFAULTS, 'reset puts everything back')
 
+    # `--try` shows without keeping, which is the most useful thing a
+    # customisation menu can do.
+    sess, out = play(['rice --reset', 'rice palette phosphor --try'])
+    T.ok('preview' in out, '--try renders a sample')
+    T.ok('not saved' in out, 'and says it is not keeping it')
+    T.eq(sess.shell['palette'], rice.DEFAULTS['palette'],
+         'and really does not keep it')
+    T.eq(sess.console.caps.palette.name, theme.get(rice.DEFAULTS['palette']).name,
+         'and puts the console back afterwards')
+    _, out = play(['rice --preview'])
+    T.ok('preview' in out, '--preview works on what you are wearing')
+
     for line in ('rice nonsense', 'rice palette nonsense', 'rice palette',
-                 'rice banner none', 'rice --reset'):
+                 'rice banner none', 'rice --reset', 'rice palette ash --try',
+                 'rice --try', 'rice frame --try'):
         _, out = play([line])
         T.ok(out.strip(), f'{line!r} says something rather than crashing')
 

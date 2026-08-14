@@ -619,16 +619,54 @@ def _sample_glyphs(c, kind: str, key: str) -> str:
                     ('bullet', 'arrow', 'check', 'cross', 'node'))
 
 
+def _preview(sess, look: dict) -> None:
+    """Render a slice of real output under a shell the player has not worn yet.
+
+    Done by swapping the console's capabilities for the duration rather than
+    by emitting colours directly, which means the sample goes through exactly
+    the same wrap, markup and glyph path as the game does. A preview drawn any
+    other way is a preview of the preview.
+    """
+    c = sess.console
+    was = c.caps
+    c.caps = ui.Caps(color=was.color, glyphs=was.glyphs, width=was.width,
+                     palette=theme.get(look.get('palette')),
+                     frame=look.get('frame', 'single'),
+                     bars=look.get('bars', 'blocks'),
+                     marks=look.get('marks', 'plain'))
+    try:
+        c.blank()
+        c.rule('preview')
+        c.header('ap-arc21', 'tick 14')
+        c.raw('  ' + c.bar(0.62, 'trace', 22, 'trace 62/100'))
+        c.raw('  ' + c.bar(0.25, 'noise', 22, 'noise 5 here'))
+        c.kv([('alert', '[warn]amber[/] [dim]something has been noticed[/]'),
+              ('residue', '[residue]18 across the network[/]'),
+              ('haul', '[credit]4,200c[/] nominal')])
+        c.ok('Ice down. Nothing else moved.')
+        c.warn('The trace is past halfway.')
+        c.err('Black ICE. It has your signature and it is not in a hurry.')
+        c.info('`jack out` to leave with what you have.')
+        c.raw(f'  [dim]{prompt_mod.render(sess, look.get("prompt", "classic"))}'
+              f'scan --quiet[/]')
+        c.rule()
+    finally:
+        c.caps = was
+
+
 @command('rice', 'Customise the shell. Earned, and yours to keep.',
          group='session', bare=True, aliases=('shell',),
-         usage='rice [kind] [name] [--reset]',
+         usage='rice [kind] [name] [--try] [--preview] [--reset]',
          detail='Six axes: palette, prompt, frame, bars, marks, banner. Most '
                 'of them are earned by playing, and everything you earn is '
                 'recorded outside the save, so it survives the character who '
                 'earned it.\n\n'
                 'Nothing here touches a single number in the game. That is '
                 'the point of it: after four hours of a city that does not '
-                'care whether you live, a colour scheme should be free.')
+                'care whether you live, a colour scheme should be free.\n\n'
+                '`rice <kind> <name> --try` shows you a screen of real output '
+                'in it without keeping it, and `rice --preview` does the same '
+                'for what you are already wearing.')
 def cmd_rice(sess, args) -> None:
     c = sess.console
     meta = save_mod.read_meta()
@@ -638,6 +676,12 @@ def cmd_rice(sess, args) -> None:
         save_mod.write_meta(meta)
         sess.apply_shell()
         c.ok('Back to standard.')
+        return
+
+    # Before the no-argument branch: `rice --preview` has no positionals, so
+    # testing the argument count first meant the flag could never be reached.
+    if args.has('preview'):
+        _preview(sess, sess.shell)
         return
 
     if not len(args):
@@ -668,6 +712,15 @@ def cmd_rice(sess, args) -> None:
 
     shell = dict(meta.get('shell') or {})
     shell[kind] = hit.key
+
+    if args.has('try'):
+        # Wear it for one screen without keeping it. The most useful thing a
+        # customisation menu can do is let you look before you decide.
+        c.say(f'[dim]{hit.name}, not saved. '
+              f'`rice {kind} {hit.key}` to keep it.[/]')
+        _preview(sess, {**sess.shell, kind: hit.key})
+        return
+
     meta['shell'] = shell
     save_mod.write_meta(meta)
     sess.apply_shell()

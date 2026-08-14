@@ -97,6 +97,11 @@ The three ideas everything else hangs off:
   somebody having a worse day than you in a way nobody records. About one
   event in six comes up for air, because unrelenting bleakness stops landing
   after an hour. The ratio is enforced by `validate.py`, not hoped for.
+- **The shell is yours and the city does not get it.** Six axes of terminal
+  customisation, forty-two pieces, most of them earned by playing. It is
+  stored outside the save, so it survives a flatline: you lose everything
+  else, and the terminal you spent a week getting right is still there when
+  you sit down with somebody new. None of it touches a single number.
 - **The street and the net want opposite hours.** At peak the walkways are
   full, which is bad for you out there and good for you in here, because all
   those people are generating the traffic you hide in. At night nobody is
@@ -110,8 +115,8 @@ The three ideas everything else hangs off:
 verb nobody else can use and its own starting face · 34 implants · 46 programs
 · 28 countermeasures · 9 districts, each with a mark for the faction that
 holds it · 12 factions · 17 named characters · 18 storylines across 39 scenes ·
-102 appearance features · 51 ambient city events · 30 manual topics ·
-97 commands.
+102 appearance features · 51 ambient city events · 31 manual topics ·
+98 commands · 42 unlockable pieces of terminal across 6 axes.
 
 Footnotes are a real feature of the console. `{{like this}}` in any content
 string gets lifted out and printed under the block, and they nest, because the

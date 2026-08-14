@@ -64,7 +64,7 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision the whole game is built around[/] is not which '
         'exploit to use. It is whether to spend time covering your tracks, '
         'knowing the trace advances while you do it.',
-        see=('triangle', 'firstrun', 'checks', 'saves', 'reading'),
+        see=('triangle', 'firstrun', 'checks', 'saves', 'reading', 'shell'),
         commands=('board', 'take', 'jack in'),
         group='start'),
     Topic(
@@ -115,7 +115,7 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] a character you have put forty shifts into is '
         'one disk failure from gone, and the only thing standing between '
         'those two states is you having typed `save --export` once.',
-        see=('death', 'basics'),
+        see=('death', 'basics', 'shell'),
         commands=('save', 'restore'),
         group='start'),
     # -- how a run works --------------------------------------------------
@@ -799,6 +799,41 @@ TOPICS: tuple[Topic, ...] = (
         see=('city', 'triangle', 'contracts', 'heat'),
         commands=('look', 'rest', 'travel', 'status'),
         group='city'),
+
+    Topic(
+        'shell', 'Ricing the shell',
+        'Six axes of terminal, earned by playing, and yours to keep.',
+        'Everything else in this game costs you something. Chrome costs '
+        'Dissonance, work costs heat, a face worth remembering costs '
+        'anonymity. This costs nothing and takes nothing, and it is here for '
+        'exactly that reason.\n\n'
+        '`rice` shows six axes: [accent]palette[/] is the colour scheme, '
+        '[accent]prompt[/] is the shape of the line you type at, '
+        '[accent]frame[/] is the box-drawing, [accent]bars[/] is what a meter '
+        'is made of, [accent]marks[/] is bullets and ticks and crosses, and '
+        '[accent]banner[/] is the wordmark on the cold start. Forty-two '
+        'pieces across the six, most of them earned.\n\n'
+        '[warn]It lives outside the save.[/] The deck\'s interface belongs to '
+        'you and not to the character, so it survives a flatline. You lose '
+        'everything else and the terminal you spent a week getting right is '
+        'still yours when you sit down with somebody new. The city takes the '
+        'runner. It does not get the shell.\n\n'
+        'The unlocks are spread across very different kinds of playing on '
+        'purpose: finishing contracts, finishing them without anybody ever '
+        'knowing, getting somewhere with a faction, seeing the city, going '
+        'too deep into the drift, meeting black ICE and being in a condition '
+        'to remember it. Nobody should be able to open the whole catalogue by '
+        'doing one thing forty times.\n\n'
+        '[warn]The rule:[/] none of it touches a single number. A cosmetic '
+        'that changed the game would be a build decision hiding in a menu, '
+        'and there is one thing no prompt style is allowed to drop, which is '
+        'the trace. Everything else on the prompt is one `status` away. The '
+        'trace is the number that ends the character.\n\n'
+        '`rice <kind> <name> --try` wears something for one screen without '
+        'keeping it.',
+        see=('saves', 'basics'),
+        commands=('rice', 'title'),
+        group='start'),
 )
 
 BY_KEY: dict[str, Topic] = {t.key: t for t in TOPICS}
