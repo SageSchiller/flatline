@@ -18,7 +18,9 @@ when the network is in a state nobody thought about.
 from __future__ import annotations
 
 import io
+import json
 import os
+import pathlib
 import sys
 import tempfile
 import traceback
@@ -224,6 +226,49 @@ def test_saves() -> None:
     for version in range(1, save_mod.SCHEMA):
         T.ok(version in save_mod.MIGRATIONS,
              f'migration from schema {version} exists')
+
+    # Export and import: a save that survives the data directory being lost.
+    import tempfile as _tmp
+    out = pathlib.Path(_tmp.mkdtemp()) / 'exported.json'
+    written = save_mod.export_to(game.to_dict(), out)
+    T.ok(written.exists(), 'a save exports to a path of your choosing')
+    brought = save_mod.import_from(out)
+    T.eq(brought['character']['handle'], 'tester', 'and imports back')
+    T.eq(brought['schema'], save_mod.SCHEMA, 'at the current schema')
+
+    # An export is an ordinary save, so migrations apply to it too.
+    legacy = pathlib.Path(_tmp.mkdtemp()) / 'old.json'
+    raw = dict(game.to_dict())
+    raw['schema'] = 1
+    raw['character'] = {k: v for k, v in raw['character'].items()
+                        if k not in ('icon', 'icons')}
+    legacy.write_text(json.dumps(raw), encoding='utf-8')
+    old = save_mod.import_from(legacy)
+    T.eq(old['schema'], save_mod.SCHEMA, 'an old export migrates forward')
+    T.ok(old['character'].get('icon'), 'and gains what the migration adds')
+
+    # Everything that is not a save is refused, never crashed.
+    junk = pathlib.Path(_tmp.mkdtemp())
+    (junk / 'garbage.json').write_text('not json', encoding='utf-8')
+    (junk / 'other.json').write_text('{"a": 1}', encoding='utf-8')
+    T.raises(lambda: save_mod.import_from(junk / 'garbage.json'),
+             'unparseable input')
+    T.raises(lambda: save_mod.import_from(junk / 'other.json'),
+             'json that is not a save')
+    T.raises(lambda: save_mod.import_from(junk / 'nothing-here.json'),
+             'a missing file')
+    T.raises(lambda: save_mod.import_from(junk), 'a directory')
+    T.raises(lambda: save_mod.export_to({}, junk), 'exporting onto a directory')
+
+    # The whole point: the data directory can be lost entirely.
+    keep = save_mod.export_to(game.to_dict(),
+                              pathlib.Path(_tmp.mkdtemp()) / 'survivor.json')
+    save_mod.delete('roundtrip')
+    T.ok(not save_mod.exists('roundtrip'), 'the slot is gone')
+    recovered = save_mod.import_from(keep)
+    save_mod.write(recovered, 'roundtrip')
+    T.eq(Game.load('roundtrip').char.handle, 'tester',
+         'and the character comes back from the export')
 
     T.ok(save_mod.exists('roundtrip'), 'exists() finds the save')
     T.ok('roundtrip' in save_mod.slots(), 'slots() lists it')

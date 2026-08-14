@@ -25,7 +25,17 @@ At the prompt, `tutorial` walks you through a first run one instruction at a
 time, and `help` explains both the verbs and the systems behind them.
 
 Saves live in `$XDG_DATA_HOME/flatline` (usually `~/.local/share/flatline`),
-not beside the code.
+not beside the code, so moving or reinstalling the game does not touch a
+character. That location is correct and is also the one place nobody thinks to
+back up, so:
+
+```
+save --export ~/backups/keeper.json      # a copy anywhere you like
+restore --import ~/backups/keeper.json   # bring it back, here or elsewhere
+```
+
+An export is an ordinary save, migrations included: a copy made today still
+opens after the format moves on.
 
 ## Building a single file
 

@@ -135,6 +135,42 @@ def read(slot: str = 'default') -> dict:
     return migrate(raw)
 
 
+def export_to(data: dict, target: Path) -> Path:
+    """Write a save to a path of the player's choosing.
+
+    Saves live in the XDG data directory, which is correct and is also the one
+    place a player will not think to back up. An exported file is an ordinary
+    save: same schema, same migrations, so a copy made today still opens after
+    the format moves on.
+    """
+    target = Path(target).expanduser()
+    if target.is_dir():
+        raise SaveError(f'{target} is a directory; give me a filename')
+    payload = dict(data)
+    payload['schema'] = SCHEMA
+    try:
+        _write_atomic(target, payload)
+    except OSError as e:
+        raise SaveError(f'could not write {target}: {e}') from e
+    return target
+
+
+def import_from(source: Path) -> dict:
+    """Read a save from anywhere, migrating it forward like any other."""
+    source = Path(source).expanduser()
+    if not source.exists():
+        raise SaveError(f'no file at {source}')
+    if source.is_dir():
+        raise SaveError(f'{source} is a directory, not a save')
+    try:
+        raw = json.loads(source.read_text(encoding='utf-8'))
+    except (OSError, ValueError) as e:
+        raise SaveError(f'{source} could not be read: {e}') from e
+    if not isinstance(raw, dict) or 'character' not in raw:
+        raise SaveError(f'{source} is not a flatline save')
+    return migrate(raw)
+
+
 def exists(slot: str = 'default') -> bool:
     return save_path(slot).exists()
 

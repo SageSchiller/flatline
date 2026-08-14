@@ -7,6 +7,8 @@ stays true.
 
 from __future__ import annotations
 
+import pathlib
+
 from .. import save as save_mod
 from ..config import APP_TITLE
 from ..content import manual, tutorial
@@ -170,20 +172,80 @@ def cmd_quit(sess, args) -> None:
 
 
 @command('save', 'Write the current game to disk.',
-         group='session', usage='save [slot]')
+         group='session', usage='save [slot] [--export <path>] [--force]',
+         detail='Ordinary saves live in the XDG data directory, which is '
+                'correct and is also the one place you will not think to back '
+                'up. `--export <path>` writes a copy anywhere you like: same '
+                'format, same migrations, so a copy made today still opens '
+                'after the format moves on. `restore --import <path>` brings '
+                'one back.')
 def cmd_save(sess, args) -> None:
     game = sess.require_game()
+    c = sess.console
+
+    target = args.opt('export')
+    if target is not None:
+        sess.sync_scripts()
+        path = pathlib.Path(target).expanduser()
+        # Check what it is before checking whether to overwrite it, or
+        # pointing at a directory reports the wrong problem.
+        if path.is_dir():
+            raise CommandError(f'{path} is a directory; give me a filename, '
+                               f'like {path}/{game.char.handle}.json')
+        if path.exists() and not args.has('force'):
+            raise CommandError(f'{path} already exists. `--force` to write '
+                               f'over it.')
+        try:
+            written = save_mod.export_to(game.to_dict(), path)
+        except save_mod.SaveError as e:
+            # A bad path is the player's problem to fix, not a traceback.
+            raise CommandError(str(e)) from None
+        c.ok(f'Exported to {written}.')
+        c.say(f'[dim]{game.char.handle}, {game.city.when}, '
+              f'{game.char.runs} runs. `restore --import {written}` to bring '
+              f'it back, here or anywhere else.[/]')
+        return
+
     slot = args.get(0) or sess.slot
     path = game.save(slot)
     sess.slot = slot
-    sess.console.ok(f'Saved to {path}.')
+    c.ok(f'Saved to {path}.')
 
 
 @command('restore', 'Load a saved game.',
-         group='session', bare=True, usage='restore [slot]',
+         group='session', bare=True,
+         usage='restore [slot] [--import <path>] [--as <slot>]',
          detail='Named `restore` rather than `load` because `load` puts a '
-                'program on your deck, which you will type far more often.')
+                'program on your deck, which you will type far more often. '
+                '`--import <path>` opens a save exported from anywhere, on '
+                'this machine or another one, and `--as <slot>` says which '
+                'slot to file it under.')
 def cmd_restore(sess, args) -> None:
+    c = sess.console
+    if sess.run is not None:
+        raise CommandError('finish the run first.')
+
+    source = args.opt('import')
+    if source is not None:
+        try:
+            data = save_mod.import_from(pathlib.Path(source))
+        except save_mod.SaveError as e:
+            raise CommandError(str(e)) from None
+        slot = args.opt('as') or 'imported'
+        if save_mod.exists(slot) and not args.has('force'):
+            raise CommandError(
+                f'slot {slot!r} already has a character in it. '
+                f'`--as <another slot>`, or `--force` to write over them.')
+        save_mod.write(data, slot)
+        sess.load_game(slot)
+        game = sess.game
+        c.ok(f'{game.char.handle} is here, filed under {slot!r}.')
+        c.say(f'[dim]{game.city.when}, {game.city.district.name}, '
+              f'{game.char.runs} runs, running as {game.alias.name}.[/]')
+        if game.over:
+            c.warn(f'This character is finished: {game.over}')
+        return
+
     slots = save_mod.slots()
     if not slots:
         raise CommandError('no saves found.')
@@ -193,8 +255,6 @@ def cmd_restore(sess, args) -> None:
             slot = slots[0]
         else:
             raise CommandError(f'which one: {", ".join(slots)}')
-    if sess.run is not None:
-        raise CommandError('finish the run first.')
     sess.load_game(slot)
     game = sess.game
     sess.console.ok(f'{game.char.handle}, running as [accent]'

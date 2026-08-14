@@ -64,7 +64,7 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision the whole game is built around[/] is not which '
         'exploit to use. It is whether to spend time covering your tracks, '
         'knowing the trace advances while you do it.',
-        see=('triangle', 'firstrun', 'checks'),
+        see=('triangle', 'firstrun', 'checks', 'saves'),
         commands=('board', 'take', 'jack in'),
         group='start'),
     Topic(
@@ -95,6 +95,29 @@ TOPICS: tuple[Topic, ...] = (
         commands=('scan', 'probe', 'odds', 'crack', 'connect', 'jack out'),
         group='start'),
 
+    Topic(
+        'saves', 'Saves, and keeping one',
+        'Where a character lives, and how to make sure they survive.',
+        'The game autosaves on every shift boundary and on quitting. Saves '
+        'live in your XDG data directory, usually '
+        '[dim]~/.local/share/flatline[/], not beside the code, so moving or '
+        'reinstalling the game does not touch a character.\n\n'
+        'That location is correct and it is also the one place nobody thinks '
+        'to back up. So:\n\n'
+        '  [fg]save --export <path>[/]      a copy anywhere you like\n'
+        '  [fg]restore --import <path>[/]   bring one back, here or elsewhere\n\n'
+        'An export is an ordinary save: same format, same forward migrations. '
+        'A copy made today still opens after the format has moved on, which '
+        'is the entire reason saves carry a schema number.\n\n'
+        'Both refuse to write over something without `--force`, and '
+        '`restore --import` takes `--as <slot>` if you want it filed '
+        'somewhere other than `imported`.\n\n'
+        '[warn]The decision:[/] a character you have put forty shifts into is '
+        'one disk failure from gone, and the only thing standing between '
+        'those two states is you having typed `save --export` once.',
+        see=('death', 'basics'),
+        commands=('save', 'restore'),
+        group='start'),
     # -- how a run works --------------------------------------------------
     Topic(
         'triangle', 'Noise, trace, and residue',
