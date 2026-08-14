@@ -116,7 +116,7 @@ verb nobody else can use and its own starting face · 34 implants · 46 programs
 · 28 countermeasures · 9 districts, each with a mark for the faction that
 holds it · 12 factions · 17 named characters · 18 storylines across 39 scenes ·
 102 appearance features · 51 ambient city events · 31 manual topics ·
-98 commands · 42 unlockable pieces of terminal across 6 axes.
+99 commands · 42 unlockable pieces of terminal across 6 axes.
 
 Footnotes are a real feature of the console. `{{like this}}` in any content
 string gets lifted out and printed under the block, and they nest, because the

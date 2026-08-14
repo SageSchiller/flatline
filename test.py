@@ -3234,6 +3234,38 @@ def _rice_body(T, rice, prompt_mod, anim, Caps, ColorLevel, GlyphLevel,
     T.eq(save_mod.read_meta()['flatlines'], 1, 'and is counted')
     save_mod.delete('dead')
 
+    # `career` is where the meta layer becomes visible, and it has to survive
+    # a profile with nothing in it.
+    save_mod.write_meta(dict(save_mod.META_DEFAULT))
+    _, out = play(['career'])
+    T.ok('Nothing yet' in out, 'career on a fresh profile says so')
+    T.ok('Traceback' not in out, 'without dividing by anything')
+
+    save_mod.bump_meta(characters_created=4, flatlines=2, runs_completed=27,
+                       clean_runs=9)
+    save_mod.high_water(best_credits=61500, deepest_drift=58,
+                        districts_seen=7, best_standing=52,
+                        black_ice_survived=1, threads_closed=3)
+    _, out = play(['career'])
+    T.ok('4 started' in out and '2 lost' in out, 'career counts the runners')
+    T.ok('27' in out and '33%' in out, 'and the work, clean and otherwise')
+    T.ok('unlocked' in out, 'and how much of the shell is open')
+    T.ok('only thing on this page' in out,
+         'and says what survived them, once somebody has been lost')
+
+    # It must not divide by zero when nothing has been earned or everything has.
+    save_mod.write_meta({**save_mod.META_DEFAULT, 'characters_created': 1})
+    _, out = play(['career'])
+    T.ok('contracts' in out, 'career with no runs at all still renders')
+    maxed = dict(save_mod.META_DEFAULT, characters_created=1)
+    for counter in rice.COUNTERS.values():
+        if counter:
+            maxed[counter] = 10 ** 9
+    save_mod.write_meta(maxed)
+    _, out = play(['career'])
+    T.ok(f'{len(rice.COSMETICS)}/{len(rice.COSMETICS)}' in out,
+         'and with the whole catalogue open')
+
     # Cosmetics must not touch a single number in the game.
     a = Game.new(Character.from_origin('gutter', 'a'), seed=4242)
     before = (a.char.credits, a.char.xp, a.char.memorable,

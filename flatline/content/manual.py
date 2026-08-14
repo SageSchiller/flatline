@@ -831,8 +831,8 @@ TOPICS: tuple[Topic, ...] = (
         'trace is the number that ends the character.\n\n'
         '`rice <kind> <name> --try` wears something for one screen without '
         'keeping it.',
-        see=('saves', 'basics'),
-        commands=('rice', 'title'),
+        see=('saves', 'basics', 'death'),
+        commands=('rice', 'title', 'career'),
         group='start'),
 )
 

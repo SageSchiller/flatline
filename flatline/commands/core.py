@@ -18,6 +18,7 @@ from .. import anim
 from .. import ui
 from .. import theme
 from .. import prompt as prompt_mod
+from ..content import districts
 from ..content import rice
 from ..shell import GROUPS, REGISTRY, CommandError, Quit, command
 
@@ -767,3 +768,74 @@ def _rice_kind(sess, kind: str) -> None:
                 c.raw('   ' + row)
     c.blank()
     c.say(f'[dim]`rice {kind} <name>` to wear one.[/]')
+
+
+@command('career', 'Everything you have done, across every character.',
+         group='session', bare=True, aliases=('legacy',), usage='career',
+         detail='The save holds one runner. This holds all of them: how many '
+                'you have started, how many you have lost, how far any of '
+                'them got. It is also what the shell catalogue unlocks '
+                'against, which is why the two live in the same file and why '
+                'neither of them dies with a character.')
+def cmd_career(sess, args) -> None:
+    c = sess.console
+    meta = save_mod.read_meta()
+    made = int(meta.get('characters_created') or 0)
+    lost = int(meta.get('flatlines') or 0)
+    runs = int(meta.get('runs_completed') or 0)
+    clean = int(meta.get('clean_runs') or 0)
+
+    c.header('Career', 'across everybody')
+    if not made:
+        c.say('[dim]Nothing yet. `new` to make somebody.[/]')
+        return
+
+    c.kv([
+        ('runners', f'{made} started'
+                    + (f', [err]{lost} lost[/]' if lost else
+                       ', [dim]none lost[/]')),
+        ('contracts', f'{runs}'
+                      + (f'  [dim]{clean} with nobody ever knowing '
+                         f'({clean * 100 // max(1, runs)}%)[/]' if runs
+                         else '')),
+        ('richest', f'[credit]{int(meta.get("best_credits") or 0):,}c[/] '
+                    f'[dim]held at once[/]'),
+        ('deepest', f'{int(meta.get("deepest_drift") or 0)} Dissonance'),
+        ('seen', f'{int(meta.get("districts_seen") or 0)} of '
+                 f'{len(districts.DISTRICT_KEYS)} districts'),
+        ('best standing', f'{int(meta.get("best_standing") or 0)} '
+                          f'[dim]with anybody[/]'),
+    ])
+
+    marks = []
+    if meta.get('black_ice_survived'):
+        marks.append('met black ICE and walked away from it')
+    if meta.get('bounties_taken'):
+        marks.append('been worth money to somebody')
+    if meta.get('threads_closed'):
+        marks.append(f'{int(meta["threads_closed"])} storylines carried '
+                     f'somewhere')
+    if marks:
+        c.blank()
+        c.bullets(marks, role='dim')
+
+    have = len(rice.unlocked(meta))
+    c.blank()
+    c.rule('the shell')
+    c.raw('  ' + c.bar(have / len(rice.COSMETICS), 'accent', 24,
+                       f'{have}/{len(rice.COSMETICS)} unlocked'))
+    close = sorted(
+        ((int(rice.progress(item, meta).split('/')[0]) / item.needs[1], item)
+         for item in rice.COSMETICS if not rice.met(item, meta)
+         and item.needs[1]),
+        key=lambda pair: -pair[0])[:3]
+    for share, item in close:
+        c.raw(f'  [dim]{item.name:<16} {item.kind:<8} '
+              f'{rice.progress(item, meta)}[/]')
+    if close:
+        c.say('[dim]`rice` for the rest of it.[/]')
+
+    if lost:
+        c.blank()
+        c.say('[dim]The shell is the only thing on this page that any of them '
+              'got to keep.[/]')
