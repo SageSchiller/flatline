@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from .. import save as save_mod
 from ..config import APP_TITLE
+from ..content import manual, tutorial
 from ..content import skills as skill_content
 from .. import script as script_mod
 from ..shell import GROUPS, REGISTRY, CommandError, Quit, command
@@ -26,43 +27,104 @@ GROUP_TITLES = {
 }
 
 
-@command('help', 'What you can type, and what it does.',
+@command('help', 'What you can type, and what everything means.',
          group='session', aliases=('?', 'h'), bare=True,
-         usage='help [command]',
-         detail='With no argument, lists every command legal in the current '
-                'context, grouped. With a command name, prints that command\'s '
-                'full description, including its cost in ticks.')
+         usage='help [command|topic] [--all]',
+         detail='With no argument, shows the commands you can use here and '
+                'the manual index. `help <command>` explains a verb. '
+                '`help <topic>` explains a system: try `help triangle` for '
+                'the three numbers the whole game runs on, or `help firstrun` '
+                'for a walkthrough of one.')
 def cmd_help(sess, args) -> None:
     c = sess.console
     if len(args):
-        name = args[0].lower()
-        cmd = REGISTRY.lookup(name)
-        if cmd is None:
-            matches = REGISTRY.prefix_matches(name, sess.context)
-            if len(matches) != 1:
-                raise CommandError(f'no command called {name!r}')
-            cmd = matches[0]
-        c.header(cmd.name, cmd.usage or '')
-        c.say(cmd.summary)
-        if cmd.detail:
-            c.blank()
-            c.say(cmd.detail)
-        rows = []
-        if cmd.aliases:
-            rows.append(('also', ', '.join(cmd.aliases)))
-        rows.append(('where', 'anywhere' if 'any' in cmd.contexts
-                     else ', '.join(cmd.contexts)))
-        if cmd.ticks:
-            rows.append(('costs', f'{cmd.ticks} tick'
-                                  f'{"s" if cmd.ticks != 1 else ""}'))
-        c.blank()
-        c.kv(rows)
-        return
+        want = args[0].lower()
+        # A topic and a command can share a name; the command wins, because
+        # somebody typing `help scan` wants the verb. Topics that collide are
+        # reachable as `help --topic <name>`, and none currently do.
+        cmd = REGISTRY.lookup(want)
+        if cmd is None and not args.has('topic'):
+            matches = REGISTRY.prefix_matches(want, sess.context)
+            if len(matches) == 1:
+                cmd = matches[0]
+        if cmd is not None and not args.has('topic'):
+            _help_command(sess, cmd)
+            return
 
-    c.header(f'{APP_TITLE} commands',
-             'in a run' if sess.context == 'run' else 'in the city')
+        topic = manual.BY_KEY.get(want)
+        if topic is None:
+            near = [k for k in manual.TOPIC_KEYS if k.startswith(want)]
+            if len(near) == 1:
+                topic = manual.BY_KEY[near[0]]
+        if topic is not None:
+            _help_topic(sess, topic)
+            return
+        raise CommandError(
+            f'nothing called {want!r}. `help` for the command list and the '
+            f'manual index.')
+
+    _help_index(sess, everything=args.has('all'))
+
+
+def _help_command(sess, cmd) -> None:
+    c = sess.console
+    c.header(cmd.name, cmd.usage or '')
+    c.say(cmd.summary)
+    if cmd.detail:
+        c.blank()
+        c.say(cmd.detail)
+    rows = []
+    if cmd.aliases:
+        rows.append(('also', ', '.join(cmd.aliases)))
+    rows.append(('where', 'anywhere' if 'any' in cmd.contexts
+                 else ', '.join(cmd.contexts)))
+    if cmd.ticks:
+        rows.append(('costs', f'{cmd.ticks} tick'
+                              f'{"s" if cmd.ticks != 1 else ""}'))
+    c.blank()
+    c.kv(rows)
+    # Point at the manual topics that explain what this verb operates on.
+    related = [t for t in manual.TOPICS if cmd.name in t.commands]
+    if related:
+        c.blank()
+        c.say('[dim]Background: '
+              + ', '.join(f'`help {t.key}`' for t in related) + '[/]')
+
+
+def _help_topic(sess, topic) -> None:
+    c = sess.console
+    c.header(topic.title, f'help {topic.key}')
+    for para in topic.body.split('\n\n'):
+        for line in para.split('\n'):
+            # Lines that are already laid out as a table keep their spacing;
+            # prose gets wrapped.
+            if line.startswith('  '):
+                c.raw(line)
+            else:
+                c.say(line)
+        c.blank()
+    if topic.commands:
+        c.say('[dim]Commands: '
+              + ', '.join(f'[fg]{x}[/]' for x in topic.commands) + '[/]')
+    if topic.see:
+        c.say('[dim]See also: '
+              + ', '.join(f'`help {k}`' for k in topic.see) + '[/]')
+
+
+def _help_index(sess, everything: bool = False) -> None:
+    c = sess.console
+    context = sess.context
+    c.header(f'{APP_TITLE} help',
+             'in a run' if context == 'run' else 'in the city')
+
+    if sess.game is None:
+        c.say('[dim]New here? `help basics` is four sentences on what this '
+              'game is, and `tutorial` will walk you through one run while '
+              'you play it.[/]')
+        c.blank()
+
     for group in GROUPS:
-        cmds = [x for x in REGISTRY.in_context(sess.context) if x.group == group]
+        cmds = [x for x in REGISTRY.in_context(context) if x.group == group]
         if not cmds:
             continue
         c.blank()
@@ -72,9 +134,26 @@ def cmd_help(sess, args) -> None:
             pad = ' ' * (width - len(cmd.name))
             c.say(f'  [fg]{cmd.name}[/]{pad}  [dim]{cmd.summary}[/]',
                   subsequent=' ' * (width + 4))
+
+    c.blank()
+    c.rule('the manual')
+    c.say('[dim]These explain the systems rather than the verbs. '
+          '`help <topic>`.[/]')
+    for group in manual.GROUPS:
+        topics = [t for t in manual.TOPICS if t.group == group]
+        if not topics:
+            continue
+        c.blank()
+        c.raw(f'[accent2]{manual.GROUP_TITLES[group]}[/]')
+        width = max(len(t.key) for t in topics)
+        for topic in topics:
+            pad = ' ' * (width - len(topic.key))
+            c.say(f'  [fg]{topic.key}[/]{pad}  [dim]{topic.summary}[/]',
+                  subsequent=' ' * (width + 4))
+
     c.blank()
     c.say('[dim]Prefixes work: `conn` reaches `connect`. Chain with `;`. '
-          '`help <command>` for detail.[/]')
+          'Start with `help basics`.[/]')
 
 
 @command('quit', 'Leave. Saves first unless you say otherwise.',
@@ -317,3 +396,52 @@ def cmd_techniques(sess, args) -> None:
         c.raw(f'[accent]{tech.name}[/]  [dim]{verb}[/]')
         c.say(tech.summary, indent='  ')
         c.say(f'[dim]{tech.detail}[/]', indent='  ')
+
+
+@command('tutorial', 'A guided first run, one instruction at a time.',
+         group='session', bare=True, usage='tutorial [stop|skip|again]',
+         detail='Optional and interruptible. It watches what you do rather '
+                'than leading you by the hand, so you can do the steps in any '
+                'order, ignore it, or stop it. `skip` moves past a step you '
+                'do not want to do.')
+def cmd_tutorial(sess, args) -> None:
+    c = sess.console
+    action = (args.get(0) or '').lower()
+
+    if action == 'stop':
+        if sess.tutorial_step < 0:
+            raise CommandError('the tutorial is not running.')
+        sess.tutorial_step = -1
+        c.ok('Tutorial off. `tutorial` starts it again from wherever you are.')
+        return
+
+    if action == 'skip':
+        if sess.tutorial_step < 0:
+            raise CommandError('the tutorial is not running.')
+        sess.tutorial_step += 1
+        if sess.tutorial_step >= len(tutorial.STEPS):
+            sess.tutorial_step = -1
+            c.ok('That was the last one.')
+            return
+        c.info('Skipped.')
+        sess.tutorial_show()
+        return
+
+    if action == 'again':
+        sess.tutorial_step = 0
+
+    if sess.tutorial_step < 0:
+        # Start at the first step the player has not already satisfied, so
+        # somebody who asks for it forty shifts in is not told to make a
+        # character they already have.
+        sess.tutorial_step = 0
+        c.blank()
+        c.rule('tutorial', role='accent2')
+        c.say(tutorial.OPENING)
+        sess.tutorial_advance()
+        if sess.tutorial_step >= 0:
+            sess.tutorial_show()
+        return
+
+    c.info(f'Step {sess.tutorial_step + 1} of {len(tutorial.STEPS)}.')
+    sess.tutorial_show()

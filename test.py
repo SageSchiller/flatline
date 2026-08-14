@@ -642,9 +642,9 @@ def test_shell() -> None:
 
     # Chaining and comments.
     _, out = play(['help ; help'])
-    T.ok(out.count('FLATLINE commands') == 2, 'semicolons chain commands')
+    T.ok(out.count('FLATLINE help') == 2, 'semicolons chain commands')
     _, out = play(['help # this is a comment'])
-    T.ok('FLATLINE commands' in out, 'comments are stripped')
+    T.ok('FLATLINE help' in out, 'comments are stripped')
 
     # Quoted arguments survive.
     from flatline.shell import Args

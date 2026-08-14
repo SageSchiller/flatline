@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from . import save as save_mod
 from .config import APP_TITLE, TAGLINE_PARTS, history_path
 from .game import Game
+from .content import tutorial
 from .script import MAX_DISPATCH, ScriptError, parse
 from .shell import REGISTRY, CommandError, Invocation, Quit, resolve, split_line
 from .ui import Caps, Console
@@ -43,6 +44,12 @@ class Session:
     exit_code: int = 0
     #: Everything typed this session, for `history` and for `script save`.
     typed: list = field(default_factory=list)
+    #: Commands the player has used at least once. The tutorial reads it,
+    #: because "have they looked at their own character sheet" is a real
+    #: teaching goal and is not otherwise visible in game state.
+    seen: set = field(default_factory=set)
+    #: Index of the current tutorial step, or -1 when it is not running.
+    tutorial_step: int = -1
 
     # ------------------------------------------------------------------
     # context
@@ -142,12 +149,76 @@ class Session:
             return
         try:
             inv.command.handler(self, inv.args)
+            self.seen.add(inv.command.name)
         except CommandError as e:
             if str(e):
                 self.console.err(str(e))
         except Quit as q:
             self.running = False
             self.exit_code = q.code
+            return
+        # The tutorial watches rather than leads: it checks after every
+        # command whether the current step has been satisfied, however the
+        # player got there.
+        if self.tutorial_step >= 0:
+            self.tutorial_advance()
+
+    # ------------------------------------------------------------------
+    # tutorial
+    # ------------------------------------------------------------------
+
+    def tutorial_show(self) -> None:
+        """Print the current instruction."""
+        if not 0 <= self.tutorial_step < len(tutorial.STEPS):
+            return
+        step = tutorial.STEPS[self.tutorial_step]
+        c = self.console
+        c.blank()
+        c.rule(f'step {self.tutorial_step + 1} of {len(tutorial.STEPS)}',
+               role='accent2')
+        c.say(f'[accent]{step.instruction}[/]')
+        c.blank()
+        c.say(f'[dim]{step.why}[/]')
+        if step.topic:
+            c.say(f'[dim]More: `help {step.topic}`.[/]')
+
+    def tutorial_advance(self) -> None:
+        """Complete every satisfied step, and show the next one.
+
+        A loop rather than a single check, because one command can satisfy
+        several steps at once and stopping after the first would leave the
+        player being told to do something they have already done.
+
+        A condition that raises must never take the shell down with it: the
+        tutorial is optional and a bug in it is not worth a traceback in the
+        middle of somebody's run.
+        """
+        c = self.console
+        while 0 <= self.tutorial_step < len(tutorial.STEPS):
+            step = tutorial.STEPS[self.tutorial_step]
+            try:
+                done = bool(step.done(self))
+            except Exception:
+                done = False
+            if not done:
+                return
+            if step.payoff:
+                c.blank()
+                c.say(f'[ok]{c.caps.g("check")}[/] [dim]{step.payoff}[/]')
+            self.tutorial_step += 1
+            if self.tutorial_step >= len(tutorial.STEPS):
+                self.tutorial_step = -1
+                c.blank()
+                c.rule('done', role='accent2')
+                for line in tutorial.CLOSING.split('\n\n'):
+                    for part in line.split('\n'):
+                        if part.startswith('  '):
+                            c.raw(part)
+                        else:
+                            c.say(part)
+                    c.blank()
+                return
+            self.tutorial_show()
 
     # ------------------------------------------------------------------
     # scripts

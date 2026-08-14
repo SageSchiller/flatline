@@ -24,6 +24,7 @@ from flatline.content import dissonance as drift
 from flatline.content import districts
 from flatline.content import effects as fx, factions
 from flatline.content import hardware, ice as ice_content, icons
+from flatline.content import manual, tutorial as tut
 from flatline.content import nodes as node_content
 from flatline.content import origins, programs
 from flatline.content import rivals as rival_content
@@ -833,6 +834,78 @@ def check_scripting(rep: Report) -> None:
               'MAX_DISPATCH is below MAX_STEPS, so a legal script cannot run')
 
 
+def check_manual(rep: Report) -> None:
+    """The manual has to be reachable, linked correctly, and about something."""
+    for t in manual.TOPICS:
+        where = f'manual/{t.key}'
+        rep.check(bool(t.title and t.summary), where, 'has no title or summary')
+        rep.check(len(t.body) > 200, where, 'body is too short to be help')
+        rep.check(t.group in manual.GROUPS, where, f'unknown group {t.group!r}')
+        for link in t.see:
+            rep.check(link in manual.BY_KEY, where,
+                      f'links to unknown topic {link!r}')
+            rep.check(link != t.key, where, 'links to itself')
+        for name in t.commands:
+            if REGISTRY.lookup(name) is None:
+                rep.error(where, f'names no command: {name!r}')
+        # The rule this file is written under: a topic that explains a number
+        # without saying what to do differently is a glossary entry.
+        if 'decision' not in t.body and 'The mistake' not in t.body:
+            rep.warn(where, 'does not close on a decision')
+
+    for group in manual.GROUPS:
+        rep.check(group in manual.GROUP_TITLES, 'manual',
+                  f'group {group!r} has no title')
+        if not [t for t in manual.TOPICS if t.group == group]:
+            rep.warn('manual', f'group {group!r} is empty')
+
+    # Every topic must be reachable from another topic or the starter set,
+    # or it exists and nobody will ever find it.
+    linked = set(manual.STARTER)
+    for t in manual.TOPICS:
+        linked.update(t.see)
+    for t in manual.TOPICS:
+        if t.key not in linked:
+            rep.warn(f'manual/{t.key}', 'nothing links to it')
+    for key in manual.STARTER:
+        rep.check(key in manual.BY_KEY, 'manual',
+                  f'STARTER names unknown topic {key!r}')
+
+
+def check_tutorial(rep: Report) -> None:
+    """Tutorial conditions run after every command. They must be total."""
+    class _Empty:
+        game = None
+        run = None
+        seen: set = set()
+
+    blank = _Empty()
+    for step in tut.STEPS:
+        where = f'tutorial/{step.key}'
+        rep.check(bool(step.instruction), where, 'has no instruction')
+        rep.check(bool(step.why), where, 'has no reason, so it teaches nothing')
+        rep.check(callable(step.done), where, 'has no condition')
+        if step.topic:
+            rep.check(step.topic in manual.BY_KEY, where,
+                      f'points at unknown topic {step.topic!r}')
+        # A condition that raises would take the shell down mid-run, and the
+        # tutorial is optional: it is never worth a traceback.
+        try:
+            result = step.done(blank)
+            rep.check(isinstance(result, bool) or result in (0, 1), where,
+                      f'condition returned {result!r}, not a truth value')
+        except Exception as e:
+            rep.error(where, f'condition raises on an empty session: {e!r}')
+
+    keys = [s.key for s in tut.STEPS]
+    rep.check(len(keys) == len(set(keys)), 'tutorial', 'duplicate step keys')
+    rep.check(bool(tut.OPENING and tut.CLOSING), 'tutorial',
+              'missing opening or closing text')
+    for name in tut.WATCHED:
+        rep.check(REGISTRY.lookup(name) is not None, 'tutorial',
+                  f'WATCHED names no command: {name!r}')
+
+
 def check_commands(rep: Report) -> None:
     for name, cmd in REGISTRY.commands.items():
         where = f'commands/{name}'
@@ -911,6 +984,12 @@ def check_markup(rep: Report) -> None:
     for w in cyberware.WARE:
         collect(f'cyberware/{w.key}', w.blurb)
         collect(f'cyberware/{w.key}', w.drawback)
+    for t in manual.TOPICS:
+        collect(f'manual/{t.key}', t.summary)
+    for step in tut.STEPS:
+        collect(f'tutorial/{step.key}', step.instruction)
+        collect(f'tutorial/{step.key}', step.why)
+        collect(f'tutorial/{step.key}', step.payoff)
     for r in rival_content.RIVALS:
         collect(f'rivals/{r.key}', r.blurb)
         collect(f'rivals/{r.key}', r.manner)
@@ -922,6 +1001,12 @@ def check_markup(rep: Report) -> None:
         collect(f'icons/{i.key}', i.blurb)
         collect(f'icons/{i.key}', i.render)
         collect(f'icons/{i.key}', i.drawback)
+    for t in manual.TOPICS:
+        collect(f'manual/{t.key}', t.summary)
+    for step in tut.STEPS:
+        collect(f'tutorial/{step.key}', step.instruction)
+        collect(f'tutorial/{step.key}', step.why)
+        collect(f'tutorial/{step.key}', step.payoff)
     for r in rival_content.RIVALS:
         collect(f'rivals/{r.key}', r.blurb)
         collect(f'rivals/{r.key}', r.manner)
@@ -1011,7 +1096,7 @@ CHECKS = (
     check_icons, check_dissonance, check_cyberspace, check_rivals, check_debt,
     check_origins, check_skills, check_factions, check_districts,
     check_ice, check_nodes, check_contracts, check_commands,
-    check_scripting, check_theme, check_markup, check_balance,
+    check_scripting, check_manual, check_tutorial, check_theme, check_markup, check_balance,
 )
 
 
