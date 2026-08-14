@@ -829,10 +829,13 @@ def cmd_rest(sess, args) -> None:
     if 'poor_rest' in riders:
         heal = int(heal * 0.6)
     game.char.hurt = max(0, game.char.hurt - heal)
-    _advance(sess, shifts)
     healed = before - game.char.hurt
+    # Said before the world reports itself, not after. What happened while you
+    # were lying low reads as consequence; the same lines printed above the
+    # confirmation read as a preamble to nothing.
     c.ok(f'{shifts} shift{"s" if shifts != 1 else ""} pass.'
          + (f' [ok]Integrity +{healed}.[/]' if healed else ''))
+    _advance(sess, shifts)
     if not safe:
         c.info('No safehouse here. You did not sleep well.')
     if 'slow_healing' in game.char.riders():
@@ -1091,6 +1094,12 @@ def _advance(sess, shifts: int) -> None:
     told = game.city.advance(game.rng, game.alias, shifts,
                              debt=game.debt, char=game.char)
     for line in told:
+        sess.console.say(line)
+    # Scenery goes last and gets its own air. It is the one thing printed here
+    # that is not about the player, and it only reads that way with a gap in
+    # front of it.
+    for line in game.city.ambient:
+        sess.console.blank()
         sess.console.say(line)
     _rot(sess, shifts)
     _drift(sess)

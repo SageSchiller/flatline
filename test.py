@@ -2407,6 +2407,97 @@ def test_appearance() -> None:
 
 
 
+
+def test_tone() -> None:
+    T.section('tone')
+    from flatline.content import events as event_content
+
+    # Footnotes are the tonal device. They have to nest, because the whole
+    # reason to have one is the writer who needs an aside about an aside.
+    text, notes = ui.split_notes('A{{one{{two}}}}B{{three}}')
+    T.eq(ui.plain(text), 'A\u00b9B\u00b3', 'markers land in reading order')
+    T.eq(notes, ['one\u00b2', 'two', 'three'],
+         'and nested notes are numbered after their parent')
+
+    T.eq(ui.split_notes('nothing here'), ('nothing here', []),
+         'text without asides is returned untouched')
+    text, notes = ui.split_notes('a {{unterminated')
+    T.eq(notes, [], 'an unterminated aside produces no note')
+    T.ok('unterminated' in text, 'and does not swallow the line')
+
+    ascii_text, _ = ui.split_notes('x{{y}}', ascii_only=True)
+    T.ok('[1]' in ascii_text, 'the marker degrades to ASCII')
+
+    # The console lifts them out of prose and prints them under the block.
+    console = quiet_console()
+    console.start_capture()
+    console.say('The Ninth has a rat problem.{{They have a committee.}}')
+    console.footnotes()
+    out = console.end_capture()
+    T.ok('rat problem' in out and 'committee' in out, 'both halves print')
+    T.ok(out.index('rat problem') < out.index('committee'),
+         'and the aside goes underneath')
+    T.eq(console.pending_notes, [], 'flushing clears the queue')
+
+    console.start_capture()
+    console.footnotes()
+    T.eq(console.end_capture(), '', 'flushing nothing prints nothing')
+
+    # Notes must not leak between commands. An orphaned aside attaching to the
+    # next thing the player typed would be worse than losing it.
+    sess, out = play(['new Tone --origin gutter --seed 5', 'char'])
+    T.eq(sess.console.pending_notes, [],
+         'the dispatcher flushes notes after every command')
+
+    # The tonal budget. This is a design decision, not a preference, and it is
+    # the thing most likely to rot as content gets added one entry at a time.
+    total = len(event_content.EVENTS)
+    for tone, (lo, hi) in event_content.TONE_BUDGET.items():
+        share = sum(1 for e in event_content.EVENTS if e.tone == tone) / total
+        T.ok(lo <= share <= hi,
+             f'{tone} is {share:.0%} of events, inside its {lo:.0%}-{hi:.0%} '
+             f'budget')
+
+    # Every district can produce every register, or the budget is satisfied
+    # on paper and never in play.
+    for key in districts.DISTRICT_KEYS:
+        tones = {e.tone for p in ('morning', 'afternoon', 'night')
+                 for e in event_content.eligible(key, p)}
+        T.eq(tones, set(event_content.TONES),
+             f'{key} can produce all three registers')
+
+    # Scenery is scenery: it must not touch anything the player owns.
+    game = Game.new(Character.from_origin('gutter', 'watch'), seed=99)
+    before = (game.char.credits, game.char.hurt, game.char.xp,
+              len(game.char.marks), game.char.dissonance)
+    for _ in range(60):
+        game.city.advance(game.rng, game.alias, 1, char=game.char)
+    after = (game.char.credits, game.char.hurt, game.char.xp,
+             len(game.char.marks), game.char.dissonance)
+    T.eq(before, after, 'ambient events never touch the character')
+    T.ok(game.city.events_seen, 'and some of them fired')
+
+    # One window per command, however many shifts passed.
+    game.city.ambient = []
+    game.city.advance(game.rng, game.alias, 8, char=game.char)
+    T.ok(len(game.city.ambient) <= 1,
+         'a long rest narrates one shift, not eight')
+
+    # And it survives a save, so the anti-repeat bias is not reset by loading.
+    game.save('tone')
+    back = Game.load('tone')
+    T.eq(back.city.events_seen, game.city.events_seen,
+         'which events have been seen survives a save')
+    save_mod.delete('tone')
+
+    # Every event reads as the city rather than as something aimed at you.
+    for e in event_content.EVENTS:
+        body = ui.plain(ui.split_notes(e.text)[0])
+        T.ok(not body.startswith('You '),
+             f'{e.key} is about the city, not the player')
+
+
+
 def test_migration() -> None:
     T.section('migration')
     import json
@@ -2467,7 +2558,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_migration, test_shell,
+    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_migration, test_shell,
     test_playthrough, test_ui,
 )
 

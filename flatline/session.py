@@ -154,9 +154,15 @@ class Session:
             if str(e):
                 self.console.err(str(e))
         except Quit as q:
+            self.console.footnotes()
             self.running = False
             self.exit_code = q.code
             return
+        # Asides go at the bottom of the block that raised them, the way they
+        # do on a page. Flushing here rather than in each command means any
+        # content anywhere can write one without knowing this exists, and an
+        # error path cannot leave a note orphaned into the next command.
+        self.console.footnotes()
         # The tutorial watches rather than leads: it checks after every
         # command whether the current step has been satisfied, however the
         # player got there.

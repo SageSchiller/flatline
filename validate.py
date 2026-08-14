@@ -19,6 +19,8 @@ from flatline import commands  # noqa: F401  (registers the command table)
 from flatline import script as script_mod
 from flatline import theme, ui
 from flatline.content import appearance
+from flatline.content import events
+from flatline.world import city as city_mod
 from flatline.content import attributes as attr_content
 from flatline.content import cyberspace, cyberware
 from flatline.content import dissonance as drift
@@ -637,6 +639,104 @@ def check_appearance(rep: Report) -> None:
                             ('memorable feeds standing', 'appearance.rep_mult')):
         rep.check(needle in _world_source(), 'appearance/hooks',
                   f'{promise}, but {needle} is never called')
+
+
+
+def check_events(rep: Report) -> None:
+    """Ambient events, and the tonal budget that keeps the setting the setting.
+
+    Tone drift is invisible one entry at a time and obvious after forty, which
+    makes it exactly the kind of thing to encode rather than to trust. The
+    budget in `events.TONE_BUDGET` is a design decision with a floor and a
+    ceiling on each register: grim has to dominate or this stops being a
+    grimdark game, and absurd has to exist or there is no relief in it, and
+    absurd has a ceiling because relief arriving every other shift is not
+    relief, it is just the tone.
+    """
+    total = len(events.EVENTS)
+    rep.check(total >= 30, 'events',
+              f'only {total} ambient events; the city repeats itself')
+
+    seen: set[str] = set()
+    for e in events.EVENTS:
+        where = f'events/{e.key}'
+        rep.check(e.key not in seen, where, 'duplicate key')
+        seen.add(e.key)
+        rep.check(e.tone in events.TONES, where, f'unknown tone {e.tone!r}')
+        rep.check(bool(e.text.strip()), where, 'has no text')
+        rep.check(e.weight > 0, where, f'weight {e.weight} would never fire')
+        for d in e.districts:
+            rep.check(d in districts.BY_KEY, where, f'unknown district {d!r}')
+        for phase in e.phases:
+            rep.check(phase in city_mod.SHIFT_NAMES, where,
+                      f'unknown shift phase {phase!r}')
+        # An event nothing can ever satisfy is dead content that validates.
+        rep.check(any(events.eligible(d, p)
+                      and e in events.eligible(d, p)
+                      for d in districts.DISTRICT_KEYS
+                      for p in city_mod.SHIFT_NAMES),
+                  where, 'no district and shift combination can ever show it')
+        stripped, notes = ui.split_notes(e.text)
+        body = ui.plain(stripped)
+        # Length is measured on everything the player reads, asides included:
+        # an event that is one line and three footnotes is still a scene, and
+        # is in fact the most Pratchett shape available here.
+        written = len(body) + sum(len(ui.plain(n)) for n in notes)
+        rep.check(written > 80, where,
+                  f'{written} characters is a caption, not a scene')
+        # A trailing footnote marker sits after the full stop, so strip the
+        # markers before asking whether the sentence was finished.
+        tail = body.rstrip().rstrip(ui._SUPER + ']0123456789[')
+        rep.check(tail.endswith(('.', '!', '?')), where,
+                  'does not end in a full stop')
+        for note in notes:
+            flat = ui.plain(note).rstrip().rstrip(ui._SUPER + ']0123456789[')
+            rep.check(flat.endswith(('.', '!', '?')), where,
+                      'an aside does not end in a full stop')
+        # The house style. An ambient event is something the city is doing,
+        # not something happening to the player.
+        rep.check(not body.lstrip().startswith('You '), where,
+                  'opens on the player; ambient events are the city, not you')
+
+    counts = {t: sum(1 for e in events.EVENTS if e.tone == t)
+              for t in events.TONES}
+    rep.check(sum(counts.values()) == total, 'events/tone',
+              'an event has a tone outside events.TONES')
+    for tone, (lo, hi) in events.TONE_BUDGET.items():
+        share = counts[tone] / total
+        rep.check(lo <= share <= hi, 'events/tone',
+                  f'{tone} is {share:.0%} of {total} events, outside the '
+                  f'{lo:.0%}-{hi:.0%} budget '
+                  f'({counts[tone]} entries; '
+                  f'{int(lo * total + 0.999)}-{int(hi * total)} allowed)')
+
+    # Relief has to be reachable from the places the player actually spends
+    # time, or the budget is satisfied on paper and never in play.
+    for key in districts.DISTRICT_KEYS:
+        for tone in events.TONES:
+            reachable = any(e.tone == tone
+                            for p in city_mod.SHIFT_NAMES
+                            for e in events.eligible(key, p))
+            rep.check(reachable, f'events/{key}',
+                      f'nothing {tone} can ever happen here')
+
+    # Footnotes are the tonal device and are worth their own rules. The
+    # general markup check catches unbalanced braces everywhere; here we care
+    # that they are used, and used in the register they exist for.
+    with_notes = [e for e in events.EVENTS if '{{' in e.text]
+    rep.check(len(with_notes) >= 4, 'events/footnotes',
+              'almost nothing uses a footnote, which is the one device this '
+              'register has')
+    for e in with_notes:
+        rep.check(e.tone != 'grim', f'events/{e.key}',
+                  'a grim event with an aside in it is a wry event that has '
+                  'not admitted to itself yet')
+
+    # And the engine has to actually show them.
+    rep.check('event_content.pick' in _world_source(), 'events/hooks',
+              'nothing in the city layer ever picks an ambient event')
+    rep.check('city.ambient' in _command_source(), 'events/hooks',
+              'ambient events are picked but never printed')
 
 
 def check_debt(rep: Report) -> None:
@@ -1345,37 +1445,6 @@ def check_markup(rep: Report) -> None:
     for w in cyberware.WARE:
         collect(f'cyberware/{w.key}', w.blurb)
         collect(f'cyberware/{w.key}', w.drawback)
-    for n in npc_content.NPCS:
-        collect(f'npcs/{n.key}', n.first)
-        collect(f'npcs/{n.key}', n.manner)
-        for line in n.lines:
-            collect(f'npcs/{n.key}/line', line)
-        for topic, text in n.topics.items():
-            collect(f'npcs/{n.key}/{topic}', text)
-    for t in thread_content.THREADS:
-        collect(f'threads/{t.key}', t.blurb)
-        for st in t.stages:
-            collect(f'threads/{t.key}/{st.key}', st.headline)
-            for para in st.text.split('\n\n'):
-                collect(f'threads/{t.key}/{st.key}', para)
-            for ch in st.choices:
-                collect(f'threads/{t.key}/{st.key}/{ch.key}', ch.label)
-                for para in ch.text.split('\n\n'):
-                    collect(f'threads/{t.key}/{st.key}/{ch.key}', para)
-    for t in trait_content.TRAITS:
-        collect(f'traits/{t.key}', t.blurb)
-        collect(f'traits/{t.key}', t.drawback)
-    for t in manual.TOPICS:
-        collect(f'manual/{t.key}', t.summary)
-    for step in tut.STEPS:
-        collect(f'tutorial/{step.key}', step.instruction)
-        collect(f'tutorial/{step.key}', step.why)
-        collect(f'tutorial/{step.key}', step.payoff)
-    for r in rival_content.RIVALS:
-        collect(f'rivals/{r.key}', r.blurb)
-        collect(f'rivals/{r.key}', r.manner)
-        for line in r.panic:
-            collect(f'rivals/{r.key}/panic', line)
     for passage in drift.PASSAGES:
         collect(f'dissonance/{passage.band}', passage.text)
     for i in icons.ICONS:
@@ -1447,10 +1516,38 @@ def check_markup(rep: Report) -> None:
             if span.role and span.role not in known:
                 rep.error('markup', f'{where}: unknown role {span.role!r}')
 
+    # Footnotes. An unbalanced brace does not crash, it swallows the rest of
+    # the line into an aside, which is worse: it looks deliberate.
+    for where, text in sources:
+        if '{{' not in text and '}}' not in text:
+            continue
+        if text.count('{{') != text.count('}}'):
+            rep.error('footnotes', f'{where}: unbalanced {{{{ }}}}')
+            continue
+        stripped, notes = ui.split_notes(text)
+        if len(notes) > ui.MAX_NOTES:
+            rep.error('footnotes',
+                      f'{where}: {len(notes)} notes in one block, and only '
+                      f'{ui.MAX_NOTES} will print')
+        for note in notes:
+            if not note.strip():
+                rep.error('footnotes', f'{where}: an empty footnote')
+            elif len(ui.plain(note)) > 320:
+                rep.warn('footnotes',
+                         f'{where}: a {len(ui.plain(note))}-character aside, '
+                         f'which is a paragraph wearing a hat')
+        # The marker has to attach to something. A note opening a line has
+        # nothing to be an aside from.
+        if stripped.lstrip().startswith(tuple(ui._SUPER) + ('[1]',)):
+            rep.error('footnotes',
+                      f'{where}: opens on a footnote marker, with nothing '
+                      f'before it for the note to be about')
+
     # Content is authored to fit the reading column at the ASCII rung.
     caps = ui.Caps(color=ui.ColorLevel.NONE, glyphs=ui.GlyphLevel.ASCII,
                    width=80, palette=theme.NEUTRAL)
     for where, text in sources:
+        text = ui.split_notes(text, ascii_only=True)[0]
         for line in ui.wrap(text, caps.text_width):
             if ui.width(line) > caps.text_width:
                 rep.error('layout', f'{where}: a line exceeds '
@@ -1495,7 +1592,7 @@ def check_balance(rep: Report) -> None:
 CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
     check_icons, check_dissonance, check_cyberspace, check_rivals, check_debt,
-    check_origins, check_appearance, check_skills, check_factions, check_districts,
+    check_origins, check_appearance, check_events, check_skills, check_factions, check_districts,
     check_ice, check_nodes, check_contracts, check_commands,
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_markup, check_balance,

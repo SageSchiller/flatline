@@ -15,7 +15,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from ..content import appearance, districts, factions
+from ..content import appearance, districts, events as event_content
+from ..content import factions
 from ..model.identity import Alias
 from ..rng import Rng
 from . import contracts as contract_mod
@@ -87,6 +88,17 @@ class City:
     #: to NEWS_KEPT: it is a scrollback, not a record, and it is appended to
     #: on every single shift.
     news: list = field(default_factory=list)
+    #: Ambient events already shown. Used to bias away from repeats rather
+    #: than to forbid them: a city that never repeats itself is as
+    #: unconvincing as one with four days in it.
+    events_seen: set = field(default_factory=set)
+    #: Flags set by ambient events, for threads to pick up later.
+    event_flags: set = field(default_factory=set)
+    #: Scenery from the most recent `advance`, kept apart from the news it
+    #: returns. Mechanical news is a consequence and an ambient event is a
+    #: window, and printing them in one block turns both into a wall of grey.
+    #: Not persisted: it is what the player was just shown, not world state.
+    ambient: list = field(default_factory=list, compare=False)
 
     # ------------------------------------------------------------------
 
@@ -122,6 +134,7 @@ class City:
                 debt=None, char=None) -> list[str]:
         """Move time forward. Returns everything the player should be told."""
         told: list[str] = []
+        self.ambient = []
         for _ in range(max(1, shifts)):
             self.shift += 1
             alias.decay_heat(
@@ -136,10 +149,33 @@ class City:
                 told.extend(self._debt_turn(rng, alias, debt, char))
             if self.shift % market_mod.REFRESH == 0:
                 self.refresh_stock(rng)
+            self.ambient.extend(self._ambient(rng))
         # Top the board back up rather than replacing it, so a contract the
         # player was saving does not vanish because a shift ticked over.
         told.extend(self.top_up_board(rng, alias, char))
         return told
+
+    def _ambient(self, rng: Rng) -> list[str]:
+        """One thing the city did this shift that has nothing to do with you.
+
+        Deliberately consequence-free. The moment an ambient event can cost
+        credits it stops being scenery and becomes a slot machine attached to
+        the rest command, and the player starts reading these for outcomes
+        instead of for the city.
+        """
+        # A long rest passes several shifts and should not narrate all of
+        # them: one window per command is a glance out of it, six is a
+        # travelogue nobody asked for.
+        if self.ambient:
+            return []
+        event = event_content.pick(rng('events'), self.where, self.phase,
+                                   self.events_seen)
+        if event is None:
+            return []
+        self.events_seen.add(event.key)
+        if event.flag:
+            self.event_flags.add(event.flag)
+        return [f'[dim]{event.text}[/]']
 
     def _decay_posture(self) -> None:
         """Posture drifts back toward baseline. Slowly: a robbed corporation
@@ -426,6 +462,8 @@ class City:
             'pending': [p.to_dict() for p in self.pending],
             'rivals': [r.to_dict() for r in self.rivals],
             'news': list(self.news[-NEWS_KEPT:]),
+            'events_seen': sorted(self.events_seen),
+            'event_flags': sorted(self.event_flags),
         }
 
     @classmethod
@@ -447,4 +485,6 @@ class City:
             rivals=[rival_mod.Rival.from_dict(r)
                     for r in (d.get('rivals') or [])] or rival_mod.seed_pool(),
             news=list(d.get('news') or []),
+            events_seen=set(d.get('events_seen') or ()),
+            event_flags=set(d.get('event_flags') or ()),
         )

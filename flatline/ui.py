@@ -152,6 +152,74 @@ _TAG = re.compile(r'\[(/|[a-z_][a-z0-9_]*)\]')
 ATTRS = frozenset({'bold', 'ul', 'rev'})
 
 
+# --------------------------------------------------------------------------
+# footnotes
+# --------------------------------------------------------------------------
+
+#: Superscript markers. Ten is a hard ceiling on notes in one block and that
+#: is a feature: the eleventh footnote is a sign the writing has lost the
+#: thread, not a sign the numbering needs extending.
+_SUPER = '⁰¹²³⁴⁵⁶⁷⁸⁹'
+MAX_NOTES = 9
+
+
+def note_marker(n: int, ascii_only: bool = False) -> str:
+    """The little raised number. `[n]` where Unicode is not safe."""
+    if ascii_only or not 0 < n < 10:
+        return f'[{n}]'
+    return _SUPER[n]
+
+
+def split_notes(s: str, start: int = 1,
+                ascii_only: bool = False) -> tuple[str, list[str]]:
+    """Pull `{{footnotes}}` out of a markup string, leaving numbered markers.
+
+    Footnotes nest, because the whole reason to have them is the writer who
+    gets halfway through an aside and needs an aside about the aside. An
+    inner note is numbered after its parent and printed as its own line, so
+    the reader can follow it or not.
+
+    Returns the text with markers substituted, and the notes in printing
+    order. Deliberately operates on the markup string before `parse`, so a
+    footnote can carry styling and a styled span can carry a footnote.
+    """
+    out: list[str] = []
+    notes: list[str] = []
+    counter = start
+    i = 0
+    while i < len(s):
+        if s.startswith('{{', i):
+            depth, j = 1, i + 2
+            while j < len(s) and depth:
+                if s.startswith('{{', j):
+                    depth += 1
+                    j += 2
+                elif s.startswith('}}', j):
+                    depth -= 1
+                    j += 2
+                else:
+                    j += 1
+            if depth:
+                # Unterminated. Same policy as an unclosed tag: print the text
+                # rather than lose a line of flavour to a missing brace.
+                out.append(s[i:])
+                break
+            n = counter
+            counter += 1
+            slot = len(notes)
+            notes.append('')
+            inner, deeper = split_notes(s[i + 2:j - 2], counter, ascii_only)
+            counter += len(deeper)
+            notes[slot] = inner
+            notes.extend(deeper)
+            out.append(note_marker(n, ascii_only))
+            i = j
+            continue
+        out.append(s[i])
+        i += 1
+    return ''.join(out), notes
+
+
 @dataclass(frozen=True, slots=True)
 class Span:
     text: str
@@ -332,11 +400,22 @@ class Console:
         self.captured: list[str] | None = None
         #: Everything printed this session, plain, for the `log` command.
         self.transcript: list[str] = []
+        #: Footnotes collected from this block, flushed at the end of the
+        #: command. Held on the console rather than passed around because a
+        #: paragraph is usually several `say` calls and the notes belong at the
+        #: bottom of all of them, the way they do on a page.
+        self.pending_notes: list[str] = []
 
     # -- primitives --------------------------------------------------------
 
     def raw(self, s: str = '') -> None:
-        """One already-wrapped markup line."""
+        """One already-wrapped markup line.
+
+        Collects footnotes too, so a `raw` call is not a hole in the feature.
+        `say` has already stripped them by the time it gets here, so this only
+        fires for content that reached the console directly.
+        """
+        s = self.collect_notes(s)
         self.transcript.append(plain(s))
         text = render(s, self.caps)
         if self.captured is not None:
@@ -348,9 +427,38 @@ class Console:
         self.raw('')
 
     def say(self, s: str = '', indent: str = '', subsequent: str | None = None) -> None:
-        """Wrapped prose. The default for anything sentence-shaped."""
+        """Wrapped prose. The default for anything sentence-shaped.
+
+        Any `{{aside}}` in the text is lifted out here, replaced with a raised
+        number, and printed under the block by `footnotes()`.
+        """
+        s = self.collect_notes(s)
         for line in wrap(s, self.caps.text_width, indent, subsequent):
             self.raw(line)
+
+    # -- footnotes ---------------------------------------------------------
+
+    def collect_notes(self, s: str) -> str:
+        """Strip footnotes from a string and queue them. Returns the text."""
+        if '{{' not in s:
+            return s
+        ascii_only = self.caps.glyphs is GlyphLevel.ASCII
+        text, notes = split_notes(s, len(self.pending_notes) + 1, ascii_only)
+        self.pending_notes.extend(notes)
+        return text
+
+    def footnotes(self) -> None:
+        """Print and clear whatever asides this block accumulated."""
+        if not self.pending_notes:
+            return
+        notes, self.pending_notes = self.pending_notes[:MAX_NOTES], []
+        ascii_only = self.caps.glyphs is GlyphLevel.ASCII
+        self.blank()
+        for i, text in enumerate(notes, 1):
+            mark = note_marker(i, ascii_only)
+            for line in wrap(f'[dim]{mark} {text}[/]', self.caps.text_width,
+                             indent=' ', subsequent='   '):
+                self.raw(line)
 
     # -- semantic shorthands ----------------------------------------------
 
