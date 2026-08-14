@@ -2967,6 +2967,24 @@ def test_clock() -> None:
     T.ok(night / max(peak, 0.01) < 1.5,
          'but not so much faster that off-peak is unplayable')
 
+    # District state: the city's oldest promise, said out loud in the street.
+    d = districts.BY_KEY['ninth']
+    base = districts.factions_posture(d.controller)
+    T.eq(districts.mood(d, base, 0.0), [],
+         'a district nothing has happened to says nothing')
+    T.eq(districts.mood(d, base - 1, 0.0), [],
+         'and a rounding error either way is still nothing')
+    T.ok(districts.mood(d, base - 20, 0.0), 'somebody stopping paying shows')
+    T.ok(districts.mood(d, base + 25, 0.0), 'so does hardening')
+    T.eq(len(districts.mood(d, base + 40, 90.0)), 2,
+         'hardened and hunted are two separate facts and read as two')
+    steps = [districts.mood(d, base + t, 0.0)[0]
+             for t, _ in districts.HARDENING]
+    T.eq(len(set(steps)), len(districts.HARDENING),
+         'each tier of hardening reads differently')
+    T.eq(districts.mood(d, base + 999, 0.0)[0], steps[-1],
+         'and the top tier is the top, however far past it you go')
+
     # The whole thing has to be visible, or it is a hidden system.
     _, out = play(['new Clock --origin gutter --seed 8829', 'look'])
     T.ok('shutters' in out.lower() or 'getting up' in out.lower(),

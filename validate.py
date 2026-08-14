@@ -889,6 +889,39 @@ def check_dead_fields(rep: Report) -> None:
 
 
 
+def check_district_mood(rep: Report) -> None:
+    """The city remembers, and has to say so somewhere the player is standing.
+
+    The state was always there in the numbers. What was missing was any way to
+    learn it without opening a reputation screen, which is the wrong surface
+    for "this street is different because of you".
+    """
+    for value, text in districts.HARDENING:
+        rep.check(value > 0, 'districts/mood',
+                  f'HARDENING has a band at {value}; a negative threshold in '
+                  f'this table swallows the neutral zone and makes a district '
+                  f'at exactly baseline report itself as falling apart')
+        rep.check(bool(text.strip()), 'districts/mood', 'an empty band')
+    rep.check(districts.RELAXED_AT < 0, 'districts/mood',
+              'RELAXED_AT is not below baseline, so it can never fire')
+    for value, text in districts.WANTED:
+        rep.check(value >= 0, 'districts/mood',
+                  f'WANTED has a band at {value}; attention is never negative')
+
+    # The neutral case has to be silent, or every district always narrates.
+    for d in districts.DISTRICTS:
+        base = districts.factions_posture(d.controller)
+        rep.check(districts.mood(d, base, 0.0) == [], f'districts/{d.key}',
+                  'reports something at baseline posture and no heat, so the '
+                  'lines stop meaning anything has changed')
+        rep.check(len(districts.mood(d, base + 40, 90.0)) == 2,
+                  f'districts/{d.key}',
+                  'a hardened district full of people looking for you says '
+                  'fewer than two things')
+    rep.check('districts.mood(' in _command_source(), 'districts/mood',
+              'the district state is computed and never shown')
+
+
 def check_shifts(rep: Report) -> None:
     """The clock, and the tension it is supposed to create.
 
@@ -1790,7 +1823,7 @@ def check_balance(rep: Report) -> None:
 CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
     check_icons, check_dissonance, check_cyberspace, check_rivals, check_debt,
-    check_origins, check_appearance, check_events, check_shifts, check_dead_fields, check_skills, check_factions, check_districts,
+    check_origins, check_appearance, check_events, check_shifts, check_district_mood, check_dead_fields, check_skills, check_factions, check_districts,
     check_ice, check_nodes, check_contracts, check_commands,
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_markup, check_balance,

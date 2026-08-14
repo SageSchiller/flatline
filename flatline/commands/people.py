@@ -14,6 +14,7 @@ from ..content import factions
 from ..content import npcs as npc_content
 from ..content import threads as thread_content
 from ..content import appearance
+from ..content import districts
 from ..content import shifts
 from ..shell import CommandError, command
 from ..world import story as story_mod
@@ -56,6 +57,15 @@ def cmd_look(sess, args) -> None:
     if parts:
         c.blank()
         c.info(f'{", ".join(parts)}. [dim]{when.why}[/]')
+
+    # What you have done to this place, standing in it. The city has always
+    # remembered in the numbers; this is the first time it says so out here.
+    posture = game.city.posture.get(district.controller, 0.0)
+    watchers = (district.controller, *district.presence)
+    attention = max((game.alias.attention(k) for k in watchers), default=0)
+    for line in districts.mood(district, posture, attention):
+        c.blank()
+        c.say(f'[dim]{line}[/]')
 
     c.blank()
     if not here:

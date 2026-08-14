@@ -176,3 +176,101 @@ START = 'marrow'
 
 def with_service(service: str) -> list[District]:
     return [d for d in DISTRICTS if service in d.services]
+
+
+# --------------------------------------------------------------------------
+# how a district is doing
+# --------------------------------------------------------------------------
+
+#: The game's pitch is that the city remembers. It has always been true in the
+#: numbers: posture climbs when you rob somebody, heat accrues, bounties get
+#: posted. None of it was ever visible standing in the street, which meant the
+#: player had to read a reputation screen to find out that the world had
+#: changed around them.
+#:
+#: These are that state, in the street, where it happened. Keyed to how far
+#: the controlling faction's posture has moved from its own baseline, which is
+#: the number that actually tracks "have you been hitting these people".
+#: Below this much *under* baseline, somebody has stopped paying for security
+#: here. Handled separately from the table below rather than as its lowest
+#: band, because `_band` picks the highest threshold at or under the value and
+#: a negative entry in an otherwise-positive table silently swallows the
+#: entire neutral zone: at exactly baseline posture the district would report
+#: itself as falling apart.
+RELAXED_AT = -6.0
+RELAXED = ('Something has gone out of this place since you were last here. '
+           'Half the checkpoints are unstaffed and nobody has replaced the '
+           'camera on the corner. Whoever was paying for all that has '
+           'stopped.')
+
+HARDENING: tuple[tuple[float, str], ...] = (
+    (10.0,
+     'There are more people in the doorways than there were, and they are '
+     'wearing the same jacket as each other. Nobody is doing anything. That '
+     'is the point of them.'),
+    (20.0,
+     'The district has tightened. Two of the through-routes you used to take '
+     'are gated now, there is a scanner arch at the transit entrance that '
+     'nobody is queueing for because everybody has learned the other way '
+     'round, and the whole place has the atmosphere of somewhere that has '
+     'recently had a meeting about you.'),
+    (32.0,
+     'This is not the district you started working in. There is a permanent '
+     'presence on the walkways now, in numbers that cost real money, and the '
+     'people who live here have adjusted their routes and their hours and '
+     'their conversation. Nobody here knows it was you. That does not make it '
+     'not you.'),
+)
+
+#: What being wanted here feels like from the pavement. Keyed to your own
+#: attention score with whoever is watching this ground.
+WANTED: tuple[tuple[float, str], ...] = (
+    (20.0, ''),
+    (35.0,
+     'You get looked at twice on the way in. Once by somebody who was not '
+     'sure, and once by the same person making sure.'),
+    (55.0,
+     'Somebody makes a call while you are still in the street, holding the '
+     'handset the way you hold a handset when the person you are describing '
+     'can see you.'),
+    (75.0,
+     'Two separate people have decided not to be near you, which they '
+     'accomplish without once looking in your direction, and which is the '
+     'single most professional thing you will see today.'),
+)
+
+
+def _band(table: tuple[tuple[float, str], ...], value: float) -> str:
+    line = ''
+    for threshold, text in table:
+        if value >= threshold:
+            line = text
+    return line
+
+
+def mood(district: District, posture: float, attention: float) -> list[str]:
+    """How this district is right now, in one or two lines.
+
+    Returns a list because the two halves are independent: a district can be
+    hardened and not care about you, or unchanged and full of people who have
+    your name. Both at once is a bad afternoon and reads as one.
+    """
+    out = []
+    drift = posture - factions_posture(district.controller)
+    if drift <= RELAXED_AT:
+        out.append(RELAXED)
+    else:
+        hardening = _band(HARDENING, drift)
+        if hardening:
+            out.append(hardening)
+    wanted = _band(WANTED, attention)
+    if wanted:
+        out.append(wanted)
+    return out
+
+
+def factions_posture(key: str) -> float:
+    """The controlling faction's baseline, imported late to avoid a cycle."""
+    from . import factions
+    fac = factions.BY_KEY.get(key)
+    return float(fac.posture) if fac else 0.0
