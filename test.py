@@ -2609,6 +2609,41 @@ def test_anim() -> None:
     T.ok('\u2588' in out, 'title works before a character exists')
     T.ok('does not care' in out, 'and prints the tagline')
 
+    # The handshake obeys the same rules as the boot.
+    for color in ColorLevel:
+        for glyphs in GlyphLevel:
+            con = Console(Caps(color=color, glyphs=glyphs, width=80,
+                               palette=theme.DEFAULT), stream=io.StringIO())
+            con.start_capture()
+            anim.connect(con, 'Kagawa Heavy Industries', quick=True)
+            out = con.end_capture()
+            T.ok('Kagawa' in out, f'connect prints at {color.name}')
+            if color is ColorLevel.NONE:
+                T.ok('\033' not in out and '[0m' not in out,
+                     'and emits no escape codes without colour')
+            if glyphs is GlyphLevel.ASCII:
+                T.ok(all(ord(ch) < 128 for ch in out),
+                     'and stays in ascii when told to')
+    for w in (40, 60, 80, 120):
+        con = Console(Caps(ColorLevel.NONE, GlyphLevel.UNICODE, w,
+                           theme.NEUTRAL), stream=io.StringIO())
+        con.start_capture()
+        anim.connect(con, 'Kagawa', quick=True)
+        for row in con.end_capture().splitlines():
+            T.ok(len(row) <= max(w, 60),
+                 f'the handshake fits a {w}-column terminal')
+
+    T.eq(len(anim.band_row(30, 5)), 30, 'the carrier band is the width asked')
+    T.eq(len(ui.plain(anim.meter(0.5, 20, quiet_console().caps))), 20,
+         'and so is the meter')
+
+    # And it actually runs when a player jacks in.
+    sess, out = play(['new Jack --origin gutter --seed 8829',
+                      'take c001', 'travel ninth', 'travel shambles',
+                      'jack in --force'])
+    T.ok('carrier locked' in out, 'jacking in runs the handshake')
+    T.ok(sess.run is not None, 'and the run actually starts')
+
 
 
 def test_migration() -> None:

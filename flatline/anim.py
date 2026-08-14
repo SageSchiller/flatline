@@ -375,3 +375,91 @@ def boot(console, char=None, quick: bool = False) -> None:
         console.raw()
         for line in final():
             console.emit(line)
+
+
+# --------------------------------------------------------------------------
+# jacking in
+# --------------------------------------------------------------------------
+
+#: The handshake, in the order a deck would actually do it. Each entry is
+#: (label, weight), where weight is roughly how long that stage takes relative
+#: to the others. Written as a machine reporting to itself.
+HANDSHAKE: tuple[tuple[str, float], ...] = (
+    ('carrier', 0.6),
+    ('key exchange', 1.0),
+    ('session', 0.7),
+    ('icon render', 1.2),
+    ('nerve sync', 0.9),
+)
+
+#: The glyphs the data band is made of. Not hex: a wall of hex reads as a
+#: screensaver from 1998, and the point of this band is that you cannot read
+#: it, only see that it is moving.
+_BAND = '▁▂▃▄▅▆▇█▇▆▅▄▃▂'
+_BAND_ASCII = '.:-=+*#%#*+=-:'
+
+
+def band_row(width: int, offset: int, ascii_only: bool = False) -> str:
+    """One frame of the carrier band, scrolling."""
+    chars = _BAND_ASCII if ascii_only else _BAND
+    return ''.join(chars[(i + offset) % len(chars)] for i in range(width))
+
+
+def meter(pct: float, width: int, caps: Caps, ascii_only: bool = False) -> str:
+    """A progress bar in the palette's accent, at whatever rung is available."""
+    full = caps.g('bar_full') if not ascii_only else '#'
+    empty = caps.g('bar_empty') if not ascii_only else '.'
+    filled = int(round(max(0.0, min(1.0, pct)) * width))
+    return (paint(full * filled, 'accent', caps)
+            + paint(empty * (width - filled), 'border', caps))
+
+
+def connect(console, target_name: str, quick: bool = False) -> None:
+    """The handshake. Called once, on the way into a run.
+
+    The threshold moment of the whole game: the point where the city stops and
+    the other place starts. It gets an animation for the same reason the boot
+    does, and it obeys the same rule, which is that skipping it changes
+    nothing at all.
+    """
+    caps = console.caps
+    ascii_only = caps.glyphs is GlyphLevel.ASCII
+    width = min(52, max(20, caps.width - 24))
+
+    def line(label: str, pct: float) -> str:
+        return (f'  {paint(label.ljust(14), "muted", caps)}'
+                f'{meter(pct, width, caps, ascii_only)} '
+                f'{paint(f"{int(pct * 100):3d}%", "dim", caps)}')
+
+    def final() -> list[str]:
+        return ([''] + [line(label, 1.0) for label, _ in HANDSHAKE]
+                + ['', '  ' + paint(f'carrier locked: {target_name}',
+                                    'accent', caps), ''])
+
+    if quick or not can_animate(console):
+        for row in final():
+            console.emit(row)
+        return
+
+    try:
+        with _Screen(console) as screen:
+            progress = [0.0] * len(HANDSHAKE)
+            frame = 0
+            for i, (_, weight) in enumerate(HANDSHAKE):
+                steps = max(3, int(weight * 9))
+                for step in range(steps + 1):
+                    progress[i] = step / steps
+                    rows = ['']
+                    rows += [line(HANDSHAKE[j][0], progress[j])
+                             for j in range(len(HANDSHAKE))]
+                    rows += ['', '  ' + paint(
+                        band_row(width + 14, frame, ascii_only), 'ice', caps),
+                        '']
+                    screen.draw(rows)
+                    screen.pause(0.028)
+                    frame += 2
+            screen.draw(final())
+    except KeyboardInterrupt:
+        console.raw()
+        for row in final():
+            console.emit(row)

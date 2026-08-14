@@ -21,6 +21,7 @@ from ..content import programs
 from ..run import network as net_mod
 from ..run.checks import Check
 from ..run.session import RunState, crack_check
+from .. import anim
 from ..shell import CommandError, command
 from ..world import market as market_mod
 from ..world.contracts import OBJECTIVE_PROGRAM
@@ -118,7 +119,10 @@ def cmd_jack_in(sess, args) -> None:
 
     sess.run = state
 
-    c.blank()
+    # The threshold. Everything before this line is the city and everything
+    # after it is the other place, and that deserves a moment.
+    anim.connect(c, contract.target_data.name)
+
     c.rule('connected')
     c.say(f'[dim]Target: [/][err]{contract.target_data.name}[/][dim], posture '
           f'{int(contract.posture)}. Objective: {contract.objective}.[/]')
