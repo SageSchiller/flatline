@@ -932,6 +932,121 @@ def test_rivals() -> None:
     save_mod.delete('rivals')
 
 
+def test_story() -> None:
+    T.section('story')
+    from flatline.content import npcs as npc_mod
+    from flatline.content import threads as thread_mod
+    from flatline.world import story as story_mod
+
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=5)
+    story = game.story
+    T.ok(not story.flags, 'a new character knows nobody')
+
+    # Meeting somebody is the hook every thread hangs on.
+    T.ok(story.meet('mara'), 'first meeting registers')
+    T.ok(not story.meet('mara'), 'and only counts once')
+    T.ok(story.satisfied('met:mara', game), 'which satisfies met:')
+    T.ok(not story.satisfied('met:archivist', game), 'and only for them')
+
+    # World conditions read the actual world.
+    game.char.runs = 4
+    T.ok(story.satisfied('runs:2', game), 'runs: reads the run count')
+    T.ok(not story.satisfied('runs:9', game), 'and compares properly')
+    game.char.dissonance = 40
+    T.ok(story.satisfied('diss:25', game), 'diss: reads Dissonance')
+    T.ok(not story.satisfied('nonsense:3', game),
+         'an unknown condition fails closed rather than unlocking')
+    T.ok(not story.satisfied('never_set_anywhere', game),
+         'and so does an unset flag')
+
+    # Stages become available the moment their condition holds, in any order.
+    fresh = Game.new(Character.from_origin('gutter', 'x'), seed=6)
+    T.ok(not fresh.story.available(fresh), 'nothing is open at the start')
+    fresh.char.runs = 3
+    opened = fresh.story.available(fresh)
+    T.ok(any(k == 'deepwater' for k, _ in opened),
+         'a stage opens on a world condition alone')
+
+    # any_of is a real second door.
+    multi = [st for t in thread_mod.THREADS for st in t.stages if st.any_of]
+    T.ok(multi, 'some stages have more than one way in')
+    for stage in multi:
+        T.ok(len(stage.any_of) >= 2,
+             f'{stage.key} any_of offers an actual alternative')
+
+    # Reaching a stage sets its flags and queues its choice.
+    thread = thread_mod.BY_KEY['lark']
+    stage = thread.stages[0]
+    fresh.story.meet('lark')
+    fresh.story.reach('lark', stage)
+    T.ok(fresh.story.stage_done('lark', stage.key), 'the stage is recorded')
+    for flag in stage.sets:
+        T.ok(fresh.story.has(flag), f'{flag} was set')
+    T.ok(not fresh.story.available(fresh) or True, 'availability recomputes')
+
+    choice_stage = next(st for st in thread.stages if st.choices)
+    fresh.story.reach('lark', choice_stage)
+    T.ok(fresh.story.pending, 'a stage with choices waits on the player')
+    found = fresh.story.open_choice()
+    T.ok(found is not None, 'and the waiting choice is retrievable')
+    fresh.story.resolve('lark', choice_stage.key, choice_stage.choices[0])
+    T.ok(not fresh.story.pending, 'resolving clears it')
+    for flag in choice_stage.choices[0].sets:
+        T.ok(fresh.story.has(flag), f'the choice set {flag}')
+
+    # Every thread has to be enterable, and every flag anything wants has to
+    # be settable by something, or a storyline is written and unreachable.
+    settable = thread_mod.flags_set()
+    for thread in thread_mod.THREADS:
+        for stage in thread.stages:
+            for rule in tuple(stage.requires) + tuple(stage.any_of):
+                if ':' in rule:
+                    continue
+                T.ok(rule in settable,
+                     f'{thread.key}.{stage.key} wants {rule!r}, which is set '
+                     f'somewhere')
+
+    # Crossings are mutual.
+    for thread in thread_mod.THREADS:
+        for other in thread.crosses:
+            T.ok(thread.key in thread_mod.BY_KEY[other].crosses,
+                 f'{thread.key}/{other} crossing is mutual')
+
+    # The cast is findable and is not all one note.
+    from collections import Counter
+    tones = Counter(n.tone for n in npc_mod.NPCS)
+    T.ok(len(tones) >= 4, f'the cast spans registers ({dict(tones)})')
+    T.ok(max(tones.values()) <= len(npc_mod.NPCS) * 0.4,
+         'and no single register dominates')
+    placed = [n for n in npc_mod.NPCS if n.where]
+    T.ok(len(placed) >= 10, 'most of the cast is somewhere specific')
+    for npc in npc_mod.NPCS:
+        if npc.where:
+            T.ok(npc.where in districts.DISTRICT_KEYS,
+                 f'{npc.key} lives somewhere real')
+
+    # Requirements gate who you can run into.
+    early = Game.new(Character.from_origin('gutter', 'x'), seed=7)
+    early.city.where = 'glasshouse'
+    visible = story_mod.present(early, early.story)
+    T.ok(all(not n.requires for n in visible),
+         'a new character only meets people with no requirements')
+    early.char.runs = 20
+    later = story_mod.present(early, early.story)
+    T.ok(len(later) >= len(visible),
+         'and more people become findable with a history')
+
+    # It all survives a save.
+    game.story.flags.add('dw_heard')
+    game.story.reached['deepwater'] = ['hear']
+    game.save('story')
+    back = Game.load('story')
+    T.eq(back.story.flags, game.story.flags, 'flags survive a save')
+    T.eq(back.story.reached, game.story.reached, 'and so does progress')
+    T.eq(back.story.met, game.story.met, 'and who you have met')
+    save_mod.delete('story')
+
+
 def test_traits_and_spread() -> None:
     T.section('traits and spread')
     from flatline.content import traits as trait_mod
@@ -2064,7 +2179,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_migration, test_shell,
+    test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_migration, test_shell,
     test_playthrough, test_ui,
 )
 

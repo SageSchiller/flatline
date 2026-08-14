@@ -24,7 +24,9 @@ from flatline.content import dissonance as drift
 from flatline.content import districts
 from flatline.content import effects as fx, factions
 from flatline.content import hardware, ice as ice_content, icons
-from flatline.content import manual, tutorial as tut
+from flatline.content import manual, npcs as npc_content
+from flatline.content import threads as thread_content
+from flatline.content import tutorial as tut
 from flatline.content import nodes as node_content
 from flatline.content import origins, programs
 from flatline.content import rivals as rival_content
@@ -896,6 +898,133 @@ def check_traits(rep: Report) -> None:
                   'taking it closes off almost everything else')
 
 
+def check_npcs(rep: Report) -> None:
+    """The cast. Its job is range, so the range is checked."""
+    for n in npc_content.NPCS:
+        where = f'npcs/{n.key}'
+        rep.check(n.tone in npc_content.TONES, where, f'unknown tone {n.tone!r}')
+        rep.check(bool(n.offers), where, 'offers nothing at all')
+        for offer in n.offers:
+            rep.check(offer in npc_content.OFFERS, where,
+                      f'unknown offer {offer!r}')
+        rep.check(bool(n.first and n.manner), where, 'has no introduction')
+        rep.check(len(n.lines) >= 2, where,
+                  'has fewer than two lines, so they repeat immediately')
+        if n.where:
+            rep.check(n.where in districts.BY_KEY, where,
+                      f'lives in unknown district {n.where!r}')
+            if n.at:
+                rep.check(n.at in districts.BY_KEY[n.where].services, where,
+                          f'needs a {n.at} and {n.where} has none')
+        if n.at:
+            rep.check(n.at in districts.SERVICES, where,
+                      f'unknown service {n.at!r}')
+        for rule in n.requires:
+            kind = rule.split(':')[0]
+            rep.check(kind in ('runs', 'diss', 'heat', 'rep'), where,
+                      f'unknown requirement {rule!r}')
+
+    # A city of one register is a city with one joke in it.
+    from collections import Counter
+    tones = Counter(n.tone for n in npc_content.NPCS)
+    for tone in npc_content.TONES:
+        if not tones.get(tone):
+            rep.warn('npcs', f'nobody is written in the {tone!r} register')
+    top = tones.most_common(1)[0][1]
+    rep.check(top <= len(npc_content.NPCS) * 0.4, 'npcs',
+              f'{top} of {len(npc_content.NPCS)} share one tone; the cast is '
+              f'too samey')
+
+    # Somebody has to be findable before the player has done anything.
+    early = [n for n in npc_content.NPCS if not n.requires]
+    rep.check(len(early) >= 6, 'npcs',
+              'too few people are findable by a brand new character')
+
+
+def check_threads(rep: Report) -> None:
+    """Storylines: reachable, crossing both ways, and never stranded."""
+    sets = thread_content.flags_set()
+    for t in thread_content.THREADS:
+        where = f'threads/{t.key}'
+        rep.check(bool(t.stages), where, 'has no stages')
+        rep.check(bool(t.blurb), where, 'has no blurb')
+        keys = [st.key for st in t.stages]
+        rep.check(len(keys) == len(set(keys)), where, 'duplicate stage keys')
+        for other in t.crosses:
+            rep.check(other in thread_content.BY_KEY, where,
+                      f'crosses unknown thread {other!r}')
+            back = thread_content.BY_KEY.get(other)
+            if back and t.key not in back.crosses:
+                rep.error(where, f'crosses {other!r}, which does not cross '
+                                 f'it back')
+        for st in t.stages:
+            sw = f'{where}/{st.key}'
+            rep.check(bool(st.headline and st.text), sw, 'is empty')
+            for rule in tuple(st.requires) + tuple(st.any_of):
+                if ':' in rule:
+                    kind = rule.split(':')[0]
+                    rep.check(kind in thread_content.CONDITIONS, sw,
+                              f'unknown condition {kind!r}')
+                elif rule not in sets:
+                    rep.error(sw, f'requires flag {rule!r}, which nothing '
+                                  f'sets: this stage is unreachable')
+            ckeys = [c.key for c in st.choices]
+            rep.check(len(ckeys) == len(set(ckeys)), sw, 'duplicate choices')
+            for choice in st.choices:
+                rep.check(bool(choice.label and choice.text),
+                          f'{sw}/{choice.key}', 'is empty')
+                for faction in choice.rep:
+                    rep.check(faction in factions.BY_KEY, f'{sw}/{choice.key}',
+                              f'unknown faction {faction!r}')
+                for rival in choice.disposition:
+                    rep.check(rival in rival_content.BY_KEY,
+                              f'{sw}/{choice.key}',
+                              f'unknown rival {rival!r}')
+
+    # Every thread must have at least one stage a new character can reach,
+    # or it exists and nobody will ever see it.
+    for t in thread_content.THREADS:
+        openers = [st for st in t.stages
+                   if all(':' in r or r not in sets for r in st.requires)
+                   or not st.requires]
+        rep.check(bool(openers), f'threads/{t.key}',
+                  'has no stage that can be reached first')
+
+    # And the crossing has to be real: a thread that shares no flag with the
+    # thread it claims to cross is a claim rather than a design.
+    for t in thread_content.THREADS:
+        mine = set()
+        for st in t.stages:
+            mine.update(st.sets)
+            for c in st.choices:
+                mine.update(c.sets)
+        for other_key in t.crosses:
+            other = thread_content.BY_KEY[other_key]
+            theirs = set()
+            wants = set()
+            for st in other.stages:
+                theirs.update(st.sets)
+                wants.update(r for r in tuple(st.requires) + tuple(st.any_of)
+                             if ':' not in r)
+                for c in st.choices:
+                    theirs.update(c.sets)
+            mywants = {r for st in t.stages
+                       for r in tuple(st.requires) + tuple(st.any_of)
+                       if ':' not in r}
+            # An NPC shared between two threads is also a crossing: both are
+            # gated on the same person.
+            npcs_mine = {r for st in t.stages for r in st.requires
+                         if r.startswith('met:')}
+            npcs_theirs = {r for st in other.stages for r in st.requires
+                           if r.startswith('met:')}
+            shared = ((mine & wants) or (theirs & mywants)
+                      or (npcs_mine & npcs_theirs))
+            if not shared:
+                rep.warn(f'threads/{t.key}',
+                         f'claims to cross {other_key!r} but shares no flag '
+                         f'with it')
+
+
 def check_manual(rep: Report) -> None:
     """The manual has to be reachable, linked correctly, and about something."""
     for t in manual.TOPICS:
@@ -1050,6 +1179,23 @@ def check_markup(rep: Report) -> None:
     for w in cyberware.WARE:
         collect(f'cyberware/{w.key}', w.blurb)
         collect(f'cyberware/{w.key}', w.drawback)
+    for n in npc_content.NPCS:
+        collect(f'npcs/{n.key}', n.first)
+        collect(f'npcs/{n.key}', n.manner)
+        for line in n.lines:
+            collect(f'npcs/{n.key}/line', line)
+        for topic, text in n.topics.items():
+            collect(f'npcs/{n.key}/{topic}', text)
+    for t in thread_content.THREADS:
+        collect(f'threads/{t.key}', t.blurb)
+        for st in t.stages:
+            collect(f'threads/{t.key}/{st.key}', st.headline)
+            for para in st.text.split('\n\n'):
+                collect(f'threads/{t.key}/{st.key}', para)
+            for ch in st.choices:
+                collect(f'threads/{t.key}/{st.key}/{ch.key}', ch.label)
+                for para in ch.text.split('\n\n'):
+                    collect(f'threads/{t.key}/{st.key}/{ch.key}', para)
     for t in trait_content.TRAITS:
         collect(f'traits/{t.key}', t.blurb)
         collect(f'traits/{t.key}', t.drawback)
@@ -1070,6 +1216,23 @@ def check_markup(rep: Report) -> None:
         collect(f'icons/{i.key}', i.blurb)
         collect(f'icons/{i.key}', i.render)
         collect(f'icons/{i.key}', i.drawback)
+    for n in npc_content.NPCS:
+        collect(f'npcs/{n.key}', n.first)
+        collect(f'npcs/{n.key}', n.manner)
+        for line in n.lines:
+            collect(f'npcs/{n.key}/line', line)
+        for topic, text in n.topics.items():
+            collect(f'npcs/{n.key}/{topic}', text)
+    for t in thread_content.THREADS:
+        collect(f'threads/{t.key}', t.blurb)
+        for st in t.stages:
+            collect(f'threads/{t.key}/{st.key}', st.headline)
+            for para in st.text.split('\n\n'):
+                collect(f'threads/{t.key}/{st.key}', para)
+            for ch in st.choices:
+                collect(f'threads/{t.key}/{st.key}/{ch.key}', ch.label)
+                for para in ch.text.split('\n\n'):
+                    collect(f'threads/{t.key}/{st.key}/{ch.key}', para)
     for t in trait_content.TRAITS:
         collect(f'traits/{t.key}', t.blurb)
         collect(f'traits/{t.key}', t.drawback)
@@ -1168,7 +1331,8 @@ CHECKS = (
     check_icons, check_dissonance, check_cyberspace, check_rivals, check_debt,
     check_origins, check_skills, check_factions, check_districts,
     check_ice, check_nodes, check_contracts, check_commands,
-    check_traits, check_scripting, check_manual, check_tutorial, check_theme, check_markup, check_balance,
+    check_traits, check_scripting, check_npcs, check_threads,
+    check_manual, check_tutorial, check_theme, check_markup, check_balance,
 )
 
 

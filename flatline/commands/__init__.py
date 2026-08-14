@@ -6,6 +6,6 @@ silent shadowing between the city and run command sets would be very hard to
 notice and very easy to introduce.
 """
 
-from . import city, core, run  # noqa: F401  (imported for side effects)
+from . import city, core, people, run  # noqa: F401  (side effects)
 
-__all__ = ['city', 'core', 'run']
+__all__ = ['city', 'core', 'people', 'run']

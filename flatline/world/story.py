@@ -1,0 +1,178 @@
+"""Live story state: who you have met, what you know, what you decided.
+
+The whole system is one set of strings. Meeting somebody sets `met:<key>`,
+reaching a stage sets whatever that stage sets, and taking a choice sets
+whatever that choice sets. Everything else is a query against that set.
+
+That is deliberately the simplest thing that can work, and it is what makes
+the criss-crossing free: a thread does not need to know another thread exists
+in order to read a flag it happened to set. Vance's thread never mentions
+Lark's, and taking Vance's offer closes a door in Lark's anyway, because they
+share a string.
+
+**Nothing here is scheduled.** Stages are checked whenever the world moves,
+and any stage whose condition now holds becomes available immediately. A player
+who does things in an order nobody anticipated gets the scenes in that order,
+which is why every stage is written as a scene rather than as a step.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from ..content import npcs as npc_content
+from ..content import threads as thread_content
+
+
+@dataclass(slots=True)
+class Story:
+    #: Everything that has happened, as flags. The entire state of the layer.
+    flags: set = field(default_factory=set)
+    #: thread key -> stage keys reached, in the order they were reached.
+    reached: dict = field(default_factory=dict)
+    #: Stage keys presented and awaiting a choice, as 'thread.stage'.
+    pending: list = field(default_factory=list)
+    #: NPC keys met, which is also mirrored into flags as `met:<key>`.
+    met: set = field(default_factory=set)
+
+    # ------------------------------------------------------------------
+
+    def has(self, flag: str) -> bool:
+        return flag in self.flags
+
+    def meet(self, key: str) -> bool:
+        """Record a first meeting. True if it was in fact the first."""
+        if key in self.met:
+            return False
+        self.met.add(key)
+        self.flags.add(f'met:{key}')
+        return True
+
+    def stage_done(self, thread: str, stage: str) -> bool:
+        return stage in self.reached.get(thread, [])
+
+    # ------------------------------------------------------------------
+
+    def satisfied(self, rule: str, game) -> bool:
+        """Whether one requirement holds. Unknown rules are never satisfied,
+        which fails closed: a typo hides a scene rather than unlocking one."""
+        if ':' not in rule:
+            return rule in self.flags
+        kind, _, value = rule.partition(':')
+        if kind == 'met':
+            return f'met:{value}' in self.flags
+        if kind == 'ran':
+            return f'ran:{value}' in self.flags
+        if kind == 'runs':
+            return game.char.runs >= int(value)
+        if kind == 'diss':
+            return game.char.dissonance >= int(value)
+        if kind == 'credits':
+            return game.char.credits >= int(value)
+        if kind == 'shift':
+            return game.city.shift >= int(value)
+        if kind == 'heat':
+            return game.alias.hottest[1] >= int(value)
+        if kind == 'rep':
+            faction, _, amount = value.partition(':')
+            return game.alias.reputation(faction) >= int(amount)
+        return False
+
+    def available(self, game) -> list[tuple[str, thread_content.Stage]]:
+        """Every stage that has become reachable and has not been seen.
+
+        Returns them in thread order rather than in any narrative order,
+        because there is no narrative order: this is the whole point of the
+        design and the writing is built to survive it.
+        """
+        out = []
+        for thread in thread_content.THREADS:
+            done = self.reached.get(thread.key, [])
+            for stage in thread.stages:
+                if stage.key in done:
+                    continue
+                if not all(self.satisfied(r, game) for r in stage.requires):
+                    continue
+                if stage.any_of and not any(
+                        self.satisfied(r, game) for r in stage.any_of):
+                    continue
+                out.append((thread.key, stage))
+        return out
+
+    def reach(self, thread_key: str, stage: thread_content.Stage) -> None:
+        """Mark a stage as seen and apply its flags."""
+        self.reached.setdefault(thread_key, []).append(stage.key)
+        self.flags.update(stage.sets)
+        if stage.choices:
+            self.pending.append(f'{thread_key}.{stage.key}')
+
+    def resolve(self, thread_key: str, stage_key: str,
+                choice: thread_content.Choice) -> None:
+        self.flags.update(choice.sets)
+        tag = f'{thread_key}.{stage_key}'
+        if tag in self.pending:
+            self.pending.remove(tag)
+
+    # ------------------------------------------------------------------
+
+    def open_choice(self):
+        """The choice currently waiting, if any, as (thread, stage)."""
+        if not self.pending:
+            return None
+        thread_key, _, stage_key = self.pending[0].partition('.')
+        thread = thread_content.BY_KEY.get(thread_key)
+        if thread is None:
+            self.pending.pop(0)
+            return None
+        stage = next((s for s in thread.stages if s.key == stage_key), None)
+        if stage is None:
+            self.pending.pop(0)
+            return None
+        return thread, stage
+
+    def active_threads(self) -> list[thread_content.Thread]:
+        return [thread_content.BY_KEY[k] for k in self.reached
+                if k in thread_content.BY_KEY]
+
+    def headline(self, thread_key: str) -> str:
+        """The most recent stage headline for a thread."""
+        done = self.reached.get(thread_key, [])
+        if not done:
+            return ''
+        thread = thread_content.BY_KEY[thread_key]
+        for stage in reversed(thread.stages):
+            if stage.key in done:
+                return stage.headline
+        return ''
+
+    # ------------------------------------------------------------------
+
+    def to_dict(self) -> dict:
+        return {'flags': sorted(self.flags),
+                'reached': {k: list(v) for k, v in self.reached.items()},
+                'pending': list(self.pending),
+                'met': sorted(self.met)}
+
+    @classmethod
+    def from_dict(cls, d: dict) -> Story:
+        return cls(flags=set(d.get('flags') or ()),
+                   reached={k: list(v)
+                            for k, v in (d.get('reached') or {}).items()},
+                   pending=list(d.get('pending') or []),
+                   met=set(d.get('met') or ()))
+
+
+# --------------------------------------------------------------------------
+# running into people
+# --------------------------------------------------------------------------
+
+
+def present(game, story: Story) -> list[npc_content.Npc]:
+    """Everybody who can be found in the district the player is standing in."""
+    district = game.city.district
+    out = []
+    for npc in npc_content.in_district(district.key, district.services):
+        if not npc_content.meets(npc, game.char, game.alias, game.char.runs):
+            continue
+        out.append(npc)
+    return out

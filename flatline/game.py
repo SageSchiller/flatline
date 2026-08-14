@@ -19,6 +19,7 @@ from .model.identity import Alias, generate_name
 from .rng import Rng, random_seed
 from .script import Script
 from .world.debt import Debt
+from .world.story import Story
 from .world.city import City
 
 
@@ -36,6 +37,8 @@ class Game:
     scripts: dict = field(default_factory=dict)
     #: What you owe, and to whom. At most one at a time.
     debt: Debt = field(default_factory=Debt)
+    #: Who you have met, what you know, and what you decided.
+    story: Story = field(default_factory=Story)
     #: Total credits earned across the character's life, for the epitaph.
     earned: int = 0
     #: Set when the character is dead. A flatlined save is readable, not
@@ -102,6 +105,7 @@ class Game:
             'aliases': [a.to_dict() for a in self.aliases],
             'scripts': {k: v.to_dict() for k, v in self.scripts.items()},
             'debt': self.debt.to_dict(),
+            'story': self.story.to_dict(),
             'earned': self.earned,
             'over': self.over,
         }
@@ -119,6 +123,7 @@ class Game:
             scripts={k: Script.from_dict(v)
                      for k, v in (d.get('scripts') or {}).items()},
             debt=Debt.from_dict(d.get('debt') or {}),
+            story=Story.from_dict(d.get('story') or {}),
             earned=int(d.get('earned', 0)),
             over=d.get('over', ''),
         )

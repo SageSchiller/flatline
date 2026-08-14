@@ -1304,13 +1304,19 @@ def cmd_hire(sess, args) -> None:
          f'{int(rival_world.HIRE_CUT * 100)}% cut of whatever you carry out.')
 
 
-@command('ask', 'Call in a favour.',
-         group='prep', usage='ask [name] [favour]',
-         detail='Favours are cheaper than the market and they are finite. '
-                'What you are spending is a relationship, and it does not '
-                'grow back on its own.')
+@command('ask', 'Ask somebody about something, or a runner for a favour.',
+         group='prep', usage='ask <name> <topic|favour>',
+         detail='With one of the city\'s people, asks about a subject they '
+                'have an opinion on: `look` around to find them first. With a '
+                'rival runner, calls in a favour, which is priced in '
+                'disposition rather than credits and does not grow back.')
 def cmd_ask(sess, args) -> None:
     game, c = sess.require_game(), sess.console
+    # One verb, two meanings. People get asked about things; colleagues get
+    # asked for things.
+    from .people import ask_npc
+    if ask_npc(sess, args):
+        return
     pool = game.city.rivals
 
     if len(args) < 2:

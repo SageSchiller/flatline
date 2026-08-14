@@ -545,6 +545,50 @@ TOPICS: tuple[Topic, ...] = (
         commands=('who', 'hire', 'ask', 'betray'),
         group='city'),
     Topic(
+        'people', 'The people in this city',
+        'Who to find, how to find them, and why they are worth it.',
+        'The city has people in it who are not competing with you. '
+        '[fg]look[/] is how you find them: who you run into depends on where '
+        'you are, what you can get into there, and in some cases on what you '
+        'have already done.\n\n'
+        'They are not shops with faces on. Every one of them wants something, '
+        'and it is not always your money. Some of them are trying to help '
+        'you, some are lying about who they work for, one is a vending '
+        'machine with opinions about a war in 2041, and one of them is dying '
+        'and has decided not to ask you about it.\n\n'
+        '[fg]talk[/] gets you a line. [fg]ask <name> <topic>[/] gets you what '
+        'they think about something specific, and some of those answers open '
+        'things.\n\n'
+        '[warn]The decision:[/] talking costs you nothing and no shift, so '
+        'the only reason not to is that you do not know they are there. Walk '
+        'into districts you have no job in.',
+        see=('threads', 'rivals', 'city'),
+        commands=('look', 'talk', 'ask', 'who is'),
+        group='city'),
+    Topic(
+        'threads', 'Storylines',
+        'Several at once, none of them waiting for you.',
+        'There are no quest chains here. A thread is a set of scenes, each '
+        'with its own condition, and a scene happens the moment its condition '
+        'holds however that happened.\n\n'
+        'Which means three things. **A thread can be entered more than one '
+        'way**: you can come at Deepwater through the Archivist, through '
+        'Remnant, through running one of their networks, or through asking '
+        'Mara the wrong question. **Threads cross**: taking Doctor Vance\'s '
+        'offer closes a door in Lark\'s story without either of them '
+        'mentioning the other. And **nothing is ordered**, so you can get the '
+        'fourth scene before the second if the world got there first.\n\n'
+        '[fg]journal[/] lists what you have got yourself into. '
+        '[fg]choose[/] handles anything waiting on a decision from you, and '
+        'those do not come back round.\n\n'
+        '[warn]The decision:[/] threads advance on what you were doing '
+        'anyway, so the real choice is who you spend time near. Nothing here '
+        'will chase you, and a thread you ignore simply resolves without you '
+        'in it.',
+        see=('people', 'city'),
+        commands=('journal', 'choose', 'look'),
+        group='city'),
+    Topic(
         'money', 'Credits and what things cost',
         'The economy, and what a run is actually worth.',
         'A contract pays between about 1,200 and 6,000 credits depending on '

@@ -244,6 +244,9 @@ def _resolve(sess) -> None:
         sess.autosave()
         return
 
+    # The story layer reads what you have actually done.
+    game.story.flags.add(f'ran:{summary["faction"]}')
+
     for line in game.city.apply_run(game.alias, summary, game.rng):
         c.say(line)
 
@@ -442,7 +445,7 @@ def cmd_map(sess, args) -> None:
 
 
 @command('here', 'What is in front of you right now.',
-         group='recon', contexts=('run',), aliases=('look',), usage='here')
+         group='recon', contexts=('run',), usage='here')
 def cmd_here(sess, args) -> None:
     state = sess.require_run()
     _show_node(sess, state.node, detail=state.node.mapped)

@@ -311,6 +311,82 @@ WARE: tuple[Ware, ...] = (
          drawback='It records everything you do, perfectly, forever. That '
                   'archive is on you, in you, and admissible.',
          penalty={'heat_mult': 1.3}),
+
+    # -- third wave -------------------------------------------------------
+    Ware('cartographer_lobe', 'Cartographer Lobe', 'Freeport Collective',
+         'cortex', 2, 8, 5800, 2,
+         'Community-printed spatial processing. You stop reading a network '
+         'and start remembering it, the way you remember a building you have '
+         'been in.',
+         effects={'skill_architecture': 1, 'scan_depth': 1},
+         drawback='Spatial memory is not selective either. You now remember '
+                  'every network you have ever been inside, in order, and '
+                  'some of them you would rather not.',
+         penalty={'composure': -3}),
+    Ware('cochlear_array', 'Cochlear Array', 'Sendai Interface',
+         'neural', 2, 9, 6100, 2,
+         'Hears traffic the way you hear a room: as something with a shape '
+         'and a direction and a number of people in it.',
+         effects={'skill_signal': 1, 'tell_lead': 1},
+         drawback='You cannot switch it off. Every network you enter arrives '
+                  'as noise before it arrives as information.',
+         penalty={'focus': -2}),
+    Ware('vagal_brake', 'Vagal Brake', 'Aoyama Biotech',
+         'spinal', 2, 11, 7900, 3,
+         'Clinical panic suppression, developed for surgical patients and '
+         'adopted immediately by people who go somewhere a Coffin lives.',
+         effects={'skill_psyche': 1, 'composure': 6},
+         drawback='It suppresses the panic and everything sharing a channel '
+                  'with it. Your reactions are slower and you will not feel '
+                  'them getting slower.',
+         penalty={'evade_bonus': -3}),
+    Ware('liar_larynx', 'Liar\'s Larynx', 'unbranded',
+         'subdermal', 2, 12, 6700, 3,
+         'Voice synthesis with a tell-suppression layer, built by somebody in '
+         'the Shambles who does very good work and asks no questions at all.',
+         effects={'skill_sabotage': 1, 'pretext_bonus': 4},
+         drawback='It suppresses your tells by suppressing your voice. What '
+                  'comes out is convincing and is not quite yours, and people '
+                  'who know you notice.',
+         penalty={'rep_mult': 0.88}),
+    Ware('ninth_finger', 'Ninth Finger', 'Kohler-Reyes',
+         'limb', 1, 5, 2600, 1,
+         'An additional digit, mounted where a watch would go, dedicated '
+         'entirely to interface work. Absurd, cheap, and startlingly '
+         'effective.',
+         effects={'tick_mult': 0.93},
+         drawback='It is visible, it is strange, and it moves on its own '
+                  'when you are concentrating.',
+         penalty={'pretext_bonus': -2}),
+    Ware('mourner', 'Mourner', 'Chorus',
+         'cortex', 3, 22, 10400, 3,
+         'The Chorus do not sell these. They fit them, for free, to anybody '
+         'who asks twice. Nobody outside the Chorus will tell you what it '
+         'does and everybody inside describes it differently.',
+         effects={'composure': 8, 'trace_mult': 0.85, 'focus': 2},
+         drawback='It was fitted by people who wanted something. Dissonance '
+                  'accrues from wearing it: +1 every run, and the Chorus now '
+                  'know where you are.',
+         penalty={'heat_mult': 1.15},
+         rider='creeping_dissonance'),
+    Ware('deadhand', 'Deadhand Relay', 'Nightwatch surplus',
+         'limb', 2, 7, 3800, 2,
+         'Issue equipment for officers going somewhere they might not come '
+         'back from. It finishes the job when the operator cannot.',
+         effects={'ice_damage': 3, 'integrity': 2},
+         drawback='It is issue equipment with an issue serial, and it '
+                  'finishes the job on its own terms rather than yours.',
+         penalty={},
+         rider='nightwatch_serial'),
+    Ware('quiet_room', 'Quiet Room', 'Freeport Collective',
+         'neural', 3, 13, 8600, 3,
+         'A shielded volume around the interface itself. Inside it, nothing '
+         'from the network can reach you and nothing you do reaches the '
+         'network either.',
+         effects={'ice_dr': 0.7, 'noise_mult': 0.75},
+         drawback='Nothing reaches you, including the tells. You are safer '
+                  'and considerably blinder.',
+         penalty={'tell_lead': -2, 'scan_depth': -1}),
 )
 
 

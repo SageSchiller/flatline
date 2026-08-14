@@ -231,6 +231,59 @@ PROGRAMS: tuple[Program, ...] = (
             'the busy ones, which are the ones with something on them.',
             effects={'legwork_bonus': 1},
             note='Marks nodes by traffic, not by type.'),
+
+    # -- third wave: gear that speaks to the newer skill lines -------------
+    Program('plumbline', 'Plumbline', 'hunter', 3, 5, 0.4, 6200, 3,
+            'Does not look at hosts. Looks at the gaps between them, and '
+            'tells you what shape the person who built this was thinking in.',
+            effects={'scan_depth': 1, 'legwork_bonus': 1},
+            note='Architecture gear. Reveals structure at almost no noise.'),
+    Program('dowser', 'Dowser', 'hunter', 2, 3, 0.3, 2700, 2,
+            'Finds the boundary between zones without touching either side '
+            'of it. Cheap, quiet, and it will not tell you what is guarding '
+            'the boundary.',
+            note='Marks chokepoints. Says nothing about what is on them.'),
+    Program('wiretap', 'Wiretap', 'hunter', 2, 4, 0.2, 4100, 2,
+            'Reads what two hosts are saying to each other. Neither of them '
+            'encrypted it, because neither of them imagined you.',
+            effects={'tell_lead': 1},
+            note='Signal gear. The quietest reconnaissance in the game.'),
+    Program('babel', 'Babel', 'forger', 3, 4, 0.4, 5100, 2,
+            'Speaks whatever the node speaks, badly, with total confidence. '
+            'Most authentication is a conversation and most conversations '
+            'are not listening.',
+            effects={'pretext_bonus': 3, 'noise_mult': 0.9},
+            note='Quiet forger. Good against wardens that ask.'),
+    Program('cuckoo', 'Cuckoo', 'daemon', 3, 4, 0.9, 6400, 3,
+            'Sits in somebody else\'s process and answers as it. Everything '
+            'that checks on that process finds it healthy and busy.',
+            effects={'residue_mult': 0.8},
+            note='Holds a node and makes it look normal while it does.'),
+    Program('kindling', 'Kindling', 'payload', 2, 4, 1.9, 3700, 2,
+            'Starts a small fault that becomes a large one somewhere nobody '
+            'is watching. Sabotage gear, and it does not need you present '
+            'for the interesting part.',
+            note='Satisfies wipe contracts. Extremely loud.'),
+    Program('bellwether', 'Bellwether', 'armour', 2, 4, 0.0, 4600, 2,
+            'Rings before anything reaches you. It does not stop the hit, it '
+            'stops the hit being a surprise.',
+            effects={'tell_lead': 1, 'ice_dr': 0.9},
+            note='Passive. Trades absorption for warning.'),
+    Program('anodyne', 'Anodyne', 'armour', 3, 5, 0.0, 8200, 3,
+            'Sits between your nervous system and the interface and lies to '
+            'both of them about how much of this is happening.',
+            effects={'ice_dr': 0.6, 'composure': 5},
+            note='Psyche gear. The only armour that helps against panic.'),
+    Program('lodestone', 'Lodestone', 'mask', 2, 4, 0.0, 3900, 2,
+            'Does not hide the signal. Moves where it appears to originate, '
+            'one segment at a time, always away from you.',
+            effects={'trace_mult': 0.8, 'evade_bonus': 1},
+            note='Cheaper than Mirrorbox and worse at exactly one thing.'),
+    Program('shrike', 'Shrike', 'weapon', 2, 4, 1.2, 4400, 2,
+            'Kills small things instantly and large things not at all. '
+            'Sentries and probes evaporate; a hunter does not notice.',
+            effects={'ice_damage': 2},
+            note='Devastating against low-rating ICE, useless above it.'),
 )
 
 
