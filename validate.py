@@ -148,6 +148,15 @@ def check_cyberware(rep: Report) -> None:
             rep.check(w.rider in cyberware.RIDERS, where,
                       f'rider {w.rider!r} is not in RIDERS')
 
+    # Signatures must be unique and each must belong to exactly one origin.
+    claimed = [o.signature for o in origins.ORIGINS if o.signature]
+    if len(claimed) != len(set(claimed)):
+        rep.error('origins', 'two origins claim the same signature ability')
+    for sig in origins.SIGNATURES:
+        owners = [o.key for o in origins.ORIGINS if o.signature == sig]
+        rep.check(len(owners) == 1, 'origins',
+                  f'signature {sig!r} is owned by {owners or "nobody"}')
+
     # Every location must have something worth fitting in it.
     for location in cyberware.SLOTS:
         if not cyberware.by_location(location):
@@ -477,6 +486,15 @@ def check_origins(rep: Report) -> None:
         for problem in fx.check(o.effects, f'{where}/effects'):
             rep.error('effects', problem)
         rep.check(bool(o.complication), where, 'has no complication')
+        # D32: the thing nobody else can do. Without it, two origins with the
+        # same numbers are the same origin.
+        rep.check(bool(o.signature), where, 'has no signature ability')
+        rep.check(o.signature in origins.SIGNATURES, where,
+                  f'signature {o.signature!r} is not declared')
+        rep.check(bool(o.signature_name and o.signature_detail), where,
+                  'signature has no description')
+        if o.signature and REGISTRY.lookup(o.signature) is None:
+            rep.error(where, f'signature {o.signature!r} names no command')
         rep.check(bool(o.story), where, 'has no story')
 
         # The build it produces has to be legal, or a new character starts
@@ -981,6 +999,26 @@ def check_threads(rep: Report) -> None:
                               f'{sw}/{choice.key}',
                               f'unknown rival {rival!r}')
 
+    # Two origin-gated threads can never both exist on one character, so a
+    # crossing between them is impossible rather than merely unshared.
+    def _origin_of(thread):
+        for st in thread.stages:
+            for rule in tuple(st.requires) + tuple(st.any_of):
+                if rule.startswith('origin:'):
+                    return rule.split(':', 1)[1]
+        return ''
+
+    for t in thread_content.THREADS:
+        mine = _origin_of(t)
+        if not mine:
+            continue
+        for other_key in t.crosses:
+            theirs = _origin_of(thread_content.BY_KEY[other_key])
+            if theirs and theirs != mine:
+                rep.error(f'threads/{t.key}',
+                          f'crosses {other_key!r}, but they belong to '
+                          f'different origins and can never both exist')
+
     # Every thread must have at least one stage a new character can reach,
     # or it exists and nobody will ever see it.
     for t in thread_content.THREADS:
@@ -1013,9 +1051,11 @@ def check_threads(rep: Report) -> None:
                        if ':' not in r}
             # An NPC shared between two threads is also a crossing: both are
             # gated on the same person.
-            npcs_mine = {r for st in t.stages for r in st.requires
+            npcs_mine = {r for st in t.stages
+                         for r in tuple(st.requires) + tuple(st.any_of)
                          if r.startswith('met:')}
-            npcs_theirs = {r for st in other.stages for r in st.requires
+            npcs_theirs = {r for st in other.stages
+                           for r in tuple(st.requires) + tuple(st.any_of)
                            if r.startswith('met:')}
             shared = ((mine & wants) or (theirs & mywants)
                       or (npcs_mine & npcs_theirs))

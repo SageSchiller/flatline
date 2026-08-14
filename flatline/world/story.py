@@ -76,6 +76,12 @@ class Story:
         if kind == 'rep':
             faction, _, amount = value.partition(':')
             return game.alias.reputation(faction) >= int(amount)
+        if kind == 'origin':
+            return game.char.origin == value
+        if kind == 'trait':
+            return value in game.char.traits
+        if kind == 'debt':
+            return game.debt.amount >= int(value)
         return False
 
     def available(self, game) -> list[tuple[str, thread_content.Stage]]:

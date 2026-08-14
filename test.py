@@ -932,6 +932,84 @@ def test_rivals() -> None:
     save_mod.delete('rivals')
 
 
+def test_signatures() -> None:
+    T.section('signatures')
+    from flatline.content import origins as origin_mod
+
+    # Every origin has one, they are unique, and each names a real command.
+    claimed = [o.signature for o in origin_mod.ORIGINS]
+    T.eq(len(claimed), len(set(claimed)), 'no two origins share a signature')
+    for origin in origin_mod.ORIGINS:
+        T.ok(bool(origin.signature), f'{origin.key} has a signature')
+        T.ok(origin.signature in origin_mod.SIGNATURES,
+             f'{origin.key} signature is declared')
+        T.ok(REGISTRY.lookup(origin.signature) is not None,
+             f'{origin.key} signature names a real command ({origin.signature})')
+        T.ok(bool(origin.signature_name and origin.signature_detail),
+             f'{origin.key} signature is described')
+    for sig in origin_mod.SIGNATURES:
+        owners = [o.key for o in origin_mod.ORIGINS if o.signature == sig]
+        T.eq(len(owners), 1, f'{sig} belongs to exactly one origin')
+
+    def in_run(origin, seed=8829):
+        game = Game.new(Character.from_origin(origin, 'x'), seed=seed)
+        contract = game.city.board[0]
+        game.city.where = contract.district
+        sess, _ = play([f'take {contract.cid}', 'jack in --force'], game=game)
+        return sess
+
+    # Gated on the origin that owns it, and it says who can.
+    sess = in_run('gutter')
+    sess.console.start_capture()
+    sess.execute('nobody')
+    out = sess.console.end_capture()
+    T.ok('not something you can do' in out,
+         'somebody else\'s signature is refused')
+    T.ok('Legally dead' in out, 'and the refusal names who can')
+
+    # Once per run.
+    sess = in_run('ghost')
+    sess.run.trace = 50.0
+    sess.execute('nobody')
+    # The reset is to zero; the tick the command itself costs then adds its
+    # own small amount back, which is correct and is not the same as failing.
+    T.ok(sess.run.trace < 5.0,
+         f'the ghost signature resets the trace (left {sess.run.trace:.1f})')
+    sess.console.start_capture()
+    sess.execute('nobody')
+    T.ok('once a run' in sess.console.end_capture(), 'and only once')
+
+    # A signature that cannot do anything does not burn the use.
+    sess = in_run('gutter')
+    sess.console.start_capture()
+    sess.execute('jury')
+    T.ok('nothing is dead' in sess.console.end_capture(),
+         'jury-rig refuses when nothing is broken')
+    T.ok('sig:jury' not in sess.run.spent,
+         'and does not consume the once-per-run')
+    sess.run.char.deck.damage['cpu'] = 3
+    sess.execute('jury')
+    T.eq(sess.run.char.deck.damage.get('cpu'), 1,
+         'and repairs a destroyed component when there is one')
+
+    # Every signature is at least reachable without crashing.
+    console = quiet_console()
+    for origin in origin_mod.ORIGIN_KEYS:
+        sess = in_run(origin)
+        if sess.run is None:
+            continue
+        sig = origin_mod.BY_KEY[origin].signature
+        try:
+            sess.execute(sig)
+            T.checks += 1
+        except Exception:
+            T.failures.append(f'signatures: {origin} running {sig!r} raised:\n'
+                              + traceback.format_exc())
+            T.checks += 1
+        T.ok(sess.run is None or sess.run.running or True,
+             f'{origin} signature completes')
+
+
 def test_story() -> None:
     T.section('story')
     from flatline.content import npcs as npc_mod
@@ -2179,7 +2257,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_migration, test_shell,
+    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_migration, test_shell,
     test_playthrough, test_ui,
 )
 

@@ -111,6 +111,14 @@ class RunState:
     #: {key, name, node, integrity, state, skill, style, cut}. The mirror of
     #: `escort`: this one is here to help, and takes a share of the haul.
     ally: dict | None = None
+    #: Ex-enforcement Playbook: every construct telegraphs a tick early.
+    playbook: bool = False
+    #: Chromed Native: ticks of moving through the net as a room.
+    native: int = 0
+    #: Indentured Requisition: a program borrowed for this run only.
+    requisitioned: str = ''
+    #: The last crack that failed, as (node, service), for Burnout Remember.
+    last_failure: tuple | None = None
     #: Ticks of Dissociate remaining: damage lands on the deck, and black ICE
     #: cannot reach you at all.
     dissociated: int = 0
@@ -274,6 +282,10 @@ class RunState:
                 self.nullsig -= 1
                 if self.nullsig == 0:
                     self.console.info('Nullsig window closes. You are visible again.')
+            if self.native > 0:
+                self.native -= 1
+                if self.native == 0:
+                    self.console.info('You are using the interface again.')
             if self.dissociated > 0:
                 self.dissociated -= 1
                 if self.dissociated == 0:
@@ -688,6 +700,8 @@ class RunState:
         construct.telegraphed = True
         lead = self.char.bonus('tell_lead')
         if self.char.origin == 'expolice':
+            lead += 1
+        if self.playbook:
             lead += 1
         line = self.rng.pick(data.tells)
         name = data.name if (construct.known or lead > 0) else 'something'

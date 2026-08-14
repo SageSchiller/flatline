@@ -12,11 +12,11 @@ updated: 2026-08-13
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5832 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 22,000 lines.
+> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5832 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 24,000 lines.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
-> **What is not done:** nothing structural. Every system the plan set out to build is built, and the catalogue has had one breadth pass (12 skills with 24 techniques, 26 traits, 34 chrome, 46 programs, 28 ICE, 8 icons, 7 rivals, 18 NPCs, 8 story threads, 10 origins, 9 districts, 12 factions, 23 manual topics). More districts and origins are the obvious next content, but **the right way to choose is to play it and notice what is missing**, which nobody has done yet. Treat any further content added without play as a guess.
+> **What is not done:** nothing structural. Every system the plan set out to build is built, and the catalogue has had one breadth pass (12 skills with 24 techniques, 26 traits, 34 chrome, 46 programs, 28 ICE, 8 icons, 7 rivals, 18 NPCs, 18 story threads, 10 origins, 9 districts, 12 factions, 23 manual topics). More districts and origins are the obvious next content, but **the right way to choose is to play it and notice what is missing**, which nobody has done yet. Treat any further content added without play as a guess.
 >
 > **What this is.** A netrunner sim you play by typing at a fake terminal. Two layers: a persistent city that keeps score, and procedurally generated corporate networks you break into one contract at a time. The character system is classless and deep enough that two players at the same credit total play nothing alike.
 >
@@ -466,6 +466,28 @@ were decoration rather than design.
 **Nothing is ordered**, so the fourth scene can arrive before the second if the
 world got there first. That is why every stage is written as a scene rather
 than as a step: the prose has to survive arriving in any order.
+
+### D32: One thing per origin that nobody else can do
+
+An origin used to be an attribute shape, some gear, and a passive. Two
+characters who spent forty shifts diverging still ended up able to do all the
+same things, because everything an origin gave was a modifier.
+
+Every origin now has a **signature ability**: one verb, once per run, owned by
+exactly one background. It cannot be trained, bought, or shared, because the
+only way to have it is to have been that person.
+
+The Legally Dead can set the trace to zero, because there is no record to
+attach it to. The Burnout can retry the check they just failed at full skill,
+because they have seen it before. The Chromed can stop using the interface for
+three ticks and move through the network as though it were a room. The
+Indentured can requisition a program they do not own against a buyout they have
+not finished paying.
+
+`validate.py` enforces that every origin has one, that each is owned by exactly
+one origin, and that each names a real command. **The refusal names who can**,
+which is deliberate: being told "that is not something you can do, Legally dead
+can" teaches you what the other nine backgrounds are for.
 
 ### D17: The finish line
 
@@ -1004,3 +1026,26 @@ bug, and it had already drifted: nine of the listed threads did not exist. The
 field is gone.
 
 `validate.py` clean, `test.py` green at **6110 checks**.
+
+### 2026-08-13 (k): complications become threads, and origins get teeth
+
+**Ten origin threads.** Every origin has carried a complication since the first
+day of this project and every one of them was a sentence. Kagawa really do want
+the laptop now, and there is a third partition on it. Mara really is owed
+something, and she has been waiting eleven years for the right person to ask.
+The package really is still in your bag, the address really is live, and there
+really is a standing order on it renewed four months ago.
+
+They gate on `origin:<key>`, so a character sees exactly one, and they cross
+into the general threads wherever the fiction wants.
+
+**One design error the build caught.** Two origin-gated threads can never both
+exist on the same character, so a crossing between them is not merely
+unshared, it is impossible. `laptop` claimed to cross `buyout`, which no
+character could ever see. `validate.py` now rejects that class outright.
+
+**D32** came from the observation that everything an origin gave was a
+modifier, so two characters forty shifts apart could still do all the same
+things. Ten signature verbs, one apiece, unpurchasable.
+
+`validate.py` clean, `test.py` green at **6245 checks**.

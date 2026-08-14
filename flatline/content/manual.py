@@ -293,6 +293,46 @@ TOPICS: tuple[Topic, ...] = (
         commands=('techniques', 'train'),
         group='character'),
     Topic(
+        'origins', 'Origins and signature abilities',
+        'Ten backgrounds, and the one thing each of them can do that nobody '
+        'else can.',
+        'An origin sets where you start and never where you can go. It gives '
+        'you an attribute shape, opening gear, faction standing, a passive, '
+        'and a complication that is already true about the world on shift '
+        'one.\n\n'
+        'It also gives you a [accent2]signature ability[/]: one verb, once '
+        'per run, that no other character in this city has access to. It '
+        'cannot be trained, bought, or shared, because the only way to have '
+        'it is to have been that person.\n\n'
+        '  [accent]policy[/]           read what a node logs, and erase '
+        'yourself from it\n'
+        '  [accent]jury[/]             bring a destroyed component back from '
+        'nothing\n'
+        '  [accent]vouch[/]            spend the Switchboard\'s name instead '
+        'of a credential\n'
+        '  [accent]firstprinciples[/]  derive a key instead of breaking one\n'
+        '  [accent]playbook[/]         every construct telegraphs early, for '
+        'the whole run\n'
+        '  [accent]native[/]           stop using the interface; move as '
+        'though it were a room\n'
+        '  [accent]requisition[/]      a program you do not own, on '
+        'somebody else\'s paperwork\n'
+        '  [accent]remember[/]         retry the check you just failed, at '
+        'full skill\n'
+        '  [accent]nobody[/]           the trace resets to zero; there is '
+        'nothing to attach it to\n'
+        '  [accent]backway[/]          move to any node you have seen, from '
+        'anywhere, silently\n\n'
+        'Your complication is also a storyline. Kagawa really do want the '
+        'laptop, Mara really is owed something, and the package really is '
+        'still in your bag. See `help threads`.\n\n'
+        '[warn]The decision:[/] the signature is the reason to choose one '
+        'origin over another, and it is the part that will still be shaping '
+        'your runs forty shifts in. Read all ten before you pick.',
+        see=('attributes', 'traits', 'threads'),
+        commands=('new', 'char'),
+        group='character'),
+    Topic(
         'traits', 'Traits',
         'The axis where the pool is much bigger than the slots.',
         'Skills say what you can do. Chrome says what you are made of. '

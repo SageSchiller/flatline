@@ -52,6 +52,10 @@ def cmd_new(sess, args) -> None:
             c.say(f'[dim]{shape}  {origin.credits:,}c[/]', indent='  ')
             c.say(f'[warn]{origin.passive}:[/] [dim]{origin.passive_detail}[/]',
                   indent='  ', subsequent='  ')
+            c.say(f'[accent2]{origin.signature_name}[/] '
+                  f'[dim](`{origin.signature}`, once a run, nobody else '
+                  f'can):[/] [dim]{origin.signature_detail}[/]',
+                  indent='  ', subsequent='  ')
         c.blank()
         c.say('[dim]`new <handle> --origin <key>` when you have picked.[/]')
         return
@@ -79,6 +83,10 @@ def cmd_new(sess, args) -> None:
     c.say(origin.story)
     c.blank()
     c.say(f'[warn]{origin.passive}.[/] {origin.passive_detail}')
+    c.blank()
+    c.say(f'[accent2]{origin.signature_name}.[/] {origin.signature_detail}')
+    c.say(f'[dim]`{origin.signature}`, once a run. Nobody else in this city '
+          f'can do it.[/]')
     c.blank()
     c.say(f'[err]{origin.complication}[/]')
     c.blank()
@@ -126,6 +134,10 @@ def cmd_char(sess, args) -> None:
             rows.append((a.name, f'{base} {arrow} [accent]{eff}[/] '
                                  f'[dim]({eff - base:+d} from gear)[/]'))
     c.kv(rows)
+
+    c.blank()
+    c.say(f'[accent2]{origin.signature_name}[/] '
+          f'[dim]`{origin.signature}`, once a run.[/]')
 
     c.blank()
     c.kv([('Bandwidth', f'{char.bandwidth_used}/{char.bandwidth}'),

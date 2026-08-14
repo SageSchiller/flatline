@@ -16,6 +16,7 @@ from ..content import cyberspace
 from ..content import factions as fac_content
 from ..content import ice as ice_content
 from ..content import nodes as node_content
+from ..content import origins as origin_content
 from ..content import programs
 from ..run import network as net_mod
 from ..run.checks import Check
@@ -511,9 +512,11 @@ def cmd_connect(sess, args) -> None:
 
     crossing = node.tier > state.net.nodes[state.here].tier
     state.here = uid
+    # Native: the network is a room and you are walking across it.
+    free = state.native > 0
     _act(sess, 'connect', node=node,
-         noise_scale=0.0 if ghost else 1.0,
-         ticks=2 if ghost else 1)
+         noise_scale=0.0 if (ghost or free) else 1.0,
+         ticks=0 if free else (2 if ghost else 1))
     if state.running and crossing:
         # Depth has to feel like depth rather than a counter going up.
         line = cyberspace.descent(node.zone, state.tick)
@@ -591,6 +594,7 @@ def cmd_crack(sess, args) -> None:
                   f'{state.tier}.[/]')
     else:
         c.err(f'{svc.data.name} holds.')
+        state.last_failure = (node.uid, svc.key)
         c.say(check.explain())
         culprit = check.culprit()
         if culprit and culprit.value < 0:
@@ -1953,3 +1957,275 @@ def cmd_dissociate(sess, args) -> None:
     c.ok(f'You put the room somewhere else for {state.dissociated} ticks.')
     c.say('[dim]Everything that reaches you now reaches the deck. Nothing '
           'lethal can find you at all.[/]')
+
+
+# --------------------------------------------------------------------------
+# signature abilities: one per origin, once per run, nobody else can do them
+# --------------------------------------------------------------------------
+
+
+def _signature(sess, key: str):
+    """Gate a signature verb on the origin that owns it and on being unspent.
+
+    These are the things that make the choice at creation weigh something, so
+    they are deliberately not purchasable, not trainable, and not shareable:
+    the only way to have one is to have been that person.
+    """
+    state = sess.require_run()
+    origin = state.char.origin_data
+    if origin.signature != key:
+        owner = next((o for o in origin_content.ORIGINS
+                      if o.signature == key), None)
+        raise CommandError(
+            f'that is not something you can do. '
+            + (f'{owner.name} can.' if owner else ''))
+    if f'sig:{key}' in state.spent:
+        raise CommandError(f'{origin.signature_name} is once a run.')
+    state.spent.add(f'sig:{key}')
+    return state
+
+
+@command('policy', 'You wrote the access policy. Read what a node logs.',
+         group='defence', contexts=('run',), ticks=1, usage='policy [host]',
+         detail='Corporate defector only, once per run. Tells you what a node '
+                'is required to log and when, wipes every trace of you from '
+                'it, and reveals anything watching.')
+def cmd_policy(sess, args) -> None:
+    state = _signature(sess, 'policy')
+    c = sess.console
+    node = _node(state, args.get(0) or state.here)
+    was = node.residue
+    node.residue = 0
+    node.mapped = True
+    for construct in node.ice:
+        construct.known = True
+    _act(sess, 'scrub', node=node, noise_scale=0.0, ticks=1)
+    if not state.running:
+        return
+    c.blank()
+    c.ok(f'You know exactly what {node.uid} keeps, and for how long.')
+    c.say(f'[dim]Residue {was} -> 0. Everything running here is now named.[/]')
+    if node.type == 'honeypot':
+        node.disguised = False
+        c.warn('It is not a workstation. It was never a workstation.')
+
+
+@command('jury', 'Bring a destroyed component back out of nothing.',
+         group='defence', contexts=('run',), ticks=2, usage='jury',
+         detail='Gutter runner only, once per run. Everybody else has to '
+                'leave the run when something dies.')
+def cmd_jury(sess, args) -> None:
+    state = _signature(sess, 'jury')
+    c = sess.console
+    dead = [slot for slot, level in state.char.deck.damage.items()
+            if level >= 3]
+    if not dead:
+        state.spent.discard('sig:jury')
+        raise CommandError('nothing is dead enough to need it.')
+    slot = dead[0]
+    state.char.deck.damage[slot] = 1
+    comp = state.char.deck.component(slot)
+    _act(sess, 'strike', noise_scale=0.6, ticks=2)
+    if state.running:
+        c.blank()
+        c.ok(f'{comp.name if comp else slot} is working again. Not well.')
+        c.say('[dim]Solder, opinion, and something you took out of the '
+              'antenna housing.[/]')
+
+
+@command('vouch', 'Spend the Switchboard\'s name instead of a credential.',
+         group='access', contexts=('run',), ticks=1, usage='vouch',
+         detail='Fixer\'s protege only, once per run. A warden that checks '
+                'credentials accepts you outright, no roll.')
+def cmd_vouch(sess, args) -> None:
+    state = _signature(sess, 'vouch')
+    c = sess.console
+    wardens = [i for n in state.net.nodes.values() for i in n.live_ice
+               if i.data.effects.get('credential_check')]
+    if not wardens:
+        state.spent.discard('sig:vouch')
+        raise CommandError('nothing on this network is the asking kind.')
+    for warden in wardens:
+        warden.state = 'dead'
+    _act(sess, 'pretext', noise_scale=0.2)
+    if state.running:
+        c.blank()
+        c.ok(f'{len(wardens)} boundary'
+             f'{"ies" if len(wardens) != 1 else ""} decide you are fine.')
+        c.say('[dim]Somebody they trust has said so. Nobody asks who.[/]')
+
+
+@command('firstprinciples', 'Derive a key rather than breaking one.',
+         group='access', contexts=('run',), ticks=2,
+         aliases=('derive',), usage='firstprinciples',
+         detail='Academic only, once per run. Opens any one encrypted thing '
+                'on this node outright, and costs every point of Focus you '
+                'have left.')
+def cmd_firstprinciples(sess, args) -> None:
+    state = _signature(sess, 'firstprinciples')
+    c = sess.console
+    node = state.node
+    crypto = [s for s in node.services if s.family == 'crypto'
+              and not s.cracked]
+    sealed = [a for a in node.data if a.encrypted and not a.taken]
+    if not crypto and not sealed:
+        state.spent.discard('sig:firstprinciples')
+        raise CommandError('nothing here is sealed.')
+    spent_focus = state.focus
+    state.focus = 0
+    if crypto:
+        crypto[0].cracked = True
+        node.open = True
+        opened = crypto[0].data.name
+    else:
+        sealed[0].encrypted = False
+        opened = sealed[0].name
+    _act(sess, 'sidechannel', noise_scale=0.0, ticks=2)
+    if state.running:
+        c.blank()
+        c.ok(f'{opened} opens. You did not break it, you worked it out.')
+        c.say(f'[dim]{spent_focus} Focus, all of it, and you will not get any '
+              f'back this run.[/]')
+
+
+@command('playbook', 'Call the response the way the desk would have.',
+         group='recon', contexts=('run',), ticks=1, usage='playbook',
+         detail='Ex-enforcement only, once per run. Every countermeasure on '
+                'the network telegraphs a tick early for the rest of the run, '
+                'and you learn what each of them is.')
+def cmd_playbook(sess, args) -> None:
+    state = _signature(sess, 'playbook')
+    c = sess.console
+    count = 0
+    for node in state.net.nodes.values():
+        for construct in node.ice:
+            if not construct.known:
+                count += 1
+            construct.known = True
+    state.playbook = True
+    _act(sess, 'probe', noise_scale=0.3)
+    if state.running:
+        c.blank()
+        c.ok(f'You call it. {count} construct'
+             f'{"s" if count != 1 else ""} you had not identified, named.')
+        c.say('[dim]Everything on this network now tells you a full tick '
+              'early. You have sat on the other end of this.[/]')
+
+
+@command('native', 'Stop using the interface.',
+         group='defence', contexts=('run',), usage='native',
+         detail='Chromed only, once per run. For three ticks the network is a '
+                'room: connections cost nothing, you make no noise, and '
+                'anything locked on loses you.')
+def cmd_native(sess, args) -> None:
+    state = _signature(sess, 'native')
+    c = sess.console
+    state.native = 3
+    for construct in state.locked:
+        construct.state = 'awake'
+        construct.telegraphed = False
+    state.locked.clear()
+    c.blank()
+    c.ok('You stop using it and start being in it.')
+    c.say('[dim]Three ticks. Movement is free and silent, and nothing has '
+          'hold of you.[/]')
+
+
+@command('requisition', 'File for resources against a debt you owe.',
+         group='prep', contexts=('run',), ticks=1, usage='requisition [program]',
+         detail='Indentured only, once per run. A program you do not own '
+                'appears in memory for the rest of the run.')
+def cmd_requisition(sess, args) -> None:
+    state = _signature(sess, 'requisition')
+    c = sess.console
+    query = (args.get(0) or '').lower()
+    pool = [p for p in programs.PROGRAMS
+            if p.tier <= 2 and p.key not in state.char.deck.loaded]
+    if query:
+        pool = [p for p in pool if query in p.name.lower() or query == p.key]
+    if not pool:
+        state.spent.discard('sig:requisition')
+        raise CommandError('nothing available matches that.')
+    pick = max(pool, key=lambda p: p.rating)
+    state.char.deck.loaded.append(pick.key)
+    state.requisitioned = pick.key
+    _act(sess, 'pretext', noise_scale=0.4)
+    if state.running:
+        c.blank()
+        c.ok(f'{pick.name} is in memory. The requisition cleared in eleven '
+             f'seconds.')
+        c.say('[dim]Somebody in procurement will notice this in about six '
+              'weeks and it will be somebody else\'s problem.[/]')
+
+
+@command('remember', 'Remember having done this before.',
+         group='defence', contexts=('run',), ticks=1, usage='remember',
+         detail='Burnout only, once per run. Retry the check you have just '
+                'failed, at full skill and with no situational penalties.')
+def cmd_remember(sess, args) -> None:
+    state = _signature(sess, 'remember')
+    c = sess.console
+    if state.last_failure is None:
+        state.spent.discard('sig:remember')
+        raise CommandError('nothing has just gone wrong.')
+    node_uid, svc_key = state.last_failure
+    node = state.net.node(node_uid)
+    svc = node.service(svc_key) if node else None
+    if svc is None or svc.cracked:
+        state.spent.discard('sig:remember')
+        raise CommandError('that is not still in front of you.')
+    svc.cracked = True
+    node.open = True
+    state.last_failure = None
+    _act(sess, 'crack', node=node, noise_scale=0.5)
+    if state.running:
+        c.blank()
+        c.ok(f'{svc.data.name} on {node.uid} opens.')
+        c.say('[dim]You have seen this exact thing before, eight years ago, '
+              'and your hands remember it even if the rest of you does '
+              'not.[/]')
+
+
+@command('nobody', 'Stop existing for a moment.',
+         group='defence', contexts=('run',), ticks=1, usage='nobody',
+         detail='Legally dead only, once per run. The trace resets to zero: '
+                'it has nowhere to attach and has to start again from what it '
+                'can find, which is nothing.')
+def cmd_nobody(sess, args) -> None:
+    state = _signature(sess, 'nobody')
+    c = sess.console
+    was = int(state.trace)
+    state.trace = 0.0
+    _act(sess, 'mask', noise_scale=0.0)
+    if state.running:
+        c.blank()
+        c.ok(f'Trace {was} -> 0.')
+        c.say('[dim]There is no record to hang it on. Somebody at the far end '
+              'is looking at a name that has a death certificate against it '
+              'and starting again.[/]')
+
+
+@command('backway', 'Take a route you already knew about.',
+         group='access', contexts=('run',), ticks=1, usage='backway <host>',
+         detail='Courier only, once per run. Move to any node you have seen, '
+                'from anywhere, in one tick and in silence.')
+def cmd_backway(sess, args) -> None:
+    state = _signature(sess, 'backway')
+    c = sess.console
+    uid = args.get(0)
+    if not uid:
+        state.spent.discard('sig:backway')
+        raise CommandError('to where? `backway <host>`')
+    node = _node(state, uid)
+    if not node.known:
+        state.spent.discard('sig:backway')
+        raise CommandError(f'you have not seen {uid} yet.')
+    node.open = True
+    state.here = uid
+    _act(sess, 'connect', node=node, noise_scale=0.0)
+    if state.running:
+        c.blank()
+        c.ok(f'You are on [accent]{uid}[/].')
+        c.say('[dim]There is always a way through that is not on the plan, '
+              'and you have spent nine years learning which.[/]')
+        state.check_traps(node)

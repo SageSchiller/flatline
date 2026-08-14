@@ -30,7 +30,8 @@ from dataclasses import dataclass, field
 #: World conditions usable in `requires`, alongside plain flags.
 #: 'runs:N', 'diss:N', 'shift:N', 'credits:N', 'heat:N', 'met:<npc>',
 #: 'rep:<faction>:N', 'ran:<faction>'.
-CONDITIONS = ('runs', 'diss', 'shift', 'credits', 'heat', 'met', 'rep', 'ran')
+CONDITIONS = ('runs', 'diss', 'shift', 'credits', 'heat', 'met', 'rep',
+              'ran', 'origin', 'debt', 'trait')
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,7 +84,7 @@ THREADS: tuple[Thread, ...] = (
     Thread(
         'deepwater', 'What Deepwater Is',
         'Nine years of contracts and nobody has ever met anybody.',
-        crosses=('archive', 'ozymandias', 'drawer'),
+        crosses=('archive', 'ozymandias', 'drawer', 'favour', 'package'),
         stages=(
             Stage('hear', 'Somebody mentioned it and then stopped',
                   'It comes up the way weather comes up. Somebody says the '
@@ -244,7 +245,7 @@ THREADS: tuple[Thread, ...] = (
     Thread(
         'vance', 'Doctor Vance Is Buying',
         'Everything she has told you is true. The arrangement of it is not.',
-        crosses=('lark', 'archive', 'drawer'),
+        crosses=('lark', 'archive', 'drawer', 'maintenance'),
         stages=(
             Stage('file', 'She had your file first',
                   'You have never been to Aoyama Green as a patient and she '
@@ -417,7 +418,7 @@ THREADS: tuple[Thread, ...] = (
     Thread(
         'drawer', 'The Drawer',
         'Nineteen years of complaints that were never going to go anywhere.',
-        crosses=('sunday', 'deepwater', 'vance'),
+        crosses=('sunday', 'deepwater', 'vance', 'file'),
         stages=(
             Stage('open', 'He tells you about the drawer',
                   'Sergeant Achebe waits until the queue has given up for the '
@@ -464,7 +465,7 @@ THREADS: tuple[Thread, ...] = (
     Thread(
         'archive', 'Four Hundred and Six',
         'Somebody is collecting the last logs of dead netrunners.',
-        crosses=('deepwater', 'vance'),
+        crosses=('deepwater', 'vance', 'oldname'),
         stages=(
             Stage('meet', 'The wall that hums',
                   'They do not turn round for the first four minutes of the '
@@ -571,3 +572,431 @@ def flags_required() -> set[str]:
                 if ':' not in rule:
                     out.add(rule)
     return out
+
+
+# --------------------------------------------------------------------------
+# origin complications
+# --------------------------------------------------------------------------
+#
+# Every origin has shipped with a complication since the first day of this
+# project, and until now every one of them was a sentence. These are the same
+# sentences with a thread behind them.
+#
+# They gate on `origin:<key>`, so a given character sees exactly one of them,
+# and they cross into the general threads wherever the fiction wants: the
+# defector's laptop and the indentured runner's buyout are both Kagawa
+# problems, and the courier's package has been sitting in the same city as
+# Deepwater for two years.
+
+ORIGIN_THREADS: tuple[Thread, ...] = (
+    Thread(
+        'laptop', 'The Laptop',
+        'Kagawa want it back and have not decided about you.',
+        crosses=(),
+        stages=(
+            Stage('contact', 'They have found a way to ask',
+                  'The message is polite, correctly addressed, and arrives on '
+                  'a channel you have not used since you left.\\n\\n'
+                  'It does not threaten you. It does not mention the laptop. '
+                  'It asks, in four lines of impeccable corporate English, '
+                  'whether you would be available for a conversation, and '
+                  'gives a time rather than proposing one.',
+                  requires=('origin:defector',),
+                  any_of=('runs:3', 'heat:25'),
+                  sets=('laptop_contact',)),
+            Stage('meeting', 'What they actually want',
+                  'The person across the table is not from legal and does not '
+                  'pretend to be.\\n\\n'
+                  '"We do not want the machine. We want to know whether you '
+                  'read the third partition, and I am authorised to tell you '
+                  'that we will believe your answer, because the alternative '
+                  'is a process neither of us has the budget for."\\n\\n'
+                  'You did not know there was a third partition.',
+                  requires=('laptop_contact',),
+                  sets=('laptop_meeting',),
+                  choices=(
+                      Choice('give', 'Hand it back unopened',
+                             'You give them the machine and tell them the '
+                             'truth, which is that you never looked, and they '
+                             'believe you, which is worse than being '
+                             'disbelieved because it means they knew already.'
+                             '\\n\\nThe payment is generous and arrives '
+                             'itemised.',
+                             sets=('laptop_returned',),
+                             credits=7000,
+                             rep={'kagawa': 25}),
+                      Choice('read', 'Read the third partition first',
+                             'Eleven thousand personnel files, and against '
+                             'four hundred of them a second assessment nobody '
+                             'was ever meant to see, scoring each person on '
+                             'how much they would cost to replace against how '
+                             'much they would cost to keep.\\n\\n'
+                             'Your name is in it. Your number was low.',
+                             sets=('laptop_read',),
+                             rep={'kagawa': -20}),
+                      Choice('sell', 'Sell it to somebody who is not Kagawa',
+                             'Static will not pay much and will actually run '
+                             'it. Meridian will pay a great deal and will '
+                             'not.\\n\\nYou take the money. The files do not '
+                             'surface, and every so often over the next few '
+                             'shifts you wonder which of the two decisions '
+                             'that was.',
+                             sets=('laptop_sold',),
+                             credits=12000,
+                             rep={'kagawa': -35, 'meridian': 15}),
+                  )),
+        )),
+    Thread(
+        'theirs', 'The Sixes Consider You Theirs',
+        'They have not asked for anything yet.',
+        crosses=(),
+        stages=(
+            Stage('ask', 'They ask',
+                  'It is not a threat and it is not phrased as one. Somebody '
+                  'you half know finds you in the Ninth and explains, at '
+                  'length and with genuine warmth, how much the Sixes have '
+                  'done for you.\\n\\n'
+                  'Most of it is true. All of it happened before you were old '
+                  'enough to decline it.\\n\\n'
+                  'Then he tells you what they would like.',
+                  requires=('origin:gutter',),
+                  any_of=('runs:4', 'rep:sixes:30'),
+                  sets=('theirs_asked',),
+                  choices=(
+                      Choice('yes', 'Do it',
+                             'You do it, and it is easy, and the warmth is '
+                             'real afterwards. That is the part nobody warns '
+                             'you about: it is a good deal every single time '
+                             'and there is never a moment where refusing '
+                             'would obviously have been better.',
+                             sets=('theirs_owned',),
+                             credits=3000,
+                             rep={'sixes': 25, 'carrion': -15}),
+                      Choice('no', 'Say no',
+                             'He takes it well. He takes it so well that you '
+                             'spend two shifts waiting for the other thing, '
+                             'and the other thing does not come, and by the '
+                             'fourth shift you understand that it already '
+                             'has: nobody in the Ninth is rude to you and '
+                             'nobody in the Ninth is anything else either.',
+                             sets=('theirs_refused',),
+                             rep={'sixes': -30}),
+                  )),
+        )),
+    Thread(
+        'favour', 'What Mara Is Owed',
+        'She has never once said what.',
+        crosses=('deepwater',),
+        stages=(
+            Stage('ask', 'She says what',
+                  'She waits until the bar is empty, which for Mara is a '
+                  'gesture roughly equivalent to shouting.\\n\\n'
+                  '"Nineteen years ago I paid somebody to not do something. '
+                  'It has come round. I need somebody to go somewhere I '
+                  'cannot be seen going, and I have been waiting for the '
+                  'right person for eleven of those years."\\n\\n'
+                  'She does not say why it is you.',
+                  requires=('origin:protege', 'met:mara'),
+                  any_of=('runs:5', 'rep:fixers:50'),
+                  sets=('favour_asked',),
+                  choices=(
+                      Choice('go', 'Go',
+                             'You go. What is there is a woman about Mara\'s '
+                             'age in a room in the Terraces who has been '
+                             'alive for nineteen years on the understanding '
+                             'that nobody knows she is, and who takes one '
+                             'look at your face and says the name of the bar.'
+                             '\\n\\nMara never raises it again. She does not '
+                             'have to.',
+                             sets=('favour_done', 'dw_heard'),
+                             rep={'fixers': 35},
+                             disposition={'vesper': 15}),
+                      Choice('ask', 'Ask what it is first',
+                             '"No." A long pause. "I have thought about this '
+                             'for eleven years and the version where I tell '
+                             'you does not end well for either of us."\\n\\n'
+                             'She does not ask again, and she is exactly as '
+                             'warm as she was before, and something in the '
+                             'noodle bar has changed shape permanently.',
+                             sets=('favour_refused',),
+                             rep={'fixers': -10}),
+                  )),
+        )),
+    Thread(
+        'lender', 'The Lender',
+        'The loan on the deck is real and it is not a bank.',
+        crosses=(),
+        stages=(
+            Stage('visit', 'They stop sending messages',
+                  'The department stopped answering. The lender did not. '
+                  'Somebody is sitting on the step of wherever you are '
+                  'staying, being extremely pleasant, with the numbers '
+                  'written out on paper.',
+                  requires=('origin:academic',),
+                  any_of=('debt:12000', 'runs:5'),
+                  sets=('lender_visit',),
+                  choices=(
+                      Choice('pay', 'Clear as much as you can, now',
+                             'You put everything you have against it, and the '
+                             'pleasant person writes you a receipt, and the '
+                             'receipt is the first document in this whole '
+                             'affair that anybody has given you.',
+                             sets=('lender_paying',),
+                             credits=-4000,
+                             rep={'sixes': 12}),
+                      Choice('work', 'Offer to work it off',
+                             'They are delighted. They are so delighted that '
+                             'you understand, several shifts later, that this '
+                             'was always the product and the money was the '
+                             'advertisement.',
+                             sets=('lender_working',),
+                             rep={'sixes': 20, 'nightwatch': -10}),
+                      Choice('run', 'Say nothing and keep moving',
+                             'Nothing happens for four shifts. On the fifth, '
+                             'the deck is gone from where you left it, and '
+                             'the pleasant person is on the step again with a '
+                             'revised number and the same handwriting.',
+                             sets=('lender_angry',),
+                             rep={'sixes': -25}),
+                  )),
+        )),
+    Thread(
+        'file', 'The File With Your Name On',
+        'Nightwatch have your biometrics and your service history.',
+        crosses=('drawer',),
+        stages=(
+            Stage('achebe', 'Somebody on the desk still likes you',
+                  'Sergeant Achebe does not look up. "There is a file. You '
+                  'know there is a file."\\n\\n'
+                  'He turns a page. "What you may not know is that it is '
+                  'nineteen months out of date, because the person who was '
+                  'updating it retired and nobody has been given the task, '
+                  'and I have not raised it."',
+                  requires=('origin:expolice',),
+                  any_of=('met:desk', 'heat:40'),
+                  sets=('file_known',),
+                  choices=(
+                      Choice('leave', 'Leave it out of date',
+                             'You leave it. Nineteen months of drift is worth '
+                             'more than a clean file and a fresh entry, and '
+                             'Achebe is careful to have offered no opinion.',
+                             sets=('file_stale',),
+                             rep={'nightwatch': 5}),
+                      Choice('close', 'Get it closed properly',
+                             'It costs money and two shifts and a favour '
+                             'Achebe will not describe. The file is closed, '
+                             'formally, with a reason, and the reason is a '
+                             'lie that will hold up.\\n\\n'
+                             'Somebody, eventually, is going to check.',
+                             sets=('file_closed',),
+                             credits=-5000,
+                             rep={'nightwatch': 20}),
+                  )),
+        )),
+    Thread(
+        'maintenance', 'The Maintenance Address',
+        'Something in the ocular suite is reporting somewhere.',
+        crosses=('vance',),
+        stages=(
+            Stage('trace', 'You look at where it goes',
+                  'It takes an evening and it is not difficult, which is the '
+                  'first thing that is wrong with it.\\n\\n'
+                  'The address is inside Aoyama Green, it is live, it has '
+                  'been receiving from you for as long as you have had the '
+                  'suite, and the volume is very small and very regular and '
+                  'has never once spiked.',
+                  requires=('origin:chromed',),
+                  any_of=('diss:45', 'runs:4'),
+                  sets=('maint_traced',),
+                  choices=(
+                      Choice('cut', 'Cut it',
+                             'You cut it. The suite works exactly as before '
+                             'and nothing contacts you about it, and eleven '
+                             'shifts later your left eye develops a '
+                             'four-second lag on low light that no clinic can '
+                             'find a cause for.',
+                             sets=('maint_cut',),
+                             rep={'aoyama': -15}),
+                      Choice('feed', 'Feed it something else',
+                             'You leave it running and start deciding what it '
+                             'sees. It is the most enjoyable eleven minutes '
+                             'of your month and you are aware that this says '
+                             'something about you.',
+                             sets=('maint_fed',),
+                             rep={'aoyama': -5},
+                             credits=1500),
+                      Choice('ask', 'Ask Aoyama about it, directly',
+                             'Doctor Vance answers within the hour, in person, '
+                             'delighted. "Post-market surveillance. It is in '
+                             'the consent form and nobody has ever read the '
+                             'consent form." She is telling the truth. She '
+                             'has the form.',
+                             sets=('maint_asked', 'vance_file'),
+                             rep={'aoyama': 10}),
+                  )),
+        )),
+    Thread(
+        'buyout', 'The Buyout Figure',
+        'Kagawa priced you at nineteen and the price has never gone down.',
+        crosses=(),
+        stages=(
+            Stage('review', 'They offer to review it',
+                  'The letter is warm. It notes your recent independent '
+                  'activity, expresses no opinion about it, and invites you '
+                  'to a review of your buyout figure at your convenience.\\n\\n'
+                  'The last person you knew who attended one came back with '
+                  'a smaller number and a longer contract.',
+                  requires=('origin:bonded',),
+                  any_of=('runs:5', 'credits:15000'),
+                  sets=('buyout_review',),
+                  choices=(
+                      Choice('attend', 'Go to the review',
+                             'The number comes down by nine thousand. The '
+                             'terms extend by four years. Everybody in the '
+                             'room is pleased and the arithmetic is correct '
+                             'and you sign it because the arithmetic is '
+                             'correct.',
+                             sets=('buyout_extended',),
+                             rep={'kagawa': 20}),
+                      Choice('ignore', 'Do not go',
+                             'Nothing happens. Nothing continues to happen '
+                             'for some time, and then the figure is revised '
+                             'upward without explanation and the letter '
+                             'accompanying it is exactly as warm as the '
+                             'first one.',
+                             sets=('buyout_ignored',),
+                             rep={'kagawa': -10}),
+                  )),
+        )),
+    Thread(
+        'incident', 'The Incident File',
+        'Somebody at Sendai still has it, with your working name on the cover.',
+        crosses=(),
+        stages=(
+            Stage('pike', 'Somebody who was in the room',
+                  'Old Pike listens to the whole thing without interrupting, '
+                  'which nobody has ever done.\\n\\n'
+                  '"I read that file." He watches the cranes. "You are not in '
+                  'it as a perpetrator. You are in it as a result. There is a '
+                  'difference and it is the only good news I have."',
+                  requires=('origin:burnout',),
+                  any_of=('met:pike_sr', 'runs:4'),
+                  sets=('incident_read',),
+                  choices=(
+                      Choice('know', 'Ask what actually happened',
+                             'He tells you. It takes forty minutes and it is '
+                             'not what you remember, in the specific way that '
+                             'means one of you is wrong and both of you were '
+                             'there.\\n\\n'
+                             'You sleep badly and then, for the first time in '
+                             'four years, well.',
+                             sets=('incident_known',),
+                             disposition={'ledger': 10}),
+                      Choice('leave', 'Decide you do not want it',
+                             '"Good." He does not elaborate and does not '
+                             'look at you differently, and it is the kindest '
+                             'thing anybody has done for you in some time.',
+                             sets=('incident_left',)),
+                  )),
+        )),
+    Thread(
+        'oldname', 'Somebody Is Using Your Name',
+        'The one you had before the certificate.',
+        crosses=('archive',),
+        stages=(
+            Stage('found', 'It turns up',
+                  'It is on a manifest, of all things: a name you have not '
+                  'been for eleven months, attached to a shipment, in the '
+                  'present tense.\\n\\n'
+                  'Whoever they are, they are not hiding. They are filing '
+                  'paperwork.',
+                  requires=('origin:ghost',),
+                  any_of=('runs:4', 'met:quartermaster'),
+                  sets=('oldname_found',)),
+            Stage('who', 'Who it is',
+                  'You find them in a Freeport office doing something '
+                  'entirely legitimate with a name that used to be yours, and '
+                  'they look up, and they are not surprised, and the first '
+                  'thing they say is your handle.\\n\\n'
+                  '"I bought it," they say, reasonably. "Eleven months ago, '
+                  'from an estate. I did not know there was anybody left to '
+                  'mind."',
+                  requires=('oldname_found',),
+                  any_of=('runs:7', 'met:quartermaster', 'archive_met'),
+                  sets=('oldname_met',),
+                  choices=(
+                      Choice('take', 'Take it back',
+                             'You take it back, which is expensive and '
+                             'legally intricate and, when it is finished, '
+                             'leaves you holding a name you did not want and '
+                             'somebody else without one.',
+                             sets=('oldname_reclaimed',),
+                             credits=-6000),
+                      Choice('leave', 'Let them keep it',
+                             'You let them keep it. They are doing more with '
+                             'it than you were, and they file the paperwork, '
+                             'and somewhere in a municipal system you are '
+                             'now marginally more alive than you were last '
+                             'week.',
+                             sets=('oldname_left',),
+                             rep={'freeport': 12})),
+                  ),
+        )),
+    Thread(
+        'package', 'The Package',
+        'You never delivered it and the sender has been dead two years.',
+        crosses=('deepwater',),
+        stages=(
+            Stage('still', 'It is still there',
+                  'You have moved four times and it has come with you every '
+                  'time, in the same wrapping, with the same address on it in '
+                  'handwriting belonging to somebody who has been dead for '
+                  'two years.',
+                  requires=('origin:courier',),
+                  any_of=('runs:3', 'shift:15'),
+                  sets=('package_still',)),
+            Stage('address', 'The address is live',
+                  'You check it, finally, expecting a demolished block.\\n\\n'
+                  'It is a live address. Somebody is at it. There is a '
+                  'standing order on the account for a delivery that has '
+                  'never arrived, renewed annually, most recently four months '
+                  'ago.',
+                  requires=('package_still',),
+                  any_of=('runs:6', 'dw_heard'),
+                  sets=('package_address',),
+                  choices=(
+                      Choice('deliver', 'Deliver it',
+                             'You deliver it, two years late, to somebody who '
+                             'takes it without any particular ceremony and '
+                             'signs for it and thanks you.\\n\\n'
+                             'The standing order stops the following month. '
+                             'You never find out what was in it and you have '
+                             'stopped minding.',
+                             sets=('package_delivered',),
+                             credits=4000,
+                             rep={'fixers': 15}),
+                      Choice('open', 'Open it',
+                             'Inside is a deck component, obsolete, in its '
+                             'original packaging, and a note reading: FOR '
+                             'WHEN YOU ARE READY TO STOP RUNNING ABOUT.\\n\\n'
+                             'It is addressed to you. It has always been '
+                             'addressed to you. You have been carrying your '
+                             'own present around for two years.',
+                             sets=('package_opened',),
+                             credits=2000),
+                      Choice('burn', 'Get rid of it',
+                             'You put it in an incinerator in the Ninth and '
+                             'watch until it is gone, and it takes '
+                             'considerably longer than you expected, and you '
+                             'stay for all of it.',
+                             sets=('package_burned',)),
+                  )),
+        )),
+)
+
+#: Origin threads live in the same registry as everything else: they are just
+#: threads that happen to gate on a background.
+THREADS = THREADS + ORIGIN_THREADS
+BY_KEY = {t.key: t for t in THREADS}
+THREAD_KEYS = tuple(BY_KEY)
+ALL_STAGES = {f'{t.key}.{s.key}': s for t in THREADS for s in t.stages}

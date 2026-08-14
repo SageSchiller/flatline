@@ -46,6 +46,12 @@ class Origin:
     effects: dict = field(default_factory=dict)
     #: The half the engine has to special-case. Must be in `RIDERS`.
     rider: str = ''
+    #: The thing nobody else can do. A verb only this origin has, which is
+    #: what makes the choice at creation weigh something: two characters with
+    #: the same skills and the same chrome still cannot do each other's job.
+    signature: str = ''
+    signature_name: str = ''
+    signature_detail: str = ''
 
 
 ORIGINS: tuple[Origin, ...] = (
@@ -73,6 +79,13 @@ ORIGINS: tuple[Origin, ...] = (
             'Kagawa Vertical wants the laptop back, and they have not decided '
             'yet whether they want you with it.'),
         rider='policy_reader',
+        signature='policy',
+        signature_name='Policy',
+        signature_detail=(
+            'You wrote the access policy. Once per run, name a node and it will '
+            'tell you what it is required to log and when, which means you know '
+            'exactly what leaving it alone is worth. Removes all residue you '
+            'have left there and reveals whether anything is watching.'),
     ),
     Origin(
         'gutter', 'Gutter runner',
@@ -99,6 +112,12 @@ ORIGINS: tuple[Origin, ...] = (
             'yet. They will.'),
         effects={'repair_mult': 0.7},
         rider='salvager',
+        signature='jury',
+        signature_name='Jury-rig',
+        signature_detail=(
+            'Once per run, bring a destroyed deck component back to half '
+            'function out of nothing but what is already in the case. Everybody '
+            'else has to leave the run.'),
     ),
     Origin(
         'protege', 'Fixer\'s protege',
@@ -125,6 +144,12 @@ ORIGINS: tuple[Origin, ...] = (
             'patient in the way that people are when they are certain.'),
         effects={'pay_mult': 1.1},
         rider='known_quantity',
+        signature='vouch',
+        signature_name='Vouch',
+        signature_detail=(
+            'Once per run, spend the Switchboard\'s name instead of a '
+            'credential. A warden that checks credentials accepts you outright, '
+            'no roll, because somebody it trusts has said you are fine.'),
     ),
     Origin(
         'academic', 'Academic',
@@ -150,6 +175,12 @@ ORIGINS: tuple[Origin, ...] = (
             'The loan on the deck is real, it is compounding, and the lender is '
             'not a bank.'),
         rider='first_principles',
+        signature='firstprinciples',
+        signature_name='First principles',
+        signature_detail=(
+            'Once per run, derive a key rather than breaking one. Opens any '
+            'single encrypted service or asset outright, at the cost of every '
+            'point of Focus you have left.'),
     ),
     Origin(
         'expolice', 'Ex-enforcement',
@@ -177,6 +208,12 @@ ORIGINS: tuple[Origin, ...] = (
             'There is a live bounty on you, filed by people who have your '
             'biometrics on record and your service history in a drawer.'),
         rider='read_the_room',
+        signature='playbook',
+        signature_name='Playbook',
+        signature_detail=(
+            'Once per run, call the response the way the desk would have. Every '
+            'countermeasure on the network telegraphs a full tick early for the '
+            'rest of the run, and you learn what each one is.'),
     ),
     Origin(
         'chromed', 'Chromed',
@@ -204,6 +241,12 @@ ORIGINS: tuple[Origin, ...] = (
             'you outdoors, and something in the ocular suite has begun '
             'reporting to a maintenance address you did not configure.'),
         rider='native',
+        signature='native',
+        signature_name='Native',
+        signature_detail=(
+            'Once per run, stop using the interface. For three ticks you move '
+            'through the network as though it were a room: connections cost '
+            'nothing, no noise at all, and locked-on countermeasures lose you.'),
     ),
     Origin(
         'bonded', 'Indentured',
@@ -232,6 +275,13 @@ ORIGINS: tuple[Origin, ...] = (
             'had to be anything else.'),
         effects={'repair_mult': 0.5},
         rider='company_hardware',
+        signature='requisition',
+        signature_name='Requisition',
+        signature_detail=(
+            'Once per run, file for corporate resources against a buyout you '
+            'have not finished paying. A program you do not own appears in '
+            'memory for the rest of the run, and the paperwork is somebody '
+            'else\'s problem.'),
     ),
     Origin(
         'burnout', 'Burnout',
@@ -261,6 +311,12 @@ ORIGINS: tuple[Origin, ...] = (
             'Sendai still has the incident file with your working name on the '
             'cover.'),
         rider='veteran_eye',
+        signature='remember',
+        signature_name='Remember',
+        signature_detail=(
+            'Once per run, remember having done this before. Retry any check '
+            'you have just failed, with your full skill and no situational '
+            'penalties at all.'),
     ),
     Origin(
         'ghost', 'Legally dead',
@@ -289,6 +345,12 @@ ORIGINS: tuple[Origin, ...] = (
             'this city has to be built from zero, and somebody, somewhere, '
             'is currently using the name you had before.'),
         rider='no_history',
+        signature='nobody',
+        signature_name='Nobody',
+        signature_detail=(
+            'Once per run, stop existing for a moment. The trace resets to '
+            'zero. It has nowhere to attach and it has to start again from what '
+            'it can find, which is nothing.'),
     ),
     Origin(
         'courier', 'Courier',
@@ -317,6 +379,11 @@ ORIGINS: tuple[Origin, ...] = (
             'have never opened it, and the person who gave it to you has been '
             'dead for two years.'),
         rider='streetwise',
+        signature='backway',
+        signature_name='The back way',
+        signature_detail=(
+            'Once per run, take a route you already knew about. Move to any '
+            'node you have seen, from anywhere, in one tick and in silence.'),
     ),
 )
 
@@ -329,6 +396,13 @@ BASE_ATTR = 3
 #: Riders the engine implements. A passive naming anything else is a
 #: validation error, which is what stops an origin's headline ability from
 #: being a sentence that does nothing.
+#: Signature verbs, one per origin. Registered as commands like anything
+#: else, and refused to anybody who is not that origin.
+SIGNATURES: frozenset[str] = frozenset({
+    'policy', 'jury', 'vouch', 'firstprinciples', 'playbook', 'native',
+    'requisition', 'remember', 'nobody', 'backway',
+})
+
 RIDERS: frozenset[str] = frozenset({
     'policy_reader', 'salvager', 'known_quantity', 'first_principles',
     'read_the_room', 'native', 'company_hardware', 'veteran_eye',
