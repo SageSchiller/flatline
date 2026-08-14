@@ -21,7 +21,7 @@ from ..content import programs
 from ..run import network as net_mod
 from ..run.checks import Check
 from ..run.session import RunState, crack_check
-from .. import anim
+from .. import anim, ui
 from ..shell import CommandError, command
 from ..world import market as market_mod
 from ..world.contracts import OBJECTIVE_PROGRAM
@@ -423,32 +423,97 @@ def cmd_probe(sess, args) -> None:
          group='recon', contexts=('run',), usage='map')
 def cmd_map(sess, args) -> None:
     state, c = sess.require_run(), sess.console
-    known = [n for n in state.net.nodes.values() if n.known]
-    c.header('Known hosts', f'{len(known)} of {len(state.net.nodes)}')
+    net = state.net
+    visible = {n.uid for n in net.nodes.values() if n.known}
+    c.header('Known hosts', f'{len(visible)} of {len(net.nodes)}')
+
+    if args.has('flat') or state.here not in visible:
+        _map_flat(sess, visible)
+        return
+
+    ascii_only = c.caps.glyphs is ui.GlyphLevel.ASCII
+    # Drawn from the entry rather than from where you are standing, so the
+    # picture does not reshuffle every time you move. A map that redraws
+    # itself as you walk is a compass, not a map.
+    root = net.entry if net.entry in visible else state.here
+    rows = net_mod.tree_rows(net, root, visible, ascii_only)
+    _, extra = net_mod.spanning_tree(net, root, visible)
+    drawn = {uid for _, uid in rows}
+
+    c.blank()
+    for prefix, uid in rows:
+        node = net.node(uid)
+        if node is None:
+            continue
+        c.raw(f'[dim]{prefix}[/]{_map_label(state, node)}')
+
+    # Hosts the scan found but that nothing known connects to yet. They are
+    # real and they are not reachable, and hiding them would be a lie.
+    orphans = sorted(visible - drawn)
+    if orphans:
+        c.blank()
+        c.say('[dim]Seen, with no route from anywhere you have opened:[/]')
+        for uid in orphans:
+            node = net.node(uid)
+            if node is not None:
+                c.raw(f'  {_map_label(state, node)}')
+
+    # One line per pair. `extra` reports both ends of every back edge, and
+    # printing both makes a network with four crossings look like it has
+    # eight.
+    pairs = sorted({tuple(sorted((a, b)))
+                    for a, others in extra.items() for b in others})
+    if pairs:
+        c.blank()
+        c.say('[dim]Also connected, which the shape above cannot show:[/]')
+        for a, b in pairs:
+            c.raw(f'  [accent]{a}[/][dim] to [/][accent]{b}[/]')
+
+    c.blank()
+    c.say('[dim]`map --flat` for the list by zone. '
+          '`scan` to reach further.[/]')
+
+
+def _map_label(state, node) -> str:
+    """One host, with everything currently known about it."""
+    marks = []
+    if node.uid == state.here:
+        marks.append('[accent]you[/]')
+    if node.open:
+        marks.append('[ok]open[/]')
+    if node.uid == state.net.objective_node:
+        marks.append('[accent2]objective[/]')
+    live = [i for i in node.live_ice if i.known]
+    if live:
+        marks.append(f'[ice]{len(live)} ice[/]')
+    if node.data and node.mapped:
+        marks.append(f'[credit]{len(node.data)} assets[/]')
+    if node.residue:
+        marks.append(f'[residue]residue {node.residue}[/]')
+    role = 'accent' if node.open else 'fg'
+    head = f'[{role}]{node.uid:<12}[/] [dim]{node.zone[:4]:<5}[/]'
+    # The type is only padded when something follows it. Padding it
+    # unconditionally leaves trailing spaces on most rows, which nobody sees
+    # in a terminal and everybody sees in a bug report.
+    if not marks:
+        return f'{head}[dim]{node.display_type}[/]'
+    return f'{head}[dim]{node.display_type:<12}[/] {"  ".join(marks)}'
+
+
+def _map_flat(sess, visible: set[str]) -> None:
+    """The list by zone. Still here because it sorts by depth, which the
+    tree does not, and depth is the number that matters when you are
+    deciding how far in you are willing to go."""
+    state, c = sess.run, sess.console
     for zone in node_content.ZONES:
-        group = [n for n in known if n.zone == zone]
+        group = [n for n in state.net.nodes.values()
+                 if n.uid in visible and n.zone == zone]
         if not group:
             continue
         c.blank()
         c.raw(f'[info]{zone}[/] [dim]{node_content.ZONE_BLURB[zone]}[/]')
         for node in group:
-            marks = []
-            if node.uid == state.here:
-                marks.append('[accent]you[/]')
-            if node.open:
-                marks.append('[ok]open[/]')
-            if node.uid == state.net.objective_node:
-                marks.append('[accent2]objective[/]')
-            live = [i for i in node.live_ice if i.known]
-            if live:
-                marks.append(f'[ice]{len(live)} ice[/]')
-            if node.data and node.mapped:
-                marks.append(f'[credit]{len(node.data)} assets[/]')
-            if node.residue:
-                marks.append(f'[residue]residue {node.residue}[/]')
-            tail = '  '.join(marks)
-            c.raw(f'  [accent]{node.uid:<12}[/] [dim]{node.display_type:<12}[/] '
-                  f'{tail}')
+            c.raw(f'  {_map_label(state, node)}')
 
 
 @command('here', 'What is in front of you right now.',

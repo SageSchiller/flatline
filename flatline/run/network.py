@@ -508,3 +508,83 @@ def _ensure_reachable(net: Network) -> None:
         _link(orphan, target)
         seen.add(orphan.uid)
         reachable.append(orphan)
+
+
+# --------------------------------------------------------------------------
+# drawing
+# --------------------------------------------------------------------------
+
+
+def spanning_tree(net: Network, root: str,
+                  visible: set[str]) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
+    """Lay the known part of the network out as a tree from `root`.
+
+    A network is a graph and a terminal is good at trees, so this does a
+    breadth-first walk and reports the edges it could not use separately.
+    Breadth-first rather than depth-first on purpose: it puts every host at
+    its true distance from the entry, which is the number a player is actually
+    reasoning about when they decide what to open next.
+
+    Returns (children, extra), where `extra` maps a host to the known hosts it
+    also touches that the tree could not show.
+    """
+    children: dict[str, list[str]] = {}
+    extra: dict[str, list[str]] = {}
+    if root not in net.nodes:
+        return children, extra
+    seen = {root}
+    parent: dict[str, str] = {}
+    queue = [root]
+    while queue:
+        uid = queue.pop(0)
+        node = net.nodes.get(uid)
+        if node is None:
+            continue
+        kids, others = [], []
+        for edge in node.edges:
+            if edge not in visible or edge not in net.nodes:
+                continue
+            if edge in seen:
+                # An edge back into the tree. Real, and worth telling the
+                # player about, because a second way into a host is a second
+                # way out of one. The edge back to this host's own parent is
+                # not one of those: the tree already draws it, and reporting
+                # it would list every single link twice.
+                if edge != uid and parent.get(uid) != edge:
+                    others.append(edge)
+                continue
+            seen.add(edge)
+            parent[edge] = uid
+            kids.append(edge)
+            queue.append(edge)
+        children[uid] = kids
+        if others:
+            extra[uid] = others
+    return children, extra
+
+
+def tree_rows(net: Network, root: str, visible: set[str],
+              ascii_only: bool = False) -> list[tuple[str, str]]:
+    """(prefix, uid) for every visible host, in drawing order.
+
+    The prefix carries the box-drawing. Split from the labelling so the
+    command can style each host however it likes without this function
+    knowing anything about markup or colour.
+    """
+    if root not in net.nodes:
+        return []
+    children, _ = spanning_tree(net, root, visible)
+    tee, elbow = ('+- ', '\\- ') if ascii_only else ('├─ ', '└─ ')
+    pipe, gap = ('|  ', '   ') if ascii_only else ('│  ', '   ')
+    rows: list[tuple[str, str]] = []
+
+    def walk(uid: str, prefix: str) -> None:
+        kids = children.get(uid, [])
+        for i, kid in enumerate(kids):
+            last = i == len(kids) - 1
+            rows.append((prefix + (elbow if last else tee), kid))
+            walk(kid, prefix + (gap if last else pipe))
+
+    rows.append(('', root))
+    walk(root, '')
+    return rows

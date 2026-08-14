@@ -2693,6 +2693,89 @@ def test_anim() -> None:
 
 
 
+
+def test_topology() -> None:
+    T.section('topology')
+    from flatline.run import network as net_mod
+
+    game = Game.new(Character.from_origin('gutter', 'mapper'), seed=8829)
+    sess, _ = play(['take c001', 'travel ninth', 'travel shambles',
+                    'jack in --force'], game=game)
+    net = sess.run.net
+    for node in net.nodes.values():
+        node.known = True
+    visible = set(net.nodes)
+
+    rows = net_mod.tree_rows(net, net.entry, visible)
+    drawn = [uid for _, uid in rows]
+    T.eq(len(drawn), len(set(drawn)), 'no host is drawn twice')
+    T.eq(set(drawn), visible, 'every visible host is drawn exactly once')
+    T.eq(rows[0], ('', net.entry), 'the entry is the root')
+
+    # The tree must never claim a link that does not exist. Every drawn row
+    # has to be adjacent to something already drawn above it.
+    children, extra = net_mod.spanning_tree(net, net.entry, visible)
+    for parent, kids in children.items():
+        for kid in kids:
+            T.ok(kid in net.node(parent).edges,
+                 f'{parent} really connects to {kid}')
+
+    # Back edges are real edges and are never the parent link, or every
+    # connection in the network gets reported twice.
+    for uid, others in extra.items():
+        for other in others:
+            T.ok(other in net.node(uid).edges, 'a back edge is a real edge')
+            T.ok(other not in children.get(uid, []),
+                 'and is not one the tree already drew')
+            T.ok(uid not in children.get(other, []),
+                 'and is not the link to its own parent')
+
+    # Only what the player has seen. A map that draws unscanned hosts is a
+    # map that hands them the whole network for free.
+    for node in net.nodes.values():
+        node.known = False
+    net.node(net.entry).known = True
+    rows = net_mod.tree_rows(net, net.entry, {net.entry})
+    T.eq([uid for _, uid in rows], [net.entry],
+         'an unscanned network draws one host')
+
+    # Degenerate inputs are a blank map, not a traceback.
+    T.eq(net_mod.tree_rows(net, 'nonexistent', visible), [],
+         'an unknown root draws nothing')
+    T.eq(net_mod.spanning_tree(net, 'nonexistent', visible), ({}, {}),
+         'and lays out nothing')
+    T.eq(net_mod.tree_rows(net, net.entry, set()), [('', net.entry)],
+         'nothing visible still draws the root')
+
+    # The prefixes are pure box drawing, and degrade.
+    for _, uid in rows:
+        T.ok(uid in net.nodes, 'every drawn row names a real host')
+    for node in net.nodes.values():
+        node.known = True
+    ascii_rows = net_mod.tree_rows(net, net.entry, visible, ascii_only=True)
+    T.ok(all(ord(ch) < 128 for prefix, _ in ascii_rows for ch in prefix),
+         'ascii mode draws the tree in ascii')
+    uni = net_mod.tree_rows(net, net.entry, visible)
+    T.eq([u for _, u in uni], [u for _, u in ascii_rows],
+         'and draws exactly the same shape')
+
+    # Both renderings work through the command, and neither costs a tick.
+    # Driven on the live session rather than a fresh one, because `map` needs
+    # a run and a run lives on the session rather than on the game.
+    before = sess.run.tick
+    sess.console.start_capture()
+    sess.execute('map')
+    out = sess.console.end_capture()
+    T.ok(net.entry in out, 'the tree map names the entry')
+    T.ok('\u2514' in out or '\u251c' in out, 'and draws the tree')
+    sess.console.start_capture()
+    sess.execute('map --flat')
+    flat = sess.console.end_capture()
+    T.ok('perimeter' in flat, 'the flat map groups by zone')
+    T.eq(sess.run.tick, before, 'looking at the map costs no time')
+
+
+
 def test_migration() -> None:
     T.section('migration')
     import json
@@ -2753,7 +2836,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_migration, test_shell,
+    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_topology, test_migration, test_shell,
     test_playthrough, test_ui,
 )
 
