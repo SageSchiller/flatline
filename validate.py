@@ -18,6 +18,7 @@ import sys
 from flatline import commands  # noqa: F401  (registers the command table)
 from flatline import script as script_mod
 from flatline import theme, ui
+from flatline.content import appearance
 from flatline.content import attributes as attr_content
 from flatline.content import cyberspace, cyberware
 from flatline.content import dissonance as drift
@@ -53,6 +54,30 @@ def _command_source() -> str:
 
 
 _ENGINE_SOURCE: str = ''
+_MODEL_SOURCE: str = ''
+_WORLD_SOURCE: str = ''
+
+
+def _model_source() -> str:
+    """The character model, for checks about things a build carries."""
+    global _MODEL_SOURCE
+    if not _MODEL_SOURCE:
+        import pathlib
+        _MODEL_SOURCE = '\n'.join(
+            p.read_text(encoding='utf-8')
+            for p in sorted(pathlib.Path('flatline/model').glob('*.py')))
+    return _MODEL_SOURCE
+
+
+def _world_source() -> str:
+    """The city layer, for checks about consequences landing."""
+    global _WORLD_SOURCE
+    if not _WORLD_SOURCE:
+        import pathlib
+        _WORLD_SOURCE = '\n'.join(
+            p.read_text(encoding='utf-8')
+            for p in sorted(pathlib.Path('flatline/world').glob('*.py')))
+    return _WORLD_SOURCE
 
 
 def _engine_source() -> str:
@@ -522,6 +547,96 @@ def check_origins(rep: Report) -> None:
 # --------------------------------------------------------------------------
 # skills
 # --------------------------------------------------------------------------
+
+
+
+def check_appearance(rep: Report) -> None:
+    """Appearance is content that has to survive the same honesty rule.
+
+    Two failure modes are specific to it. A feature that moves neither number
+    and carries no effects is a costume item in a game that promised every
+    choice weighs something. And an earned mark the engine never awards is the
+    recurring bug in this project wearing a new hat: it validates, it ships,
+    and no character ever gets it.
+    """
+    engine = (_engine_source() + _command_source() + _model_source()
+              + _world_source())
+
+    seen: set[tuple[str, str]] = set()
+    for f in appearance.FEATURES:
+        where = f'appearance/{f.slot}/{f.key}'
+        rep.check(f.slot in appearance.SLOT_BY_KEY, where,
+                  f'unknown slot {f.slot!r}')
+        rep.check(bool(f.look), where, 'has no description')
+        rep.check((f.slot, f.key) not in seen, where, 'duplicate key in slot')
+        seen.add((f.slot, f.key))
+        if not f.memorable and not f.presence and not f.effects:
+            rep.error(where, 'moves nothing: it is a costume, not a choice')
+        # The description completes a sentence stem, so it must not start with
+        # a capital or end with punctuation the assembler adds itself.
+        rep.check(not f.look[0].isupper(), where,
+                  'description is capitalised, but it follows a sentence stem')
+        rep.check(not f.look.rstrip().endswith(('.', ',')), where,
+                  'description ends with punctuation the assembler adds')
+        for problem in fx.check(f.effects, f'{where}/effects'):
+            rep.error('effects', problem)
+
+    for slot in appearance.SLOTS:
+        options = appearance.BY_SLOT[slot.key]
+        rep.check(len(options) >= 8, f'appearance/{slot.key}',
+                  f'only {len(options)} options; a slot with fewer than eight '
+                  f'is a dropdown, not a decision')
+        rep.check(bool(slot.stem) and bool(slot.blurb),
+                  f'appearance/{slot.key}', 'missing stem or blurb')
+        # At least one option in each direction, or the slot has no trade in it.
+        rep.check(any(o.memorable < 0 for o in options)
+                  and any(o.memorable > 0 for o in options),
+                  f'appearance/{slot.key}',
+                  'every option pushes memorable the same way, so the slot is '
+                  'a tax rather than a choice')
+
+    for f in appearance.EARNED:
+        where = f'appearance/earned/{f.key}'
+        rep.check(f.slot == 'marks', where, 'earned features must be marks')
+        rep.check(f"mark('{f.key}')" in engine, where,
+                  'nothing in the engine ever awards this mark')
+        rep.check(f.key not in {x.key for x in appearance.BY_SLOT['marks']},
+                  where, 'collides with a choosable mark of the same key')
+
+    # Every origin arrives wearing something, and it has to be legal.
+    for o in origins.ORIGINS:
+        where = f'origins/{o.key}/look'
+        rep.check(set(o.look) == set(appearance.SLOT_KEYS), where,
+                  f'covers {sorted(o.look)} rather than every slot')
+        for slot_key, key in o.look.items():
+            rep.check((slot_key, key) in appearance.BY_KEY, where,
+                      f'{slot_key}={key!r} is not a feature')
+
+    # Two origins wearing the same face defeats the point of the field.
+    faces = {}
+    for o in origins.ORIGINS:
+        sig = tuple(sorted(o.look.items()))
+        rep.check(sig not in faces, f'origins/{o.key}/look',
+                  f'identical to {faces.get(sig)}')
+        faces[sig] = o.key
+
+    # The bands have to cover the whole range the content can produce.
+    lo = sum(min(f.memorable for f in appearance.BY_SLOT[s.key])
+             for s in appearance.SLOTS)
+    hi = (sum(max(f.memorable for f in appearance.BY_SLOT[s.key])
+              for s in appearance.SLOTS)
+          + sum(f.memorable for f in appearance.EARNED))
+    rep.check(appearance.BANDS[0][0] <= lo, 'appearance/bands',
+              f'lowest reachable memorable is {lo}, below the first band')
+    rep.check(appearance.BANDS[-1][0] <= hi, 'appearance/bands',
+              f'highest band starts at {appearance.BANDS[-1][0]} but the '
+              f'content only reaches {hi}, so it is unreachable')
+
+    # And the numbers they feed have to be read somewhere that matters.
+    for promise, needle in (('memorable feeds heat', 'appearance.heat_mult'),
+                            ('memorable feeds standing', 'appearance.rep_mult')):
+        rep.check(needle in _world_source(), 'appearance/hooks',
+                  f'{promise}, but {needle} is never called')
 
 
 def check_debt(rep: Report) -> None:
@@ -1380,7 +1495,7 @@ def check_balance(rep: Report) -> None:
 CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
     check_icons, check_dissonance, check_cyberspace, check_rivals, check_debt,
-    check_origins, check_skills, check_factions, check_districts,
+    check_origins, check_appearance, check_skills, check_factions, check_districts,
     check_ice, check_nodes, check_contracts, check_commands,
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_markup, check_balance,

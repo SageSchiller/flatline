@@ -145,6 +145,11 @@ class Rng:
         'rivals',     # NPC runner decisions
         'names',      # generated proper nouns
         'events',     # city events between shifts
+        # Its own stream rather than borrowing one, because `self --roll` is a
+        # player-initiated convenience they may use twenty times in a row, and
+        # drawing that from a shared stream would mean the number of times you
+        # rerolled your haircut changed which contracts appeared on the board.
+        'appearance',
     )
 
     def __init__(self, seed: int) -> None:

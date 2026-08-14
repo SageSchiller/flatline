@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from ..content import attributes as attrs
+from ..content import appearance, attributes as attrs
 from ..content import cyberware, dissonance as drift
 from ..content import effects as fx, icons, origins, programs, skills
 from ..content import traits as trait_content
@@ -44,6 +44,13 @@ class Character:
     #: What you are like. Permanent, chosen from a pool much larger than the
     #: number of slots, which is what stops two characters converging.
     traits: list[str] = field(default_factory=list)
+
+    #: What you look like: slot -> feature key. Four of these are set at
+    #: creation and only a clinic changes them; four are yours to change.
+    look: dict[str, str] = field(default_factory=appearance.default)
+    #: Marks the work has left on you. You do not choose these and they do not
+    #: come off, which is the point of them.
+    marks: list[str] = field(default_factory=list)
 
     credits: int = 0
     xp: int = 0
@@ -80,6 +87,7 @@ class Character:
             icon=origin.icon,
             icons=sorted({icons.DEFAULT, origin.icon}),
             credits=origin.credits,
+            look={**appearance.default(), **origin.look},
         )
         char.dissonance = sum(cyberware.BY_KEY[w].dissonance
                               for w in char.installed if w in cyberware.BY_KEY)
@@ -127,6 +135,7 @@ class Character:
             # An icon further from a human shape than your drift can carry
             # fights you the whole time you wear it.
             parts.append(icons.coherence_penalty(self.icon, self.dissonance))
+        parts.append(appearance.effects(self.look, self.marks))
         return fx.merge(*parts)
 
     def mult(self, key: str) -> float:
@@ -217,6 +226,37 @@ class Character:
     def dissonance_band(self) -> tuple[int, str, str]:
         return cyberware.band(self.dissonance)
 
+    @property
+    def memorable(self) -> int:
+        """How easily somebody could describe you afterwards.
+
+        Two-sided on purpose: it earns reputation and it earns heat. Chrome
+        puts a floor under it that no amount of dressing down gets below.
+        """
+        return appearance.score(self.look, self.marks, self.dissonance)[0]
+
+    @property
+    def presence(self) -> int:
+        """How much room you take up in a conversation."""
+        return appearance.score(self.look, self.marks, self.dissonance)[1]
+
+    @property
+    def memorable_band(self) -> tuple[str, str]:
+        return appearance.band(self.memorable)
+
+    def mark(self, key: str) -> appearance.Feature | None:
+        """Take an earned mark. Returns it if it is new, None if already worn.
+
+        Called by the engine when the thing that causes a mark happens, so the
+        list is a record of what has actually been done to this character
+        rather than anything they picked.
+        """
+        feature = appearance.EARNED_BY_KEY.get(key)
+        if feature is None or key in self.marks:
+            return None
+        self.marks.append(key)
+        return feature
+
     def new_passages(self) -> list:
         """Drift passages not yet shown, and mark them shown.
 
@@ -229,6 +269,10 @@ class Character:
                if self.drift_seen < p.band <= self.dissonance]
         if due:
             self.drift_seen = max(p.band for p in due)
+        # Submerged is the point at which it stops being something you feel
+        # and starts being something other people can see.
+        if self.dissonance >= drift.PASSAGES[1].band:
+            self.mark('drift_pallor')
         return due
 
     @property
@@ -417,6 +461,8 @@ class Character:
             'icon': self.icon,
             'icons': list(self.icons),
             'traits': list(self.traits),
+            'look': dict(self.look),
+            'marks': list(self.marks),
             'credits': self.credits,
             'xp': self.xp,
             'points': self.points,
@@ -441,6 +487,8 @@ class Character:
             icon=d.get('icon') or icons.DEFAULT,
             icons=list(d.get('icons') or [icons.DEFAULT]),
             traits=list(d.get('traits') or []),
+            look={**appearance.default(), **(d.get('look') or {})},
+            marks=list(d.get('marks') or []),
             credits=int(d.get('credits', 0)),
             xp=int(d.get('xp', 0)),
             points=int(d.get('points', 0)),

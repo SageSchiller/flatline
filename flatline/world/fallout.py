@@ -105,6 +105,8 @@ def pick_up(rng: Stream, char, alias, city, faction: str) -> Incident:
         damage = rng.int(3, 8)
         char.hurt = min(char.integrity_max - 1, char.hurt + damage)
         alias.add_heat(faction, -8)
+        # Filing leaves a record on you as well as in their system.
+        char.mark('bounty_mark')
         return Incident(
             'beating',
             f'They put you on the ground behind a service door in '

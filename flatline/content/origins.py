@@ -46,6 +46,11 @@ class Origin:
     effects: dict = field(default_factory=dict)
     #: The half the engine has to special-case. Must be in `RIDERS`.
     rider: str = ''
+    #: Where this character's face starts. A default rather than a cage: the
+    #: player can change the four free slots immediately and buy the rest on a
+    #: clinic table. It exists so that ten origins do not all walk into Marrow
+    #: wearing the same grey coat and the same nothing expression.
+    look: dict = field(default_factory=dict)
     #: The thing nobody else can do. A verb only this origin has, which is
     #: what makes the choice at creation weigh something: two characters with
     #: the same skills and the same chrome still cannot do each other's job.
@@ -86,7 +91,7 @@ ORIGINS: tuple[Origin, ...] = (
             'tell you what it is required to log and when, which means you know '
             'exactly what leaving it alone is worth. Removes all residue you '
             'have left there and reveals whether anything is watching.'),
-    ),
+        look=dict(build='soft', face='young', eyes='reconstructed', hair='severe', marks='corporate', dress='corporate', bearing='formal', voice='corporate')),
     Origin(
         'gutter', 'Gutter runner',
         'Self-taught off salvage. Cheap, fast, and loud.',
@@ -118,7 +123,7 @@ ORIGINS: tuple[Origin, ...] = (
             'Once per run, bring a destroyed deck component back to half '
             'function out of nothing but what is already in the case. Everybody '
             'else has to leave the run.'),
-    ),
+        look=dict(build='wiry', face='sharp', eyes='tired', hair='cropped', marks='ports', dress='street', bearing='watchful', voice='ninth')),
     Origin(
         'protege', 'Fixer\'s protege',
         'Grew up in the trade. Best contacts, thinnest foundation.',
@@ -150,7 +155,7 @@ ORIGINS: tuple[Origin, ...] = (
             'Once per run, spend the Switchboard\'s name instead of a '
             'credential. A warden that checks credentials accepts you outright, '
             'no roll, because somebody it trusts has said you are fine.'),
-    ),
+        look=dict(build='compact', face='kind', eyes='warm', hair='undercut', marks='ink', dress='expensive', bearing='amiable', voice='warm')),
     Origin(
         'academic', 'Academic',
         'Cryptography background, no street sense whatsoever.',
@@ -181,7 +186,7 @@ ORIGINS: tuple[Origin, ...] = (
             'Once per run, derive a key rather than breaking one. Opens any '
             'single encrypted service or asset outright, at the cost of every '
             'point of Focus you have left.'),
-    ),
+        look=dict(build='stooped', face='worn', eyes='shielded', hair='thinning', marks='faded', dress='layered', bearing='restless', voice='rambling')),
     Origin(
         'expolice', 'Ex-enforcement',
         'Worked the other side. Reads ICE like a native.',
@@ -214,7 +219,7 @@ ORIGINS: tuple[Origin, ...] = (
             'Once per run, call the response the way the desk would have. Every '
             'countermeasure on the network telegraphs a full tick early for the '
             'rest of the run, and you learn what each one is.'),
-    ),
+        look=dict(build='blocky', face='severe', eyes='narrow', hair='shaved', marks='surgical', dress='nightwatch', bearing='coiled', voice='clipped')),
     Origin(
         'chromed', 'Chromed',
         'Already more machine than most. The city notices.',
@@ -247,7 +252,7 @@ ORIGINS: tuple[Origin, ...] = (
             'Once per run, stop using the interface. For three ticks you move '
             'through the network as though it were a room: connections cost '
             'nothing, no noise at all, and locked-on countermeasures lose you.'),
-    ),
+        look=dict(build='asymmetric', face='unfinished', eyes='optics', hair='none', marks='subdermal', dress='armoured', bearing='twitchy', voice='synthetic')),
     Origin(
         'bonded', 'Indentured',
         'Corporate property with a buyout figure. Best gear, worst terms.',
@@ -282,7 +287,7 @@ ORIGINS: tuple[Origin, ...] = (
             'have not finished paying. A program you do not own appears in '
             'memory for the rest of the run, and the paperwork is somebody '
             'else\'s problem.'),
-    ),
+        look=dict(build='slight', face='young', eyes='brown', hair='long', marks='brand', dress='workwear', bearing='apologetic', voice='quiet')),
     Origin(
         'burnout', 'Burnout',
         'Was one of the best. Eight years ago.',
@@ -317,7 +322,7 @@ ORIGINS: tuple[Origin, ...] = (
             'Once per run, remember having done this before. Retry any check '
             'you have just failed, with your full skill and no situational '
             'penalties at all.'),
-    ),
+        look=dict(build='gaunt', face='burned', eyes='flickering', hair='unkempt', marks='burns', dress='nothing', bearing='exhausted', voice='rough')),
     Origin(
         'ghost', 'Legally dead',
         'No record, no history, no heat. Also no friends.',
@@ -351,7 +356,7 @@ ORIGINS: tuple[Origin, ...] = (
             'Once per run, stop existing for a moment. The trace resets to '
             'zero. It has nowhere to attach and it has to start again from what '
             'it can find, which is nothing.'),
-    ),
+        look=dict(build='unremarkable', face='plain', eyes='grey', hair='wig', marks='none_visible', dress='grey', bearing='grey_man', voice='unremarkable')),
     Origin(
         'courier', 'Courier',
         'Carried data through the streets before ever going through a wire.',
@@ -384,7 +389,7 @@ ORIGINS: tuple[Origin, ...] = (
         signature_detail=(
             'Once per run, take a route you already knew about. Move to any '
             'node you have seen, from anywhere, in one tick and in silence.'),
-    ),
+        look=dict(build='rangy', face='lopsided', eyes='mismatched', hair='braided', marks='clinic', dress='salvage', bearing='restless', voice='fast')),
 )
 
 ORIGIN_KEYS: tuple[str, ...] = tuple(o.key for o in ORIGINS)

@@ -31,6 +31,7 @@ os.environ['XDG_DATA_HOME'] = _TMP
 os.environ['NO_COLOR'] = '1'
 
 from flatline import commands, save as save_mod, theme, ui  # noqa: E402
+from flatline.content import appearance  # noqa: E402
 from flatline.content import attributes as attr_content  # noqa: E402
 from flatline.content import cyberware, districts, effects as fx  # noqa: E402
 from flatline.content import factions, hardware, ice as ice_content  # noqa: E402
@@ -2280,6 +2281,132 @@ def test_fallout() -> None:
          'a bounty eventually comes off the board')
 
 
+
+def test_appearance() -> None:
+    T.section('appearance')
+
+    # Every origin walks in looking like a different person. This is the whole
+    # reason the field exists rather than one shared default.
+    looks = {o.key: Character.from_origin(o.key, 'x').look
+             for o in origins.ORIGINS}
+    T.eq(len({tuple(sorted(v.items())) for v in looks.values()}),
+         len(origins.ORIGINS), 'no two origins start with the same face')
+
+    scores = {k: Character.from_origin(k, 'x').memorable for k in looks}
+    T.ok(scores['ghost'] < 0, 'the legally dead are forgettable')
+    T.ok(scores['chromed'] > 15, 'and the chromed are not')
+    T.ok(max(scores.values()) - min(scores.values()) > 20,
+         'the origins span a real range of memorability')
+
+    # The two-sided trade is the design. Confirm both sides actually move,
+    # and in opposite directions.
+    T.ok(appearance.heat_mult(20) > appearance.heat_mult(0)
+         > appearance.heat_mult(-15),
+         'being memorable converts more residue into heat')
+    T.ok(appearance.rep_mult(20) > appearance.rep_mult(0)
+         > appearance.rep_mult(-15),
+         'and earns more standing per job')
+
+    # A forgettable build must be able to go negative. The chrome floor
+    # clamped this to zero once, which deleted the bottom half of the scale
+    # and with it the entire reason anybody would dress down.
+    ghost = Character.from_origin('ghost', 'x')
+    ghost.dissonance = 0
+    T.ok(ghost.memorable < 0, 'a forgettable build reads below zero')
+    T.ok(appearance.band(ghost.memorable)[0] == 'forgettable',
+         'and lands in the band named for it')
+
+    # Chrome puts a floor under it that no haircut gets below.
+    ghost.dissonance = 90
+    floored = ghost.memorable
+    T.ok(floored >= appearance.floor_from_chrome(90),
+         'chrome sets a floor under memorable')
+    T.ok(floored > 0, 'and past a certain point you cannot be forgettable')
+    for slot in appearance.FREE_SLOTS:
+        best = min(appearance.BY_SLOT[slot], key=lambda f: f.memorable)
+        ghost.look[slot] = best.key
+    T.eq(ghost.memorable, floored,
+         'dressing down as hard as possible does not get under the floor')
+
+    # Marks are a record: awarded by the engine, never chosen, never repeated.
+    char = Character.from_origin('gutter', 'x')
+    T.ok(char.mark('black_ice') is not None, 'a mark can be earned')
+    T.ok(char.mark('black_ice') is None, 'and is not earned twice')
+    T.eq(char.marks, ['black_ice'], 'and is recorded once')
+    T.ok(char.mark('not_a_mark') is None, 'an unknown mark is refused')
+    T.ok(char.mark('ink') is None,
+         'and a choosable mark cannot be awarded as an earned one')
+
+    before = Character.from_origin('gutter', 'x').memorable
+    T.ok(char.memorable > before, 'an earned mark makes you more memorable')
+
+    # Surviving black ICE leaves the fern. This is the mark most likely to
+    # rot, because the branch that awards it is rare.
+    game = Game.new(Character.from_origin('gutter', 'ice'), seed=61)
+    game.char.marks.clear()
+    sess, _ = play([], game=game)
+    sess.run = None
+    T.ok('black_ice' in appearance.EARNED_BY_KEY,
+         'the black ICE mark exists')
+
+    # Dissonance past Submerged shows on you whether you like it or not.
+    drifter = Character.from_origin('gutter', 'x')
+    drifter.dissonance = 55
+    drifter.new_passages()
+    T.ok('drift_pallor' in drifter.marks, 'drift becomes visible at Submerged')
+
+    # The description assembles into readable sentences, one per slot.
+    lines = appearance.describe(char.look, char.marks)
+    T.eq(len(lines), len(appearance.SLOTS) + len(char.marks),
+         'one sentence per slot plus one per earned mark')
+    for line in lines:
+        T.ok(line.endswith('.'), 'each sentence is punctuated')
+        T.ok(line[0].isupper(), 'and starts with a capital')
+
+    # The command drives all of it.
+    sess, out = play(['new Face --origin ghost --seed 11', 'self'])
+    T.ok('forgettable' in out, '`self` reports the band')
+    T.ok('memorable' in out and 'presence' in out, 'and both numbers')
+
+    _, out = play(['new Face --origin gutter --seed 11', 'self dress'])
+    T.ok('corporate' in out, '`self <slot>` lists the options')
+
+    sess, out = play(['new Face --origin gutter --seed 11',
+                      'self --set dress corporate'])
+    T.eq(sess.game.char.look['dress'], 'corporate', '--set changes a slot')
+    sess, out = play(['new Face --origin gutter --seed 11',
+                      'self set dress corporate'])
+    T.eq(sess.game.char.look['dress'], 'corporate',
+         'and the positional form does the same')
+
+    _, out = play(['new Face --origin gutter --seed 11',
+                   'self --set build tall'])
+    T.ok('clinic' in out.lower(),
+         'a fixed slot refuses and points at the clinic')
+
+    sess, _ = play(['new Face --origin gutter --seed 11', 'self --roll'])
+    T.ok(sess.game.char.look['build'] == origins.BY_KEY['gutter'].look['build'],
+         '--roll leaves the permanent features alone')
+
+    # Bad input is a message, not a traceback.
+    for line in ('self nonsense', 'self --set dress nonsense',
+                 'self --set nonsense grey', 'self set', 'self --set'):
+        _, out = play(['new Face --origin gutter --seed 11', line])
+        T.ok(out.strip(), f'{line!r} says something')
+
+    # And the whole thing survives a save.
+    game = Game.new(Character.from_origin('courier', 'keeper'), seed=3)
+    game.char.mark('bounty_mark')
+    game.char.look['hair'] = 'dyed'
+    game.save('face')
+    back = Game.load('face')
+    T.eq(back.char.look, game.char.look, 'a look survives a save')
+    T.eq(back.char.marks, game.char.marks, 'and so do earned marks')
+    T.eq(back.char.memorable, game.char.memorable, 'and the score it produces')
+    save_mod.delete('face')
+
+
+
 def test_migration() -> None:
     T.section('migration')
     import json
@@ -2296,6 +2423,8 @@ def test_migration() -> None:
     raw['character'].pop('icons', None)
     raw['city'].pop('rivals', None)
     raw['city'].pop('bounties', None)
+    raw['character'].pop('look', None)
+    raw['character'].pop('marks', None)
     path = save_path('legacy')
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(raw), encoding='utf-8')
@@ -2307,6 +2436,16 @@ def test_migration() -> None:
     T.ok(back.char.icon in back.char.icons, 'and it is one they own')
     T.ok(back.city.rivals, 'the migration seeds the runner pool')
     T.eq(back.city.bounties, {}, 'and an empty bounty ledger')
+
+    # A face, and specifically the one their origin would have given them
+    # rather than the flat default, which would have described somebody else.
+    T.eq(set(back.char.look), set(appearance.SLOT_KEYS),
+         'the migration fills in every appearance slot')
+    T.eq(back.char.look, {**appearance.default(),
+                          **origins.BY_KEY['gutter'].look},
+         'with the look their origin starts from')
+    T.eq(back.char.marks, [],
+         'and no marks, because marks are a record and cannot be invented')
 
     # Migrating is idempotent through a save/load cycle.
     back.save('legacy')
@@ -2328,7 +2467,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_migration, test_shell,
+    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_migration, test_shell,
     test_playthrough, test_ui,
 )
 

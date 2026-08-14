@@ -248,13 +248,15 @@ def _resolve(sess) -> None:
     # The story layer reads what you have actually done.
     game.story.flags.add(f'ran:{summary["faction"]}')
 
-    for line in game.city.apply_run(game.alias, summary, game.rng):
+    for line in game.city.apply_run(game.alias, summary, game.rng,
+                                    game.char.memorable):
         c.say(line)
 
     contract = game.city.current
     if contract is not None:
         pay, told = game.city.pay_out(game.alias, contract, summary,
-                                      game.char.mult('pay_mult'))
+                                      game.char.mult('pay_mult'),
+                                      game.char.memorable)
         game.char.credits += pay
         game.earned += pay
         for line in told:

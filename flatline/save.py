@@ -75,6 +75,33 @@ def _v1_to_v2(data: dict) -> dict:
     return data
 
 
+@migration(2)
+def _v2_to_v3(data: dict) -> dict:
+    """Phase 6 gave characters a face.
+
+    A schema-2 character has no `look` at all. Filling in the flat default
+    would technically work and would be wrong: it would hand a Chromed
+    survivor the same unremarkable build and plain face as a Ghost, and the
+    first thing they would see on upgrading is a description of somebody
+    else. Their origin's starting look is the honest answer, because it is
+    exactly what the character would have been created with.
+
+    Marks are left empty on purpose. They are a record of what has been done
+    to this character, and inventing that record retroactively would be a
+    lie in the one part of the system whose whole job is not to be chosen.
+    """
+    from .content import appearance, origins
+
+    char = dict(data.get('character') or {})
+    if not char.get('look'):
+        origin = origins.BY_KEY.get(char.get('origin') or '')
+        char['look'] = {**appearance.default(),
+                        **(origin.look if origin else {})}
+    char.setdefault('marks', [])
+    data['character'] = char
+    return data
+
+
 def migrate(data: dict) -> dict:
     """Bring a save up to the current schema, or explain why it cannot be."""
     version = int(data.get('schema', 0))

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from ..content import districts, factions
+from ..content import appearance, districts, factions
 from ..model.identity import Alias
 from ..rng import Rng
 from . import contracts as contract_mod
@@ -320,7 +320,8 @@ class City:
 
     # -- consequences --------------------------------------------------
 
-    def apply_run(self, alias: Alias, summary: dict, rng: Rng) -> list[str]:
+    def apply_run(self, alias: Alias, summary: dict, rng: Rng,
+                  memorable: int = 0) -> list[str]:
         """Turn a finished run into city state. The D5 payoff.
 
         Immediate effects land now. Residue is queued and lands a shift later,
@@ -349,6 +350,10 @@ class City:
             # A run that was noticed at the time converts worse.
             if summary.get('alert') in ('red', 'lockdown'):
                 heat *= 1.4
+            # Forensics is only half of it. The other half is somebody
+            # describing you to somebody who is writing it down, and a face
+            # that fits nine thousand people is worth real protection here.
+            heat *= appearance.heat_mult(memorable)
 
             # Forensics rank 4: the heat is real, it just lands on somebody
             # else. This does not reduce the consequence, it redirects it, and
@@ -382,7 +387,8 @@ class City:
         return told
 
     def pay_out(self, alias: Alias, contract: Contract, summary: dict,
-                pay_mult: float = 1.0) -> tuple[int, list[str]]:
+                pay_mult: float = 1.0,
+                memorable: int = 0) -> tuple[int, list[str]]:
         """Settle a contract. Returns credits paid and what to tell the player."""
         told: list[str] = []
         if not summary.get('objective'):
@@ -396,7 +402,10 @@ class City:
             # You delivered, but they had to hear about it from somebody else.
             pay = int(pay * 0.7)
             told.append('[warn]The exit was messy. They withheld part of it.[/]')
-        alias.adjust_rep(contract.patron, 8)
+        # Work gets attributed to somebody. Being a person worth naming means
+        # the story that goes round afterwards has your name in it.
+        alias.adjust_rep(contract.patron,
+                         max(1, round(8 * appearance.rep_mult(memorable))))
         alias.adjust_rep(contract.target, -10)
         told.append(f'[credit]{pay:,}c[/] from {contract.patron_data.short}.')
         return pay, told

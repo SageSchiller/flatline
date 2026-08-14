@@ -903,6 +903,14 @@ class RunState:
                 self.finish('severed')
             return
 
+        if black:
+            # It went through your nervous system and stopped. That leaves the
+            # fern pattern whether or not the rest of the night goes badly.
+            got = self.char.mark('black_ice')
+            if got is not None:
+                self.console.raw(f'[dim]It leaves something behind: '
+                                 f'{got.name.lower()}.[/]')
+
         self.hurt += amount
         remaining = self.char.integrity_max - self.char.hurt - self.hurt
         self.console.raw(f'[err]Feedback. Integrity {max(0, remaining)}/'
@@ -928,6 +936,7 @@ class RunState:
                 self.console.say('[warn]You come out of it on the floor, with '
                                  'the deck smoking and your heart doing '
                                  'something arrhythmic. You are alive.[/]')
+                self.char.mark('flatline_scar')
                 self.finish('severed')
             else:
                 self.finish('flatline')

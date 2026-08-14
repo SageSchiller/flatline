@@ -7,6 +7,7 @@ that quietly spends three of it is a command that has lied.
 
 from __future__ import annotations
 
+from ..content import appearance
 from ..content import attributes as attr_content
 from ..content import cyberware, dissonance as drift, districts
 from ..content import effects as fx, factions
@@ -1880,3 +1881,134 @@ def _show_trait(c, trait, held: bool) -> None:
         c.say('[dim]Does not go with: '
               + ', '.join(trait_content.BY_KEY[k].name
                           for k in trait.excludes) + '[/]')
+
+
+# --------------------------------------------------------------------------
+# appearance
+# --------------------------------------------------------------------------
+
+
+def _look_options(sess, slot_key: str) -> None:
+    """Every feature in one slot, with what it costs you socially."""
+    game, c = sess.game, sess.console
+    slot = appearance.SLOT_BY_KEY[slot_key]
+    worn = game.char.look.get(slot_key)
+    c.header(slot.name, 'set at creation' if slot.fixed else 'change freely')
+    c.say(f'[dim]{slot.blurb}[/]')
+    c.blank()
+    rows = []
+    for feature in appearance.BY_SLOT[slot_key]:
+        rows.append((
+            ('[ok]*[/]' if feature.key == worn else ''),
+            feature.key, feature.name,
+            _signed(feature.memorable), _signed(feature.presence)))
+    c.table(('', 'key', 'name', 'memorable', 'presence'), rows,
+            roles=(None, 'dim', 'accent', None, None))
+    c.blank()
+    if slot.fixed:
+        c.say('[dim]Changing this one is surgery. A clinic will quote you.[/]')
+    else:
+        c.say(f'[dim]`look --set {slot_key} <key>` to change it.[/]')
+
+
+def _signed(n: int) -> str:
+    if not n:
+        return '[dim]0[/]'
+    role = 'warn' if n > 0 else 'ok'
+    return f'[{role}]{n:+d}[/]'
+
+
+@command('self', 'What you look like, and what it costs you.',
+         contexts=('city',), group='character',
+         aliases=('appearance',),
+         usage='self [slot] [--set <slot> <key>] [--roll]',
+         detail='Appearance is the seventh way to build a character and the '
+                'only one about the meat. Every feature moves two numbers. '
+                'Memorable is how easily somebody could describe you '
+                'afterwards: it earns more reputation per job and converts '
+                'more of what you leave behind into faction heat, so it is a '
+                'real trade rather than a slider. Presence is how much weight '
+                'you carry in a conversation, and feeds every social check in '
+                'the city.\n\n'
+                'Four features are set at creation and only a clinic changes '
+                'them. Four are yours to change whenever you like. Marks are '
+                'neither: you do not choose those, they accumulate.')
+def cmd_self(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    char = game.char
+
+    if args.has('roll'):
+        for slot in appearance.FREE_SLOTS:
+            char.look[slot] = game.rng('appearance').pick(
+                [f.key for f in appearance.BY_SLOT[slot]])
+        c.ok('You have changed what you can change.')
+        c.blank()
+        sess.autosave()
+    elif args.opt('set') or (args.get(0) == 'set'):
+        # Both `self --set dress corporate` and `self set dress corporate`
+        # reach here; the option parser splits them differently.
+        if args.opt('set'):
+            slot_key, value = args.opt('set').lower(), args.get(0) or ''
+        else:
+            slot_key, value = (args.get(1) or '').lower(), args.get(2) or ''
+        slot = appearance.SLOT_BY_KEY.get(slot_key)
+        if slot is None:
+            raise CommandError(
+                f'no such feature: {slot_key!r}. '
+                f'One of: {", ".join(appearance.SLOT_KEYS)}.')
+        if slot.fixed:
+            raise CommandError(
+                f'{slot.name} is not something you change with a decision. '
+                f'A clinic can do it for money: `clinic --face {slot_key}`.')
+        feature = appearance.BY_KEY.get((slot_key, value.lower()))
+        if feature is None:
+            _look_options(sess, slot_key)
+            raise CommandError(f'no {slot.name.lower()} called {value!r}.')
+        char.look[slot_key] = feature.key
+        c.ok(f'{slot.name}: {feature.name}.')
+        c.blank()
+        sess.autosave()
+    elif len(args):
+        target = (args.get(0) or '').lower()
+        matches = [k for k in appearance.SLOT_KEYS if k.startswith(target)]
+        if len(matches) != 1:
+            raise CommandError(
+                f'no such feature: {target!r}. '
+                f'One of: {", ".join(appearance.SLOT_KEYS)}.')
+        _look_options(sess, matches[0])
+        return
+
+    memorable, presence = char.memorable, char.presence
+    label, why = char.memorable_band
+
+    c.header(char.handle, f'running as {game.alias.name}')
+    c.blank()
+    for line in appearance.describe(char.look, char.marks):
+        c.say(line)
+
+    c.blank()
+    c.rule('how the city reads you')
+    c.kv([
+        ('memorable', f'{memorable}  [accent]{label}[/]'),
+        ('presence', f'{presence:+d}'),
+        ('heat from work',
+         f'{(appearance.heat_mult(memorable) - 1) * 100:+.0f}%'),
+        ('standing from work',
+         f'{(appearance.rep_mult(memorable) - 1) * 100:+.0f}%'),
+    ])
+    c.blank()
+    c.say(f'[dim]{why}[/]')
+
+    floor = appearance.floor_from_chrome(char.dissonance)
+    chosen = appearance.score(char.look, char.marks, 0)[0]
+    if floor > chosen:
+        c.blank()
+        c.warn('You cannot get under it any more. Whatever you have had done '
+               'shows in how you hold still, and no haircut fixes that.')
+        c.say(f'[dim]Chrome floor {floor}, and the choices you made come to '
+              f'{chosen}.[/]')
+
+    c.blank()
+    c.say('[dim]`self <slot>` for the options in one. '
+          '`self --set <slot> <key>` to change one. '
+          '`self --roll` to reroll everything you can change.[/]')
