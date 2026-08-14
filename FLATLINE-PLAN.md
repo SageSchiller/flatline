@@ -37,7 +37,7 @@ updated: 2026-08-13
 ## Running it
 
 ```bash
-cd "$HOME/Documents/Main/flatline"
+cd "$HOME/projects/flatline"
 python3 -m flatline              # play
 python3 -m flatline --seed 8829  # play a specific world
 python3 -m flatline --theme ansi # inherit the terminal's own colours
