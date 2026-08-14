@@ -3191,6 +3191,34 @@ def _rice_body(T, rice, prompt_mod, anim, Caps, ColorLevel, GlyphLevel,
         _, out = play([line])
         T.ok(out.strip(), f'{line!r} says something rather than crashing')
 
+    # Losing a character is the one moment where announcing an unlock is the
+    # point rather than an interruption: everything else they had is gone and
+    # this is the thing that is not.
+    from flatline.commands import run as run_cmd
+    from flatline.run import network as net_mod2
+    from flatline.run.session import RunState as RS
+    doomed = Game.new(Character.from_origin('gutter', 'doomed'), seed=3)
+    console = quiet_console()
+    dead = Session(console=console, slot='dead')
+    dead.game = doomed
+    job = doomed.city.board[0]
+    doomed.city.accepted = job.cid
+    stream = doomed.rng.fork('network', job.cid)
+    net2 = net_mod2.generate(stream, job.target, int(job.posture),
+                             job.objective, job.size_mod)
+    dead.run = RS.begin(net2, doomed.char, doomed.rng('combat'), console,
+                        contract=job.to_dict())
+    dead.run.finish('flatline')
+    console.start_capture()
+    run_cmd._resolve(dead)
+    obit = console.end_capture()
+    T.ok('killed by' in obit, 'a flatline is reported')
+    T.ok('Ash' in obit, 'and hands over the palette it earned')
+    T.ok(obit.index('killed by') < obit.index('Ash'),
+         'after the obituary, not before it')
+    T.eq(save_mod.read_meta()['flatlines'], 1, 'and is counted')
+    save_mod.delete('dead')
+
     # Cosmetics must not touch a single number in the game.
     a = Game.new(Character.from_origin('gutter', 'a'), seed=4242)
     before = (a.char.credits, a.char.xp, a.char.memorable,

@@ -252,6 +252,10 @@ def _resolve(sess) -> None:
               ('runs', str(game.char.runs)),
               ('earned', f'{game.earned:,}c'),
               ('killed by', 'black ICE')])
+        # Everything else this character had is gone. The shell is not theirs
+        # and never was, and this is the one moment where saying so out loud
+        # is the point rather than an interruption.
+        sess.record_progress()
         sess.autosave()
         return
 
