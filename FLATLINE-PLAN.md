@@ -559,6 +559,57 @@ Two rules that are not obvious and are both load-bearing:
   restored in `__exit__` whatever happens, because a hidden cursor outlives
   the process and the player will not connect that to this program.
 
+
+### D36: The street and the net want opposite hours
+
+The city ran on a three-shift clock from the beginning, and for a long time the
+clock was a label: `morning`, `afternoon`, `night` appeared in the prompt and
+nothing anywhere read them.
+
+The clock is now a decision, and its shape is the same shape as D5's triangle:
+two things you want, pulling against each other, priced in time.
+
+At **peak** every walkway is at capacity, which is bad for you out there and
+good for you in here, because all those people are generating the traffic you
+hide in. Danger +18%, trace -8%. At **night** the street empties and nobody is
+looking at you; so does the network, and now your session is the only session
+and the trace has nothing to sort you out of. Danger -22%, trace +10%, prices
++14%. **Morning** is the middle of both, and when stock lands.
+
+Four hooks: travel danger, the trace rate, market prices (itemised like every
+other term, so `buy --why` shows it), and legwork.
+
+`validate.py` holds the inversion: whichever shift is worst on the street must
+be best in the net, and every shift must be under baseline on something. A
+clock that is bad everywhere is a tax, not a choice.
+
+The phase is fixed at the moment you jack in and does not tick over mid-run.
+
+### D37: What the city remembers, it says out loud
+
+The pitch has always been that the city remembers, and it always did, in the
+numbers. Posture climbed, heat accrued, bounties were posted. None of it was
+visible standing in the street: you had to open a reputation screen to learn
+that the world had changed around you, which is the wrong surface for "this
+street is different because of you".
+
+`look` now describes where you are, what shift it is and what that shift is
+costing you, how far the controlling faction's posture has moved from its own
+baseline, and how much attention you personally are carrying here. The last two
+are independent and print as two lines, because a district can be locked down
+and not care about you, or unchanged and full of people who have your name.
+
+**The neutral case has to be silent**, and `validate.py` enforces it. A
+district that narrates itself when nothing has happened teaches the player to
+skip the paragraph, and then the paragraph cannot tell them anything.
+
+The same principle produced the appearance remarks: `memorable` was a number
+the sheet printed and a multiplier on two systems nobody sees, so nobody in the
+city ever looked at you and the claim had no evidence. Twenty-two reactions,
+one for every feature striking enough to draw one, fired occasionally rather
+than every time, because a city that remarks on you constantly is a city of
+very rude people.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -1198,3 +1249,40 @@ source twice, so any failure in npcs, threads, traits, manual, tutorial or
 rivals would have been reported as two identical errors.
 
 `validate.py` clean, `test.py` green at **6533 checks**.
+
+### 2026-08-13 (n): the clock, the street, and a sweep of my own work
+
+**D36, the shift clock.** The city had a three-shift day that nothing read. It
+now inverts: peak is dangerous outside and safe inside, night is the reverse,
+and there is no correct shift to work, only one that suits the job. The
+constraint that made it worth building is that waiting for the right shift is
+priced in the only currency this city charges in.
+
+**D37, the city saying what it remembers.** District state in the street, and
+NPC reactions to how you look. Both exist for the same reason: a consequence
+the player can only find on a summary screen is not a consequence they feel.
+
+**And a sweep of everything I added last night**, prompted by finding that
+`presence` had shipped as a number the character sheet printed and nothing
+anywhere consumed, with a docstring claiming it fed "everything social". That
+is this project's oldest bug class and I had written a fresh instance of it
+while writing the check that is supposed to catch it.
+
+The sweep found four more, all mine, all from the same session: a `gradient`
+parameter with a docstring paragraph explaining what it did and no caller, an
+`appearance.roll` that was never called because the command had an inline copy,
+an `appearance.summary` nothing displayed, and `Event.flag` plus
+`City.event_flags`, plumbing for events setting story flags where no event set
+one and no thread read one.
+
+Two of those became features (`roll` is now the one place that knows how to
+roll a look; `summary` is on the character sheet). Two were deleted.
+Speculative generality is the same bug as dead content wearing better clothes.
+
+`check_dead_fields` is the standing version, walking the fields of eight
+content records and requiring each to be read by attribute somewhere. Verified
+by adding a dead field on purpose and watching it fail.
+
+`validate.py` clean, `test.py` green at **6739 checks**. Both soaks clean, and
+a scripted run played end to end: 41 ticks, trace 77, jacked out at the line,
+residue 81 converting to heat 46 and a posted bounty a shift later.

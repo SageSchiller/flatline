@@ -97,14 +97,21 @@ The three ideas everything else hangs off:
   somebody having a worse day than you in a way nobody records. About one
   event in six comes up for air, because unrelenting bleakness stops landing
   after an hour. The ratio is enforced by `validate.py`, not hoped for.
+- **The street and the net want opposite hours.** At peak the walkways are
+  full, which is bad for you out there and good for you in here, because all
+  those people are generating the traffic you hide in. At night nobody is
+  looking at you on the street and your session is the only session in the
+  network. There is no correct shift to work, and waiting for the right one
+  costs the only thing this city actually charges in.
 
 ## What is in it
 
 12 skills with 24 techniques · 26 traits · 10 origins, each with a signature
 verb nobody else can use and its own starting face · 34 implants · 46 programs
-· 28 countermeasures · 9 districts · 12 factions · 17 named characters · 18
-storylines across 39 scenes · 102 appearance features · 51 ambient city events
-· 29 manual topics · 97 commands.
+· 28 countermeasures · 9 districts, each with a mark for the faction that
+holds it · 12 factions · 17 named characters · 18 storylines across 39 scenes ·
+102 appearance features · 51 ambient city events · 30 manual topics ·
+97 commands.
 
 Footnotes are a real feature of the console. `{{like this}}` in any content
 string gets lifted out and printed under the block, and they nest, because the
