@@ -590,6 +590,45 @@ class Console:
         return out
 
 
+#: Eight levels of block, for inline history. The whole point of a sparkline
+#: is that it costs one row: a game whose central tension is one number rising
+#: should be able to show you the shape of that rise without spending a chart
+#: on it.
+SPARK = '▁▂▃▄▅▆▇█'
+SPARK_ASCII = '_.-~=+*#'
+
+
+def sparkline(values, cells: int, caps: Caps,
+              lo: float = 0.0, hi: float | None = None) -> str:
+    """A series as one row of blocks, resampled to `cells` columns.
+
+    Scaled against a caller-supplied range rather than against the data, so
+    successive readings are comparable. Auto-scaling would make a trace that
+    crept from 2% to 4% look identical to one that went from 10% to 90%, which
+    is the exact misreading this is meant to prevent.
+    """
+    chars = SPARK if caps.glyphs is GlyphLevel.UNICODE else SPARK_ASCII
+    series = list(values)
+    if not series or cells < 1:
+        return ''
+    top = max(series) if hi is None else hi
+    span = max(1e-9, top - lo)
+    out = []
+    for i in range(cells):
+        # Resample by bucket rather than by index, so a long run does not
+        # simply drop most of its own history on the floor.
+        start = int(i * len(series) / cells)
+        end = max(start + 1, int((i + 1) * len(series) / cells))
+        chunk = series[start:end]
+        if not chunk:
+            out.append(chars[0])
+            continue
+        level = (sum(chunk) / len(chunk) - lo) / span
+        out.append(chars[max(0, min(len(chars) - 1,
+                                    int(level * (len(chars) - 1) + 0.5)))])
+    return ''.join(out)
+
+
 def truncate(s: str, cols: int, caps: Caps) -> str:
     """Cut a markup string to fit, appending an ellipsis glyph if it had to."""
     if width(s) <= cols:

@@ -44,6 +44,10 @@ TRACE_MAX = 100.0
 #: Trace added per tick before any modifier. Deliberately small: most of the
 #: pressure should come from what the player does, not from the clock alone.
 TRACE_PER_TICK = 1.1
+#: How many ticks of trace history `status` keeps for its sparkline. Sixty is
+#: comfortably longer than any run has ever lasted and short enough that it is
+#: never worth thinking about.
+TRACE_HISTORY = 60
 #: How much of a noisy action's noise converts straight into trace.
 NOISE_TO_TRACE = 0.30
 #: Local noise removed from every node each tick.
@@ -74,6 +78,10 @@ class RunState:
     here: str = ''
     tick: int = 0
     trace: float = 0.0
+    #: Trace at the end of every tick, for the sparkline in `status`. Bounded
+    #: because a run that somehow reached ten thousand ticks should not also
+    #: be carrying ten thousand floats through every save.
+    trace_history: list = field(default_factory=list)
     alert: str = 'green'
     #: Access tier from credentials, 0..3. Distinct from where you are: a tier
     #: 2 credential does not put you in the restricted zone, it stops that zone
@@ -274,6 +282,8 @@ class RunState:
             self.tick += 1
             was = self.trace_pct
             self.add_trace(TRACE_PER_TICK)
+            self.trace_history.append(round(self.trace, 2))
+            del self.trace_history[:-TRACE_HISTORY]
             # The clock made physical. One line at most, and only on a
             # threshold, because narrating every point of trace would turn
             # the tensest number in the game into wallpaper.

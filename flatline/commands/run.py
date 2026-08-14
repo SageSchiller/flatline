@@ -19,6 +19,7 @@ from ..content import nodes as node_content
 from ..content import origins as origin_content
 from ..content import programs
 from ..run import network as net_mod
+from ..run import session as session_mod
 from ..run.checks import Check
 from ..run.session import RunState, crack_check
 from .. import anim, ui
@@ -1481,6 +1482,19 @@ def cmd_status(sess, args) -> None:
                        f'trace {state.trace_label()}'))
     c.raw('  ' + c.bar(min(1.0, node.noise / 20), 'noise', 24,
                        f'noise {node.noise} here'))
+    # How fast it got here, which the bar cannot say. Two runs at 40% are
+    # different runs if one of them was at 8% four ticks ago.
+    if len(state.trace_history) > 3 and not state.blind_trace:
+        history = state.trace_history
+        # Scaled to the window rather than to 100, because the bar directly
+        # above already says where you are. This row says how you got here,
+        # and a shape flattened against a ceiling you are nowhere near says
+        # nothing at all. The endpoints are labelled so it cannot mislead.
+        spark = ui.sparkline(history, 24, c.caps,
+                             lo=min(history), hi=max(history))
+        rate = (history[-1] - history[0]) / max(1, len(history) - 1)
+        c.raw(f'  [trace]{spark}[/] [dim]{history[0]:.0f} to {history[-1]:.0f} '
+              f'over {len(history)} ticks, {rate:+.1f}/tick[/]')
     c.blank()
     c.kv([
         ('alert', f'[warn]{state.alert}[/] [dim]'

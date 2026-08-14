@@ -2759,6 +2759,40 @@ def test_topology() -> None:
     T.eq([u for _, u in uni], [u for _, u in ascii_rows],
          'and draws exactly the same shape')
 
+    # The trace sparkline. Its whole job is shape, and it must not lie about
+    # the shape or about how much history it is showing.
+    caps = quiet_console().caps
+    T.eq(len(ui.sparkline(list(range(40)), 24, caps)), 24,
+         'a sparkline is exactly the width asked for')
+    T.eq(len(ui.sparkline([1, 2], 24, caps)), 24,
+         'even when there is less data than there are cells')
+    T.eq(ui.sparkline([], 24, caps), '', 'and nothing when there is no data')
+    T.eq(ui.sparkline([5], 0, caps), '', 'or no room')
+    T.eq(set(ui.sparkline([7, 7, 7, 7], 8, caps, lo=7, hi=7)), {ui.SPARK[0]},
+         'a flat series scaled to itself is flat')
+    T.eq(set(ui.sparkline([7, 7, 7, 7], 8, caps)), {ui.SPARK[-1]},
+         'and against a zero baseline sits at its own maximum')
+    T.eq(set(ui.sparkline([5, 5], 4, caps, lo=0, hi=10)),
+         {ui.SPARK[len(ui.SPARK) // 2]},
+         'and halfway up a fixed range sits halfway')
+    rising = ui.sparkline(list(range(24)), 24, caps)
+    T.eq(rising[0], ui.SPARK[0], 'a rising series starts low')
+    T.eq(rising[-1], ui.SPARK[-1], 'and ends high')
+    T.ok(all(ord(c) < 128 for c in
+             ui.sparkline([1, 5, 9], 8, Caps(color=ui.ColorLevel.NONE,
+                                             glyphs=ui.GlyphLevel.ASCII,
+                                             width=80, palette=theme.NEUTRAL))),
+         'and degrades to ascii')
+
+    # Long runs must not accumulate history without bound.
+    from flatline.run import session as session_mod
+    T.ok(len(sess.run.trace_history) <= session_mod.TRACE_HISTORY,
+         'trace history is capped')
+    sess.run.trace_history = [float(i) for i in range(500)]
+    sess.run.advance(1)
+    T.ok(len(sess.run.trace_history) <= session_mod.TRACE_HISTORY,
+         'and stays capped after a tick')
+
     # Both renderings work through the command, and neither costs a tick.
     # Driven on the live session rather than a fresh one, because `map` needs
     # a run and a run lives on the session rather than on the game.
