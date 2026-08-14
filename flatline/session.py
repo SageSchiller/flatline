@@ -22,6 +22,7 @@ from .config import APP_TITLE, TAGLINE_PARTS, history_path
 from .game import Game
 from .content import tutorial
 from .script import MAX_DISPATCH, ScriptError, parse
+from . import anim
 from .shell import REGISTRY, CommandError, Invocation, Quit, resolve, split_line
 from .ui import Caps, Console
 
@@ -99,11 +100,10 @@ class Session:
                     f'{self.game.char.credits:,}c > ')
         return 'flatline > '
 
-    def splash(self) -> None:
+    def splash(self, quick: bool = False) -> None:
         c = self.console
         sep = f' {c.caps.g("bullet")} '
-        c.blank()
-        c.raw(f'[accent][bold]{APP_TITLE}[/][/]')
+        anim.boot(c, char=self.game.char if self.game else None, quick=quick)
         c.raw(f'[dim]{sep.join(TAGLINE_PARTS)}[/]')
         c.blank()
         c.say('[dim]`help` for commands. `new` to make a character. '

@@ -18,6 +18,8 @@ when the network is in a state nobody thought about.
 from __future__ import annotations
 
 import io
+import os
+import random
 import json
 import os
 import pathlib
@@ -2498,6 +2500,117 @@ def test_tone() -> None:
 
 
 
+
+def test_anim() -> None:
+    T.section('anim')
+    import io
+    from flatline import anim
+    from flatline.ui import Caps, ColorLevel, GlyphLevel
+
+    # The mark is a fixed block. Every row the same width, or the gradient
+    # renders a ragged edge that reads as a bug.
+    for ascii_only in (False, True):
+        rows = anim.mark(ascii_only)
+        T.eq(len(rows), anim.MARK_HEIGHT, 'the mark is the declared height')
+        T.eq({len(r) for r in rows}, {anim.MARK_WIDTH},
+             'every row is the declared width')
+        T.ok(all(c in (' ', '#' if ascii_only else '\u2588') for r in rows
+                 for c in r),
+             'and uses only the one block character')
+    T.ok(anim.MARK_WIDTH <= 78, 'the mark fits an 80-column terminal')
+
+    # Nothing here may consume game entropy. An animation that drew from a
+    # world stream would mean the number of times you watched the intro
+    # changed which contracts appeared on the board.
+    a = Game.new(Character.from_origin('gutter', 'a'), seed=4242)
+    b = Game.new(Character.from_origin('gutter', 'b'), seed=4242)
+    console = quiet_console()
+    for _ in range(5):
+        anim.boot(console, char=a.char, quick=True)
+    T.eq([c.cid for c in a.city.board], [c.cid for c in b.city.board],
+         'running the intro does not touch the world')
+    T.eq(a.rng.getstate(), b.rng.getstate(), 'or any rng stream')
+
+    # Every rung of the capability ladder produces clean output.
+    for color in ColorLevel:
+        for glyphs in GlyphLevel:
+            caps = Caps(color=color, glyphs=glyphs, width=80,
+                        palette=theme.DEFAULT)
+            con = Console(caps, stream=io.StringIO())
+            con.start_capture()
+            anim.boot(con, char=a.char, quick=True)
+            out = con.end_capture()
+            T.ok(out.strip(), f'{color.name}/{glyphs.name} prints something')
+            if color is ColorLevel.NONE:
+                T.ok('\033' not in out and '[0m' not in out,
+                     'no colour means no escape codes at all')
+            if glyphs is GlyphLevel.ASCII:
+                T.ok(all(ord(ch) < 128 for ch in out),
+                     'ascii mode emits nothing above 127')
+
+    # A narrow terminal gets the small mark rather than a wrapped ruin.
+    con = Console(Caps(ColorLevel.NONE, GlyphLevel.UNICODE, 40,
+                       theme.NEUTRAL), stream=io.StringIO())
+    con.start_capture()
+    anim.boot(con, quick=True)
+    narrow = con.end_capture()
+    for line in narrow.splitlines():
+        T.ok(len(line) <= 40, 'nothing overflows a 40-column terminal')
+
+    # The gate has to be closed everywhere it matters, or test.py sleeps.
+    T.ok(not anim.can_animate(quiet_console()),
+         'a capturing console never animates')
+    plain = Console(Caps(ColorLevel.NONE, GlyphLevel.UNICODE, 80,
+                         theme.NEUTRAL), stream=io.StringIO())
+    T.ok(not anim.can_animate(plain), 'a colourless console never animates')
+
+    class _Tty(io.StringIO):
+        def isatty(self):
+            return True
+
+    tty = Console(Caps(ColorLevel.TRUE, GlyphLevel.UNICODE, 80,
+                       theme.DEFAULT), stream=_Tty())
+    T.ok(anim.can_animate(tty), 'a real colour tty does animate')
+    os.environ['FLATLINE_NO_INTRO'] = '1'
+    T.ok(not anim.can_animate(tty), 'FLATLINE_NO_INTRO closes the gate')
+    del os.environ['FLATLINE_NO_INTRO']
+
+    # The decrypt reveal resolves completely, and never changes the width.
+    rng = random.Random(1)
+    row = anim.mark()[0]
+    for step in range(21):
+        frame = anim.scramble(row, step / 20, rng)
+        T.ok(len(frame) <= len(row), 'a decrypt frame never grows')
+    T.eq(anim.scramble(row, 1.0, rng), row, 'and settles on the real thing')
+    T.eq(anim.scramble(row, 0.0, rng).strip(), '',
+         'and starts from nothing')
+
+    # The trace: one row, always the requested width, flat when it is over.
+    for beating in (True, False):
+        for off in range(0, 40, 7):
+            line = anim.trace_row(61, off, beating)
+            T.eq(len(line), 61, 'the trace is always the width asked for')
+    T.eq(set(anim.trace_row(61, 0, False)), {'\u2581'},
+         'a flatline is flat')
+    T.ok(len(set(anim.trace_row(61, 0, True))) > 1, 'and a beat is not')
+    T.ok(all(ord(c) < 128 for c in anim.trace_row(61, 3, True, True)),
+         'the ascii trace stays in ascii')
+
+    # The boot reads the deck it was given rather than printing a fiction.
+    hurt = Character.from_origin('gutter', 'hurt')
+    slot = sorted(hurt.deck.parts)[0]
+    hurt.deck.hurt(slot, 3)
+    states = dict(anim.deck_lines(hurt))
+    T.ok('failed' in states.values(), 'a destroyed component boots as failed')
+    T.eq(anim.deck_lines(None), [], 'and no character means no deck lines')
+
+    # `title` is a real command and works with no character loaded.
+    _, out = play(['title --still'])
+    T.ok('\u2588' in out, 'title works before a character exists')
+    T.ok('does not care' in out, 'and prints the tagline')
+
+
+
 def test_migration() -> None:
     T.section('migration')
     import json
@@ -2558,7 +2671,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_migration, test_shell,
+    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_migration, test_shell,
     test_playthrough, test_ui,
 )
 

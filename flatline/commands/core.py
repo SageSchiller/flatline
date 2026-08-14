@@ -14,6 +14,7 @@ from ..config import APP_TITLE
 from ..content import manual, tutorial
 from ..content import skills as skill_content
 from .. import script as script_mod
+from .. import anim
 from ..shell import GROUPS, REGISTRY, CommandError, Quit, command
 
 GROUP_TITLES = {
@@ -505,3 +506,16 @@ def cmd_tutorial(sess, args) -> None:
 
     c.info(f'Step {sess.tutorial_step + 1} of {len(tutorial.STEPS)}.')
     sess.tutorial_show()
+
+
+@command('title', 'The cold start, again.',
+         group='session', bare=True, usage='title [--still]',
+         detail='Runs the boot sequence. `--still` prints the last frame '
+                'without the animation, which is also what happens '
+                'automatically when output is not a terminal, when colour is '
+                'off, or when FLATLINE_NO_INTRO is set. Ctrl-C during it '
+                'means "get on with it" rather than "quit".')
+def cmd_title(sess, args) -> None:
+    anim.boot(sess.console,
+              char=sess.game.char if sess.game else None,
+              quick=args.has('still'))

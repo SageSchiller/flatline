@@ -146,6 +146,8 @@ def detect_caps(theme_name: str | None = None, ascii_only: bool = False,
 # --------------------------------------------------------------------------
 
 _TAG = re.compile(r'\[(/|[a-z_][a-z0-9_]*)\]')
+#: Control sequences, for stripping already-rendered output back to text.
+_ANSI = re.compile(r'\033\[[0-9;?]*[a-zA-Z]')
 
 #: Styles that are not palette roles. Kept separate so `validate.py` can tell a
 #: typo'd role from a legitimate attribute.
@@ -422,6 +424,20 @@ class Console:
             self.captured.append(text)
             return
         print(text, file=self.stream)
+
+    def emit(self, s: str = '') -> None:
+        """A line that is already rendered. No markup parsing, no wrapping.
+
+        The one hole in "everything goes through Console", and it exists for
+        `anim.py`, which composes raw SGR gradients per character and would
+        otherwise have to escape every escape it writes. The transcript gets
+        the text with the control codes stripped, so `log` stays readable.
+        """
+        self.transcript.append(_ANSI.sub('', s))
+        if self.captured is not None:
+            self.captured.append(s)
+            return
+        print(s, file=self.stream)
 
     def blank(self) -> None:
         self.raw('')

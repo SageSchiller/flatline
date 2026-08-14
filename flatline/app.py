@@ -31,6 +31,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help='ASCII only, for terminals without Unicode.')
     p.add_argument('--no-color', action='store_true',
                    help='no colour at all.')
+    p.add_argument('--no-intro', action='store_true',
+                   help='skip the cold start. FLATLINE_NO_INTRO does the '
+                        'same thing permanently. Ctrl-C skips it once.')
     p.add_argument('--slot', default='default', help='save slot to use.')
     p.add_argument('--continue', dest='cont', action='store_true',
                    help='load the save slot immediately.')
@@ -63,7 +66,7 @@ def main(argv: list[str] | None = None) -> int:
                 break
         return sess.exit_code
 
-    sess.splash()
+    sess.splash(quick=args.no_intro)
     if sess.game is not None:
         game = sess.game
         console.say(f'[dim]Continuing as [/][accent]{game.char.handle}[/]'
