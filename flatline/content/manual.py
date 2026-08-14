@@ -64,7 +64,7 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision the whole game is built around[/] is not which '
         'exploit to use. It is whether to spend time covering your tracks, '
         'knowing the trace advances while you do it.',
-        see=('triangle', 'firstrun', 'checks', 'saves'),
+        see=('triangle', 'firstrun', 'checks', 'saves', 'reading'),
         commands=('board', 'take', 'jack in'),
         group='start'),
     Topic(
@@ -352,7 +352,7 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] the signature is the reason to choose one '
         'origin over another, and it is the part that will still be shaping '
         'your runs forty shifts in. Read all ten before you pick.',
-        see=('attributes', 'traits', 'threads'),
+        see=('attributes', 'traits', 'threads', 'appearance'),
         commands=('new', 'char'),
         group='character'),
     Topic(
@@ -467,7 +467,7 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] because it is cheap to change, an icon is '
         'where to experiment. Buy a strange one and wear it for a run you can '
         'afford to lose.',
-        see=('chrome',),
+        see=('chrome', 'appearance'),
         commands=('icon',),
         group='character'),
     Topic(
@@ -510,7 +510,7 @@ TOPICS: tuple[Topic, ...] = (
         'that faction hardens for you too.\n\n'
         '[warn]The decision:[/] doing nothing is a real strategy with a real '
         'price, and knowing when to pay it is most of the city layer.',
-        see=('heat', 'rivals', 'contracts'),
+        see=('heat', 'rivals', 'contracts', 'reading'),
         commands=('travel', 'rest', 'board'),
         group='city'),
     Topic(
@@ -694,6 +694,73 @@ TOPICS: tuple[Topic, ...] = (
         'costs a night. Not trying costs the campaign.',
         see=('ice', 'heat', 'triangle'),
         commands=('status', 'jack out'),
+        group='city'),
+
+    Topic(
+        'appearance', 'What you look like',
+        'Eight features, two numbers, and one genuine trade.',
+        'Appearance is the seventh way to build a character and the only one '
+        'about the meat rather than the work. It is not decoration: every '
+        'feature you pick moves two numbers, and one of them cuts both ways.\n\n'
+        '[accent]Memorable[/] is how easily a stranger could describe you '
+        'afterwards. High memorable earns more standing per job, because work '
+        'gets attributed to somebody and you are somebody worth naming. It '
+        'also converts more of the evidence you leave behind into faction '
+        'heat, because forensics is only half of it and the other half is a '
+        'woman behind a counter telling Nightwatch exactly who came in. Low '
+        'memorable is the reverse: safe, and forgettable, and forgettable '
+        'people get offered forgettable work.\n\n'
+        '[accent]Presence[/] is how much room you take up in a conversation. '
+        'It feeds pretext, and through pretext it feeds everything social in '
+        'the city.\n\n'
+        '[warn]Chrome puts a floor under memorable that you cannot get back '
+        'under.[/] Past about twenty-five Dissonance there is no such thing '
+        'as an unremarkable netrunner: whatever you have had done shows, in '
+        'the way you hold still and the way you do not, and no haircut fixes '
+        'it. You do not get the benefits of the hardware and the anonymity of '
+        'not having it.\n\n'
+        'Build, face, eyes and marks are set at creation. The other four are '
+        'yours to change whenever you like, which makes changing your look '
+        'the cheap half of going to ground: it will not clear a bounty, but '
+        'it buys back a little of what the bounty is worth.\n\n'
+        '[err]Marks are neither.[/] You do not choose those. Surviving black '
+        'ICE leaves the fern pattern it makes going through a nervous system. '
+        'A beating leaves a record on you as well as in their system. Past '
+        'Submerged, the drift is something other people can see. They '
+        'accumulate, they never come off, and they are the only part of this '
+        'that is a record rather than a decision.',
+        see=('chrome', 'heat', 'people', 'origins'),
+        commands=('self', 'clinic'),
+        group='character'),
+
+    Topic(
+        'reading', 'Reading the city',
+        'Ambient events, asides, and what the output is telling you.',
+        'Every command that spends a shift may print one thing the city did '
+        'while you were not looking. It is set apart from the news above it '
+        'and it is always scenery: an ambient event cannot take your credits, '
+        'damage your deck, or move a single number on your sheet. That is '
+        'deliberate. The moment scenery can pay you, players stop reading it '
+        'for the city and start reading it for outcomes.\n\n'
+        'What it is for is tone. Most of it is somebody having a worse day '
+        'than you in a way nobody will record, because that is the setting. '
+        'Some of it is the same city seen by somebody who has been here too '
+        'long to be shocked. And about one in six comes up for air, because a '
+        'city that is unrelentingly bleak stops landing after an hour, and '
+        'the joke that has something sad under it is the one that makes the '
+        'next bad thing land harder.\n\n'
+        '[dim]Small raised numbers in the text are asides.[/] They print '
+        'under the block that raised them. They are never load-bearing: you '
+        'can read every one of them or none of them and the game is the same '
+        'game.{{They do occasionally nest. This is not a bug and it is not an '
+        'accident either.}}\n\n'
+        'The rest of the output is colour-coded by meaning rather than by '
+        'severity. Trace is always the same colour everywhere trace is '
+        'mentioned, which matters more than it sounds in a game whose whole '
+        'tension is one rising number that you need to find at a glance in a '
+        'wall of scrollback.',
+        see=('triangle', 'city', 'basics'),
+        commands=('look', 'rest', 'log'),
         group='city'),
 )
 

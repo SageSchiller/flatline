@@ -19,7 +19,12 @@ python3 -m flatline              # play
 python3 -m flatline --seed 8829  # a specific world; seeds reproduce exactly
 python3 -m flatline --theme ansi # inherit your terminal's own colours
 python3 -m flatline --ascii      # no Unicode
+python3 -m flatline --no-intro   # skip the cold start
 ```
+
+It boots. If you are on a colour terminal you get the animated version, and
+`title` replays it; everywhere else you get the last frame and the game is
+identical. Ctrl-C during it means "get on with it", not "quit".
 
 At the prompt, `tutorial` walks you through a first run one instruction at a
 time, and `help` explains both the verbs and the systems behind them.
@@ -84,10 +89,24 @@ The three ideas everything else hangs off:
   character, it only guards cores, and it always telegraphs first.
 - **No hidden dice.** `odds` prints the entire sum and the exact percentage
   before you commit, and a failed check names the term that sank it.
+- **Being memorable cuts both ways.** What you look like is a build decision
+  with 102 options behind it. A face worth describing earns more standing per
+  job and turns more of the evidence you left into somebody's heat, and chrome
+  puts a floor under it that no haircut gets below.
+- **The city is grim on a budget.** Most of what happens around you is
+  somebody having a worse day than you in a way nobody records. About one
+  event in six comes up for air, because unrelenting bleakness stops landing
+  after an hour. The ratio is enforced by `validate.py`, not hoped for.
 
 ## What is in it
 
 12 skills with 24 techniques · 26 traits · 10 origins, each with a signature
-verb nobody else can use · 34 implants · 46 programs · 28 countermeasures ·
-9 districts · 12 factions · 17 named characters · 18 storylines across 39
-scenes · 26 manual topics · 95 commands.
+verb nobody else can use and its own starting face · 34 implants · 46 programs
+· 28 countermeasures · 9 districts · 12 factions · 17 named characters · 18
+storylines across 39 scenes · 102 appearance features · 51 ambient city events
+· 29 manual topics · 97 commands.
+
+Footnotes are a real feature of the console. `{{like this}}` in any content
+string gets lifted out and printed under the block, and they nest, because the
+whole reason to have a footnote is the writer who gets halfway through an aside
+and needs an aside about the aside.

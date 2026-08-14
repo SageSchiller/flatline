@@ -489,6 +489,76 @@ one origin, and that each names a real command. **The refusal names who can**,
 which is deliberate: being told "that is not something you can do, Legally dead
 can" teaches you what the other nine backgrounds are for.
 
+
+### D33: Appearance is a trade, not a portrait
+
+The seventh customisation axis and the first one about the meat rather than
+the work. 102 features across eight slots, and every one of them moves two
+numbers, because a feature that moves nothing is a costume item in a game that
+promised every choice weighs something. `validate.py` rejects those.
+
+**Memorable is deliberately two-sided and that is the whole system.** It earns
+more standing per job, because work gets attributed to somebody and you are
+somebody worth naming. It also converts more residue into faction heat,
+because forensics is only half of it and the other half is a woman behind a
+counter describing you to Nightwatch. Presence is the second number and feeds
+pretext.
+
+**Chrome sets a floor under memorable.** Past about 25 Dissonance you cannot
+be forgettable however you dress, which is the appearance layer paying the
+same rent as everything else: you do not get the benefits of the hardware and
+the anonymity of not having it.
+
+Four slots are set at creation, four are free to change, and each origin
+starts wearing a different face so ten backgrounds do not all walk into Marrow
+in the same grey coat. Marks are the exception to all of it: the engine awards
+them, the player never picks them, and they do not come off.
+
+### D34: The tonal budget is enforced, not intended
+
+The setting is grim and stays grim, but a city that is unrelentingly bleak
+stops landing after about an hour, because misery with no floor under it is
+just texture. So the ambient event layer has a budget with a floor *and a
+ceiling* on each register: grim 50-70%, wry 20-35%, absurd 10-20%.
+
+Absurd has a ceiling for the same reason it has a floor. Relief that arrives
+every other shift is not relief, it is the tone.
+
+`validate.py` checks the ratio, and also checks that every district can produce
+all three registers, so the budget cannot be satisfied on paper and never in
+play. Tone drift is invisible one entry at a time and obvious after forty,
+which makes it exactly the kind of thing to encode rather than to trust.
+
+The absurd entries are absurd the way an institution is absurd: internally
+consistent, taken completely seriously by the people inside it, and quietly
+sad underneath. **Footnotes** are the device that carries this. `{{like this}}`
+anywhere in any content string; the console lifts them out and prints them
+under the block. They nest, because the entire reason to have a footnote is
+the writer who gets halfway through an aside and needs an aside about the
+aside.
+
+### D35: Nothing in the presentation layer is allowed to matter
+
+There is an animated cold start, and a carrier handshake on the way into a
+run, and neither is permitted to change anything. Every effect degrades to a
+static frame, every frame degrades to plain text, and the game is identical
+either way.
+
+The gate wants a real tty **and** colour **and** a non-capturing console. All
+three, which is why `test.py` can drive the boot sequence seventy times
+without sleeping once.
+
+Two rules that are not obvious and are both load-bearing:
+
+- **Animation never draws from a game RNG stream.** An intro that consumed
+  world entropy would mean the number of times you watched it changed which
+  contracts appeared on the board. It has a private `random.Random` and
+  `test.py` asserts the stream state is untouched across five boots.
+- **Ctrl-C during an animation means "get on with it", not "quit".** It is
+  caught, it redraws the final frame, and it does not propagate. The cursor is
+  restored in `__exit__` whatever happens, because a hidden cursor outlives
+  the process and the player will not connect that to this program.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -1078,3 +1148,53 @@ The only field deliberately left content-only is `Npc.tone`, which exists so
 field comment so the next sweep does not flag it.
 
 `validate.py` clean, `test.py` green at **6245 checks**.
+
+### 2026-08-13 (m): a face, a tone, and a cold start
+
+Three things, in response to three notes from the author: make the character
+theirs, let the city come up for air the way Pratchett does, and make the
+terminal do something a terminal is not supposed to do.
+
+**D33, appearance.** 102 features, eight slots, four earned marks. The design
+question was how to stop it being a paper doll, and the answer was to make the
+central number cut both ways: being worth describing earns you more standing
+and more heat at the same time, so there is no correct answer and both extremes
+are builds. Ghost starts at -15 memorable, Chromed at +20, and the ten origins
+span 35 points of it.
+
+`validate.py` caught two features that moved neither number on the first run,
+which is exactly the check earning its keep. The RNG guard refused `self
+--roll` drawing from a shared stream, correctly: how many times you reroll a
+haircut must not change the contract board. The command registry refused
+`look`, which was already taken, and `self` turned out to be the better verb
+in a game about a body you keep replacing.
+
+One real bug, found by writing the test rather than the feature: the chrome
+floor was applied unconditionally, so `max(memorable, 0)` clamped every
+negative score to zero and silently deleted the entire forgettable half of the
+scale. That is the half that people who do not want to be found are buying.
+
+**D34, tone.** Footnotes as a real console feature, with nesting, flushed by
+the dispatcher so any content anywhere can use one without knowing it exists.
+Then 51 ambient events on a budget that `validate.py` enforces.
+
+The interesting constraint turned out to be the *ceiling* on absurd rather than
+the floor. The first draft came out at 22% and read as a comedy game with grim
+bits, which is the opposite of the brief. Writing five more grim entries fixed
+the ratio and was also just the right thing to write.
+
+Ambient events are proven unable to touch credits, damage, xp, marks or
+Dissonance. The moment scenery can pay you, players stop reading it for the
+city and start reading it for outcomes.
+
+**D35, motion.** A boot sequence that POSTs the deck the character actually
+owns, decrypts the wordmark out of noise, and then does the thing the game is
+named after. A carrier handshake on the way into a run. Both tested at every
+rung of the capability ladder: no escape codes at all without colour, nothing
+above codepoint 127 in ASCII mode, nothing overflowing 40 columns.
+
+Also fixed while in here: the markup checker was collecting every content
+source twice, so any failure in npcs, threads, traits, manual, tutorial or
+rivals would have been reported as two identical errors.
+
+`validate.py` clean, `test.py` green at **6533 checks**.
