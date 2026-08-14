@@ -2692,6 +2692,29 @@ def test_anim() -> None:
                 T.ok(all(ord(ch) < 128 for ch in out),
                      'ascii mode emits nothing above 127')
 
+    # Every banner style, at every rung, at every width the game supports.
+    # This is the matrix the boot sequence actually ships against.
+    import re as _re
+    for style in anim.BANNERS:
+        for colour in ColorLevel:
+            for glyph in GlyphLevel:
+                for width in (40, 62, 80, 120):
+                    con = Console(Caps(colour, glyph, width, theme.DEFAULT),
+                                  stream=io.StringIO())
+                    con.start_capture()
+                    anim.boot(con, quick=True, style=style)
+                    text = con.end_capture()
+                    for row in text.splitlines():
+                        bare = _re.sub(r'\033\[[0-9;]*m', '', row)
+                        T.ok(len(bare) <= max(width, 46),
+                             f'{style} fits {width} columns')
+                    if glyph is GlyphLevel.ASCII:
+                        T.ok(all(ord(ch) < 128 for ch in text),
+                             f'{style} stays ascii at the ascii rung')
+                    if colour is ColorLevel.NONE:
+                        T.ok('\033' not in text,
+                             f'{style} emits no escapes without colour')
+
     # A narrow terminal gets the small mark rather than a wrapped ruin.
     con = Console(Caps(ColorLevel.NONE, GlyphLevel.UNICODE, 40,
                        theme.NEUTRAL), stream=io.StringIO())
