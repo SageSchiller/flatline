@@ -103,8 +103,19 @@ def render(sess, style: str = DEFAULT) -> str:
         return _shape(key, where=where, mid=when, tail=f'{money}c',
                       slug=sess.game.city.phase, short=where[:3],
                       bullet=bullet, arrow=arrow, root='city')
-    return {'terse': 'fl» ', 'path': '/ $ ',
-            'minimal': '> '}.get(key, 'flatline > ')
+    # No character loaded. Every style still has to look like itself, or the
+    # title screen quietly reverts everybody to Classic and the first thing a
+    # player sees after choosing a prompt is not the prompt they chose.
+    return {
+        'classic': 'flatline > ',
+        'minimal': '> ',
+        'bracket': '[flatline] $ ',
+        'path': '/ $ ',
+        'powerline': f'flatline {arrow} ',
+        'terse': 'fl» ',
+        'json': '{state:none} > ',
+        'caret': '<flatline> ',
+    }.get(key, 'flatline > ')
 
 
 def _shape(key: str, where: str, mid: str, tail: str, slug: str, short: str,
@@ -137,3 +148,15 @@ def _shape(key: str, where: str, mid: str, tail: str, slug: str, short: str,
     if key == 'caret':
         return f'<{where}|{mid}|{tail}> '
     return f'{where} {bullet} {mid} {bullet} {tail} > '
+
+
+def sample_run(style: str, caps) -> str:
+    """A representative in-run prompt, with no run to read from.
+
+    Used by the rice preview, which draws a run screen and needs the prompt
+    under it to be the one you would actually see there.
+    """
+    key = style if style in BY_KEY else DEFAULT
+    return _shape(key, where='ap-arc21', mid='tick 14', tail='trace 62%',
+                  slug='62%', short='ap', bullet=caps.g('bullet'),
+                  arrow=caps.g('arrow'), root='run')

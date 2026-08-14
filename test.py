@@ -3188,11 +3188,26 @@ def _rice_body(T, rice, prompt_mod, anim, Caps, ColorLevel, GlyphLevel,
              f'the {style} prompt still shows the trace ({line.strip()!r})')
         T.ok(len(line) < 46, f'and {style} leaves room to type')
 
-    # Every style survives having no character at all.
+    # Every style survives having no character at all, and still looks like
+    # itself. Falling through to one shared string would mean the first thing
+    # somebody sees after choosing a prompt is not the prompt they chose.
     bare, _ = play([])
+    seen_bare = set()
     for style in prompt_mod.STYLE_KEYS:
         bare.prompt_style = style
-        T.ok(bare.prompt().strip(), f'{style} renders with no game loaded')
+        line = bare.prompt()
+        T.ok(line.strip(), f'{style} renders with no game loaded')
+        seen_bare.add(line)
+    T.ok(len(seen_bare) >= len(prompt_mod.STYLE_KEYS) - 1,
+         'and the bare forms are nearly all distinct')
+
+    # The preview panel draws a run, so its prompt has to be an in-run one
+    # even when the session has no run and no character.
+    for style in prompt_mod.STYLE_KEYS:
+        line = prompt_mod.sample_run(style, quiet_console().caps)
+        T.ok('62%' in line, f'the {style} preview prompt carries the trace')
+        T.ok('ap-arc21' in line or 'ap' in line,
+             f'and {style} names the host')
 
     # The command drives it, and the choice persists across sessions.
     save_mod.bump_meta(runs_completed=9, clean_runs=5, characters_created=3)

@@ -648,8 +648,15 @@ def _preview(sess, look: dict) -> None:
         c.warn('The trace is past halfway.')
         c.err('Black ICE. It has your signature and it is not in a hurry.')
         c.info('`jack out` to leave with what you have.')
-        c.raw(f'  [dim]{prompt_mod.render(sess, look.get("prompt", "classic"))}'
-              f'scan --quiet[/]')
+        # The panel above is a run, so the prompt under it has to be one. The
+        # live prompt would be whatever the session is actually in, which for
+        # somebody browsing the catalogue with no character loaded is the
+        # bare form: a preview of a run screen with a title-screen prompt on
+        # the bottom of it.
+        style = look.get('prompt', 'classic')
+        line = (prompt_mod.render(sess, style) if sess.run is not None
+                else prompt_mod.sample_run(style, c.caps))
+        c.raw(f'  [dim]{line}scan --quiet[/]')
         c.rule()
     finally:
         c.caps = was
