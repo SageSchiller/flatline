@@ -99,8 +99,10 @@ def cmd_new(sess, args) -> None:
                        f'{char.xp} experience')])
     c.blank()
     c.say('[dim]`char` to see the build, `boost <attribute>` and '
-          '`train <skill>` to spend, and `trait` to decide what kind of '
-          'person this is. `board` when you are ready to work.[/]')
+          '`train <skill>` to spend, `trait` to decide what kind of person '
+          'this is, and `self` to decide what they look like, which is a '
+          'real decision here and not a portrait. `board` when you are ready '
+          'to work.[/]')
 
 
 # --------------------------------------------------------------------------

@@ -85,6 +85,20 @@ STEPS: tuple[Step, ...] = (
         payoff='Progression here is about buying new things to type.',
         topic='skills'),
     Step(
+        'face',
+        'Type `self` to see what this person looks like, and `self --roll` '
+        'or `self --set dress <key>` to change it.',
+        'This is a build decision rather than a portrait. How memorable you '
+        'are earns you more standing per job and turns more of what you leave '
+        'behind into somebody hunting you, so both ends of it are real '
+        'builds. Four of the eight are yours to change whenever you like; the '
+        'rest need a clinic and a lot of money.',
+        done=lambda s: 'self' in getattr(s, 'seen', set()),
+        payoff='Chrome puts a floor under how memorable you are, so a heavily '
+               'wired runner has spent their anonymity whether they wanted to '
+               'or not.',
+        topic='appearance'),
+    Step(
         'board',
         'Type `board` to see what work is on offer, and `board <id>` to read '
         'one properly.',
