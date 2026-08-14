@@ -29,6 +29,12 @@ a number would stop being a reward and start being a build decision, and a
 cosmetic you could buy with credits at level one would stop being a reward at
 all.
 
+`--theme` on the command line ignores all of this and always has. That is
+deliberate and it is not a hole: this is a single-player game and the
+catalogue is a reward channel, not a licence check. Somebody who would rather
+type a flag than earn Phosphor has not broken anything, and refusing them
+would be the game taking itself more seriously than it has any right to.
+
 The conditions are deliberately spread across very different kinds of playing.
 Some want persistence, some want a specific bad night, some want you to have
 gone somewhere. Nobody should be able to unlock the set by doing one thing

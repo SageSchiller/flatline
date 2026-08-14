@@ -27,7 +27,10 @@ def build_parser() -> argparse.ArgumentParser:
                    help=f'world seed, 0 to {SEED_MAX}. Worlds are '
                         f'reproducible: the same seed is the same city.')
     p.add_argument('--theme', default=None, choices=sorted(theme.PALETTES),
-                   help='colour palette. `ansi` inherits your terminal.')
+                   help='colour palette for this session only. Ignores what '
+                        'you have unlocked, on purpose: the catalogue is a '
+                        'reward channel and this is your terminal. `ansi` '
+                        'inherits whatever your terminal already does.')
     p.add_argument('--ascii', action='store_true',
                    help='ASCII only, for terminals without Unicode.')
     p.add_argument('--no-color', action='store_true',
