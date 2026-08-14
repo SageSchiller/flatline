@@ -351,8 +351,15 @@ def _resolve(sess) -> None:
     game.char.xp += gained
     c.say(f'[dim]{gained} experience.[/]')
 
+    # Meta, which outlives the character. A run counts as run whatever
+    # happened in it; a run counts as clean only if nobody ever knew.
+    from .. import save as save_mod
+    save_mod.bump_meta(runs_completed=1,
+                       clean_runs=1 if summary['outcome'] == 'clean' else 0)
+
     from ..commands.city import _advance
     _advance(sess, 1)
+    sess.record_progress()
 
 
 # --------------------------------------------------------------------------

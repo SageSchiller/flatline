@@ -227,7 +227,41 @@ META_DEFAULT = {
     'best_credits': 0,
     'runs_completed': 0,
     'seeds_played': [],
+    # Counters the rice catalogue unlocks against. All of them are here rather
+    # than in the save on purpose: the deck's interface belongs to the player
+    # and not to the character, and it has to survive a flatline. You lose
+    # everything else; the terminal you spent a week getting right is still
+    # yours when you sit down with somebody new.
+    'clean_runs': 0,
+    'black_ice_survived': 0,
+    'deepest_drift': 0,
+    'districts_seen': 0,
+    'bounties_taken': 0,
+    'threads_closed': 0,
+    'best_standing': 0,
+    #: `kind:key` for everything earned, so a new unlock can be announced once.
+    'unlocked': [],
+    #: What the shell currently looks like. See `content/rice.py`.
+    'shell': {},
 }
+
+
+def high_water(**values) -> dict:
+    """Record counters that only ever go up, and persist if any moved.
+
+    Separate from `bump_meta` because these are maxima rather than totals:
+    reaching 60 Dissonance twice is not 120 Dissonance, and writing the file
+    on every shift when nothing changed is a lot of fsync for nothing.
+    """
+    meta = read_meta()
+    changed = False
+    for key, value in values.items():
+        if value > (meta.get(key) or 0):
+            meta[key] = value
+            changed = True
+    if changed:
+        write_meta(meta)
+    return meta
 
 
 def read_meta() -> dict:

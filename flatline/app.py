@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from dataclasses import replace
 
 from . import commands  # noqa: F401  (registers the command table)
 from . import save as save_mod
@@ -51,6 +52,13 @@ def main(argv: list[str] | None = None) -> int:
                        no_color=args.no_color)
     console = Console(caps)
     sess = Session(console=console, slot=args.slot)
+    # The shell the player earned, before anything is printed. An explicit
+    # --theme on the command line still wins: a flag you typed this second
+    # beats a preference you set last week.
+    sess.apply_shell()
+    if args.theme:
+        sess.console.caps = replace(sess.console.caps,
+                                    palette=theme.get(args.theme))
 
     if args.cont or (not args.command and save_mod.exists(args.slot)):
         try:

@@ -31,6 +31,7 @@ from __future__ import annotations
 import os
 import random
 import time
+from dataclasses import dataclass
 
 from .theme import Palette
 from .ui import Caps, ColorLevel, GlyphLevel
@@ -52,6 +53,19 @@ _GLYPHS: dict[str, tuple[str, ...]] = {
     'E': ('███████', '██     ', '██████ ', '██     ', '██     ', '███████'),
 }
 
+#: The same letters, hollow. Lighter on the eye, and it holds a gradient
+#: better than the solid one because the colour lands on an edge rather than
+#: on a field.
+_OUTLINE: dict[str, tuple[str, ...]] = {
+    'F': ('▛▀▀▀▀▀▀', '▌      ', '▛▀▀▀▀▘ ', '▌      ', '▌      ', '▙      '),
+    'L': ('▛      ', '▌      ', '▌      ', '▌      ', '▌      ', '▙▄▄▄▄▄▄'),
+    'A': ('  ▄▀▀▄ ', ' ▞    ▚', '▌      ', '▛▀▀▀▀▀▜', '▌     ▐', '▙     ▟'),
+    'T': ('▀▀▀▀▀▀▀', '   ▐▌  ', '   ▐▌  ', '   ▐▌  ', '   ▐▌  ', '   ▐▌  '),
+    'I': ('▀▀▀▀▀', ' ▐▌  ', ' ▐▌  ', ' ▐▌  ', ' ▐▌  ', '▄▄▄▄▄'),
+    'N': ('▛▖    ▐', '▌▚    ▐', '▌ ▚   ▐', '▌  ▚  ▐', '▌   ▚ ▐', '▙    ▚▟'),
+    'E': ('▛▀▀▀▀▀▀', '▌      ', '▛▀▀▀▀▘ ', '▌      ', '▌      ', '▙▄▄▄▄▄▄'),
+}
+
 WORD = 'FLATLINE'
 MARK_HEIGHT = 6
 #: Computed rather than assumed, because the glyphs are not all one width and
@@ -59,11 +73,12 @@ MARK_HEIGHT = 6
 MARK_WIDTH = sum(len(_GLYPHS[c][0]) for c in WORD) + len(WORD) - 1
 
 
-def mark(ascii_only: bool = False) -> list[str]:
+def mark(ascii_only: bool = False, style: str = 'block') -> list[str]:
     """The wordmark as plain rows, no colour."""
+    table = _OUTLINE if style == 'outline' and not ascii_only else _GLYPHS
     rows = []
     for r in range(MARK_HEIGHT):
-        rows.append(' '.join(_GLYPHS[ch][r] for ch in WORD))
+        rows.append(' '.join(table[ch][r] for ch in WORD))
     if ascii_only:
         rows = [r.replace('█', '#') for r in rows]
     return rows
@@ -72,6 +87,44 @@ def mark(ascii_only: bool = False) -> list[str]:
 def small_mark() -> list[str]:
     """What a narrow terminal gets instead. Still a mark, just a quiet one."""
     return ['/ / F L A T L I N E / /']
+
+
+@dataclass(frozen=True, slots=True)
+class Banner:
+    key: str
+    blurb: str
+
+
+#: Wordmark styles. The catalogue in `content/rice.py` decides which are
+#: earned; this decides what they are.
+BANNERS: dict[str, Banner] = {
+    'block': Banner('block', 'six rows, solid, with the trace under it'),
+    'outline': Banner('outline', 'the same letters, hollow'),
+    'small': Banner('small', 'one line'),
+    'none': Banner('none', 'no wordmark at all'),
+}
+
+
+def banner_rows(style: str, ascii_only: bool, wide: bool) -> list[str]:
+    """The rows for a banner style, honouring what the terminal can do.
+
+    A narrow terminal gets the small mark whatever the preference says, which
+    is the same precedence rule as everywhere else in here: capability first,
+    taste second.
+    """
+    if style == 'none':
+        return []
+    if style == 'small' or not wide:
+        return small_mark()
+    return mark(ascii_only, style)
+
+
+def banner_preview(style: str, caps: Caps) -> list[str]:
+    """The banner, coloured, for the catalogue."""
+    rows = banner_rows(style, caps.glyphs is GlyphLevel.ASCII, True)
+    if not rows:
+        return [paint('(nothing)', 'dim', caps)]
+    return gradient(rows, caps.palette, caps)
 
 
 # --------------------------------------------------------------------------
@@ -295,7 +348,8 @@ def _post_line(label: str, state: str, caps: Caps, width: int) -> str:
             + paint(state, role, caps))
 
 
-def boot(console, char=None, quick: bool = False) -> None:
+def boot(console, char=None, quick: bool = False,
+         style: str = 'block') -> None:
     """The cold start. Prints its last frame and returns if it cannot animate.
 
     Roughly two and a half seconds when it runs at all, and Ctrl-C at any
@@ -305,13 +359,15 @@ def boot(console, char=None, quick: bool = False) -> None:
     ascii_only = caps.glyphs is GlyphLevel.ASCII
     palette = caps.palette
     fits = caps.width >= MARK_WIDTH + 2
-    rows = mark(ascii_only) if fits else small_mark()
+    rows = banner_rows(style, ascii_only, fits)
+    big = fits and style not in ('small', 'none')
     width = min(caps.width - 1, MARK_WIDTH)
-    pad = ' ' * max(0, (min(caps.width, 80) - (MARK_WIDTH if fits else 23)) // 2)
+    span = MARK_WIDTH if big else (23 if rows else 0)
+    pad = ' ' * max(0, (min(caps.width, 80) - span) // 2)
 
     def final() -> list[str]:
         out = [''] + [pad + r for r in gradient(rows, palette, caps)]
-        if fits:
+        if big:
             out.append(pad + paint(
                 trace_row(MARK_WIDTH, 0, False, ascii_only), 'err', caps))
         # The long tagline is 42 columns. Anything narrower gets the short
@@ -343,6 +399,9 @@ def boot(console, char=None, quick: bool = False) -> None:
             screen.pause(0.22)
 
             # 2. It clears, and the mark decrypts into place.
+            if not rows:
+                screen.draw(final())
+                return
             steps = 16
             for i in range(steps + 1):
                 t = i / steps
@@ -352,7 +411,7 @@ def boot(console, char=None, quick: bool = False) -> None:
                 screen.pause(0.032)
 
             # 3. And then the part the game is named after.
-            if fits:
+            if big:
                 lit = gradient(rows, palette, caps)
                 for i in range(26):
                     beating = i < 18

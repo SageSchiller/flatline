@@ -97,6 +97,10 @@ def cmd_new(sess, args) -> None:
           ('world seed', f'[dim]{seed}[/]'),
           ('to spend', f'{char.points} attribute points, '
                        f'{char.xp} experience')])
+    from .. import save as save_mod
+    save_mod.bump_meta(characters_created=1)
+    sess.record_progress()
+
     c.blank()
     c.say('[dim]`char` to see the build, `boost <attribute>` and '
           '`train <skill>` to spend, `trait` to decide what kind of person '
@@ -1119,6 +1123,7 @@ def _advance(sess, shifts: int) -> None:
         sess.console.say(line)
     _rot(sess, shifts)
     _drift(sess)
+    sess.record_progress()
     sess.autosave()
 
 

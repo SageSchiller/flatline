@@ -15,6 +15,10 @@ from ..content import manual, tutorial
 from ..content import skills as skill_content
 from .. import script as script_mod
 from .. import anim
+from .. import ui
+from .. import theme
+from .. import prompt as prompt_mod
+from ..content import rice
 from ..shell import GROUPS, REGISTRY, CommandError, Quit, command
 
 GROUP_TITLES = {
@@ -518,4 +522,195 @@ def cmd_tutorial(sess, args) -> None:
 def cmd_title(sess, args) -> None:
     anim.boot(sess.console,
               char=sess.game.char if sess.game else None,
-              quick=args.has('still'))
+              quick=args.has('still'),
+              style=sess.shell.get('banner', 'block'))
+
+
+# --------------------------------------------------------------------------
+# the shell
+# --------------------------------------------------------------------------
+
+
+#: Roles worth showing in a preview. Enough to tell two schemes apart at a
+#: glance, few enough to fit beside a name.
+SWATCH_ROLES = ('accent', 'accent2', 'ok', 'warn', 'err', 'info',
+                'trace', 'residue', 'credit', 'muted')
+
+
+def _swatch(c, palette) -> str:
+    """One palette, as a row of its own colours.
+
+    Emits raw sequences rather than role markup, which is the whole trick: a
+    swatch written as `[accent]` renders in the palette currently in use, so
+    every scheme in the list looked identical to the one already on.
+    """
+    block = c.caps.g('bar_full') * 2
+    if c.caps.color is ui.ColorLevel.NONE:
+        return ''
+    out = []
+    for role in SWATCH_ROLES:
+        colour = getattr(palette, role)
+        out.append(anim._fg(colour.rgb, c.caps, colour.ansi) + block)
+    return ''.join(out) + anim.RESET
+
+
+def _rice_index(sess) -> None:
+    """Everything, what is on, and what is still out there."""
+    c = sess.console
+    meta = save_mod.read_meta()
+    look = sess.shell
+    c.header('The shell', 'yours, not the character\'s')
+    c.say('[dim]The city takes everything else. It does not get this: what '
+          'you set here survives a flatline and follows you into the next '
+          'one.[/]')
+
+    for kind in rice.KINDS:
+        items = rice.BY_KIND[kind]
+        have = [i for i in items if rice.met(i, meta)]
+        c.blank()
+        c.rule(f'{kind}  {len(have)}/{len(items)}')
+        for item in items:
+            earned = rice.met(item, meta)
+            worn = look.get(kind) == item.key
+            mark = ('[ok]' + c.caps.g('check') + '[/]' if worn
+                    else ' ' if earned else '[dim]' + c.caps.g('lock') + '[/]')
+            if not earned:
+                left = rice.progress(item, meta)
+                c.raw(f'  {mark} [dim]{item.name:<16}[/] '
+                      f'[dim]({left})[/]')
+                c.say(f'[dim]{item.hint}[/]', indent='     ', subsequent='     ')
+                continue
+            tail = ''
+            if kind == 'palette':
+                tail = '  ' + _swatch(c, theme.get(item.key))
+            elif kind == 'prompt':
+                tail = f'  [dim]{prompt_mod.BY_KEY[item.key].sample}[/]'
+            elif kind in ('frame', 'bars', 'marks'):
+                tail = '  [dim]' + _sample_glyphs(c, kind, item.key) + '[/]'
+            elif kind == 'banner':
+                tail = f'  [dim]{anim.BANNERS[item.key].blurb}[/]'
+            role = 'accent' if worn else 'fg'
+            c.raw(f'  {mark} [{role}]{item.name:<16}[/]{tail}')
+
+    c.blank()
+    c.say('[dim]`rice <kind> <name>` to wear one, `rice <kind>` to see just '
+          'that set, `rice --reset` to go back to standard.[/]')
+
+
+def _sample_glyphs(c, kind: str, key: str) -> str:
+    """A one-line preview of a frame, bar or mark set."""
+    caps = c.caps
+    probe = ui.Caps(color=caps.color, glyphs=caps.glyphs, width=caps.width,
+                    palette=caps.palette,
+                    frame=key if kind == 'frame' else caps.frame,
+                    bars=key if kind == 'bars' else caps.bars,
+                    marks=key if kind == 'marks' else caps.marks)
+    if kind == 'frame':
+        # Top and bottom of a box, side by side. The first attempt ran a
+        # top-left corner into a bottom-right one and read as a broken frame
+        # rather than as a sample of an intact one.
+        top = probe.g('corner_tl') + probe.g('hline') * 5 + probe.g('corner_tr')
+        bottom = (probe.g('corner_bl') + probe.g('hline') * 5
+                  + probe.g('corner_br'))
+        return f'{top} {bottom}'
+    if kind == 'bars':
+        return probe.g('bar_full') * 7 + probe.g('bar_empty') * 5
+    return ' '.join(probe.g(n) for n in
+                    ('bullet', 'arrow', 'check', 'cross', 'node'))
+
+
+@command('rice', 'Customise the shell. Earned, and yours to keep.',
+         group='session', bare=True, aliases=('shell',),
+         usage='rice [kind] [name] [--reset]',
+         detail='Six axes: palette, prompt, frame, bars, marks, banner. Most '
+                'of them are earned by playing, and everything you earn is '
+                'recorded outside the save, so it survives the character who '
+                'earned it.\n\n'
+                'Nothing here touches a single number in the game. That is '
+                'the point of it: after four hours of a city that does not '
+                'care whether you live, a colour scheme should be free.')
+def cmd_rice(sess, args) -> None:
+    c = sess.console
+    meta = save_mod.read_meta()
+
+    if args.has('reset'):
+        meta['shell'] = {}
+        save_mod.write_meta(meta)
+        sess.apply_shell()
+        c.ok('Back to standard.')
+        return
+
+    if not len(args):
+        _rice_index(sess)
+        return
+
+    kind = (args.get(0) or '').lower()
+    matches = [k for k in rice.KINDS if k.startswith(kind)]
+    if len(matches) != 1:
+        raise CommandError(f'no such setting: {kind!r}. '
+                           f'One of: {", ".join(rice.KINDS)}.')
+    kind = matches[0]
+
+    choice = (args.get(1) or '').lower()
+    if not choice:
+        _rice_kind(sess, kind)
+        return
+
+    options = rice.BY_KIND[kind]
+    hit = next((i for i in options
+                if i.key == choice or i.name.lower().startswith(choice)), None)
+    if hit is None:
+        _rice_kind(sess, kind)
+        raise CommandError(f'no {kind} called {choice!r}.')
+    if not rice.met(hit, meta):
+        raise CommandError(f'{hit.name} is not yours yet. {hit.hint} '
+                           f'[dim]({rice.progress(hit, meta)})[/]')
+
+    shell = dict(meta.get('shell') or {})
+    shell[kind] = hit.key
+    meta['shell'] = shell
+    save_mod.write_meta(meta)
+    sess.apply_shell()
+    c.ok(f'{kind}: {hit.name}.')
+    c.say(f'[dim]{hit.blurb}[/]')
+    if kind == 'palette':
+        c.blank()
+        c.raw('  ' + _swatch(c, theme.get(hit.key)))
+    if kind == 'banner':
+        c.blank()
+        anim.boot(sess.console, char=sess.game.char if sess.game else None,
+                  quick=True, style=hit.key)
+
+
+def _rice_kind(sess, kind: str) -> None:
+    """One axis, in full, with everything it can look like."""
+    c = sess.console
+    meta = save_mod.read_meta()
+    look = sess.shell
+    items = rice.BY_KIND[kind]
+    c.header(kind, f'{sum(1 for i in items if rice.met(i, meta))}/{len(items)}')
+    for item in items:
+        earned = rice.met(item, meta)
+        worn = look.get(kind) == item.key
+        c.blank()
+        head = ('[ok]' + c.caps.g('check') + '[/] ' if worn
+                else '[dim]' + c.caps.g('lock') + '[/] ' if not earned
+                else '  ')
+        role = 'accent' if earned else 'dim'
+        c.raw(f'{head}[{role}][bold]{item.name}[/][/]  [dim]{item.key}[/]')
+        c.say(f'[dim]{item.blurb}[/]', indent='   ', subsequent='   ')
+        if not earned:
+            c.say(f'[warn]{item.hint}[/] [dim]({rice.progress(item, meta)})[/]',
+                  indent='   ', subsequent='   ')
+            continue
+        if kind == 'palette':
+            c.raw('   ' + _swatch(c, theme.get(item.key)))
+        elif kind == 'prompt':
+            c.raw(f'   [dim]{prompt_mod.BY_KEY[item.key].sample}[/]')
+        elif kind in ('frame', 'bars', 'marks'):
+            c.raw('   [dim]' + _sample_glyphs(c, kind, item.key) + '[/]')
+        elif kind == 'banner':
+            for row in anim.banner_preview(item.key, c.caps):
+                c.raw('   ' + row)
+    c.blank()
+    c.say(f'[dim]`rice {kind} <name>` to wear one.[/]')

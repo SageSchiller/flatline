@@ -3012,6 +3012,196 @@ def test_clock() -> None:
 
 
 
+
+def test_rice() -> None:
+    T.section('rice')
+    import tempfile
+    from flatline import anim, prompt as prompt_mod
+    from flatline.content import rice
+    from flatline.ui import Caps, ColorLevel, GlyphLevel, FRAMES, BARS, MARKS
+
+    # Run the whole suite against a throwaway data directory, so a real
+    # player's unlocks are never touched by the tests.
+    old_home = os.environ.get('XDG_DATA_HOME')
+    os.environ['XDG_DATA_HOME'] = tempfile.mkdtemp()
+    try:
+        _rice_body(T, rice, prompt_mod, anim, Caps, ColorLevel, GlyphLevel,
+                   FRAMES, BARS, MARKS)
+    finally:
+        if old_home is None:
+            del os.environ['XDG_DATA_HOME']
+        else:
+            os.environ['XDG_DATA_HOME'] = old_home
+
+
+def _rice_body(T, rice, prompt_mod, anim, Caps, ColorLevel, GlyphLevel,
+               FRAMES, BARS, MARKS) -> None:
+    # Every axis has something free, and the default is one of them. A new
+    # player who has never finished a run still has a shell.
+    fresh = dict(save_mod.META_DEFAULT)
+    for kind in rice.KINDS:
+        free = [c for c in rice.BY_KIND[kind] if rice.met(c, fresh)]
+        T.ok(free, f'{kind} has something available immediately')
+        T.ok(rice.DEFAULTS[kind] in {c.key for c in free},
+             f'and {kind} defaults to one of them')
+
+    # Nothing is available before it is earned.
+    locked = [c for c in rice.COSMETICS if not rice.met(c, fresh)]
+    T.ok(len(locked) > 20, 'most of the catalogue starts locked')
+    for item in locked:
+        T.ok(item.hint, f'{item.kind}/{item.key} says how to get it')
+
+    # And everything is reachable by playing. A cosmetic nobody can earn is
+    # worse than one that was never written.
+    maxed = dict(fresh)
+    for counter in rice.COUNTERS.values():
+        if counter:
+            maxed[counter] = 10 ** 9
+    T.eq(len(rice.unlocked(maxed)), len(rice.COSMETICS),
+         'every cosmetic is reachable')
+
+    # Unlocks are announced once and only once.
+    already = set()
+    first = rice.newly_earned(fresh, already)
+    already |= {f'{c.kind}:{c.key}' for c in first}
+    T.eq(rice.newly_earned(fresh, already), [],
+         'nothing is announced twice')
+    stats = dict(fresh, runs_completed=3)
+    later = rice.newly_earned(stats, already)
+    T.ok(later, 'and playing earns more')
+    T.ok(all(c.needs[0] != 'always' for c in later),
+         'without re-announcing the defaults')
+
+    # `minimal` is both a prompt and a mark set, unlocked by different things.
+    # Keying the announcement by name alone would conflate them.
+    T.ok(('prompt', 'minimal') in rice.BY_KEY
+         and ('marks', 'minimal') in rice.BY_KEY,
+         'two axes share a key')
+    T.ok(rice.BY_KEY[('prompt', 'minimal')].needs
+         != rice.BY_KEY[('marks', 'minimal')].needs,
+         'and they unlock differently, so the key alone is not an identity')
+
+    # Every style the engine can render is offered, and vice versa.
+    T.eq({c.key for c in rice.BY_KIND['palette']}, set(theme.PALETTES),
+         'every palette is in the catalogue')
+    T.eq({c.key for c in rice.BY_KIND['frame']}, set(FRAMES),
+         'every frame is')
+    T.eq({c.key for c in rice.BY_KIND['bars']}, set(BARS), 'every bar set is')
+    T.eq({c.key for c in rice.BY_KIND['marks']}, set(MARKS), 'every mark set is')
+    T.eq({c.key for c in rice.BY_KIND['prompt']}, set(prompt_mod.BY_KEY),
+         'every prompt is')
+    T.eq({c.key for c in rice.BY_KIND['banner']}, set(anim.BANNERS),
+         'every banner is')
+
+    # Style tables only ever override glyphs that exist, or `g()` would hand
+    # back a decoration for something nothing draws.
+    for table in (FRAMES, BARS, MARKS):
+        for name, overrides in table.items():
+            for glyph in overrides:
+                T.ok(glyph in ui.GLYPHS, f'{name} overrides a real glyph')
+
+    # Capability beats preference, always. A decorated frame a terminal
+    # cannot draw is worse than no decoration.
+    for frame in FRAMES:
+        caps = Caps(color=ColorLevel.NONE, glyphs=GlyphLevel.ASCII, width=80,
+                    palette=theme.NEUTRAL, frame=frame)
+        for glyph in ui.GLYPHS:
+            T.ok(all(ord(ch) < 128 for ch in caps.g(glyph)),
+                 f'{frame} stays ascii on an ascii terminal')
+
+    # A saved preference for something this build no longer ships must not
+    # raise; it degrades.
+    caps = Caps(color=ColorLevel.NONE, glyphs=GlyphLevel.UNICODE, width=80,
+                palette=theme.NEUTRAL, frame='nonexistent', bars='gone',
+                marks='missing')
+    T.eq(caps.g('hline'), ui.GLYPHS['hline'][0],
+         'an unknown style falls back to the default glyph')
+
+    # THE hard rule: whatever the prompt looks like, the trace is on it.
+    game = Game.new(Character.from_origin('gutter', 'rice'), seed=8829)
+    contract = game.city.board[0]
+    sess, _ = play([f'take {contract.cid}'], game=game)
+    from flatline.run import network as net_mod
+    from flatline.run.session import RunState
+    stream = game.rng.fork('network', contract.cid)
+    net = net_mod.generate(stream, contract.target, int(contract.posture),
+                           contract.objective, contract.size_mod)
+    sess.run = RunState.begin(net, game.char, game.rng('combat'),
+                              sess.console, contract=contract.to_dict())
+    sess.run.advance(23)
+    trace = f'{int(sess.run.trace_pct * 100)}%'
+    for style in prompt_mod.STYLE_KEYS:
+        sess.prompt_style = style
+        line = sess.prompt()
+        T.ok(trace in line,
+             f'the {style} prompt still shows the trace ({line.strip()!r})')
+        T.ok(len(line) < 46, f'and {style} leaves room to type')
+
+    # Every style survives having no character at all.
+    bare, _ = play([])
+    for style in prompt_mod.STYLE_KEYS:
+        bare.prompt_style = style
+        T.ok(bare.prompt().strip(), f'{style} renders with no game loaded')
+
+    # The command drives it, and the choice persists across sessions.
+    save_mod.bump_meta(runs_completed=9, clean_runs=5, characters_created=3)
+    sess, out = play(['rice'])
+    T.ok('palette' in out and 'banner' in out, '`rice` lists every axis')
+
+    sess, out = play(['rice palette amber'])
+    T.eq(sess.shell['palette'], 'amber', 'a palette can be worn')
+    T.eq(sess.console.caps.palette.name, 'amber', 'and takes effect at once')
+    again, _ = play([])
+    again.apply_shell()
+    T.eq(again.console.caps.palette.name, 'amber',
+         'and is still on in a new session')
+
+    sess, out = play(['rice palette ash'])
+    T.ok('not yours yet' in out, 'a locked cosmetic is refused')
+    T.ok('Lose somebody' in out, 'and says what would unlock it')
+    T.eq(sess.shell['palette'], 'amber', 'and nothing changes')
+
+    save_mod.high_water(black_ice_survived=1)
+    sess, _ = play(['rice frame heavy', 'rice bars ladder', 'rice marks angular',
+                    'rice prompt bracket'])
+    T.eq((sess.console.caps.frame, sess.console.caps.bars,
+          sess.console.caps.marks, sess.prompt_style),
+         ('heavy', 'ladder', 'angular', 'bracket'),
+         'every axis can be set independently')
+    T.eq(sess.console.caps.g('hline'), '\u2501', 'and the glyph really changes')
+
+    sess, _ = play(['rice --reset'])
+    T.eq(sess.shell, rice.DEFAULTS, 'reset puts everything back')
+
+    for line in ('rice nonsense', 'rice palette nonsense', 'rice palette',
+                 'rice banner none', 'rice --reset'):
+        _, out = play([line])
+        T.ok(out.strip(), f'{line!r} says something rather than crashing')
+
+    # Cosmetics must not touch a single number in the game.
+    a = Game.new(Character.from_origin('gutter', 'a'), seed=4242)
+    before = (a.char.credits, a.char.xp, a.char.memorable,
+              [c.cid for c in a.city.board], a.rng.getstate())
+    play(['rice palette phosphor', 'rice frame scan', 'rice bars dots'],
+         game=a)
+    after = (a.char.credits, a.char.xp, a.char.memorable,
+             [c.cid for c in a.city.board], a.rng.getstate())
+    T.eq(before, after, 'ricing the shell changes nothing in the world')
+
+    # The unlocks live outside the save, so they outlive the character. The
+    # ledger is written when time moves rather than when the catalogue is
+    # read, because its only job is deciding what to announce; `rice` itself
+    # always reads the live counters and is never stale.
+    play(['rest 1'], game=a)
+    save_mod.write(a.to_dict(), 'ricetest')
+    meta = save_mod.read_meta()
+    T.ok(meta['unlocked'], 'unlocks are recorded in meta')
+    T.ok('unlocked' not in a.to_dict(), 'and not in the save')
+    T.ok('shell' not in a.to_dict(), 'nor is the chosen look')
+    save_mod.delete('ricetest')
+
+
+
 def test_migration() -> None:
     T.section('migration')
     import json
@@ -3072,7 +3262,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_topology, test_clock, test_migration, test_shell,
+    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_topology, test_clock, test_rice, test_migration, test_shell,
     test_playthrough, test_ui,
 )
 

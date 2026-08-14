@@ -113,17 +113,85 @@ GLYPHS = {
 }
 
 
+#: Box-drawing sets. The player picks one; nothing in the game asks for a
+#: specific character. Overrides land on top of `GLYPHS`, so a set only has to
+#: name what it changes, and anything it does not name keeps the default.
+#:
+#: All of these collapse to the ASCII rung untouched, because `g()` checks the
+#: capability before it checks the preference: a decorated frame that a
+#: terminal cannot draw is worse than no decoration.
+FRAMES: dict[str, dict[str, str]] = {
+    'single': {},
+    'double': {'hline': '═', 'vline': '║', 'corner_tl': '╔', 'corner_tr': '╗',
+               'corner_bl': '╚', 'corner_br': '╝', 'tee_l': '╠', 'tee_r': '╣'},
+    'heavy': {'hline': '━', 'vline': '┃', 'corner_tl': '┏', 'corner_tr': '┓',
+              'corner_bl': '┗', 'corner_br': '┛', 'tee_l': '┣', 'tee_r': '┫'},
+    'rounded': {'corner_tl': '╭', 'corner_tr': '╮',
+                'corner_bl': '╰', 'corner_br': '╯'},
+    'dotted': {'hline': '┄', 'vline': '┆', 'corner_tl': '┌', 'corner_tr': '┐',
+               'corner_bl': '└', 'corner_br': '┘'},
+    'wire': {'hline': '─', 'vline': '│', 'corner_tl': '┼', 'corner_tr': '┼',
+             'corner_bl': '┼', 'corner_br': '┼', 'tee_l': '┼', 'tee_r': '┼'},
+    'rule': {'hline': '━', 'corner_tl': ' ', 'corner_tr': ' ',
+             'corner_bl': ' ', 'corner_br': ' ', 'tee_l': ' ', 'tee_r': ' '},
+    'scan': {'hline': '╌', 'vline': '╎', 'corner_tl': '·', 'corner_tr': '·',
+             'corner_bl': '·', 'corner_br': '·', 'tee_l': '·', 'tee_r': '·'},
+}
+
+#: Meter fills. Same override mechanism, kept separate because a player who
+#: wants a heavy frame does not necessarily want a heavy bar.
+BARS: dict[str, dict[str, str]] = {
+    'blocks': {},
+    'shaded': {'bar_full': '▓', 'bar_empty': '░'},
+    'solid': {'bar_full': '█', 'bar_empty': ' '},
+    'dots': {'bar_full': '●', 'bar_empty': '○'},
+    'line': {'bar_full': '━', 'bar_empty': '╌'},
+    'ladder': {'bar_full': '▮', 'bar_empty': '▯'},
+    'wave': {'bar_full': '▰', 'bar_empty': '▱'},
+    'ascii': {'bar_full': '#', 'bar_empty': '.'},
+}
+
+#: Bullets and pointers, which are the other thing people change.
+MARKS: dict[str, dict[str, str]] = {
+    'plain': {},
+    'angular': {'bullet': '▸', 'arrow': '»', 'check': '✔', 'cross': '✘'},
+    'minimal': {'bullet': '-', 'arrow': '>', 'check': '+', 'cross': '-'},
+    'geometric': {'bullet': '◆', 'arrow': '▶', 'check': '◉', 'cross': '◌',
+                  'node': '◆', 'lock': '◼', 'open': '◻'},
+    'runic': {'bullet': '·', 'arrow': '→', 'check': '√', 'cross': '×',
+              'node': '◇', 'lock': '▪', 'open': '▫'},
+}
+
+
 @dataclass(frozen=True, slots=True)
 class Caps:
     color: ColorLevel
     glyphs: GlyphLevel
     width: int
     palette: Palette
+    #: The player's shell, per the rice catalogue. Names rather than tables so
+    #: that a saved preference for a set this build no longer ships degrades
+    #: to the default instead of raising.
+    frame: str = 'single'
+    bars: str = 'blocks'
+    marks: str = 'plain'
 
     def g(self, name: str) -> str:
-        """Glyph by name at the supported rung."""
+        """Glyph by name at the supported rung, then at the chosen style.
+
+        Capability first, preference second, and never the other way round. A
+        decorated frame a terminal cannot draw is worse than no decoration,
+        so the ASCII rung ignores every set here.
+        """
         pair = GLYPHS[name]
-        return pair[0] if self.glyphs is GlyphLevel.UNICODE else pair[1]
+        if self.glyphs is not GlyphLevel.UNICODE:
+            return pair[1]
+        for table, key in ((FRAMES, self.frame), (BARS, self.bars),
+                           (MARKS, self.marks)):
+            override = table.get(key, {}).get(name)
+            if override is not None:
+                return override
+        return pair[0]
 
     @property
     def text_width(self) -> int:

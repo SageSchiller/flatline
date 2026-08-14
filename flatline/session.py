@@ -18,11 +18,14 @@ import sys
 from dataclasses import dataclass, field
 
 from . import save as save_mod
+from . import theme
+from .content import factions, rice
 from .config import APP_TITLE, TAGLINE_PARTS, history_path
 from .game import Game
 from .content import tutorial
 from .script import MAX_DISPATCH, ScriptError, parse
 from . import anim
+from . import prompt as prompt_mod
 from .shell import REGISTRY, CommandError, Invocation, Quit, resolve, split_line
 from .ui import Caps, Console
 
@@ -51,6 +54,8 @@ class Session:
     seen: set = field(default_factory=set)
     #: Index of the current tutorial step, or -1 when it is not running.
     tutorial_step: int = -1
+    #: Which prompt shape the player has chosen. See `prompt.py`.
+    prompt_style: str = 'classic'
 
     # ------------------------------------------------------------------
     # context
@@ -86,24 +91,98 @@ class Session:
         which node you are standing in and how close the trace is. Putting them
         here rather than in a status bar keeps D2 honest: there is no second
         surface, only the stream.
+
+        The *shape* is the player's, per the rice catalogue, but the content is
+        not negotiable: every style shows the same facts. A prompt style that
+        could hide the trace would be a cosmetic that changes the game, and
+        `validate.py` checks that none of them do.
         """
-        sep = self.caps.g('bullet')
-        if self.run is not None:
-            state = self.run
-            pct = int(state.trace_pct * 100)
-            trace = (f'trace {pct}%' if not state.blind_trace
-                     else f'trace {state.trace_label()}')
-            return f'{state.here} {sep} tick {state.tick} {sep} {trace} > '
-        if self.game is not None:
-            city = self.game.city
-            return (f'{city.district.name.lower()} {sep} {city.when} {sep} '
-                    f'{self.game.char.credits:,}c > ')
-        return 'flatline > '
+        return prompt_mod.render(self, self.prompt_style)
+
+    # ------------------------------------------------------------------
+    # the shell, and what unlocks it
+    # ------------------------------------------------------------------
+
+    def record_progress(self) -> None:
+        """Update the meta counters, and say so if that earned something.
+
+        Called from the two places time actually moves: the end of a run and
+        the shift tick. Everything it records is a high-water mark rather than
+        a total, because these are "has this player ever" questions, and
+        because writing the meta file on every single shift when nothing has
+        changed is a great deal of fsync for nothing.
+        """
+        game = self.game
+        if game is None:
+            return
+        best_rep = max((game.alias.reputation(k) for k in factions.FACTION_KEYS),
+                       default=0)
+        threads = sum(1 for stages in game.story.reached.values() if stages)
+        save_mod.high_water(
+            best_credits=game.char.credits,
+            deepest_drift=game.char.dissonance,
+            districts_seen=len(game.city.visited),
+            bounties_taken=1 if game.city.bounties else 0,
+            black_ice_survived=1 if 'black_ice' in game.char.marks else 0,
+            threads_closed=threads,
+            best_standing=best_rep,
+        )
+        self.announce_unlocks()
+
+    def announce_unlocks(self) -> None:
+        """Tell the player about anything they have just earned, once."""
+        meta = save_mod.read_meta()
+        already = set(meta.get('unlocked') or ())
+        fresh = rice.newly_earned(meta, already)
+        if not fresh:
+            return
+        for item in fresh:
+            already.add(f'{item.kind}:{item.key}')
+        meta['unlocked'] = sorted(already)
+        save_mod.write_meta(meta)
+        # Recorded, but not announced. What you started with is not a reward,
+        # and eleven of these are available on the first command: a player
+        # whose first ever screen is a wall of things they already had learns
+        # to skip the box, and then the box cannot tell them anything.
+        fresh = [item for item in fresh if item.needs[0] != 'always']
+        if not fresh:
+            return
+        c = self.console
+        c.blank()
+        c.rule('unlocked', role='accent2')
+        for item in fresh:
+            c.raw(f'  [accent]{item.name}[/] [dim]{item.kind}[/]')
+            c.say(f'[dim]{item.blurb}[/]', indent='  ', subsequent='  ')
+        c.blank()
+        c.say(f'[dim]`rice` to put {"them" if len(fresh) > 1 else "it"} on. '
+              f'It stays yours whatever happens to this character.[/]')
+
+    @property
+    def shell(self) -> dict:
+        """The saved look, filled in with defaults for anything unset."""
+        meta = save_mod.read_meta()
+        out = dict(rice.DEFAULTS)
+        out.update({k: v for k, v in (meta.get('shell') or {}).items()
+                    if (k, v) in rice.BY_KEY or k in rice.DEFAULTS})
+        return out
+
+    def apply_shell(self) -> None:
+        """Rebuild the console's capabilities from the saved preferences."""
+        look = self.shell
+        self.prompt_style = look.get('prompt', prompt_mod.DEFAULT)
+        caps = self.console.caps
+        self.console.caps = Caps(
+            color=caps.color, glyphs=caps.glyphs, width=caps.width,
+            palette=theme.get(look.get('palette')),
+            frame=look.get('frame', 'single'),
+            bars=look.get('bars', 'blocks'),
+            marks=look.get('marks', 'plain'))
 
     def splash(self, quick: bool = False) -> None:
         c = self.console
         sep = f' {c.caps.g("bullet")} '
-        anim.boot(c, char=self.game.char if self.game else None, quick=quick)
+        anim.boot(c, char=self.game.char if self.game else None,
+                  quick=quick, style=self.shell.get('banner', 'block'))
         c.raw(f'[dim]{sep.join(TAGLINE_PARTS)}[/]')
         c.blank()
         c.say('[dim]`help` for commands. `new` to make a character. '

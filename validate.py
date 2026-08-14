@@ -20,6 +20,7 @@ from flatline import script as script_mod
 from flatline import theme, ui
 from flatline.content import appearance
 from flatline.content import events
+from flatline.content import rice
 from flatline.content import shifts
 from flatline.world import city as city_mod
 from flatline.content import attributes as attr_content
@@ -60,6 +61,7 @@ _ENGINE_SOURCE: str = ''
 _MODEL_SOURCE: str = ''
 _WORLD_SOURCE: str = ''
 _CONTENT_SOURCE: str = ''
+_SESSION_SOURCE: str = ''
 
 
 def _model_source() -> str:
@@ -82,6 +84,17 @@ def _content_source() -> str:
             p.read_text(encoding='utf-8')
             for p in sorted(pathlib.Path('flatline/content').glob('*.py')))
     return _CONTENT_SOURCE
+
+
+def _session_source() -> str:
+    """The session and app modules, which own the meta counters."""
+    global _SESSION_SOURCE
+    if not _SESSION_SOURCE:
+        import pathlib
+        _SESSION_SOURCE = '\n'.join(
+            pathlib.Path(f'flatline/{n}.py').read_text(encoding='utf-8')
+            for n in ('session', 'app', 'save', 'anim', 'prompt'))
+    return _SESSION_SOURCE
 
 
 def _world_source() -> str:
@@ -968,6 +981,112 @@ def check_shifts(rep: Report) -> None:
         rep.check(needle in hooks, 'shifts/hooks',
                   f'the clock is declared to affect {what}, and {needle} is '
                   f'never evaluated')
+
+
+
+def check_rice(rep: Report) -> None:
+    """The shell catalogue, and the two promises it makes.
+
+    **Nothing here affects play.** It is the one system in the game that costs
+    the player nothing and takes nothing, and the moment a cosmetic moves a
+    number it stops being a reward and becomes a build decision that happens
+    to be hidden in a menu.
+
+    **Nothing here is bought.** Every condition has to be a thing you did,
+    because a cosmetic you can buy with credits at level one is not a reward
+    either, it is a shop.
+    """
+    from flatline import anim, prompt as prompt_mod, save as save_mod
+
+    #: kind -> the table that actually has to contain the key.
+    tables = {
+        'palette': set(theme.PALETTES),
+        'prompt': set(prompt_mod.BY_KEY),
+        'frame': set(ui.FRAMES),
+        'bars': set(ui.BARS),
+        'marks': set(ui.MARKS),
+        'banner': set(anim.BANNERS),
+    }
+
+    seen: set[tuple[str, str]] = set()
+    for item in rice.COSMETICS:
+        where = f'rice/{item.kind}/{item.key}'
+        rep.check(item.kind in rice.KINDS, where, f'unknown kind {item.kind!r}')
+        rep.check((item.kind, item.key) not in seen, where, 'duplicate')
+        seen.add((item.kind, item.key))
+        rep.check(bool(item.name) and bool(item.blurb), where,
+                  'has no name or no description')
+        rep.check(item.key in tables.get(item.kind, set()), where,
+                  f'names no real {item.kind}; the engine has '
+                  f'{sorted(tables.get(item.kind, set()))}')
+        kind, threshold = item.needs
+        rep.check(kind in rice.COUNTERS, where,
+                  f'unlocks on {kind!r}, which is not a condition')
+        if kind == 'always':
+            rep.check(threshold == 0, where,
+                      'is always available and also has a threshold')
+            rep.check(not item.hint, where,
+                      'is always available and also explains how to get it')
+        else:
+            rep.check(threshold > 0, where,
+                      f'unlocks at {threshold}, so it is free but pretends '
+                      f'not to be')
+            rep.check(bool(item.hint), where,
+                      'is locked and never says what would unlock it')
+            rep.check(item.hint.rstrip().endswith(('.', '!', '?')), where,
+                      'hint does not end in a full stop')
+
+    # Everything the engine can render has to be reachable. An orphan is a
+    # palette nobody can ever wear, which is worse than not shipping it.
+    for kind, keys in tables.items():
+        listed = {i.key for i in rice.BY_KIND[kind]}
+        for key in keys - listed:
+            rep.error(f'rice/{kind}', f'the engine has {key!r} and the '
+                                      f'catalogue never offers it')
+
+    # Every axis must have something available from the first minute, and the
+    # default has to be one of those.
+    for kind in rice.KINDS:
+        free = [i for i in rice.BY_KIND[kind] if i.needs[0] == 'always']
+        rep.check(bool(free), f'rice/{kind}',
+                  'has nothing available before you have played, so a new '
+                  'player cannot have one at all')
+        default = rice.DEFAULTS.get(kind)
+        rep.check(default in {i.key for i in free}, f'rice/{kind}',
+                  f'defaults to {default!r}, which is not always available')
+        rep.check(len(rice.BY_KIND[kind]) >= 4, f'rice/{kind}',
+                  'has fewer than four options, which is not a choice')
+
+    # Every counter must exist in meta and be written by something. An unlock
+    # keyed to a counter nothing increments is a cosmetic nobody can earn.
+    engine = _command_source() + _engine_source() + _session_source()
+    for kind, counter in rice.COUNTERS.items():
+        if not counter:
+            continue
+        used = any(c.needs[0] == kind for c in rice.COSMETICS)
+        if not used:
+            continue
+        rep.check(counter in save_mod.META_DEFAULT, 'rice/counters',
+                  f'{kind!r} reads meta[{counter!r}], which is not a field')
+        rep.check(f'{counter}=' in engine, 'rice/counters',
+                  f'{kind!r} unlocks against {counter}, and nothing in the '
+                  f'engine ever writes it')
+
+    # The conditions have to be spread. Everything gated on run count would
+    # make the whole catalogue one number going up.
+    from collections import Counter
+    spread = Counter(c.needs[0] for c in rice.COSMETICS if c.needs[0] != 'always')
+    rep.check(len(spread) >= 6, 'rice/spread',
+              f'only {len(spread)} kinds of condition in use; the catalogue '
+              f'is one activity repeated')
+    top = spread.most_common(1)[0][1] if spread else 0
+    rep.check(top <= sum(spread.values()) * 0.45, 'rice/spread',
+              f'{top} of {sum(spread.values())} unlocks share one condition')
+
+    # And the hard rule about prompts: whatever the style, the trace survives.
+    for style in prompt_mod.STYLES:
+        rep.check(bool(style.sample), f'rice/prompt/{style.key}',
+                  'has no sample for the catalogue')
 
 
 def check_debt(rep: Report) -> None:
@@ -1871,7 +1990,7 @@ def check_balance(rep: Report) -> None:
 CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
     check_icons, check_dissonance, check_cyberspace, check_rivals, check_debt,
-    check_origins, check_appearance, check_events, check_shifts, check_district_mood, check_dead_fields, check_skills, check_factions, check_districts,
+    check_origins, check_appearance, check_events, check_rice, check_shifts, check_district_mood, check_dead_fields, check_skills, check_factions, check_districts,
     check_ice, check_nodes, check_contracts, check_commands,
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_palette_separation, check_markup, check_balance,
