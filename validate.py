@@ -1637,6 +1637,54 @@ def check_commands(rep: Report) -> None:
 # --------------------------------------------------------------------------
 
 
+def check_palette_separation(rep: Report) -> None:
+    """Every role in every palette has to be tellable from every other one.
+
+    A palette where `trace` and `dim` render the same is not a mood, it is a
+    bug, and the author's eye is the wrong instrument for catching it: the two
+    colours look different in the source and identical on the screen.
+
+    Checked at both rungs, because they fail differently. Truecolour fails by
+    two hexes being too close together; the 256-colour cube fails by two
+    genuinely different colours quantising onto the same index, which is
+    invisible in the source and total on the terminal.
+    """
+    from itertools import combinations
+
+    #: Pairs the palettes deliberately make identical, per the one-idea-one-
+    #: colour rule: a failed check and a rising trace mean the same thing.
+    twins = {frozenset(('err', 'trace')), frozenset(('warn', 'noise')),
+             frozenset(('info', 'ice')), frozenset(('ok', 'credit'))}
+    #: Minimum RGB distance between any two roles that are not twins.
+    floor = 20.0
+
+    for name, pal in theme.PALETTES.items():
+        # `ansi` never consults its hex values; it exists to be rendered at
+        # the sixteen-colour rung against somebody else's scheme.
+        if name == 'ansi':
+            continue
+        for a, b in combinations(theme.ROLES, 2):
+            if frozenset((a, b)) in twins:
+                continue
+            ca, cb = getattr(pal, a), getattr(pal, b)
+            gap = sum((x - y) ** 2 for x, y in zip(ca.rgb, cb.rgb)) ** 0.5
+            rep.check(gap >= floor, f'theme/{name}',
+                      f'{a} and {b} are {gap:.0f} apart, under the {floor:.0f} '
+                      f'needed to tell them apart on a screen')
+            rep.check(ca.c256 != cb.c256, f'theme/{name}',
+                      f'{a} and {b} both quantise to 256-colour index '
+                      f'{ca.c256}, so they are the same colour on most '
+                      f'terminals over ssh')
+
+    # The quantiser itself. A saturated colour must never land on the grey
+    # ramp: that was the original bug and it rendered the entire game in
+    # greyscale at the 256-colour rung.
+    for probe in ('#00f0ff', '#ff5f8f', '#72f1b8', '#ff5fd7', '#6cb6ff'):
+        index = theme.Color(probe, 'white').c256
+        rep.check(not 232 <= index <= 255, 'theme/quantise',
+                  f'{probe} quantises to {index}, which is a grey')
+
+
 def check_theme(rep: Report) -> None:
     for name, palette in theme.PALETTES.items():
         for role in theme.ROLES:
@@ -1826,7 +1874,7 @@ CHECKS = (
     check_origins, check_appearance, check_events, check_shifts, check_district_mood, check_dead_fields, check_skills, check_factions, check_districts,
     check_ice, check_nodes, check_contracts, check_commands,
     check_traits, check_scripting, check_npcs, check_threads,
-    check_manual, check_tutorial, check_theme, check_markup, check_balance,
+    check_manual, check_tutorial, check_theme, check_palette_separation, check_markup, check_balance,
 )
 
 
