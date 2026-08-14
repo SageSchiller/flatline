@@ -136,6 +136,14 @@ FRAMES: dict[str, dict[str, str]] = {
              'corner_bl': ' ', 'corner_br': ' ', 'tee_l': ' ', 'tee_r': ' '},
     'scan': {'hline': '╌', 'vline': '╎', 'corner_tl': '·', 'corner_tr': '·',
              'corner_bl': '·', 'corner_br': '·', 'tee_l': '·', 'tee_r': '·'},
+    'bracket': {'hline': '─', 'vline': '│', 'corner_tl': '⌜', 'corner_tr': '⌝',
+                'corner_bl': '⌞', 'corner_br': '⌟', 'tee_l': '├', 'tee_r': '┤'},
+    'slab': {'hline': '▄', 'vline': '█', 'corner_tl': '▗', 'corner_tr': '▖',
+             'corner_bl': '▝', 'corner_br': '▘', 'tee_l': '▐', 'tee_r': '▌'},
+    'rail': {'hline': '═', 'vline': '│', 'corner_tl': '╒', 'corner_tr': '╕',
+             'corner_bl': '╘', 'corner_br': '╛', 'tee_l': '╞', 'tee_r': '╡'},
+    'quiet': {'hline': ' ', 'corner_tl': ' ', 'corner_tr': ' ',
+              'corner_bl': ' ', 'corner_br': ' ', 'tee_l': ' ', 'tee_r': ' '},
 }
 
 #: Meter fills. Same override mechanism, kept separate because a player who
@@ -149,6 +157,10 @@ BARS: dict[str, dict[str, str]] = {
     'ladder': {'bar_full': '▮', 'bar_empty': '▯'},
     'wave': {'bar_full': '▰', 'bar_empty': '▱'},
     'ascii': {'bar_full': '#', 'bar_empty': '.'},
+    'braille': {'bar_full': '⣿', 'bar_empty': '⣀'},
+    'arrows': {'bar_full': '▶', 'bar_empty': '▷'},
+    'sharp': {'bar_full': '◼', 'bar_empty': '◻'},
+    'pipe': {'bar_full': '┃', 'bar_empty': '┊'},
 }
 
 #: Bullets and pointers, which are the other thing people change.
@@ -160,6 +172,12 @@ MARKS: dict[str, dict[str, str]] = {
                   'node': '◆', 'lock': '◼', 'open': '◻'},
     'runic': {'bullet': '·', 'arrow': '→', 'check': '√', 'cross': '×',
               'node': '◇', 'lock': '▪', 'open': '▫'},
+    'stars': {'bullet': '✦', 'arrow': '➜', 'check': '★', 'cross': '✧',
+              'node': '✦', 'lock': '✥', 'open': '✧'},
+    'ticks': {'bullet': '›', 'arrow': '⟶', 'check': '✓', 'cross': '✕',
+              'node': '•', 'lock': '▰', 'open': '▱'},
+    'medical': {'bullet': '▁', 'arrow': '⟩', 'check': '♥', 'cross': '⚕',
+                'node': '◉', 'lock': '▮', 'open': '▯'},
 }
 
 

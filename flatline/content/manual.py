@@ -811,7 +811,7 @@ TOPICS: tuple[Topic, ...] = (
         '[accent]prompt[/] is the shape of the line you type at, '
         '[accent]frame[/] is the box-drawing, [accent]bars[/] is what a meter '
         'is made of, [accent]marks[/] is bullets and ticks and crosses, and '
-        '[accent]banner[/] is the wordmark on the cold start. Forty-two '
+        '[accent]banner[/] is the wordmark on the cold start. Sixty-seven '
         'pieces across the six, most of them earned.\n\n'
         '[warn]It lives outside the save.[/] The deck\'s interface belongs to '
         'you and not to the character, so it survives a flatline. You lose '

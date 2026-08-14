@@ -66,6 +66,170 @@ _OUTLINE: dict[str, tuple[str, ...]] = {
     'E': ('▛▀▀▀▀▀▀', '▌      ', '▛▀▀▀▀▘ ', '▌      ', '▌      ', '▙▄▄▄▄▄▄'),
 }
 
+
+#: One-cell strokes rather than two. Narrower than the block by a third,
+#: which is the whole reason it exists: the block mark is 61 columns and
+#: there are terminals and moods that want less than that.
+_THIN: dict[str, tuple[str, ...]] = {
+    'F': ('█████', '█    ', '████ ', '█    ', '█    ', '█    '),
+    'L': ('█    ', '█    ', '█    ', '█    ', '█    ', '█████'),
+    'A': (' ███ ', '█   █', '█   █', '█████', '█   █', '█   █'),
+    'T': ('█████', '  █  ', '  █  ', '  █  ', '  █  ', '  █  '),
+    'I': ('███', ' █ ', ' █ ', ' █ ', ' █ ', '███'),
+    'N': ('█   █', '██  █', '█ █ █', '█  ██', '█   █', '█   █'),
+    'E': ('█████', '█    ', '████ ', '█    ', '█    ', '█████'),
+}
+
+#: Drawn with rules rather than filled. Reads as a schematic of the word.
+_WIRE: dict[str, tuple[str, ...]] = {
+    'F': ('┌────', '│    ', '├─── ', '│    ', '│    ', '╵    '),
+    'L': ('╷    ', '│    ', '│    ', '│    ', '│    ', '└────'),
+    'A': ('┌───┐', '│   │', '│   │', '├───┤', '│   │', '╵   ╵'),
+    'T': ('──┬──', '  │  ', '  │  ', '  │  ', '  │  ', '  ╵  '),
+    'I': ('─┬─', ' │ ', ' │ ', ' │ ', ' │ ', '─┴─'),
+    'N': ('┌╮  ╷', '│╰╮ │', '│ ╰╮│', '│  ╰┤', '│   │', '╵   ╵'),
+    'E': ('┌────', '│    ', '├─── ', '│    ', '│    ', '└────'),
+}
+
+#: The word, one letter per line, down the left with a rule off each end.
+#: The only banner here that is taller than it is wide.
+def _stacked(caps) -> list[str]:
+    """The word down the left, on a rule. The only banner taller than wide."""
+    v, h = caps.g('vline'), caps.g('hline')
+    top, bottom = caps.g('corner_tl'), caps.g('corner_bl')
+    span = max(4, min(caps.width, 60) - 8)
+    rows = []
+    for i, ch in enumerate(WORD):
+        if i == 0:
+            rows.append(f'{top}{h} {ch}  {h * span}')
+        elif i == len(WORD) - 1:
+            rows.append(f'{bottom}{h} {ch}  {h * span}')
+        else:
+            rows.append(f'{v}  {ch}')
+    return _pad(rows)
+
+
+def _pad(rows: list[str]) -> list[str]:
+    """Right-pad to a rectangle. Every check downstream assumes one."""
+    if not rows:
+        return rows
+    wide = max(len(r) for r in rows)
+    return [r.ljust(wide) for r in rows]
+
+
+def _slanted(rows: list[str]) -> list[str]:
+    """Lean the mark over, by shifting each row against the one below it.
+
+    Generated rather than drawn: a hand-cut italic of a 61-column wordmark is
+    a lot of careful work to produce something a two-line transform gets
+    exactly right.
+    """
+    depth = len(rows) - 1
+    return _pad([' ' * (depth - i) + row for i, row in enumerate(rows)])
+
+
+def _shadowed(rows: list[str], ascii_only: bool = False) -> list[str]:
+    """The mark with a lighter copy of itself behind it, down and right.
+
+    Drawn in a second character rather than a second colour, so it survives
+    `--no-color` intact. A shadow that only exists in the palette is a shadow
+    that vanishes in a pipe.
+    """
+    solid = '#' if ascii_only else '█'
+    ghost = '+' if ascii_only else '░'
+    height = len(rows) + 1
+    width = (max(len(r) for r in rows) if rows else 0) + 1
+    grid = [[' '] * width for _ in range(height)]
+    for y, row in enumerate(rows):
+        for x, ch in enumerate(row):
+            if ch != ' ':
+                grid[y + 1][x + 1] = ghost
+    for y, row in enumerate(rows):
+        for x, ch in enumerate(row):
+            if ch != ' ':
+                grid[y][x] = solid
+    return [''.join(line) for line in grid]
+
+
+#: Braille dot numbering, as (column, row) -> bit. The 2x4 cell is why this
+#: is here at all: it packs the same bitmap into a quarter of the columns and
+#: half the rows, at four times the resolution per character.
+_DOTS = {(0, 0): 0x01, (0, 1): 0x02, (0, 2): 0x04, (0, 3): 0x40,
+         (1, 0): 0x08, (1, 1): 0x10, (1, 2): 0x20, (1, 3): 0x80}
+
+
+def _braille(rows: list[str]) -> list[str]:
+    """Repack the mark into braille cells.
+
+    Not an accessibility feature and not pretending to be one: this is the
+    bitmap, at 2x4 dots per character, because a terminal that can draw
+    braille can draw the wordmark at a third of the width without losing a
+    stroke of it.
+
+    The source is doubled vertically first. Packing six rows straight in fills
+    one and a half cell rows, which throws away most of the vertical detail
+    and comes out as mush; twelve rows fill three cleanly.
+    """
+    if not rows:
+        return []
+    width = max(len(r) for r in rows)
+    grid = [row.ljust(width) for row in rows for _ in range(2)]
+    out = []
+    for top in range(0, len(grid), 4):
+        line = []
+        for left in range(0, width, 2):
+            bits = 0
+            for (dx, dy), bit in _DOTS.items():
+                y, x = top + dy, left + dx
+                if y < len(grid) and x < width and grid[y][x] != ' ':
+                    bits |= bit
+            line.append(chr(0x2800 + bits))
+        out.append(''.join(line))
+    return _pad(out)
+
+
+#: How far each row of the glitch banner slips, and what it slips into.
+#: Fixed rather than random: the intro is not allowed to touch a game stream,
+#: and a wordmark that came out differently every boot would read as a fault
+#: rather than as a style.
+_SLIP = (0, 3, -2, 5, -1, 2)
+_ARTEFACT = '▚▞▓▒░'
+
+
+def _glitched(rows: list[str], ascii_only: bool = False) -> list[str]:
+    """The mark, torn. Rows slip sideways and the tear fills with noise."""
+    noise = '#%=-.' if ascii_only else _ARTEFACT
+    width = max(len(r) for r in rows) if rows else 0
+    out = []
+    for i, row in enumerate(rows):
+        slip = _SLIP[i % len(_SLIP)]
+        if slip > 0:
+            shifted = noise[i % len(noise)] * slip + row[:-slip or None]
+        elif slip < 0:
+            shifted = row[-slip:] + noise[i % len(noise)] * -slip
+        else:
+            shifted = row
+        out.append(shifted.ljust(width))
+    return _pad(out)
+
+
+def _framed(rows: list[str], caps) -> list[str]:
+    """The word inside a drawn window, titled like a device node.
+
+    Uses the player's own frame set, so this banner is the one place two rice
+    axes visibly compose.
+    """
+    title = ' deck://cold-start '
+    body = ['', '  ' + '  '.join(WORD) + '  ', '',
+            '  a city that does not care whether you live  ']
+    inner = max(len(title) + 4, max(len(b) for b in body))
+    h, v = caps.g('hline'), caps.g('vline')
+    top = (caps.g('corner_tl') + h + title
+           + h * (inner - len(title) - 1) + caps.g('corner_tr'))
+    bottom = caps.g('corner_bl') + h * inner + caps.g('corner_br')
+    return _pad([top] + [f'{v}{b.ljust(inner)}{v}' for b in body] + [bottom])
+
+
 WORD = 'FLATLINE'
 MARK_HEIGHT = 6
 #: Computed rather than assumed, because the glyphs are not all one width and
@@ -73,15 +237,29 @@ MARK_HEIGHT = 6
 MARK_WIDTH = sum(len(_GLYPHS[c][0]) for c in WORD) + len(WORD) - 1
 
 
+#: Letterform sets, and whether each survives the ASCII rung. `outline` and
+#: `wire` are made of box-drawing and have no honest ASCII form, so they fall
+#: back to the block rather than to a field of hashes.
+_FONTS: dict[str, dict[str, tuple[str, ...]]] = {
+    'block': _GLYPHS, 'outline': _OUTLINE, 'thin': _THIN, 'wire': _WIRE,
+}
+_ASCII_SAFE = frozenset({'block', 'thin'})
+
+
 def mark(ascii_only: bool = False, style: str = 'block') -> list[str]:
     """The wordmark as plain rows, no colour."""
-    table = _OUTLINE if style == 'outline' and not ascii_only else _GLYPHS
-    rows = []
-    for r in range(MARK_HEIGHT):
-        rows.append(' '.join(table[ch][r] for ch in WORD))
+    font = style if style in _FONTS else 'block'
+    if ascii_only and font not in _ASCII_SAFE:
+        font = 'block'
+    table = _FONTS[font]
+    rows = [' '.join(table[ch][r] for ch in WORD) for r in range(MARK_HEIGHT)]
     if ascii_only:
         rows = [r.replace('█', '#') for r in rows]
-    return rows
+    return _pad(rows)
+
+
+#: What the small mark measures, so the width guard can compare against it.
+SMALL_WIDTH = 23
 
 
 def small_mark() -> list[str]:
@@ -100,28 +278,76 @@ class Banner:
 BANNERS: dict[str, Banner] = {
     'block': Banner('block', 'six rows, solid, with the trace under it'),
     'outline': Banner('outline', 'the same letters, hollow'),
+    'thin': Banner('thin', 'one-cell strokes, a third narrower'),
+    'wire': Banner('wire', 'drawn in rules, like a schematic of the word'),
+    'slant': Banner('slant', 'the block mark, leaning'),
+    'shadow': Banner('shadow', 'solid, with a lighter copy behind it'),
+    'braille': Banner('braille', 'the same bitmap at 2x4 dots per character'),
+    'glitch': Banner('glitch', 'torn sideways, with noise in the tears'),
+    'terminal': Banner('terminal', 'inside a drawn window, titled'),
+    'stack': Banner('stack', 'one letter per line, down the left'),
     'small': Banner('small', 'one line'),
     'none': Banner('none', 'no wordmark at all'),
 }
 
+#: Banners that need more than 40 columns to be worth drawing. Anything else
+#: falls back to the small mark on a narrow terminal.
+_WIDE_ONLY = frozenset({'block', 'outline', 'thin', 'wire', 'slant',
+                        'shadow', 'glitch', 'terminal'})
+#: Banners the trace line goes under. The tall and the framed ones already
+#: have a bottom edge and a second rule under them reads as a mistake.
+_TRACED = frozenset({'block', 'outline', 'thin', 'wire', 'slant', 'shadow'})
 
-def banner_rows(style: str, ascii_only: bool, wide: bool) -> list[str]:
+
+def banner_rows(style: str, ascii_only: bool, wide: bool,
+                caps: Caps | None = None) -> list[str]:
     """The rows for a banner style, honouring what the terminal can do.
 
-    A narrow terminal gets the small mark whatever the preference says, which
-    is the same precedence rule as everywhere else in here: capability first,
-    taste second.
+    Capability first, taste second, as everywhere else in here. A narrow
+    terminal gets the small mark whatever the preference says, and a style
+    made of characters this terminal cannot draw falls back to the block
+    rather than to a field of hashes that used to be a typeface.
     """
     if style == 'none':
         return []
-    if style == 'small' or not wide:
+    if style == 'small':
         return small_mark()
-    return mark(ascii_only, style)
+    # Braille, the drawn window and the stack are all made of codepoints an
+    # ASCII terminal has no answer for.
+    if ascii_only and style in ('braille', 'terminal', 'stack'):
+        return _fit(mark(True, 'block'), wide)
+    if style == 'braille':
+        return _fit(_braille(mark(False, 'block')), wide)
+    if style == 'stack':
+        return _fit(_stacked(caps), wide) if caps is not None else small_mark()
+    if style == 'terminal':
+        return (_fit(_framed(mark(ascii_only), caps), wide)
+                if caps is not None else small_mark())
+    if style == 'slant':
+        return _fit(_slanted(mark(ascii_only, 'block')), wide)
+    if style == 'shadow':
+        return _fit(_shadowed(mark(ascii_only, 'block'), ascii_only), wide)
+    if style == 'glitch':
+        return _fit(_glitched(mark(ascii_only, 'block'), ascii_only), wide)
+    return _fit(mark(ascii_only, style), wide)
+
+
+def _fit(rows: list[str], wide: bool) -> list[str]:
+    """The small mark instead, if these rows will not fit.
+
+    The guard is last rather than first on purpose. Several styles fall back
+    to a different style before they are measured, and checking the width
+    before that happened let a 61-column ASCII fallback through on a
+    40-column terminal.
+    """
+    if wide or not rows:
+        return rows
+    return small_mark() if max(len(r) for r in rows) > SMALL_WIDTH else rows
 
 
 def banner_preview(style: str, caps: Caps) -> list[str]:
     """The banner, coloured, for the catalogue."""
-    rows = banner_rows(style, caps.glyphs is GlyphLevel.ASCII, True)
+    rows = banner_rows(style, caps.glyphs is GlyphLevel.ASCII, True, caps)
     if not rows:
         return [paint('(nothing)', 'dim', caps)]
     return gradient(rows, caps.palette, caps)
@@ -170,15 +396,39 @@ def paint(text: str, role: str, caps: Caps) -> str:
     return f'{code}{text}{RESET}' if code else text
 
 
+#: Characters the shadow is drawn in. They get the dim role rather than the
+#: gradient, because a drop shadow in the same colour as the thing dropping it
+#: is not a shadow, it is a smear.
+SHADOW_CHARS = frozenset('░+')
+
+
 def gradient(rows: list[str], palette: Palette, caps: Caps) -> list[str]:
     """Colour the mark top to bottom, accent into accent2."""
     top, bottom = palette.accent.rgb, palette.accent2.rgb
+    dim = _fg(palette.dim.rgb, caps, palette.dim.ansi)
     out = []
     for i, row in enumerate(rows):
         t = i / max(1, len(rows) - 1)
         code = _fg(_lerp(top, bottom, t), caps,
                    palette.accent.ansi if t < 0.5 else palette.accent2.ansi)
-        out.append(f'{code}{row}{RESET}' if code else row)
+        if not code:
+            out.append(row)
+            continue
+        if not any(ch in SHADOW_CHARS for ch in row):
+            out.append(f'{code}{row}{RESET}')
+            continue
+        # Split into runs so the shadow can take a different colour without
+        # emitting a sequence per character.
+        parts, run, shadowed = [], [], row[0] in SHADOW_CHARS
+        for ch in row:
+            here = ch in SHADOW_CHARS
+            if here != shadowed:
+                parts.append((shadowed, ''.join(run)))
+                run, shadowed = [], here
+            run.append(ch)
+        parts.append((shadowed, ''.join(run)))
+        out.append(''.join(f'{dim if s else code}{text}' for s, text in parts)
+                   + RESET)
     return out
 
 
@@ -359,17 +609,21 @@ def boot(console, char=None, quick: bool = False,
     ascii_only = caps.glyphs is GlyphLevel.ASCII
     palette = caps.palette
     fits = caps.width >= MARK_WIDTH + 2
-    rows = banner_rows(style, ascii_only, fits)
-    big = fits and style not in ('small', 'none')
+    rows = banner_rows(style, ascii_only, fits, caps)
+    # Measured rather than assumed. The banners are not all the same width:
+    # braille is 31 columns and slant is 66, and centring every one of them
+    # against the block mark's 61 put half of them off-centre and pushed the
+    # widest one past the edge.
+    span = max((len(r) for r in rows), default=0)
+    traced = fits and style in _TRACED and span <= caps.width - 2
     width = min(caps.width - 1, MARK_WIDTH)
-    span = MARK_WIDTH if big else (23 if rows else 0)
     pad = ' ' * max(0, (min(caps.width, 80) - span) // 2)
 
     def final() -> list[str]:
         out = [''] + [pad + r for r in gradient(rows, palette, caps)]
-        if big:
+        if traced:
             out.append(pad + paint(
-                trace_row(MARK_WIDTH, 0, False, ascii_only), 'err', caps))
+                trace_row(span, 0, False, ascii_only), 'err', caps))
         # The long tagline is 42 columns. Anything narrower gets the short
         # one rather than a centred line that runs off the edge.
         tag = ('a city that does not care whether you live'
@@ -411,11 +665,11 @@ def boot(console, char=None, quick: bool = False,
                 screen.pause(0.032)
 
             # 3. And then the part the game is named after.
-            if big:
+            if traced:
                 lit = gradient(rows, palette, caps)
                 for i in range(26):
                     beating = i < 18
-                    line = trace_row(MARK_WIDTH, i * 3, beating, ascii_only)
+                    line = trace_row(span, i * 3, beating, ascii_only)
                     screen.draw([''] + [pad + r for r in lit]
                                 + [pad + paint(line, 'ok' if beating else 'err',
                                                caps)])

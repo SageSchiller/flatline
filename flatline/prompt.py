@@ -30,7 +30,9 @@ class Style:
     #: What it looks like, for the catalogue, with no session to render from.
     #: Written in console markup, so a literal `[` is `[[`: the Bracket style
     #: is made almost entirely of things the tag parser would otherwise eat,
-    #: and its sample rendered as `[1,200c] $` until this was noticed.
+    #: and its sample rendered as `[1,200c] $` until this was noticed. A
+    #: literal `{{` is a footnote for the same reason, so the Structured
+    #: style's sample uses single braces.
     sample: str
 
 
@@ -57,6 +59,14 @@ STYLES: tuple[Style, ...] = (
     Style('terse', 'Terse',
           'For people who have played enough that the prompt is furniture.',
           'mrw» '),
+    Style('json', 'Structured',
+          'The state as a record. Somebody built this deck for machines to '
+          'read and never got round to changing it.',
+          '{where:marrow, shift:morning, c:1200} > '),
+    Style('caret', 'Caret',
+          'Angle brackets, one level per fact. Older than everything else in '
+          'this list and it has outlasted all of them.',
+          '<marrow|morning|1,200c> '),
 )
 
 BY_KEY: dict[str, Style] = {s.key: s for s in STYLES}
@@ -116,4 +126,14 @@ def _shape(key: str, where: str, mid: str, tail: str, slug: str, short: str,
         return f'{where} {arrow} {mid} {arrow} {tail} {arrow} '
     if key == 'terse':
         return f'{short}\u00b7{slug}» '
+    if key == 'json':
+        # Built from the parts rather than from the formatted strings, which
+        # is why it reads as a record instead of as `day:1,:morning`.
+        run = root == 'run'
+        fields = (f'host:{where}, tick:{mid.split()[-1]}, trace:{slug}' if run
+                  else f'where:{where}, shift:{slug}, '
+                       f'c:{tail.rstrip("c").replace(",", "")}')
+        return '{' + fields + '} > '
+    if key == 'caret':
+        return f'<{where}|{mid}|{tail}> '
     return f'{where} {bullet} {mid} {bullet} {tail} > '

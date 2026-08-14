@@ -3132,6 +3132,34 @@ def _rice_body(T, rice, prompt_mod, anim, Caps, ColorLevel, GlyphLevel,
             T.ok(all(ord(ch) < 128 for ch in caps.g(glyph)),
                  f'{frame} stays ascii on an ascii terminal')
 
+    # The window banner is drawn from the player's own frame set, which is
+    # the one place two rice axes compose. Every pairing has to hold its
+    # rectangle, including the frame that is made entirely of spaces.
+    for frame in FRAMES:
+        probe = Caps(color=ColorLevel.NONE, glyphs=GlyphLevel.UNICODE,
+                     width=78, palette=theme.NEUTRAL, frame=frame)
+        for style in ('terminal', 'stack'):
+            rows = anim.banner_rows(style, False, True, probe)
+            T.ok(rows, f'{style} draws something with the {frame} frame')
+            T.eq(len({len(r) for r in rows}), 1,
+                 f'{style} stays a rectangle with the {frame} frame')
+
+    # Every generated banner is a rectangle too, or the gradient renders a
+    # ragged edge that reads as a rendering fault.
+    for style in anim.BANNERS:
+        for ascii_only in (False, True):
+            probe = Caps(color=ColorLevel.NONE,
+                         glyphs=GlyphLevel.ASCII if ascii_only
+                         else GlyphLevel.UNICODE,
+                         width=78, palette=theme.NEUTRAL)
+            rows = anim.banner_rows(style, ascii_only, True, probe)
+            if not rows:
+                continue
+            T.eq(len({len(r) for r in rows}), 1,
+                 f'{style} is a rectangle')
+            T.ok(max(len(r) for r in rows) <= 78,
+                 f'{style} fits the reading column')
+
     # A saved preference for something this build no longer ships must not
     # raise; it degrades.
     caps = Caps(color=ColorLevel.NONE, glyphs=GlyphLevel.UNICODE, width=80,

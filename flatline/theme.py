@@ -381,9 +381,99 @@ PAPER = Palette(
 )
 
 
+
+#: The Sixes. Bruised purple and a sick green, and nothing in it was chosen
+#: by anybody who had a choice.
+SIXES = Palette(
+    name='sixes',
+    fg=Color('#e0d8ea', 'brightwhite'),
+    dim=Color('#4a3560', 'brightblack'),
+    muted=Color('#8a6fa8', 'magenta'),
+    border=Color('#2e1f40', 'brightblack'),
+    ok=Color('#9fd96a', 'green'),
+    warn=Color('#e0c04a', 'yellow'),
+    err=Color('#ff5c7a', 'brightred'),
+    info=Color('#7f9fd9', 'blue'),
+    accent=Color('#b45cff', 'brightmagenta'),
+    accent2=Color('#5cd96a', 'brightgreen'),
+    trace=Color('#ff5c7a', 'brightred'),
+    noise=Color('#e0c04a', 'yellow'),
+    residue=Color('#d98fd9', 'magenta'),
+    ice=Color('#7f9fd9', 'blue'),
+    credit=Color('#9fd96a', 'brightgreen'),
+    heat=Color('#ff9440', 'brightyellow'),
+)
+
+#: Nightwatch. Institutional navy and steel, costed by somebody upstairs.
+NIGHTWATCH = Palette(
+    name='nightwatch',
+    fg=Color('#dfe6f0', 'brightwhite'),
+    dim=Color('#4a5a72', 'brightblack'),
+    muted=Color('#7f92ad', 'white'),
+    border=Color('#1f2c3d', 'brightblack'),
+    ok=Color('#6fc4a0', 'green'),
+    warn=Color('#e8c46a', 'yellow'),
+    err=Color('#e05a5a', 'red'),
+    info=Color('#5f9fe0', 'brightblue'),
+    accent=Color('#2f7fd9', 'blue'),
+    accent2=Color('#a8bfd9', 'brightcyan'),
+    trace=Color('#e05a5a', 'brightred'),
+    noise=Color('#e8c46a', 'yellow'),
+    residue=Color('#9f8fc4', 'magenta'),
+    ice=Color('#5f9fe0', 'brightblue'),
+    credit=Color('#6fc4a0', 'brightgreen'),
+    heat=Color('#e0904a', 'brightyellow'),
+)
+
+#: Aoyama Green. Clinical, well-lit, and staffed by people who slept well.
+#: The aftercare really is excellent, which is how they keep the rest quiet.
+AOYAMA = Palette(
+    name='aoyama',
+    fg=Color('#eef5ee', 'brightwhite'),
+    dim=Color('#5f7a68', 'brightblack'),
+    muted=Color('#9ab5a4', 'white'),
+    border=Color('#2c4034', 'brightblack'),
+    ok=Color('#8fe8b0', 'brightgreen'),
+    warn=Color('#e8d98f', 'yellow'),
+    err=Color('#e88f9f', 'red'),
+    info=Color('#8fc4d9', 'cyan'),
+    accent=Color('#4fd9a0', 'brightcyan'),
+    accent2=Color('#c3e78e', 'green'),
+    trace=Color('#e88f9f', 'brightred'),
+    noise=Color('#e8d98f', 'yellow'),
+    residue=Color('#b49fd9', 'magenta'),
+    ice=Color('#8fc4d9', 'cyan'),
+    credit=Color('#8fe8b0', 'brightgreen'),
+    heat=Color('#e8b06f', 'brightyellow'),
+)
+
+#: Midnight. Everything turned down. For running at three in the morning
+#: with the lights off, which is when most of this happens anyway.
+MIDNIGHT = Palette(
+    name='midnight',
+    fg=Color('#9fb0c4', 'white'),
+    dim=Color('#33404f', 'brightblack'),
+    muted=Color('#5f7086', 'brightblack'),
+    border=Color('#1c242e', 'brightblack'),
+    ok=Color('#4f9f7a', 'green'),
+    warn=Color('#9f8a4f', 'yellow'),
+    err=Color('#a84f5f', 'red'),
+    info=Color('#4f7aa8', 'blue'),
+    accent=Color('#3e8e99', 'cyan'),
+    accent2=Color('#7a5f9f', 'magenta'),
+    trace=Color('#a84f5f', 'brightred'),
+    noise=Color('#9f8a4f', 'yellow'),
+    residue=Color('#745e88', 'magenta'),
+    ice=Color('#4f7aa8', 'blue'),
+    credit=Color('#4f9f7a', 'brightgreen'),
+    heat=Color('#99694e', 'brightyellow'),
+)
+
+
 PALETTES = {p.name: p for p in (
     CYBERPUNK_NEON, NEUTRAL, ANSI,
     AMBER, PHOSPHOR, KAGAWA, CARRION, DEEPWATER, STATIC, ASH, PAPER,
+    SIXES, NIGHTWATCH, AOYAMA, MIDNIGHT,
 )}
 DEFAULT = CYBERPUNK_NEON
 

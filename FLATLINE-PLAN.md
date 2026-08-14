@@ -614,7 +614,7 @@ very rude people.
 ### D38: The shell is the player's, and the city does not get it
 
 One system in this game costs nothing and takes nothing. Six axes of terminal
-customisation, forty-two pieces, most of them earned by playing: palette,
+customisation, sixty-seven pieces, most of them earned by playing: palette,
 prompt, frame, bars, marks, banner.
 
 **It lives in meta rather than in the save.** The deck's interface belongs to
