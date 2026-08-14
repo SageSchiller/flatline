@@ -34,6 +34,9 @@ SHIFT_NAMES = ('morning', 'afternoon', 'night')
 #: deliberate and is the whole emotional point of D5's third quantity.
 RESIDUE_DELAY = 1
 
+#: How much of the world's news is kept. A scrollback rather than a record.
+NEWS_KEPT = 40
+
 
 @dataclass(slots=True)
 class PendingFallout:
@@ -80,18 +83,20 @@ class City:
     pending: list = field(default_factory=list)
     #: The other runners. They take work off the board while you deliberate.
     rivals: list = field(default_factory=list)
-    #: Free-text log of what the world did while you were not looking.
+    #: Free-text log of what the world did while you were not looking. Kept
+    #: to NEWS_KEPT: it is a scrollback, not a record, and it is appended to
+    #: on every single shift.
     news: list = field(default_factory=list)
 
     # ------------------------------------------------------------------
 
     @classmethod
-    def new(cls, rng: Rng, alias: Alias) -> City:
+    def new(cls, rng: Rng, alias: Alias, char=None) -> City:
         city = cls()
         city.posture = {k: f.posture for k, f in factions.BY_KEY.items()}
         city.rivals = rival_mod.seed_pool()
         city.visited = {city.where}
-        city.refresh_board(rng, alias)
+        city.refresh_board(rng, alias, char)
         city.refresh_stock(rng)
         return city
 
@@ -133,7 +138,7 @@ class City:
                 self.refresh_stock(rng)
         # Top the board back up rather than replacing it, so a contract the
         # player was saving does not vanish because a shift ticked over.
-        told.extend(self.top_up_board(rng, alias))
+        told.extend(self.top_up_board(rng, alias, char))
         return told
 
     def _decay_posture(self) -> None:
@@ -204,6 +209,7 @@ class City:
             gone = {c.cid for c in taken}
             self.board = [c for c in self.board if c.cid not in gone]
         self.news.extend(told)
+        del self.news[:-NEWS_KEPT]
         return told
 
     def rival(self, key: str):
@@ -223,7 +229,15 @@ class City:
 
     # -- the board -----------------------------------------------------
 
-    def board_size(self, char) -> int:
+    def board_size(self, char=None) -> int:
+        """How many postings the board holds.
+
+        `char` is threaded all the way through rather than defaulted, because
+        the protege's Known Quantity passive says "one extra contract on the
+        board at all times" and for a long time it only applied to the board
+        generated at creation: every top-up afterwards silently dropped back
+        to the standard size, so the passive was true for about one shift.
+        """
         size = contract_mod.BOARD_SIZE
         if char is not None and char.origin == 'protege':
             size += 1  # Known quantity
@@ -402,7 +416,7 @@ class City:
             'stock_shift': self.stock_shift,
             'pending': [p.to_dict() for p in self.pending],
             'rivals': [r.to_dict() for r in self.rivals],
-            'news': list(self.news[-40:]),
+            'news': list(self.news[-NEWS_KEPT:]),
         }
 
     @classmethod

@@ -65,7 +65,7 @@ class Game:
         for faction, value in origin.standing.items():
             alias.rep[faction] = value
         game = cls(character=character, city=City(), rng=rng, aliases=[alias])
-        game.city = City.new(rng, alias)
+        game.city = City.new(rng, alias, character)
         # The ex-cop starts wanted. The complication is not decorative.
         if character.origin == 'expolice':
             game.city.bounties['nightwatch'] = 25

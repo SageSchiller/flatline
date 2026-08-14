@@ -1388,7 +1388,33 @@ def test_regressions() -> None:
     T.ok(sess.run is None, 'a deliberate exit resolves')
     T.eq(sess.game.char.runs, before + 1, 'and counts exactly one run')
 
-    # 4. Content that promises something the engine does not read. Three
+    # 4. The protege's Known Quantity says "one extra contract on the board
+    #    at all times". `board_size` handled it and `char` was never threaded
+    #    through the top-up, so it was true for about one shift and then the
+    #    board silently dropped back to standard.
+    protege = Game.new(Character.from_origin('protege', 'x'), seed=8829)
+    plain = Game.new(Character.from_origin('gutter', 'x'), seed=8829)
+    T.ok(len(protege.city.board) > len(plain.city.board),
+         'the protege starts with an extra posting')
+    for _ in range(40):
+        for game in (protege, plain):
+            game.city.advance(game.rng, game.alias, 1,
+                              debt=game.debt, char=game.char)
+    T.ok(len(protege.city.board) > len(plain.city.board),
+         'and still has it forty shifts later, which is what "at all times" '
+         'means')
+
+    # The world's news is a scrollback, not a record: it is appended to every
+    # single shift and must not grow without bound.
+    from flatline.world.city import NEWS_KEPT
+    T.ok(len(protege.city.news) <= NEWS_KEPT,
+         f'news stays capped in memory ({len(protege.city.news)})')
+    protege.save('news')
+    T.ok(len(Game.load('news').city.news) <= NEWS_KEPT,
+         'and on disk')
+    save_mod.delete('news')
+
+    # 5. Content that promises something the engine does not read. Three
     #    separate instances of this shipped: `crack --chain`, the three
     #    wardens' `credential_check`, and `alert_jump` on non-traps. All of
     #    them validated, all of them announced themselves, none of them did
