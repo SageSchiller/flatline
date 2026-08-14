@@ -12,11 +12,11 @@ updated: 2026-08-13
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5832 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 19,000 lines.
+> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5832 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 22,000 lines.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
-> **What is not done:** nothing structural. Every system the plan set out to build is built, and the catalogue has had one breadth pass (12 skills with 24 techniques, 26 traits, 26 chrome, 36 programs, 28 ICE, 8 icons, 7 rivals, 10 origins, 9 districts, 12 factions, 21 manual topics). More districts and origins are the obvious next content, but **the right way to choose is to play it and notice what is missing**, which nobody has done yet. Treat any further content added without play as a guess.
+> **What is not done:** nothing structural. Every system the plan set out to build is built, and the catalogue has had one breadth pass (12 skills with 24 techniques, 26 traits, 34 chrome, 46 programs, 28 ICE, 8 icons, 7 rivals, 18 NPCs, 8 story threads, 10 origins, 9 districts, 12 factions, 23 manual topics). More districts and origins are the obvious next content, but **the right way to choose is to play it and notice what is missing**, which nobody has done yet. Treat any further content added without play as a guess.
 >
 > **What this is.** A netrunner sim you play by typing at a fake terminal. Two layers: a persistent city that keeps score, and procedurally generated corporate networks you break into one contract at a time. The character system is classless and deep enough that two players at the same credit total play nothing alike.
 >
@@ -425,6 +425,47 @@ Twelve lines now, three apiece for Logic and two for everybody else, and
 `validate.py` enforces the spread. **A customisation system whose optimal
 opening is identical for everybody is not one**, and that is worth a build
 check rather than good intentions.
+
+### D30: A cast written for range, not for genre
+
+Rivals are other runners and are defined by competing with you. Everybody else
+is in `content/npcs.py`, and its whole job is **range**: a city populated
+entirely by laconic mercenaries in long coats is a city with one joke in it.
+
+So the cast spans a councillor nine years into the same drainage objection, a
+vending machine with a name and an offering of coins, a doctor who is buying
+rather than selling, a child who knows every cable run in the Ninth Ward, and
+somebody dying who has decided not to ask you about it. Tone is a declared
+field and `validate.py` asserts no single register is more than 40% of the
+cast, because a spread that is hoped for is a spread that drifts.
+
+**Every one of them wants something, and it is not always your money.** A
+character who exists to sell you a thing is a shop with a face on it.
+
+### D31: Threads, not quest chains
+
+A thread is a set of **scenes**, each with its own condition, and a scene
+happens the moment its condition holds however that happened. There is no
+sequence and no gating on the previous step.
+
+Three consequences, and all three are the point:
+
+**More than one way in.** A stage takes `any_of` as well as `requires`, so a
+second door is a property of the data rather than the same scene written
+twice. Deepwater can be reached through the Archivist, through Remnant,
+through running one of their networks, or through asking Mara the wrong
+question.
+
+**They cross for free.** The entire state is one set of strings, so a thread
+does not need to know another exists in order to read a flag it happened to
+set. Vance's thread never mentions Lark's, and taking Vance's offer closes a
+door in Lark's anyway. `validate.py` checks crossings are mutual and warns when
+a thread claims one it does not actually share, which caught seven claims that
+were decoration rather than design.
+
+**Nothing is ordered**, so the fourth scene can arrive before the second if the
+world got there first. That is why every stage is written as a scene rather
+than as a step: the prose has to survive arriving in any order.
 
 ### D17: The finish line
 
@@ -935,3 +976,31 @@ Hardware moved to Grit: every Hardware check would have kept rolling against
 Logic. It now reads the attribute off the skill definition.
 
 `validate.py` clean, `test.py` green at **6004 checks**.
+
+### 2026-08-13 (j): people, and things happening to them
+
+**D30** and **D31**: eighteen NPCs and eight crossing threads, plus chrome to
+34 and programs to 46 aimed at the four new skill lines.
+
+The design problem worth recording is non-linearity. The obvious implementation
+of a storyline is a chain: stage two unlocks after stage one. That produces
+something the player experiences as a queue, and it cannot cross another
+storyline without one of them owning the other.
+
+Modelling the whole layer as **one set of flags** solves both at once. A stage
+asks whether some strings are present; meeting somebody, reaching a scene and
+taking a choice all put strings in. Crossing is then not a feature that had to
+be built, it is what happens by default, and the only work left was checking
+that claimed crossings are real. Seven were not.
+
+`any_of` came out of that check. Several threads claimed to cross and shared
+nothing, and the honest fix was not to delete the claim but to give stages a
+second door, which is what the design said it wanted from the beginning.
+
+**One structural cleanup.** NPCs originally carried a `threads` field listing
+what they could open, which duplicated what `met:<key>` in a stage's
+requirements already says. Two places that can disagree is one place plus a
+bug, and it had already drifted: nine of the listed threads did not exist. The
+field is gone.
+
+`validate.py` clean, `test.py` green at **6110 checks**.
