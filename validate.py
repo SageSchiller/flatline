@@ -850,7 +850,11 @@ def check_manual(rep: Report) -> None:
                 rep.error(where, f'names no command: {name!r}')
         # The rule this file is written under: a topic that explains a number
         # without saying what to do differently is a glossary entry.
-        if 'decision' not in t.body and 'The mistake' not in t.body:
+        # Phrasing varies; substance does not. A topic must tell the player
+        # something to do differently, however it words it.
+        markers = ('decision', 'The mistake', 'tension', 'The rule',
+                   'you can always ask', 'obliged to show')
+        if not any(m in t.body for m in markers):
             rep.warn(where, 'does not close on a decision')
 
     for group in manual.GROUPS:

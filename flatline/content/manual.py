@@ -389,7 +389,10 @@ TOPICS: tuple[Topic, ...] = (
         'its behaviour policy: it re-reads it every tick and does whatever the '
         'first passing condition says.\n\n'
         '[dim]`script help` prints the whole vocabulary, and `script example '
-        'bailout` copies a working one into your library.[/]',
+        'bailout` copies a working one into your library.[/]\n\n'
+        '[warn]The decision:[/] a script is where you put the check you keep '
+        'forgetting to make by hand. Write the bailout first and the clever '
+        'ones later.',
         see=('techniques',),
         commands=('script', 'daemon'),
         group='character'),
