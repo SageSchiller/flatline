@@ -109,6 +109,13 @@ The three ideas everything else hangs off:
   stored outside the save, so it survives a flatline: you lose everything
   else, and the terminal you spent a week getting right is still there when
   you sit down with somebody new. None of it touches a single number.
+- **Everything good is a loan.** Residue becomes heat a shift after you
+  thought you got away with it, and the three vices are the same shape said
+  three ways: borrow money and it compounds, take something and the comedown
+  outlasts and outcosts the high, sit down at a table and the edge is painted
+  on the wall before you play. What you are ever buying is when the bill
+  arrives, and the trap is never any one of them, it is taking the second to
+  pay for the first.
 - **The street and the net want opposite hours.** At peak the walkways are
   full, which is bad for you out there and good for you in here, because all
   those people are generating the traffic you hide in. At night nobody is
@@ -122,8 +129,9 @@ The three ideas everything else hangs off:
 verb nobody else can use and its own starting face · 34 implants · 46 programs
 · 28 countermeasures · 9 districts, each with a mark for the faction that
 holds it · 12 factions · 17 named characters · 18 storylines across 39 scenes ·
-102 appearance features · 51 ambient city events · 31 manual topics ·
-100 commands · 67 unlockable pieces of terminal across 6 axes.
+102 appearance features · 51 ambient city events · 32 manual topics ·
+10 drugs · 3 lenders · 2 games of chance in 5 rooms ·
+106 commands · 67 unlockable pieces of terminal across 6 axes.
 
 Footnotes are a real feature of the console. `{{like this}}` in any content
 string gets lifted out and printed under the block, and they nest, because the

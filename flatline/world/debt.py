@@ -22,7 +22,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-#: Interest per shift, compounding. Small per tick and vicious over a month.
+#: The house terms, used by any debt that does not carry its own: the two
+#: origins that ship owing somebody, and every save written before lenders
+#: existed. A debt taken deliberately records the terms it was taken on,
+#: because the terms are the decision.
 RATE = 0.035
 #: Shifts of grace before the lender starts taking an interest in person.
 GRACE = 12
@@ -45,6 +48,15 @@ class Debt:
     opened: int = 0
     #: Flavour: what they will say they are, when they finally say something.
     note: str = ''
+    #: The terms this particular debt was taken on. Zero means the house
+    #: rate, which is what every debt handed to you rather than chosen runs
+    #: at, and what every save older than lenders has.
+    rate: float = 0.0
+    grace: int = 0
+
+    @property
+    def terms(self) -> tuple[float, int]:
+        return (self.rate or RATE, self.grace or GRACE)
 
     @property
     def owed(self) -> bool:
@@ -55,15 +67,16 @@ class Debt:
         if not self.owed:
             return 0
         before = self.amount
-        self.amount = int(round(self.amount * (1.0 + RATE)))
+        self.amount = int(round(self.amount * (1.0 + self.terms[0])))
         return self.amount - before
 
     def due(self, shift: int) -> bool:
         """Whether the lender is coming round this shift."""
-        if not self.owed or shift - self.opened < GRACE:
+        grace = self.terms[1]
+        if not self.owed or shift - self.opened < grace:
             return False
         since = shift - (self.last_collected if self.last_collected >= 0
-                         else self.opened + GRACE)
+                         else self.opened + grace)
         return since >= COLLECT_EVERY
 
     def collect(self, shift: int) -> int:
@@ -83,13 +96,15 @@ class Debt:
     def to_dict(self) -> dict:
         return {'amount': self.amount, 'lender': self.lender,
                 'last_collected': self.last_collected, 'opened': self.opened,
-                'note': self.note}
+                'note': self.note, 'rate': self.rate, 'grace': self.grace}
 
     @classmethod
     def from_dict(cls, d: dict) -> Debt:
         return cls(amount=int(d.get('amount', 0)), lender=d.get('lender', ''),
                    last_collected=int(d.get('last_collected', -1)),
-                   opened=int(d.get('opened', 0)), note=d.get('note', ''))
+                   opened=int(d.get('opened', 0)), note=d.get('note', ''),
+                   rate=float(d.get('rate', 0.0)),
+                   grace=int(d.get('grace', 0)))
 
 
 #: What the lender says when the grace period ends and they turn up.
@@ -121,6 +136,6 @@ def tick(debt: Debt, shift: int) -> tuple[int, str]:
     if not debt.owed:
         return 0, ''
     interest = debt.accrue()
-    if shift - debt.opened == GRACE:
+    if shift - debt.opened == debt.terms[1]:
         return interest, f'[err]{FIRST_VISIT}[/]'
     return interest, ''

@@ -15,7 +15,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from ..content import appearance, districts, events as event_content
+from ..content import appearance, districts, drugs as drug_content
+from ..content import events as event_content
 from ..content import factions
 from ..model.identity import Alias
 from ..rng import Rng
@@ -83,6 +84,11 @@ class City:
     #: Districts you have set foot in. Read by the Courier's passive, and a
     #: reasonable thing for a city to remember about somebody in any case.
     visited: set = field(default_factory=set)
+    #: venue key -> credits taken off that table, ever. The card game reads it
+    #: and gets harder; it is the city remembering a specific room rather than
+    #: a faction, which is the right grain for somebody who has been winning
+    #: at the same table for a month.
+    tables: dict = field(default_factory=dict)
     next_cid: int = 1
     #: district -> listings, and the shift they were rolled.
     stock: dict = field(default_factory=dict)
@@ -151,6 +157,13 @@ class City:
             told.extend(fallout_mod.bounty_check(alias, self, rng('events')))
             if debt is not None:
                 told.extend(self._debt_turn(rng, alias, debt, char))
+            if char is not None:
+                # Chemistry, one shift of it. Told here rather than by the
+                # command that spent the shift, because a comedown arriving
+                # while you `rest` and a comedown arriving while you `travel`
+                # are the same event and it is not the travelling's fault.
+                char.chem, said = drug_content.advance(char.chem, 1)
+                told.extend(said)
             if self.shift % market_mod.REFRESH == 0:
                 self.refresh_stock(rng)
             self.ambient.extend(self._ambient(rng))
@@ -489,6 +502,7 @@ class City:
             'board': [c.to_dict() for c in self.board],
             'accepted': self.accepted, 'hired': self.hired,
             'visited': sorted(self.visited),
+            'tables': dict(self.tables),
             'next_cid': self.next_cid,
             'stock': {k: [l.to_dict() for l in v] for k, v in self.stock.items()},
             'stock_shift': self.stock_shift,
@@ -509,6 +523,7 @@ class City:
             accepted=d.get('accepted', ''),
             hired=d.get('hired', ''),
             visited=set(d.get('visited') or ()),
+            tables={k: int(v) for k, v in (d.get('tables') or {}).items()},
             next_cid=int(d.get('next_cid', 1)),
             stock={k: [Listing.from_dict(l) for l in v]
                    for k, v in (d.get('stock') or {}).items()},

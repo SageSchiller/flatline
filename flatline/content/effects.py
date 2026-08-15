@@ -63,6 +63,38 @@ MULTIPLICATIVE: dict[str, str] = {
 
 ALL: dict[str, str] = {**ADDITIVE, **MULTIPLICATIVE}
 
+#: Which way is up, for every multiplicative key. Additive keys never need
+#: this: more of an attribute is more of an attribute. Rates are the opposite
+#: half the time, and nothing else in the codebase knew it, so anything
+#: printing a modifier in colour had to guess and would eventually guess that
+#: doubling the trace rate was good news.
+#:
+#: Declared exhaustively rather than as a set of exceptions, and `validate.py`
+#: checks it covers exactly `MULTIPLICATIVE`, so a new rate cannot be added
+#: without somebody deciding which direction it points.
+DIRECTION: dict[str, str] = {
+    'noise_mult': 'down',
+    'trace_mult': 'down',
+    'residue_mult': 'down',
+    'heat_mult': 'down',
+    'tick_mult': 'down',
+    'price_mult': 'down',
+    'repair_mult': 'down',
+    'ice_dr': 'down',
+    'pay_mult': 'up',
+    'rep_mult': 'up',
+}
+
+LOWER_IS_BETTER: frozenset[str] = frozenset(
+    k for k, way in DIRECTION.items() if way == 'down')
+
+
+def improves(key: str, value: float) -> bool:
+    """Whether this modifier is good news for the character carrying it."""
+    if key in MULTIPLICATIVE:
+        return value < 1.0 if key in LOWER_IS_BETTER else value > 1.0
+    return value > 0
+
 
 def check(effects: dict, where: str) -> list[str]:
     """Validate an effects dict. Returns a list of problems, empty if clean."""

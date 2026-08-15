@@ -77,6 +77,18 @@ def cmd_jack_in(sess, args) -> None:
             f'{hops} shift{"s" if hops != 1 else ""} away. '
             f'`{game.city.walk_to(contract.district)}`')
 
+    # Nothing in the city kills you, per D6, so a bad comedown on top of an
+    # unhealed run can leave somebody standing in the street at zero
+    # integrity, which is survivable out here and is the first damage taken
+    # in there. The number is on `char` and on `status` and it is exactly the
+    # kind of number a player reads past on the way to the interesting part.
+    if game.char.integrity <= 0 and not args.has('force'):
+        raise CommandError(
+            'you have nothing left to absorb a hit with. The first thing '
+            'that touches you in there ends the run and possibly you. '
+            '`rest`, or wait out whatever is in your bloodstream, or '
+            '`jack in --force` and mean it.')
+
     need = OBJECTIVE_PROGRAM.get(contract.objective)
     if need and not game.char.deck.has_category(need) and not args.has('force'):
         owned = [programs.BY_KEY[k] for k in game.char.library

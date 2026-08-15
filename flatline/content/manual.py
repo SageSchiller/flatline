@@ -686,8 +686,56 @@ TOPICS: tuple[Topic, ...] = (
         'what doing only the job pays. It also means touching every node, '
         'which is trace, noise, and residue you did not have to spend. That '
         'temptation is the game asking you a question every single run.',
-        see=('triangle', 'contracts', 'deck'),
+        see=('triangle', 'contracts', 'deck', 'vices'),
         commands=('market', 'buy', 'sell', 'debt'),
+        group='city'),
+    Topic(
+        'vices', 'Borrowing against later',
+        'Three ways to have something now and pay for it afterwards.',
+        'The city runs on getting away with things temporarily. Residue '
+        'becomes heat a shift after you thought you were clean, and these are '
+        'the same shape: something now, priced later.\n\n'
+        '[accent]Money.[/] `borrow` where somebody lends, which is Marrow, '
+        'the Ninth Ward and the Shambles. Three lenders and the difference is '
+        'not the rate: the Switchboard advance against work and collect by '
+        'not giving you any, the Sixes lend more than they should and come '
+        'round in person, and Carrion lend anybody eight thousand and take '
+        'payment in parts. What you can borrow scales on your standing and '
+        'your record, except from Carrion, who offer everybody the same '
+        'number.\n\n'
+        '[accent]Chemistry.[/] `dose` what you are carrying, `chem` for what '
+        'it will do. Every drug is up for a while and down for longer, and '
+        '[warn]the crash always costs more than the high paid[/]. What you '
+        'are buying is when the bill arrives.\n\n'
+        'Then there is habit, which is the part worth understanding. One '
+        'number per drug does three jobs: it weakens the high, it deepens the '
+        'crash, and past four it applies a third set of effects [warn]whenever '
+        'you are not using[/]. That is the turn. A dose stops making you '
+        'better than a person and starts making you a person again, and the '
+        'number you had before is not the number you have now. Five clean '
+        'shifts sheds a point, a clinic will `detox` several for money, and '
+        'neither undoes what the using already cost.\n\n'
+        '[accent]Luck.[/] `dice` is Ninepins: two dice, high is 8 to 12, low '
+        'is 2 to 6, and seven belongs to the house. A sixth of every stake, '
+        'painted on the wall, the same for all three calls, so there is no '
+        'correct bet and only a choice of how hard to breathe. It costs no '
+        'time and it needs nothing but money.\n\n'
+        '`cards` is Threes, and it is the opposite: an evening, resolved on '
+        'Guile and Subterfuge against the table rather than on what you were '
+        'dealt. It is the one place in the game a social build is a build. '
+        'Most characters will be turned away and pointed at the dice, which '
+        'is the room being honest rather than the game being closed.\n\n'
+        '[warn]Winning has a cost that is not money.[/] Take enough off a '
+        'room and the house thinks less of you, the table learns how you '
+        'play, and past five thousand in a night everybody there can describe '
+        'your face to somebody who was not.\n\n'
+        '[warn]The decision:[/] all three are correct sometimes. A payload '
+        'you cannot afford is a contract you cannot finish, and 2,000c at '
+        'thirty-eight percent a shift is cheaper than a fortnight of not '
+        'working. The trap is not any one of them. It is taking the second '
+        'one to pay for the first.',
+        see=('money', 'heat', 'death', 'city'),
+        commands=('borrow', 'debt', 'dose', 'chem', 'detox', 'dice', 'cards'),
         group='city'),
     Topic(
         'death', 'How it goes wrong',

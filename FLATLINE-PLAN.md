@@ -699,6 +699,75 @@ claims something the engine does not do is the recurring bug of this project,
 and it is at its worst in the tutorial, because the tutorial is read by the
 one person with no way to tell it is wrong.
 
+### D40: Three ways to borrow against later
+
+Asked for at the author's request: a loan shark, gambling, and drugs. Built as
+one system said three ways, because they are one system.
+
+**The city already ran on this shape.** Residue becomes heat a shift after you
+believed you were clean; that delay is the emotional point of D5's third
+quantity and it is the whole game in miniature. These three are the same
+sentence in three registers: something now, priced afterwards, at a rate you
+were told.
+
+**Money.** The debt machinery had been in since the beginning and debt could
+only ever *happen* to you, which meant the interesting half was missing: a
+debt you were handed is a difficulty setting, and a debt you chose is a plan
+that did not work. Three lenders, and the thing that separates them is not the
+interest rate, it is what happens when you stop paying. The Switchboard stop
+finding you work. The Sixes come round. Carrion take payment in parts. Two of
+the three are people the city already had, standing where they already stood,
+and `validate.py` checks they have not been moved.
+
+The lender key *is* the faction key, deliberately, because a debt records who
+it is owed to and the fallout ladder resolves a visit by asking that faction
+what its people do. Two identifiers for one lender is one identifier plus a
+bug.
+
+**Chemistry.** Ten drugs, and one number does all three jobs the brief asked
+for. `habit` weakens the high, deepens the crash, and past four applies a
+third block of effects *whenever you are not using*. That last step is the
+system; everything before it is a stat buff with a bill, which any game has.
+The moment worth building is a player looking at a number that used to be five
+and seeing three and understanding that they did that.
+
+Authored under a rule `validate.py` enforces: **the crash outlasts the high
+and costs more than it paid**, measured on both axes. Six drugs failed it on
+the first pass and were rewritten. A drug that came out ahead would not be a
+decision, it would be equipment, and it would be correct before every run.
+
+Ash Tea is the trap and the design in one item: it ends a comedown exactly as
+advertised, and moves the price into the habit instead. Ozymandias Formula
+No. 1 is the joke, and there is exactly one of them, which `validate.py` also
+enforces.
+
+**Luck.** Ninepins is two dice with a sixth of every stake in it, the same
+edge on all three calls, so there is no correct bet and only a choice of
+variance. It is fast, needs no build, and exists so that being broke has a
+stupid solution with a number attached. Threes is the opposite: an evening,
+resolved on Guile and Subterfuge, and the one place in this game a social
+build is a build rather than a discount on conversations.
+
+Both print the exact probability first, which is D14 applied somewhere D14 was
+not written for. A casino that hides its edge is a casino. One that paints it
+on the wall and lets you read it is this city, and nobody in it is deceiving
+you; they are simply correct about how it will go.
+
+**Winning is not free**, which is the thesis holding. Take enough off a room
+and the house thinks less of you, the table gets measurably harder, and past
+five thousand in a night everybody there can describe your face. Counted per
+table rather than off faction standing: several origins start disliked by the
+Switchboard, and a table that had learned how somebody plays before they sat
+down is not a table, it is a bad mood.
+
+**What building it turned up.** A comedown reduces `integrity_max`, and a bad
+one on top of an unhealed run could take it to zero, which is a character dead
+in the street from a hangover and a straight violation of D6. There is now a
+floor in the one place every modifier in the game passes through. Integrity
+*reaching* zero out here is still legal and is correct: it is a person who
+cannot take another hit, which is survivable in the street and is not
+survivable in a network, so `jack in` refuses it without `--force`.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.

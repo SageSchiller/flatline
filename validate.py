@@ -1417,6 +1417,268 @@ def check_nodes(rep: Report) -> None:
 # --------------------------------------------------------------------------
 
 
+def _weight(effects: dict) -> float:
+    """How much a modifier block is worth, as one number.
+
+    Crude on purpose. It exists to compare a high against its own crash, and
+    for that the only thing that matters is that both sides are measured the
+    same way. Rates count for more than a flat point because a rate applies to
+    everything you do for as long as it is on you.
+    """
+    total = 0.0
+    for key, value in effects.items():
+        if key in fx.MULTIPLICATIVE:
+            total += abs(value - 1.0) * 12
+        else:
+            total += abs(value)
+    return total
+
+
+def check_drugs(rep: Report) -> None:
+    """The chemistry, per D40.
+
+    The one rule the whole system rests on is that a dose is a loan: the crash
+    lasts longer than the high and costs more than it paid. A drug that came
+    out ahead on either axis would be equipment with a cooldown, and it would
+    be the correct thing to take before every single run, which is the exact
+    opposite of a decision.
+    """
+    from flatline.content import drugs
+    from flatline.world import market as market_mod
+
+    hookless = []
+    curers = []
+    for drug in drugs.DRUGS:
+        where = f'drugs/{drug.key}'
+        for problems in (fx.check(drug.high, f'{where}.high'),
+                         fx.check(drug.crash, f'{where}.crash'),
+                         fx.check(drug.withdrawal, f'{where}.withdrawal')):
+            for problem in problems:
+                rep.error(where, problem)
+
+        rep.check(bool(drug.high), where, 'does nothing while it is in you')
+        rep.check(bool(drug.crash), where,
+                  'has no comedown, which makes it equipment')
+        rep.check(drug.down >= drug.up, where,
+                  f'is up for {drug.up} and down for {drug.down}: the crash '
+                  f'may not be shorter than the high')
+        rep.check(_weight(drug.crash) >= _weight(drug.high), where,
+                  f'the high is worth {_weight(drug.high):.1f} and the crash '
+                  f'costs {_weight(drug.crash):.1f}: a dose has to be a loan')
+        # You miss what it gave you. A withdrawal that took something the drug
+        # never provided would be the game inventing a punishment rather than
+        # taking back a loan.
+        stray = set(drug.withdrawal) - set(drug.high) - set(drug.crash)
+        rep.check(not stray, where,
+                  f'withdrawal touches {sorted(stray)}, which this drug never '
+                  f'gave you')
+        for key, value in drug.withdrawal.items():
+            if key in fx.MULTIPLICATIVE:
+                continue
+            rep.check(value <= 0, where,
+                      f'withdrawal improves {key}, which is not withdrawal')
+
+        rep.check(1 <= drug.tier <= 3, where, f'tier {drug.tier}')
+        rep.check(drug.price > 0, where, 'is free')
+        rep.check(0 <= drug.hook <= 4, where, f'hook {drug.hook}')
+        rep.check(bool(drug.sold), where, 'is sold nowhere')
+        for service in drug.sold:
+            rep.check(service in districts.SERVICES, where,
+                      f'sold at {service!r}, which is not a district service')
+            rep.check('drug' in market_mod.STOCK_KINDS.get(service, ()), where,
+                      f'sold at {service!r}, which does not stock drugs')
+        rep.check(bool(drug.onset) and bool(drug.turn), where,
+                  'does not say what taking it or losing it feels like')
+        rep.check(drug.turn.rstrip().endswith('.') and drug.onset[0].isupper(),
+                  where, 'onset and turn are not written as prose')
+        if drug.rider:
+            rep.check(drug.rider in _engine_source(), where,
+                      f'rider {drug.rider!r} is read by nothing')
+        if not drug.hook:
+            hookless.append(drug.key)
+        if drug.cures_crash:
+            curers.append(drug.key)
+
+        # Somewhere has to actually stock it, or it is a catalogue entry.
+        reachable = any(
+            service in drug.sold and drug.tier <= d.max_tier
+            for d in districts.DISTRICTS for service in d.services)
+        rep.check(reachable, where,
+                  'no district both stocks its tier and has a seller for it')
+
+    rep.check(len(hookless) <= 1, 'drugs',
+              f'{len(hookless)} drugs have no hook: the joke only works once')
+    rep.check(len(curers) <= 1, 'drugs',
+              f'{len(curers)} drugs end a comedown early; that is a trap and '
+              f'traps do not want competition')
+
+    # Keys are a flat namespace as far as `buy` is concerned, and it resolves
+    # by name across every catalogue at once.
+    from flatline.content import cyberware as cw, hardware as hw
+    clash = (set(drugs.BY_KEY) & (set(programs.BY_KEY) | set(cw.BY_KEY)
+                                  | set(hw.BY_KEY)))
+    rep.check(not clash, 'drugs', f'keys collide with other goods: {clash}')
+    names = {d.name.lower() for d in drugs.DRUGS}
+    others = ({p.name.lower() for p in programs.PROGRAMS}
+              | {w.name.lower() for w in cw.WARE})
+    rep.check(not (names & others), 'drugs',
+              f'names collide with other goods: {names & others}')
+
+    # The numbers behind the spiral have to leave a way out of it, per D6.
+    rep.check(drugs.WITHDRAWAL_AT < drugs.HABIT_MAX, 'drugs',
+              'withdrawal starts at or above the ceiling, so nobody reaches it')
+    rep.check(drugs.CLEAN_SHIFTS * drugs.HABIT_MAX <= 80, 'drugs',
+              f'climbing out of a full habit takes '
+              f'{drugs.CLEAN_SHIFTS * drugs.HABIT_MAX} shifts, which is not a '
+              f'spiral, it is a wall')
+    rep.check(0 < drugs.TOLERANCE_FLOOR < 1, 'drugs',
+              'tolerance floor is not a fraction')
+
+
+def check_games(rep: Report) -> None:
+    """The two games, per D40. See `content/games.py`.
+
+    The rule worth enforcing is that the odds printed on the wall are the odds
+    the resolver uses. A gambling system whose stated edge and actual edge
+    drift apart is the one kind of bug in this game that would be genuinely
+    dishonest rather than merely wrong.
+    """
+    from flatline.content import games
+
+    for venue in games.VENUES:
+        where = f'games/{venue.key}'
+        rep.check(venue.game in ('dice', 'cards'), where,
+                  f'plays {venue.game!r}, which nothing implements')
+        rep.check(venue.where in districts.BY_KEY, where,
+                  f'is in {venue.where!r}, which does not exist')
+        if venue.where in districts.BY_KEY:
+            rep.check(venue.at in districts.BY_KEY[venue.where].services,
+                      where, f'needs {venue.at!r}, which {venue.where} has '
+                             f'not got')
+        rep.check(venue.house in factions.BY_KEY, where,
+                  f'house {venue.house!r} is not a faction')
+        rep.check(bool(venue.arrival) and bool(venue.pitch), where,
+                  'has no description of the room')
+
+    # Both games have to be findable, and not in the same place, or the second
+    # one is a feature nobody encounters.
+    for game_key in ('dice', 'cards'):
+        rooms = [v for v in games.VENUES if v.game == game_key]
+        rep.check(len(rooms) >= 2, 'games',
+                  f'{game_key} is played in {len(rooms)} place(s)')
+        houses = {v.house for v in rooms}
+        rep.check(len(houses) >= 2, 'games',
+                  f'every {game_key} table belongs to the same faction, so '
+                  f'winning only ever annoys one of them')
+
+    # The wall and the resolver have to agree. `WAYS` is what the table shows;
+    # `CALLS` is what the dice are checked against.
+    for call, (totals, pays) in games.CALLS.items():
+        ways = sum(1 for a in range(1, 7) for b in range(1, 7)
+                   if a + b in totals)
+        rep.check(ways == games.WAYS[call], f'games/{call}',
+                  f'the wall says {games.WAYS[call]} ways and the dice give '
+                  f'{ways}')
+        rep.check(pays > 0, f'games/{call}', 'pays nothing')
+    covered = sorted(t for _, (totals, _) in games.CALLS.items()
+                     for t in totals)
+    rep.check(len(covered) == len(set(covered)), 'games',
+              'two calls win on the same total, so one bet covers another')
+    rep.check(set(covered) <= set(range(2, 13)), 'games',
+              'a call wins on a total two dice cannot make')
+
+    # One edge, the same for every call. A game where one bet is quietly the
+    # correct one is a game with a right answer, and a right answer is not a
+    # decision.
+    edges = {call: round(games.edge(call), 6) for call in games.CALLS}
+    rep.check(len(set(edges.values())) == 1, 'games',
+              f'the house edge differs by call: {edges}')
+    house = next(iter(edges.values()))
+    rep.check(0 < house < 0.25, 'games',
+              f'the house edge is {house:.1%}, which is either charity or '
+              f'robbery')
+
+    rep.check(games.MIN_STAKE < games.MAX_STAKE, 'games', 'stake range is empty')
+    rep.check(games.THREES_MIN < games.THREES_MAX, 'games',
+              'threes stake range is empty')
+    # A scrape has to pay less than the stake, or a coin-flip build grinds it.
+    tiers = games.THREES_PAYOUT
+    rep.check(tiers[-1][1] < 1.0, 'games',
+              f'the worst winning read still pays {tiers[-1][1]}x, so barely '
+              f'reading the table is profitable')
+    rep.check([m for _, m in tiers] == sorted((m for _, m in tiers),
+                                              reverse=True), 'games',
+              'reading them better pays less')
+    rep.check(tiers[0][0] > tiers[-1][0], 'games',
+              'the payout tiers are not ordered by margin')
+    rep.check(0 < games.THREES_FLOOR < 0.5, 'games',
+              'the floor below which a table refuses you is not a probability')
+
+
+def check_lenders(rep: Report) -> None:
+    """Who lends, per D40. See `content/lenders.py`."""
+    from flatline.content import lenders, npcs
+    from flatline.world import debt as debt_mod
+
+    for lender in lenders.LENDERS:
+        where = f'lenders/{lender.key}'
+        # The key is the faction on purpose: a debt records who it is owed to
+        # and the fallout ladder resolves a visit by asking that faction what
+        # its people do, so a lender whose key is not a faction is a debt that
+        # can never be collected.
+        rep.check(lender.key in factions.BY_KEY, where,
+                  'key is not a faction, so the debt can never be collected')
+        rep.check(lender.where in districts.BY_KEY, where,
+                  f'lends in {lender.where!r}, which does not exist')
+        if lender.where in districts.BY_KEY:
+            rep.check(lender.at in districts.BY_KEY[lender.where].services,
+                      where,
+                      f'lends at {lender.at!r}, which '
+                      f'{lender.where} does not have')
+        rep.check(0 < lender.rate < 0.2, where,
+                  f'rate {lender.rate} is not a per-shift rate')
+        rep.check(lender.grace > 0, where, 'has no grace period at all')
+        rep.check(lender.floor >= 0 and lender.ceiling >= lender.floor, where,
+                  'the floor is above the ceiling')
+        rep.check(lender.key in lenders.REFUSALS
+                  and lender.key in lenders.NOTHING, where,
+                  'has no words for refusing you')
+        for field_name in ('offer', 'handover', 'warning'):
+            rep.check(bool(getattr(lender, field_name)), where,
+                      f'has no {field_name}')
+        # Two of the three are people the city already had. If a lender wears
+        # an existing name, they have to be standing where that person stands,
+        # or the game has one character in two places.
+        for npc in npcs.NPCS:
+            if npc.name == lender.name:
+                rep.check(npc.where == lender.where and npc.at == lender.at,
+                          where,
+                          f'{npc.name} is an NPC in {npc.where}/{npc.at} and '
+                          f'lends in {lender.where}/{lender.at}')
+
+    # A rate that never bites and a rate that ends the game are both a debt
+    # nobody has to think about.
+    rates = [x.rate for x in lenders.LENDERS]
+    rep.check(max(rates) / min(rates) >= 2, 'lenders',
+              'every lender charges about the same, so the choice is not one')
+    rep.check(any(x.rate > debt_mod.RATE for x in lenders.LENDERS)
+              and any(x.rate < debt_mod.RATE for x in lenders.LENDERS),
+              'lenders', 'nobody is worse or nobody is better than the house '
+                         'rate the origins ship with')
+
+    # Somebody has to lend to a runner nobody has heard of, or the system is
+    # invisible until you no longer need it.
+    fresh = max(lenders.limit(x, 0, 0) for x in lenders.LENDERS)
+    rep.check(fresh > 0, 'lenders',
+              'nobody will lend a new character anything, so the first time '
+              'this system exists is after it stopped mattering')
+    starting = min(p.price for p in programs.by_category('payload'))
+    rep.check(fresh >= starting, 'lenders',
+              f'the most a new character can borrow is {fresh:,}c and the '
+              f'cheapest payload is {starting:,}c: borrowing has to solve the '
+              f'problem it is there for')
+
+
 def check_contracts(rep: Report) -> None:
     for o in contract_mod.OBJECTIVES:
         rep.check(o in contract_mod.OBJECTIVE_BLURB, 'contracts',
@@ -2118,7 +2380,7 @@ CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
     check_icons, check_dissonance, check_cyberspace, check_rivals, check_debt,
     check_origins, check_appearance, check_events, check_rice, check_shifts, check_district_mood, check_dead_fields, check_skills, check_factions, check_districts,
-    check_ice, check_nodes, check_contracts, check_commands,
+    check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_commands,
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_palette_separation, check_markup, check_balance,
 )

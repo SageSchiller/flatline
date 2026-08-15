@@ -13,10 +13,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from ..content import appearance, attributes as attrs
-from ..content import cyberware, dissonance as drift
+from ..content import cyberware, dissonance as drift, drugs
 from ..content import effects as fx, icons, origins, programs, skills
 from ..content import traits as trait_content
 from .deck import Deck
+
+#: The least damage anybody can absorb, whatever the modifiers say. See
+#: `integrity_max`: D6 says only black ICE ends a character, and this is where
+#: that promise is kept against every penalty in the game at once.
+INTEGRITY_FLOOR = 4
 
 
 @dataclass(slots=True)
@@ -48,6 +53,15 @@ class Character:
     #: What you look like: slot -> feature key. Four of these are set at
     #: creation and only a clinic changes them; four are yours to change.
     look: dict[str, str] = field(default_factory=appearance.default)
+
+    #: What is in the bloodstream, what is leaving it, and what your body has
+    #: decided is normal. See `content/drugs.py`; it is plain data because it
+    #: round-trips through JSON on every autosave.
+    chem: dict = field(default_factory=drugs.blank)
+    #: Doses carried, by drug key. Separate from `chem` because owning one and
+    #: being on one are very different states and the interesting decisions
+    #: are all about the gap between them.
+    stash: dict = field(default_factory=dict)
     #: Marks the work has left on you. You do not choose these and they do not
     #: come off, which is the point of them.
     marks: list[str] = field(default_factory=list)
@@ -136,6 +150,10 @@ class Character:
             # fights you the whole time you wear it.
             parts.append(icons.coherence_penalty(self.icon, self.dissonance))
         parts.append(appearance.effects(self.look, self.marks))
+        # Last, and no different from anything else here: a high is a
+        # modifier block, a comedown is a modifier block, and so is being a
+        # person whose body has started expecting something.
+        parts.append(drugs.effects(self.chem))
         return fx.merge(*parts)
 
     def mult(self, key: str) -> float:
@@ -203,7 +221,17 @@ class Character:
 
     @property
     def integrity_max(self) -> int:
-        return attrs.integrity(self.attr('grit')) + self.bonus('integrity')
+        """How much damage this character can absorb. Never zero.
+
+        The floor is D6, expressed in the one place every modifier passes
+        through. Chrome penalties, trait penalties and a bad comedown all
+        subtract from this, and enough of them at once used to be able to take
+        it to nothing, which is a character who is dead in the street from a
+        hangover. Nothing but black ICE ends a character, so the sum is
+        allowed to be humiliating and is not allowed to be fatal.
+        """
+        return max(INTEGRITY_FLOOR,
+                   attrs.integrity(self.attr('grit')) + self.bonus('integrity'))
 
     @property
     def integrity(self) -> int:
@@ -345,6 +373,7 @@ class Character:
             trait = trait_content.BY_KEY.get(key)
             if trait and trait.rider:
                 out.add(trait.rider)
+        out |= drugs.riders(self.chem)
         return out
 
     # ------------------------------------------------------------------
@@ -463,6 +492,8 @@ class Character:
             'traits': list(self.traits),
             'look': dict(self.look),
             'marks': list(self.marks),
+            'chem': drugs.normalise(self.chem),
+            'stash': {k: v for k, v in self.stash.items() if v > 0},
             'credits': self.credits,
             'xp': self.xp,
             'points': self.points,
@@ -489,6 +520,9 @@ class Character:
             traits=list(d.get('traits') or []),
             look={**appearance.default(), **(d.get('look') or {})},
             marks=list(d.get('marks') or []),
+            chem=drugs.normalise(d.get('chem')),
+            stash={k: int(v) for k, v in (d.get('stash') or {}).items()
+                   if k in drugs.BY_KEY and int(v) > 0},
             credits=int(d.get('credits', 0)),
             xp=int(d.get('xp', 0)),
             points=int(d.get('points', 0)),

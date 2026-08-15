@@ -102,6 +102,33 @@ def _v2_to_v3(data: dict) -> dict:
     return data
 
 
+@migration(3)
+def _v3_to_v4(data: dict) -> dict:
+    """Phase 7 gave the city three ways to borrow against your future.
+
+    A schema-3 character has never taken anything and owes nobody, which is
+    also what an empty chem block and an empty stash mean, so this is one of
+    the rare migrations where the honest answer is the default one. It exists
+    anyway rather than leaning on `from_dict` defaults, because the chain is
+    what says which builds a save has been through, and a version that quietly
+    changed shape without a step in it is a version nobody can reason about
+    later.
+    """
+    from .content import drugs
+
+    char = dict(data.get('character') or {})
+    char.setdefault('chem', drugs.blank())
+    char.setdefault('stash', {})
+    data['character'] = char
+    debt = dict(data.get('debt') or {})
+    # Debts written before lenders had terms all ran at the house rate, which
+    # is what the constants still are, so leaving these unset is correct.
+    debt.setdefault('rate', 0.0)
+    debt.setdefault('grace', 0)
+    data['debt'] = debt
+    return data
+
+
 def migrate(data: dict) -> dict:
     """Bring a save up to the current schema, or explain why it cannot be."""
     version = int(data.get('schema', 0))

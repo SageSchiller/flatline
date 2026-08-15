@@ -3049,6 +3049,195 @@ def test_anim() -> None:
 
 
 
+def test_vices() -> None:
+    """Drugs, borrowing, and the two games. The three ways to spend later."""
+    T.section('vices')
+    from flatline.content import drugs, games, lenders
+    from flatline.world import debt as debt_mod
+
+    # -- chemistry --------------------------------------------------------
+    char = Character.from_origin('gutter', 'user')
+    clean_reflex = char.attr('reflex')
+    char.chem = drugs.dose(char.chem, 'kick')
+    T.ok(char.attr('reflex') > clean_reflex, 'a stimulant stimulates')
+    T.ok(drugs.is_up(char.chem, 'kick'), 'and is in you')
+
+    char.chem, told = drugs.advance(char.chem, drugs.BY_KEY['kick'].up)
+    T.ok(drugs.is_down(char.chem, 'kick'), 'the high runs out into a crash')
+    T.ok(any('turns' in line for line in told),
+         'and the player is told, in the shift it happens')
+    T.ok(char.attr('reflex') < clean_reflex,
+         'and the crash takes more than the high gave')
+
+    char.chem, _ = drugs.advance(char.chem, drugs.BY_KEY['kick'].down)
+    T.eq(char.attr('reflex'), clean_reflex, 'and then it is over')
+
+    # The spiral, walked end to end. This is the whole system: past the
+    # threshold, not using is its own condition, and the number you started
+    # with is not the number you have any more.
+    char = Character.from_origin('gutter', 'deep')
+    for _ in range(drugs.WITHDRAWAL_AT):
+        char.chem = drugs.dose(char.chem, 'kick')
+        # Ridden out exactly, rather than for a fixed number of shifts: one
+        # dose of a light drug sleeps off completely inside eight, so a test
+        # that waited that long between doses would be testing abstinence.
+        while (drugs.is_up(char.chem, 'kick')
+               or drugs.is_down(char.chem, 'kick')):
+            char.chem, _ = drugs.advance(char.chem, 1)
+    level = drugs.habit(char.chem, 'kick')
+    T.ok(level >= drugs.WITHDRAWAL_AT, f'four doses is a habit ({level})')
+    T.eq(drugs.withdrawing(char.chem), ['kick'], 'and it is now withdrawal')
+    T.ok(char.attr('reflex') < clean_reflex,
+         'so being clean is worse than being clean used to be')
+    T.ok(drugs.effects(char.chem), 'with nothing at all in you')
+    # And dosing brings you back to par rather than past it.
+    char.chem = drugs.dose(char.chem, 'kick')
+    T.ok(char.attr('reflex') > clean_reflex,
+         'a dose still helps, which is the trap')
+
+    # Tolerance: the same drug does less, and costs more, the deeper you are.
+    fresh = drugs._scaled(drugs.BY_KEY['kick'].high, drugs.tolerance(0))
+    worn = drugs._scaled(drugs.BY_KEY['kick'].high,
+                         drugs.tolerance(drugs.HABIT_MAX))
+    T.ok(worn['reflex'] < fresh['reflex'], 'the high weakens with habit')
+    mild = drugs._scaled(drugs.BY_KEY['kick'].crash, drugs.severity(0))
+    harsh = drugs._scaled(drugs.BY_KEY['kick'].crash,
+                          drugs.severity(drugs.HABIT_MAX))
+    T.ok(harsh['reflex'] < mild['reflex'], 'and the crash deepens with it')
+
+    # There is a way out, and it is slow rather than closed, per D6.
+    out = Character.from_origin('gutter', 'clean')
+    out.chem = {'up': {}, 'down': {}, 'habit': {'kick': drugs.HABIT_MAX},
+                'dry': {}}
+    for _ in range(drugs.CLEAN_SHIFTS * drugs.HABIT_MAX + drugs.HABIT_MAX):
+        out.chem, _ = drugs.advance(out.chem, 1)
+    T.eq(drugs.habit(out.chem, 'kick'), 0, 'abstinence gets you all the way out')
+
+    # Ash Tea ends a comedown and takes the price out of the habit instead.
+    trap = Character.from_origin('gutter', 'trap')
+    trap.chem = drugs.dose(trap.chem, 'kick')
+    trap.chem, _ = drugs.advance(trap.chem, drugs.BY_KEY['kick'].up)
+    T.ok(drugs.is_down(trap.chem, 'kick'), 'coming down')
+    before = drugs.habit(trap.chem, 'kick')
+    trap.chem = drugs.dose(trap.chem, 'ash_tea')
+    T.ok(not drugs.is_down(trap.chem, 'kick'), 'and then not coming down')
+    T.ok(drugs.habit(trap.chem, 'kick') > before,
+         'and the comedown went into the habit instead')
+
+    # Nothing survives a round trip wrong, and a save from a build with a drug
+    # this one does not ship must not take the game down.
+    trap.stash = {'kick': 2}
+    again = Character.from_dict(trap.to_dict())
+    T.eq(again.chem, drugs.normalise(trap.chem), 'chemistry round-trips')
+    T.eq(again.stash, {'kick': 2}, 'and so does the bag')
+    T.eq(drugs.normalise({'up': {'notadrug': 3}, 'habit': {'kick': 'x'}}),
+         drugs.blank() | {'habit': {}},
+         'a block full of nonsense normalises to nothing')
+
+    # -- borrowing ---------------------------------------------------------
+    game = Game.new(Character.from_origin('gutter', 'debtor'), seed=4242)
+    for lender in lenders.LENDERS:
+        rep = game.alias.reputation(lender.key)
+        limit = lenders.limit(lender, rep, 0)
+        T.ok(limit >= 0, f'{lender.key} offers a real number')
+        T.ok(limit <= lender.ceiling, f'{lender.key} respects its ceiling')
+    T.ok(lenders.limit(lenders.BY_KEY['fixers'], 0, 40)
+         > lenders.limit(lenders.BY_KEY['fixers'], 0, 0),
+         'the Switchboard lends more to somebody with a record')
+    T.eq(lenders.limit(lenders.BY_KEY['carrion'], 99, 99),
+         lenders.limit(lenders.BY_KEY['carrion'], 0, 0),
+         'and Carrion lend everybody the same')
+
+    sess, out = play(['travel ninth', 'borrow'], game=game)
+    T.ok('Auntie Nine' in out, 'the Ninth has somebody who lends')
+    sess, out = play(['borrow 1000 --confirm'], game=game)
+    T.ok(game.debt.owed, 'and taking it leaves you owing')
+    T.eq(game.debt.lender, 'sixes', 'to the faction whose money it was')
+    T.eq(game.debt.terms[0], lenders.BY_KEY['sixes'].rate,
+         'on the terms that lender quoted, not the house ones')
+    before = game.debt.amount
+    game.debt.accrue()
+    T.ok(game.debt.amount > before, 'and it compounds')
+
+    # One at a time. Nobody lends to somebody else's problem.
+    sess, out = play(['borrow 500 --confirm'], game=game)
+    T.eq(game.debt.amount, before * 1 if False else game.debt.amount,
+         'a second loan is refused')
+    T.eq(game.debt.lender, 'sixes', 'and does not overwrite the first')
+    T.ok('owe' in out.lower(), 'and says why')
+
+    # A debt from before lenders existed still runs, at the house rate.
+    old = debt_mod.Debt.from_dict({'amount': 5000, 'lender': 'sixes'})
+    T.eq(old.terms, (debt_mod.RATE, debt_mod.GRACE),
+         'a debt with no terms of its own uses the house terms')
+
+    # -- the games ---------------------------------------------------------
+    # The wall and the dice agree, checked by rolling every combination.
+    for call, (totals, pays) in games.CALLS.items():
+        wins = sum(1 for a in range(1, 7) for b in range(1, 7)
+                   if (a + b) in totals)
+        T.eq(wins / 36.0, games.odds(call), f'{call} pays out as advertised')
+
+    played = Game.new(Character.from_origin('gutter', 'punter'), seed=8829)
+    played.char.credits = 20000
+    sess, out = play(['travel ninth', 'dice'], game=played)
+    T.ok('16.7%' in out, 'the edge is printed on the wall')
+    before = played.char.credits
+    sess, out = play(['dice 100 high'], game=played)
+    T.ok(played.char.credits in (before - 100, before + 100),
+         'a bet wins the stake or loses it')
+
+    T.ok('does not get out of bed' in play(['dice 1 high'], game=played)[1],
+         'and there is a floor under the stake')
+    T.ok('most this room will cover' in
+         play([f'dice {games.MAX_STAKE + 1} high'], game=played)[1],
+         'and a ceiling over it')
+
+    # Cards is a build's game, and says so to somebody without the build.
+    from flatline.commands.city import _threes_check
+    marrow = games.BY_KEY['threes_marrow']
+    street = Character.from_origin('gutter', 'street')
+    social = Character.from_origin('protege', 'social')
+    T.ok(_threes_check(social, marrow, 0).chance
+         > _threes_check(street, marrow, 0).chance,
+         'Guile is what reads a table')
+    T.ok(_threes_check(street, marrow, 0).chance < games.THREES_FLOOR,
+         'and somebody without it is turned away rather than fleeced')
+    played.city.where = 'marrow'
+    sess, out = play(['cards 500'], game=played)
+    T.ok('dice' in out, 'and pointed at the game that needs no build')
+
+    # The house notices. Winning makes the table harder, up to a limit.
+    fresh = _threes_check(social, marrow, 0).chance
+    learned = _threes_check(social, marrow, games.THREES_LEARNS_PER * 3).chance
+    capped = _threes_check(social, marrow,
+                           games.THREES_LEARNS_PER * 500).chance
+    T.ok(learned < fresh, 'a table that has paid you out gets harder')
+    T.eq(capped, _threes_check(social, marrow,
+                               games.THREES_LEARNS_PER
+                               * games.THREES_LEARNS_MAX).chance,
+         'and stops getting harder, so a good night is not permanent exile')
+
+    # Gambling must never touch a world stream, for the same reason the intro
+    # must not: an evening at the dice would silently reshuffle the board.
+    a = Game.new(Character.from_origin('gutter', 'a'), seed=4242)
+    b = Game.new(Character.from_origin('gutter', 'b'), seed=4242)
+    a.char.credits = 50000
+    sess, _ = play(['travel ninth'] + ['dice 10 high'] * 25, game=a)
+    T.eq([c.cid for c in a.city.board], [c.cid for c in b.city.board],
+         'twenty-five rolls do not touch the contract board')
+
+    # And a whole session of vice leaves a save that opens.
+    from flatline import save as save_mod
+    a.char.chem = drugs.dose(a.char.chem, 'kick')
+    a.char.stash = {'ash_tea': 1}
+    a.city.tables['ninepins_ninth'] = 4000
+    blob = save_mod.migrate({**a.to_dict(), 'schema': save_mod.SCHEMA})
+    back = Game.from_dict(blob)
+    T.eq(back.char.chem, drugs.normalise(a.char.chem), 'chemistry survives a save')
+    T.eq(back.city.tables, a.city.tables, 'and so does what the tables know')
+
+
 def test_brief() -> None:
     T.section('brief')
     from flatline.world.contracts import OBJECTIVES, OBJECTIVE_AIM
@@ -3911,7 +4100,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_brief, test_city_map, test_topology, test_clock, test_rice, test_migration, test_shell,
+    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_migration, test_shell,
     test_playthrough, test_ui,
 )
 

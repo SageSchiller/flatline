@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from ..content import cyberware, dissonance, districts, factions
+from ..content import cyberware, dissonance, districts, drugs, factions
 from ..content import hardware, programs
 from ..content import shifts
 from ..rng import Stream
@@ -38,10 +38,11 @@ STAPLES = ('payload', 'breaker')
 
 #: What each service sells.
 STOCK_KINDS = {
-    'market': ('program', 'component'),
-    'clinic': ('ware',),
+    'market': ('program', 'component', 'drug'),
+    'clinic': ('ware', 'drug'),
     'workshop': ('component',),
-    'fence': ('program', 'ware'),
+    'fence': ('program', 'ware', 'drug'),
+    'fixer': ('drug',),
 }
 
 
@@ -68,11 +69,17 @@ class Listing:
                    stock=int(d.get('stock', 1)), deep=bool(d.get('deep')))
 
 
-def _catalogue(kind: str):
+def _catalogue(kind: str, service: str = ''):
     if kind == 'program':
         return [(p.key, p.tier, p.price) for p in programs.PROGRAMS]
     if kind == 'ware':
         return [(w.key, w.tier, w.price) for w in cyberware.WARE]
+    if kind == 'drug':
+        # Filtered by who is selling. A clinic and a fence both deal, and
+        # they deal in different things: the difference between the two
+        # counters is most of what the catalogue is saying about the city.
+        return [(d.key, d.tier, d.price) for d in drugs.DRUGS
+                if not service or service in d.sold]
     # Components priced at zero are the "nothing fitted" options and must
     # never appear as merchandise.
     return [(c.key, c.tier, c.price) for c in hardware.COMPONENTS if c.price > 0]
@@ -94,7 +101,7 @@ def restock(rng: Stream, district_key: str, shift: int) -> list[Listing]:
                 # is the payoff for the whole Dissonance arc, and it stops
                 # working the moment the same pieces appear on the shelf.
                 ceiling = min(ceiling, 2)
-            pool = [(k, t, p) for k, t, p in _catalogue(kind)
+            pool = [(k, t, p) for k, t, p in _catalogue(kind, service)
                     if t <= ceiling]
             if not pool:
                 continue

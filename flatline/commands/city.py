@@ -10,8 +10,9 @@ from __future__ import annotations
 from ..content import appearance
 from ..content import attributes as attr_content
 from ..content import cyberware, dissonance as drift, districts
-from ..content import effects as fx, factions
-from ..content import hardware, icons, origins, programs
+from ..content import drugs as drug_content
+from ..content import effects as fx, factions, games
+from ..content import hardware, icons, lenders, origins, programs
 from ..content import rivals as rival_content
 from ..content import shifts
 from ..content import skills as skill_content
@@ -149,14 +150,28 @@ def cmd_char(sess, args) -> None:
 
     rows = []
     arrow = c.caps.g('arrow')
+    # What is doing it, not just how much. "+3 from gear" on a number that is
+    # up because of what you took an hour ago is the sheet telling you the one
+    # thing you already knew and hiding the one you needed.
+    chem_now = drug_content.effects(char.chem)
     for a in attr_content.ATTRIBUTES:
         base = char.base_attrs.get(a.key, 0)
         eff = char.attr(a.key)
         if eff == base:
             rows.append((a.name, str(base)))
+            continue
+        shift = eff - base
+        from_chem = int(round(chem_now.get(a.key, 0)))
+        from_gear = shift - from_chem
+        if from_chem and from_gear:
+            why = f'{from_gear:+d} gear, {from_chem:+d} what is in you'
+        elif from_chem:
+            why = f'{from_chem:+d} from what is in you'
         else:
-            rows.append((a.name, f'{base} {arrow} [accent]{eff}[/] '
-                                 f'[dim]({eff - base:+d} from gear)[/]'))
+            why = f'{shift:+d} from gear'
+        role = 'accent' if shift >= 0 else 'err'
+        rows.append((a.name, f'{base} {arrow} [{role}]{eff}[/] '
+                             f'[dim]({why})[/]'))
     c.kv(rows)
 
     c.blank()
@@ -534,7 +549,8 @@ def cmd_market(sess, args) -> None:
 
     want = (args.get(0) or '').rstrip('s').lower()
     kind = {'program': 'program', 'ware': 'ware', 'cyberware': 'ware',
-            'component': 'component', 'part': 'component'}.get(want)
+            'component': 'component', 'part': 'component',
+            'drug': 'drug', 'chem': 'drug'}.get(want)
 
     qualifies = game.char.dissonance >= drift.DEEP_CLINIC_BAND
     listings = game.city.listings(kind, deep=None if qualifies else False)
@@ -604,6 +620,10 @@ def cmd_buy(sess, args) -> None:
     elif listing.kind == 'ware':
         game.char.library.append(listing.key)
         c.info('Bought, not fitted. `install` it at a clinic.')
+    elif listing.kind == 'drug':
+        game.char.stash[listing.key] = game.char.stash.get(listing.key, 0) + 1
+        c.info(f'In the bag. `dose {listing.key}` when you want it, '
+               f'`chem` for what it will do to you.')
     else:
         old = game.char.deck.parts.get(hardware.BY_KEY[listing.key].slot)
         game.char.deck.fit(listing.key)
@@ -1383,7 +1403,7 @@ def _drift(sess) -> None:
 
 def _item(listing):
     table = {'program': programs.BY_KEY, 'ware': cyberware.BY_KEY,
-             'component': hardware.BY_KEY}
+             'component': hardware.BY_KEY, 'drug': drug_content.BY_KEY}
     return table[listing.kind].get(listing.key)
 
 
@@ -1392,6 +1412,9 @@ def _listing_detail(listing, item) -> str:
         return f'{item.category}, {item.memory}mem, rating {item.rating}'
     if listing.kind == 'ware':
         return f'{item.location}, {item.bandwidth}bw, {item.dissonance}dis'
+    if listing.kind == 'drug':
+        return (f'{item.up} up, {item.down} down, '
+                + ('no hook' if not item.hook else f'hook {item.hook}'))
     return f'{item.slot}'
 
 
@@ -2059,20 +2082,33 @@ def cmd_debt(sess, args) -> None:
     if owed.note:
         c.say(f'[dim]{owed.note}[/]')
         c.blank()
-    per_shift = int(owed.amount * debt_mod.RATE)
-    if shifts_in < debt_mod.GRACE:
-        when = f'{debt_mod.GRACE - shifts_in} shifts before they call'
+    # The debt's own terms, not the house ones. A Carrion loan runs at nearly
+    # three times a Switchboard advance and the screen that tells you where
+    # you stand has to be telling you about the one you actually took.
+    rate, grace = owed.terms
+    per_shift = int(owed.amount * rate)
+    if shifts_in < grace:
+        when = f'{grace - shifts_in} shifts before they call'
     elif owed.last_collected < 0:
         when = 'they are collecting'
     else:
         due = owed.last_collected + debt_mod.COLLECT_EVERY - game.city.shift
         when = (f'{max(0, due)} shifts to the next collection')
-    c.kv([('amount', f'[err]{owed.amount:,}c[/]'),
-          ('growing by', f'[warn]{per_shift:,}c[/] a shift'),
-          ('status', when),
-          ('you have', f'[credit]{game.char.credits:,}c[/]')])
+    rows = [('amount', f'[err]{owed.amount:,}c[/]'),
+            ('to', f'{fac_short(owed.lender)}'
+                   + (f' [dim]({owed.note})[/]' if owed.note else '')),
+            ('rate', f'{rate * 100:.1f}% a shift, compounding'),
+            ('growing by', f'[warn]{per_shift:,}c[/] a shift'),
+            ('status', when),
+            ('you have', f'[credit]{game.char.credits:,}c[/]')]
+    c.kv(rows)
     c.blank()
     c.say('[dim]`debt pay <amount>` or `debt pay all`.[/]')
+
+
+def fac_short(key: str) -> str:
+    faction = factions.BY_KEY.get(key)
+    return faction.short if faction else key or 'somebody'
 
 
 @command('repair', 'Have the deck put back together. Needs a workshop.',
@@ -2120,6 +2156,573 @@ def cmd_repair(sess, args) -> None:
     char.deck.repair()
     c.ok(f'Deck rebuilt for [credit]{cost:,}c[/].')
     _advance(sess, 1)
+
+
+# --------------------------------------------------------------------------
+# games of chance, and one of skill
+# --------------------------------------------------------------------------
+
+
+def _winnings(sess, venue, amount: int) -> None:
+    """What taking money out of somebody's room does besides the money.
+
+    The city remembers, which is the thesis, so a gambling system where the
+    only thing that moved was a number in the account would be the one place
+    it did not. Winning costs standing with whoever's room it was, and winning
+    a *lot* costs anonymity, which is a real stat with real consequences.
+    """
+    game, c = sess.game, sess.console
+    if amount <= 0:
+        return
+    lost_rep = games.REP_PER_THOUSAND * amount / 1000.0
+    if lost_rep >= 0.5:
+        game.alias.adjust_rep(venue.house, -lost_rep)
+        c.say(f'[dim]{factions.BY_KEY[venue.house].short} think slightly '
+              f'less of you than they did, in the way of people who have '
+              f'just paid out.[/]')
+    if amount >= games.MEMORABLE_AT:
+        heat = games.HEAT_PER_WIN * amount / 1000.0
+        game.alias.add_heat(venue.house, heat)
+        c.blank()
+        c.warn('That was enough money that everybody in the room now knows '
+               'your face, and one of them is already describing it to '
+               'somebody who was not here.')
+
+
+@command('dice', 'Ninepins. Two dice, a sixth of every stake, no secrets.',
+         contexts=('city',), group='city', usage='dice [stake] [high|low|seven]',
+         detail='Two dice. High is 8 to 12, low is 2 to 6, and seven belongs '
+                'to the house, which is the whole edge and it is painted on '
+                'the wall. Costs no time. With no arguments it prints the '
+                'odds, which are the same odds it will still be printing '
+                'after you have lost.')
+def cmd_dice(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    rooms = games.here(game.city.where, game.city.district.services, 'dice')
+    if not rooms:
+        where = ', '.join(sorted({districts.BY_KEY[v.where].name
+                                  for v in games.VENUES if v.game == 'dice'}))
+        raise CommandError(f'nobody is playing dice in '
+                           f'{game.city.district.name}. Try {where}.')
+    venue = rooms[0]
+
+    if not len(args):
+        c.header('Ninepins', venue.name)
+        c.say(f'[dim]{venue.arrival}[/]')
+        c.blank()
+        c.say(f'[dim]{venue.pitch}[/]')
+        c.blank()
+        c.table(('call', 'wins on', 'pays', 'chance', 'the house keeps'),
+                [(call, _spread(totals), f'{pays}:1',
+                  f'{games.odds(call) * 100:.1f}%',
+                  f'{games.edge(call) * 100:.1f}%')
+                 for call, (totals, pays) in games.CALLS.items()],
+                roles=('accent', 'dim', 'credit', 'info', 'err'))
+        c.blank()
+        c.say(f'[dim]`dice <stake> <call>`, between {games.MIN_STAKE} and '
+              f'{games.MAX_STAKE:,}c. You have '
+              f'[credit]{game.char.credits:,}c[/][dim].[/]')
+        return
+
+    stake = args.int_at(0, 0, 'a stake')
+    call = (args.get(1) or '').lower()
+    if call not in games.CALLS:
+        raise CommandError('call it: ' + ', '.join(games.CALLS))
+    if stake < games.MIN_STAKE:
+        raise CommandError(f'the table does not get out of bed for less than '
+                           f'{games.MIN_STAKE}c')
+    if stake > games.MAX_STAKE:
+        raise CommandError(f'{games.MAX_STAKE:,}c is the most this room will '
+                           f'cover')
+    if stake > game.char.credits:
+        raise CommandError(f'you have {game.char.credits:,}c')
+
+    stream = game.rng('games')
+    a, b = games.roll_total(stream)
+    total = a + b
+    won = total in games.CALLS[call][0]
+    payout = stake * games.CALLS[call][1]
+
+    c.blank()
+    c.raw(f'  [accent]{a}[/] [dim]and[/] [accent]{b}[/] '
+          f'[dim]{c.caps.g("arrow")} {total}[/]')
+    c.blank()
+    if won:
+        game.char.credits += payout
+        c.ok(f'{call.title()}. [credit]+{payout:,}c[/].')
+        c.say(f'[dim]{stream.pick(games.DICE_WIN)}[/]')
+        _winnings(sess, venue, payout)
+    else:
+        game.char.credits -= stake
+        c.err(f'Not {call}. [err]-{stake:,}c[/].')
+        c.say(f'[dim]{stream.pick(games.DICE_LOSS)}[/]')
+        _broke_hint(sess)
+
+
+def _spread(totals: tuple[int, ...]) -> str:
+    if len(totals) == 1:
+        return str(totals[0])
+    return f'{min(totals)} to {max(totals)}'
+
+
+def _broke_hint(sess) -> None:
+    """Said once you have nothing, by the room, which knows what comes next."""
+    game, c = sess.game, sess.console
+    if game.char.credits > 200 or game.debt.owed:
+        return
+    available = lenders.here(game.city.where, game.city.district.services)
+    c.blank()
+    if available:
+        c.say(f'[heat]Somebody at the back has been watching you lose and '
+              f'would like you to know that {available[0].name} is here and '
+              f'is not busy.[/] [dim]`borrow`.[/]')
+    else:
+        c.say('[dim]That is most of what you had. `borrow` where somebody '
+              'lends, which is Marrow, the Ninth, or the Shambles.[/]')
+
+
+@command('cards', 'Threes. One hand an evening, and it is not about the cards.',
+         contexts=('city',), group='city', usage='cards [stake]',
+         detail='Resolved on Guile and Subterfuge against the table rather '
+                'than on what you were dealt, and it is the one game in the '
+                'city a social build can genuinely beat. Costs a shift, '
+                'because it is an evening. Prints the exact odds before you '
+                'commit, and how well you read them decides the payout.')
+def cmd_cards(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    char = game.char
+    rooms = games.here(game.city.where, game.city.district.services, 'cards')
+    if not rooms:
+        where = ', '.join(sorted({districts.BY_KEY[v.where].name
+                                  for v in games.VENUES if v.game == 'cards'}))
+        raise CommandError(f'there is no game in {game.city.district.name}. '
+                           f'Try {where}.')
+    venue = rooms[0]
+    check = _threes_check(char, venue, game.city.tables.get(venue.key, 0))
+    if not len(args):
+        c.header('Threes', venue.name)
+        c.say(f'[dim]{venue.arrival}[/]')
+        c.blank()
+        c.say(f'[dim]{venue.pitch}[/]')
+        c.blank()
+        c.say(f'Reading this table: {check.summary()}')
+        c.say(check.explain(), indent='  ')
+        c.blank()
+        c.say(f'[dim]`cards <stake>`, between {games.THREES_MIN} and '
+              f'{games.THREES_MAX:,}c. It costs a shift. Pays up to '
+              f'{games.THREES_PAYOUT[0][1]:.0f} times the stake if you read '
+              f'them completely.[/]')
+        return
+
+    if check.chance < games.THREES_FLOOR:
+        raise CommandError(
+            f'they will not take your money. Threes is a reading game and '
+            f'you cannot read this table: {check.summary()}. `dice` is the '
+            f'one that needs nothing but a stake.')
+    stake = args.int_at(0, 0, 'a stake')
+    if stake < games.THREES_MIN:
+        raise CommandError(f'the table plays for {games.THREES_MIN}c or more')
+    if stake > games.THREES_MAX:
+        raise CommandError(f'{games.THREES_MAX:,}c is more than this table '
+                           f'will see in a night')
+    if stake > char.credits:
+        raise CommandError(f'you have {char.credits:,}c')
+
+    stream = game.rng('games')
+    check.resolve(stream)
+    c.blank()
+    c.rule('threes')
+    if check.success:
+        multiple = next(m for margin, m in games.THREES_PAYOUT
+                        if check.margin >= margin)
+        payout = int(stake * multiple)
+        char.credits += payout
+        game.city.tables[venue.key] = (
+            game.city.tables.get(venue.key, 0) + payout)
+        c.ok(f'You take it. [credit]+{payout:,}c[/] '
+             f'[dim]({multiple:.0f}x, margin {check.margin})[/]')
+        c.say(f'[dim]{stream.pick(games.THREES_WIN)}[/]')
+        _winnings(sess, venue, payout)
+    else:
+        char.credits -= stake
+        # Losing buys some of your anonymity back. They have not learned how
+        # you play; they have learned that they were wrong about you.
+        game.city.tables[venue.key] = max(
+            0, game.city.tables.get(venue.key, 0) - stake)
+        c.err(f'They had you. [err]-{stake:,}c[/]')
+        c.say(f'[dim]{stream.pick(games.THREES_LOSS)}[/]')
+        c.say(check.explain())
+        _broke_hint(sess)
+    _advance(sess, games.THREES_SHIFTS)
+
+
+def _threes_check(char, venue, taken: int):
+    """Reading a table, itemised, per D14. The same shape as every other check.
+
+    Deliberately built from the social half of a character sheet and nothing
+    else. Threes is the one place Guile is the point rather than a discount,
+    and a table you can beat with Intrusion would make it a second lockpick.
+    """
+    from ..run.checks import Check
+    table = int(factions.BY_KEY[venue.house].posture)
+    check = Check(name='read the table',
+                  resistance=games.THREES_RESISTANCE + table // 8)
+    check.add('guile', char.attr('guile') * 2)
+    check.add('subterfuge', char.skill('subterfuge') * 2)
+    check.add('gear', char.bonus('pretext_bonus'))
+    # The house notices. Winning costs standing with them, and standing below
+    # zero is the table having worked out how you play, itemised here so a
+    # player watching their odds fall can see exactly what is doing it.
+    learned = min(games.THREES_LEARNS_MAX,
+                  int(taken // games.THREES_LEARNS_PER))
+    if learned:
+        check.add('they have learned how you play', -learned)
+    if 'no_social' in char.riders():
+        check.add('a process cannot read a room', -8)
+    return check
+
+
+# --------------------------------------------------------------------------
+# borrowing
+# --------------------------------------------------------------------------
+
+
+@command('borrow', 'Take money off somebody who will want it back.',
+         contexts=('city',), group='city', usage='borrow [amount] [--confirm]',
+         detail='With no argument: who lends here, how much they will give '
+                'you, on what terms, and what they said about not being '
+                'repaid. You can owe exactly one person at a time. The rate '
+                'compounds every shift and the grace period is counted from '
+                'the day you took it, not from the day you stopped paying.')
+def cmd_borrow(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    char, city = game.char, game.city
+    available = lenders.here(city.where, city.district.services)
+
+    if not available:
+        somewhere = ', '.join(
+            f'{districts.BY_KEY[x.where].name} ({x.name})'
+            for x in lenders.LENDERS)
+        raise CommandError(f'nobody lends money in {city.district.name}. '
+                           f'{somewhere}.')
+    lender = available[0]
+    rep = game.alias.reputation(lender.key)
+    ceiling = lenders.limit(lender, rep, char.runs,
+                            game.debt.amount if game.debt.owed else 0)
+
+    if not len(args):
+        c.header(lender.name, f'{factions.BY_KEY[lender.key].short}')
+        c.say(f'[dim]{lender.offer}[/]')
+        c.blank()
+        c.kv([
+            ('will lend', f'[credit]{ceiling:,}c[/]' if ceiling
+                          else '[err]nothing[/]'),
+            ('rate', f'{lender.rate * 100:.1f}% a shift, compounding'),
+            ('grace', f'{lender.grace} shifts before they come round'),
+            ('standing', f'{rep:+d} with {factions.BY_KEY[lender.key].short}'),
+        ])
+        c.blank()
+        c.say(f'[warn]{lender.warning}[/]')
+        if game.debt.owed:
+            c.blank()
+            c.warn(f'You already owe {game.debt.amount:,}c to '
+                   f'{factions.BY_KEY[game.debt.lender].short}. Nobody here '
+                   f'lends to somebody else\'s problem.')
+        elif ceiling:
+            c.blank()
+            c.say(f'[dim]`borrow <amount>` to take some. It compounds from '
+                  f'the shift you take it.[/]')
+        return
+
+    if game.debt.owed:
+        raise CommandError(
+            f'you owe {factions.BY_KEY[game.debt.lender].short} '
+            f'{game.debt.amount:,}c. Clear it before anybody else will talk '
+            f'to you: `debt pay all`.')
+    if not ceiling:
+        c.blank()
+        c.say(f'[err]{lenders.NOTHING[lender.key]}[/]')
+        return
+
+    amount = args.int_at(0, 0, 'an amount to borrow')
+    if amount <= 0:
+        raise CommandError('borrow how much?')
+    if amount > ceiling:
+        c.blank()
+        c.say('[warn]'
+              + lenders.REFUSALS[lender.key].format(limit=ceiling) + '[/]')
+        return
+    if not args.has('confirm'):
+        # What it becomes, not what it is. The number people agree to is the
+        # one they are handed, and the number that ruins them is the one
+        # eighteen shifts later, and printing only the first is how a debt
+        # mechanic becomes a surprise instead of a decision.
+        later = amount
+        for _ in range(lender.grace):
+            later = int(round(later * (1.0 + lender.rate)))
+        c.warn(f'{amount:,}c now. By the time the grace period is up, in '
+               f'{lender.grace} shifts, it is {later:,}c.')
+        c.say(f'[dim]{lender.warning}[/]')
+        c.say(f'[dim]`borrow {amount} --confirm` to take it.[/]')
+        return
+
+    char.credits += amount
+    game.debt = debt_mod.Debt(
+        amount=amount, lender=lender.key, opened=city.shift,
+        note=lender.name, rate=lender.rate, grace=lender.grace)
+    c.blank()
+    c.rule('borrowed')
+    c.say(lender.handover)
+    c.blank()
+    c.kv([('taken', f'[credit]{amount:,}c[/]'),
+          ('from', f'{lender.name}, {factions.BY_KEY[lender.key].short}'),
+          ('rate', f'{lender.rate * 100:.1f}% a shift'),
+          ('grace', f'{lender.grace} shifts')])
+    c.blank()
+    c.say('[dim]`debt` for where it stands. It grows every shift, including '
+          'the ones you spend asleep.[/]')
+
+
+# --------------------------------------------------------------------------
+# chemistry
+# --------------------------------------------------------------------------
+
+
+def _effect_line(effects: dict) -> str:
+    """A modifier block as something readable, signed, in the game's roles."""
+    if not effects:
+        return '[dim]nothing[/]'
+    out = []
+    for key, value in sorted(effects.items()):
+        if key in fx.MULTIPLICATIVE:
+            pct = int(round((value - 1.0) * 100))
+            if not pct:
+                continue
+            role = 'ok' if fx.improves(key, value) else 'err'
+            out.append(f'[{role}]{key} {pct:+d}%[/]')
+        else:
+            n = int(round(value))
+            if not n:
+                continue
+            out.append(f'[{"ok" if n > 0 else "err"}]{key} {n:+d}[/]')
+    return '  '.join(out) or '[dim]nothing[/]'
+
+
+@command('chem', 'What is in you, what is leaving, and what you now need.',
+         contexts=('any',), group='character', aliases=('drugs',),
+         usage='chem [drug]',
+         detail='With no argument: what you are carrying, what is active, and '
+                'how deep any habit has got. With one: everything that drug '
+                'does to you, both halves, at your current tolerance. Costs '
+                'nothing and is safe to ask at any point.')
+def cmd_chem(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    char = game.char
+    state = drug_content.normalise(char.chem)
+
+    if len(args):
+        drug = drug_content.find(args.rest())
+        if drug is None:
+            raise CommandError(f'nothing called {args.rest()!r}')
+        level = state['habit'].get(drug.key, 0)
+        c.header(drug.name, f'{drug.price:,}c list')
+        c.say(f'[dim]{drug.blurb}[/]')
+        c.blank()
+        c.kv([
+            ('up', f'{drug.up} shift{"s" if drug.up != 1 else ""}  '
+                   + _effect_line(drug_content._scaled(
+                       drug.high, drug_content.tolerance(level)))),
+            ('down', f'{drug.down} shift{"s" if drug.down != 1 else ""}  '
+                     + _effect_line(drug_content._scaled(
+                         drug.crash, drug_content.severity(level)))),
+            ('hook', 'none' if not drug.hook else f'+{drug.hook} a dose'),
+            ('habit', f'{level} [dim]({drug_content.depth(level)})[/]'),
+        ])
+        if drug.withdrawal:
+            c.blank()
+            c.say(f'[dim]Once your body expects it, which is habit '
+                  f'{drug_content.WITHDRAWAL_AT}, not having it costs you: [/]'
+                  + _effect_line(drug.withdrawal))
+        return
+
+    carrying = {k: v for k, v in char.stash.items() if v > 0}
+    c.header('Chemistry', 'clean' if not (state['up'] or state['down']
+                                          or state['habit']) else '')
+    if state['up']:
+        for key, left in sorted(state['up'].items()):
+            c.raw(f'  [ok]{drug_content.BY_KEY[key].name}[/] [dim]up, {left} '
+                  f'shift{"s" if left != 1 else ""} left[/]')
+    if state['down']:
+        for key, left in sorted(state['down'].items()):
+            c.raw(f'  [err]{drug_content.BY_KEY[key].name}[/] [dim]coming '
+                  f'down, {left} shift{"s" if left != 1 else ""} left[/]')
+    for key in drug_content.withdrawing(char.chem):
+        c.raw(f'  [heat]{drug_content.BY_KEY[key].name}[/] '
+              f'[dim]not in you, and your body has noticed[/]')
+
+    if state['habit']:
+        c.blank()
+        c.say('[dim]Habit:[/]')
+        for key, level in sorted(state['habit'].items(),
+                                 key=lambda kv: -kv[1]):
+            role = ('err' if level >= 7 else 'warn'
+                    if level >= drug_content.WITHDRAWAL_AT else 'dim')
+            c.raw(f'  [{role}]{drug_content.BY_KEY[key].name:<24}[/] '
+                  f'[dim]{level}/{drug_content.HABIT_MAX}, '
+                  f'{drug_content.depth(level)}[/]')
+
+    net = drug_content.effects(char.chem)
+    if net:
+        c.blank()
+        c.say('[dim]Right now, all of it together:[/] ' + _effect_line(net))
+
+    c.blank()
+    if carrying:
+        c.say('[dim]In the bag:[/] ' + ', '.join(
+            f'[fg]{drug_content.BY_KEY[k].name}[/] x{v}'
+            for k, v in sorted(carrying.items())))
+    else:
+        c.say('[dim]Nothing in the bag. Clinics, fences and markets deal, and '
+              'not in the same things.[/]')
+    c.say('[dim]`chem <drug>` for what one of them does. `dose <drug>` to '
+          'take it.[/]')
+
+
+@command('dose', 'Take something. It works, and then it stops working.',
+         contexts=('any',), group='character', usage='dose <drug>',
+         complete=lambda sess, prefix: [
+             k for k in (sess.game.char.stash if sess.game else {})],
+         detail='Works out here and inside a run alike, and inside a run it '
+                'costs a tick. The high is shorter than the comedown and the '
+                'comedown is worse than the high was good, every time, for '
+                'everything. What you are buying is when the bill arrives, '
+                'not whether.')
+def cmd_dose(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    char = game.char
+    if not len(args):
+        carrying = {k: v for k, v in char.stash.items() if v > 0}
+        if not carrying:
+            raise CommandError('you are not carrying anything. `market drug` '
+                               'where somebody deals.')
+        raise CommandError('dose what: ' + ', '.join(sorted(carrying)))
+    drug = drug_content.find(args.rest())
+    if drug is None:
+        raise CommandError(f'nothing called {args.rest()!r}')
+    if char.stash.get(drug.key, 0) <= 0:
+        raise CommandError(f'you have no {drug.name}.')
+    if drug_content.is_up(char.chem, drug.key):
+        raise CommandError(f'{drug.name} is already in you. A second one on '
+                           f'top of the first does nothing the first is not '
+                           f'already doing.')
+
+    before = drug_content.habit(char.chem, drug.key)
+    char.stash[drug.key] -= 1
+    if char.stash[drug.key] <= 0:
+        del char.stash[drug.key]
+    char.chem = drug_content.dose(char.chem, drug.key)
+    after = drug_content.habit(char.chem, drug.key)
+
+    c.blank()
+    c.say(f'[accent]{drug.onset}[/]')
+    c.blank()
+    c.kv([('for', f'{drug.up} shift{"s" if drug.up != 1 else ""}'),
+          ('then', f'{drug.down} shift{"s" if drug.down != 1 else ""} of '
+                   'coming down')])
+    if after > before:
+        # Said at the moment it changes, every time, because the number going
+        # up one at a time is the only warning this system gives.
+        role = 'err' if after >= drug_content.WITHDRAWAL_AT else 'dim'
+        c.say(f'[{role}]Habit {before} to {after}. '
+              f'{drug_content.depth(after)}.[/]')
+    if after == drug_content.WITHDRAWAL_AT and before < after:
+        c.blank()
+        c.warn('That is the one where your body starts keeping its own '
+               'accounts. From here, not having it is its own condition.')
+    if sess.run is not None:
+        from .run import _act
+        _act(sess, 'mask', noise_scale=0.0, ticks=1)
+
+
+@command('detox', 'Have a habit taken off you. Expensive, slow, and partial.',
+         contexts=('city',), group='character', usage='detox [drug] [--confirm]',
+         detail='Needs a clinic. Buys back habit points for money and shifts, '
+                'the same shape as `ground`, and like `ground` it does not '
+                'undo what the using already cost. Time and abstinence do the '
+                'same job for free, which is the point of the price.')
+def cmd_detox(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    char = game.char
+    if 'clinic' not in game.city.district.services:
+        raise CommandError('a detox needs a clinic.')
+    state = drug_content.normalise(char.chem)
+    if not state['habit']:
+        raise CommandError('there is nothing on you to take off.')
+
+    if len(args) and not args.has('confirm'):
+        drug = drug_content.find(args.get(0))
+        if drug is None:
+            raise CommandError(f'nothing called {args.get(0)!r}')
+        target = drug.key
+    else:
+        target = max(state['habit'], key=lambda k: state['habit'][k])
+    level = state['habit'].get(target, 0)
+    if level <= 0:
+        raise CommandError(f'you have no habit for '
+                           f'{drug_content.BY_KEY[target].name}.')
+
+    cost = DETOX_COST + DETOX_PER_POINT * level
+    if not args.has('confirm'):
+        c.warn(f'{cost:,}c and {DETOX_SHIFTS} shifts, for '
+               f'{DETOX_POINTS} points off your '
+               f'{drug_content.BY_KEY[target].name} habit.')
+        c.say('[dim]Five clean shifts does one point for nothing at all. You '
+              'are paying for the ones you would have spent wanting it. '
+              '`detox --confirm`.[/]')
+        return
+    if char.credits < cost:
+        raise CommandError(f'that is {cost:,}c and you have '
+                           f'{char.credits:,}c')
+
+    char.credits -= cost
+    state['habit'][target] = max(0, level - DETOX_POINTS)
+    if not state['habit'][target]:
+        del state['habit'][target]
+    # Nothing is in you afterwards, which means the comedown is also gone,
+    # which is most of what the money bought.
+    state['down'].pop(target, None)
+    state['up'].pop(target, None)
+    char.chem = state
+    hurt = game.rng('events').int(*DETOX_HURT)
+    char.hurt = min(char.integrity_max - 1, char.hurt + hurt)
+
+    c.blank()
+    c.rule('detox')
+    c.say(DETOX_TEXT)
+    c.blank()
+    c.kv([('habit', f'{level} -> [accent]'
+                    f'{drug_content.habit(char.chem, target)}[/]'),
+          ('cost', f'[credit]{cost:,}c[/]'),
+          ('damage', f'[err]{hurt}[/] integrity')])
+    _advance(sess, DETOX_SHIFTS)
+
+
+#: What a clinic charges to take a habit off you, and what it costs in the
+#: other two currencies. Priced against `ground`: a habit is cheaper to walk
+#: back than Dissonance because it is not permanent, and it still costs more
+#: than most contracts pay, because the free version is five shifts of wanting
+#: it and the price is the price of skipping those.
+DETOX_COST = 1800
+DETOX_PER_POINT = 450
+DETOX_POINTS = 3
+DETOX_SHIFTS = 3
+DETOX_HURT = (1, 3)
+DETOX_TEXT = (
+    'It is four rooms with a nurse walking between them and a chair with arm '
+    'straps that nobody mentions and nobody removes. They are kind about it '
+    'in the specific way of people who are kind about this eleven times a '
+    'week. Somewhere around the second shift you stop negotiating.'
+)
 
 
 @command('trait', 'What you are like. Permanent, and there are never enough '

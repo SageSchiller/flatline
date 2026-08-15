@@ -150,6 +150,11 @@ class Rng:
         # drawing that from a shared stream would mean the number of times you
         # rerolled your haircut changed which contracts appeared on the board.
         'appearance',
+        # Same reason as `appearance`, and more so: a player can roll dice
+        # forty times in a row for their own entertainment, and drawing that
+        # from a shared stream would mean an evening's gambling silently
+        # reshuffled the contract board and every network in the city.
+        'games',
     )
 
     def __init__(self, seed: int) -> None:
