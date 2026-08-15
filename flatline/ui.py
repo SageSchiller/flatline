@@ -715,6 +715,146 @@ def sparkline(values, cells: int, caps: Caps,
     return ''.join(out)
 
 
+# --------------------------------------------------------------------------
+# graphs, drawn as trees
+# --------------------------------------------------------------------------
+#
+# A graph is not a tree and a terminal is good at trees, so both maps in this
+# game do the same thing: walk breadth-first from a root, draw what the walk
+# covers, and report the edges it could not use underneath. Breadth-first
+# rather than depth-first on purpose, because it puts every node at its true
+# distance from the root, and that distance is the number the player is
+# actually reasoning about: hops to open in a network, shifts to walk in a
+# city.
+#
+# This lives here rather than with either map because it knows nothing about
+# hosts or districts. It takes an adjacency dict and returns strings.
+
+
+def spanning_tree(edges: dict[str, list[str]], root: str,
+                  visible: set[str]) -> tuple[dict[str, list[str]],
+                                              dict[str, list[str]]]:
+    """Lay the visible part of a graph out as a tree from `root`.
+
+    Returns (children, extra), where `extra` maps a node to the visible nodes
+    it also touches that the tree could not show.
+    """
+    children: dict[str, list[str]] = {}
+    extra: dict[str, list[str]] = {}
+    if root not in edges:
+        return children, extra
+    seen = {root}
+    parent: dict[str, str] = {}
+    queue = [root]
+    while queue:
+        uid = queue.pop(0)
+        kids, others = [], []
+        for edge in edges.get(uid, ()):
+            if edge not in visible or edge not in edges:
+                continue
+            if edge in seen:
+                # An edge back into the tree. Real, and worth telling the
+                # player about, because a second route to a place is a second
+                # route out of one. The edge back to this node's own parent is
+                # not one of those: the tree already draws it, and reporting it
+                # would list every single link twice.
+                if edge != uid and parent.get(uid) != edge:
+                    others.append(edge)
+                continue
+            seen.add(edge)
+            parent[edge] = uid
+            kids.append(edge)
+            queue.append(edge)
+        children[uid] = kids
+        if others:
+            extra[uid] = others
+    return children, extra
+
+
+def tree_rows(edges: dict[str, list[str]], root: str, visible: set[str],
+              ascii_only: bool = False) -> list[tuple[str, str]]:
+    """(prefix, node) for every visible node, in drawing order.
+
+    The prefix carries the box-drawing. Split from the labelling so a caller
+    can style each node however it likes without this function knowing
+    anything about markup or colour.
+    """
+    if root not in edges:
+        return []
+    children, _ = spanning_tree(edges, root, visible)
+    tee, elbow = ('+- ', '\\- ') if ascii_only else ('├─ ', '└─ ')
+    pipe, gap = ('|  ', '   ') if ascii_only else ('│  ', '   ')
+    rows: list[tuple[str, str]] = []
+
+    def walk(uid: str, prefix: str) -> None:
+        for i, kid in enumerate(children.get(uid, [])):
+            last = i == len(children[uid]) - 1
+            rows.append((prefix + (elbow if last else tee), kid))
+            walk(kid, prefix + (gap if last else pipe))
+
+    rows.append(('', root))
+    walk(root, '')
+    return rows
+
+
+def tree_leads(rows: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    """The same rows, with every prefix padded to a common width.
+
+    A tree prefix is as wide as the node is deep, so anything a caller prints
+    after it starts in a different column on every row and the whole thing
+    reads as a table somebody has knocked askew.
+
+    Padded with the horizontal rule rather than with spaces, because a branch
+    that stops three characters short of the thing it points at is a branch
+    pointing at nothing. The root gets spaces: it is not on a branch.
+
+    Which rule to pad with is read off the rows rather than passed in. It is
+    the one thing about these prefixes a caller could get wrong, `tree_rows`
+    has already made the decision, and a mismatched flag would draw a unicode
+    tree with hyphens through it.
+    """
+    lead = max((len(prefix) for prefix, _ in rows), default=0)
+    rule = '─' if any('─' in prefix for prefix, _ in rows) else '-'
+    out = []
+    for prefix, uid in rows:
+        if not prefix:
+            out.append((' ' * lead, uid))
+            continue
+        # Every prefix from `tree_rows` ends in the one space that separates
+        # its connector from the label, so stripping takes that and nothing
+        # structural, and the space is put back on the end of the run.
+        body = prefix.rstrip()
+        out.append((body + rule * max(0, lead - len(body) - 1) + ' ', uid))
+    return out
+
+
+def shortest_path(edges: dict[str, list[str]], start: str,
+                  goal: str) -> list[str]:
+    """The fewest hops from `start` to `goal`, `start` excluded.
+
+    Empty when there is no route, and empty when you are already there, which
+    are the same answer to the only question a caller asks: what do I still
+    have to walk.
+    """
+    if start == goal or start not in edges or goal not in edges:
+        return []
+    parent: dict[str, str] = {start: ''}
+    queue = [start]
+    while queue:
+        here = queue.pop(0)
+        for step in edges.get(here, ()):
+            if step in parent or step not in edges:
+                continue
+            parent[step] = here
+            if step == goal:
+                path = [goal]
+                while parent[path[-1]]:
+                    path.append(parent[path[-1]])
+                return list(reversed(path[:-1]))
+            queue.append(step)
+    return []
+
+
 def truncate(s: str, cols: int, caps: Caps) -> str:
     """Cut a markup string to fit, appending an ellipsis glyph if it had to."""
     if width(s) <= cols:

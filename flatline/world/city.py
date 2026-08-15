@@ -19,6 +19,7 @@ from ..content import appearance, districts, events as event_content
 from ..content import factions
 from ..model.identity import Alias
 from ..rng import Rng
+from .. import ui
 from . import contracts as contract_mod
 from . import debt as debt_mod
 from . import fallout as fallout_mod
@@ -37,6 +38,11 @@ RESIDUE_DELAY = 1
 
 #: How much of the world's news is kept. A scrollback rather than a record.
 NEWS_KEPT = 40
+
+
+def _shifts(n: int) -> str:
+    """A shift count, in the words the rest of the game uses for time."""
+    return '1 shift' if n == 1 else f'{n} shifts'
 
 
 @dataclass(slots=True)
@@ -329,12 +335,43 @@ class City:
         if target == self.where:
             return False, 'you are already there'
         if target not in self.district.neighbours:
-            route = ', '.join(districts.BY_KEY[n].name
-                              for n in self.district.neighbours)
-            return False, (f'{districts.BY_KEY[target].name} is not one shift '
-                           f'from here. From {self.district.name} you can '
-                           f'reach: {route}')
+            # Not "no", but "not in one go". Somebody who lives in this city
+            # knows how to walk across it, and the refusal that only listed
+            # the neighbours left the player to solve a maze they were never
+            # shown. The route is handed over as the line to type, which also
+            # teaches `;` to anybody who has not found it yet.
+            steps = self.walk_to(target)
+            if not steps:
+                return False, (f'there is no way from {self.district.name} to '
+                               f'{districts.BY_KEY[target].name}')
+            return False, (f'{districts.BY_KEY[target].name} is '
+                           f'{_shifts(self.shifts_to(target))} from here, '
+                           f'not one. `{steps}`')
         return True, ''
+
+    # -- the shape of the city -----------------------------------------
+
+    def route(self, target: str) -> list[str]:
+        """The districts to walk through to reach `target`, in order.
+
+        Empty when you are already there or there is no way, which are the
+        same answer to the only question the caller has.
+        """
+        return ui.shortest_path(districts.GRAPH, self.where, target)
+
+    def shifts_to(self, target: str) -> int:
+        """How many shifts of walking. Zero means you are standing in it."""
+        return len(self.route(target))
+
+    def walk_to(self, target: str) -> str:
+        """The route as the line to type. Empty when you are already there.
+
+        Every place that tells the player where to go hands them this rather
+        than the destination, because `travel <somewhere three districts
+        away>` is a command the travel command itself refuses, and being sent
+        to a refusal is worse than being told nothing.
+        """
+        return '; '.join(f'travel {k}' for k in self.route(target))
 
     def danger(self, alias: Alias, target: str, rng: Rng | None = None):
         """How risky arriving in a district is, given who is looking for you.

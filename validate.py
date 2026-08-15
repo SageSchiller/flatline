@@ -1236,6 +1236,70 @@ def check_districts(rep: Report) -> None:
         if not districts.with_service(service):
             rep.error('districts', f'no district offers {service!r}')
 
+    check_city_shape(rep)
+
+
+#: The furthest apart two districts are allowed to be, in shifts. The city is
+#: nine places and travel is the one thing that always costs time, so a corner
+#: four shifts from the middle is not a distant district, it is a district
+#: nobody will ever accept a contract in.
+MAX_WALK = 3
+
+
+def check_city_shape(rep: Report) -> None:
+    """The city as a graph: what the map draws and what `travel` routes over.
+
+    The map is generated from `neighbours` and cannot disagree with it. What it
+    can do is disagree with what a player can actually walk, which is why the
+    route finder is checked against every pair rather than against a sample.
+    """
+    from flatline import ui
+
+    graph = districts.GRAPH
+    rep.check(set(graph) == set(districts.DISTRICT_KEYS), 'districts',
+              'GRAPH does not cover exactly the districts that exist')
+    for key, edges in graph.items():
+        rep.check(list(edges) == list(districts.BY_KEY[key].neighbours),
+                  f'districts/{key}', 'GRAPH disagrees with neighbours')
+        rep.check(key not in edges, f'districts/{key}',
+                  'is its own neighbour')
+        rep.check(len(set(edges)) == len(edges), f'districts/{key}',
+                  'lists a neighbour twice')
+
+    # Every pair, both ways. Nine districts is 72 ordered pairs, which is
+    # cheap enough to check exhaustively and therefore not worth sampling.
+    for a in districts.DISTRICT_KEYS:
+        for b in districts.DISTRICT_KEYS:
+            if a == b:
+                rep.check(ui.shortest_path(graph, a, b) == [],
+                          f'districts/{a}', 'has a route to itself')
+                continue
+            path = ui.shortest_path(graph, a, b)
+            if not path:
+                rep.error(f'districts/{a}', f'no route to {b}')
+                continue
+            rep.check(path[-1] == b, f'districts/{a}',
+                      f'route to {b} does not end at {b}')
+            rep.check(len(path) <= MAX_WALK, f'districts/{a}',
+                      f'{b} is {len(path)} shifts away, over {MAX_WALK}')
+            # Each step has to be a step you are allowed to take, or the
+            # route is a line of commands the game will refuse.
+            for i, step in enumerate(path):
+                came_from = a if i == 0 else path[i - 1]
+                rep.check(step in graph[came_from], f'districts/{a}',
+                          f'route to {b} steps {came_from} to {step}, '
+                          f'which do not join')
+
+    # The map is drawn as a tree from START, and every district has to appear
+    # on it. A district the tree cannot reach is one the player never sees.
+    rows = ui.tree_rows(graph, districts.START, set(districts.DISTRICT_KEYS))
+    drawn = {key for _, key in rows}
+    for key in districts.DISTRICT_KEYS:
+        rep.check(key in drawn, f'districts/{key}',
+                  'does not appear on the map drawn from START')
+    rep.check(len(rows) == len(districts.DISTRICTS), 'districts',
+              'the map draws a district twice')
+
 
 # --------------------------------------------------------------------------
 # the run layer

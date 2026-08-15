@@ -128,9 +128,13 @@ STEPS: tuple[Step, ...] = (
         topic='deck'),
     Step(
         'travel',
-        'If the job is elsewhere, `travel <district>`. Then `jack in`.',
-        'Travel costs a shift, and shifts are the city\'s real currency. '
-        'While they pass, contracts expire and other people work.',
+        'Type `map` to see the city, then `travel <district>` toward the job. '
+        'Then `jack in`.',
+        'Travel only goes to a neighbouring district, so the far side of the '
+        'city is two or three shifts away, and shifts are the city\'s real '
+        'currency: while they pass, contracts expire and other people work. '
+        'The map says how far everything is and hands you the walk as a line '
+        'you can type.',
         done=lambda s: _run(s) is not None,
         payoff='You are inside somebody else\'s network now.',
         topic='city'),

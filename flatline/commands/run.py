@@ -67,9 +67,15 @@ def cmd_jack_in(sess, args) -> None:
                            'offer, `take <id>` to accept one.')
     if game.city.where != contract.district:
         from ..content import districts
+        # The whole walk, not the destination. Naming a district you cannot
+        # reach in one shift and putting `travel` in front of it produces a
+        # line that the travel command itself refuses, which is a worse place
+        # to leave somebody than saying nothing.
+        hops = game.city.shifts_to(contract.district)
         raise CommandError(
-            f'the job is in {districts.BY_KEY[contract.district].name}. '
-            f'`travel {contract.district}`.')
+            f'the job is in {districts.BY_KEY[contract.district].name}, '
+            f'{hops} shift{"s" if hops != 1 else ""} away. '
+            f'`{game.city.walk_to(contract.district)}`')
 
     need = OBJECTIVE_PROGRAM.get(contract.objective)
     if need and not game.char.deck.has_category(need) and not args.has('force'):
@@ -436,9 +442,18 @@ def cmd_probe(sess, args) -> None:
     _show_node(sess, node, detail=True)
 
 
-@command('map', 'Everything you have learned so far.',
-         group='recon', contexts=('run',), usage='map')
+@command('map', 'The shape of where you are: the city, or the network.',
+         group='recon', usage='map [--flat]',
+         detail='In the city: the nine districts, how they join, and the walk '
+                'from here to each of them. In a run: every host you have '
+                'found and what connects to what, with `--flat` for the same '
+                'thing listed by zone. The same picture either way, because it '
+                'is the same question.')
 def cmd_map(sess, args) -> None:
+    if sess.run is None:
+        from .city import city_map
+        city_map(sess)
+        return
     state, c = sess.require_run(), sess.console
     net = state.net
     visible = {n.uid for n in net.nodes.values() if n.known}
@@ -458,7 +473,7 @@ def cmd_map(sess, args) -> None:
     drawn = {uid for _, uid in rows}
 
     c.blank()
-    for prefix, uid in rows:
+    for prefix, uid in ui.tree_leads(rows):
         node = net.node(uid)
         if node is None:
             continue

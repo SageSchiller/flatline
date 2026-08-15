@@ -20,6 +20,7 @@ from ..game import Game
 from ..model.character import Character
 from ..model.identity import ALIAS_COST, ALIAS_SHIFTS
 from ..rng import random_seed
+from .. import ui
 from ..shell import CommandError, command
 from ..world import debt as debt_mod
 from ..world import fallout
@@ -675,7 +676,11 @@ def _show_contract(sess, contract) -> None:
         ('objective', f'{contract.objective} [dim]'
                       f'{OBJECTIVE_BLURB[contract.objective]}[/]'),
         ('pay', f'[credit]{contract.pay:,}c[/]'),
-        ('district', districts.BY_KEY[contract.district].name),
+        ('district', districts.BY_KEY[contract.district].name
+         + (f' [dim]({game.city.shifts_to(contract.district)} shifts '
+            f'from here)[/]'
+            if contract.district != game.city.where
+            else ' [dim](you are here)[/]')),
         ('expires', f'in {contract.expires - game.city.shift} shifts'),
         ('posture', f'{int(contract.posture)} [dim]'
                     f'{contract.target_data.doctrine}[/]'),
@@ -711,7 +716,10 @@ def cmd_take(sess, args) -> None:
         c.say(line)
     where = districts.BY_KEY[contract.district]
     if game.city.where != contract.district:
-        c.info(f'The job is in {where.name}. `travel {where.key}`.')
+        hops = game.city.shifts_to(contract.district)
+        c.info(f'The job is in {where.name}, {hops} shift'
+               f'{"s" if hops != 1 else ""} from here.')
+        c.raw(f'  [fg]{game.city.walk_to(contract.district)}[/]')
     else:
         c.info('You are in the right district. `jack in` when ready.')
 
@@ -732,6 +740,114 @@ def cmd_drop(sess, args) -> None:
 # --------------------------------------------------------------------------
 # movement and time
 # --------------------------------------------------------------------------
+#
+# The city is a graph of nine places and it was, for a long time, a graph the
+# player could only ever see one node of. `travel` with no arguments listed the
+# neighbours of wherever you were standing, and that was the entire published
+# map. Somebody with a contract two districts away had no way to find out which
+# way to walk except to walk somewhere and look again.
+#
+# So: the shape is known from the start, and the detail is not. A runner who
+# lives in this city knows that Marrow touches the Vertical, in the way anybody
+# knows their own city; what they do not know is what is actually on a street
+# they have never worked. Hiding the road layout from a local would be the less
+# believable option, and it is also the one that leaves a player stuck.
+
+
+def city_map(sess) -> None:
+    """The whole city, as a shape, dim where you have not been."""
+    game, c = sess.require_game(), sess.console
+    city = game.city
+    walked = set(city.visited)
+    c.header('The city',
+             f'{len(walked)} of {len(districts.DISTRICTS)} walked')
+
+    # Drawn from the district everybody starts in rather than from wherever
+    # you happen to be standing. A tree rooted at you is a compass: it points
+    # the right way and it reshuffles every time you move, so it never becomes
+    # a picture anybody can hold in their head. Rooted at one fixed place the
+    # shape is the same every time, and the distance from *you* goes in a
+    # column, where it can be read without being memorised.
+    ascii_only = c.caps.glyphs is ui.GlyphLevel.ASCII
+    everywhere = set(districts.DISTRICT_KEYS)
+    rows = ui.tree_rows(districts.GRAPH, districts.START, everywhere,
+                        ascii_only)
+    _, extra = ui.spanning_tree(districts.GRAPH, districts.START, everywhere)
+
+    contract = city.current
+    goal = contract.district if contract else ''
+    c.blank()
+    for prefix, key in ui.tree_leads(rows):
+        c.raw(f'[dim]{prefix}[/]'
+              f'{_district_label(sess, key, walked, goal)}')
+
+    # The tree can only draw one route into each district and the city has
+    # more than one into most of them. Saying so matters here more than it
+    # does in a network: a second way in is a second way to be somewhere the
+    # people looking for you are not.
+    pairs = sorted({tuple(sorted((a, b)))
+                    for a, others in extra.items() for b in others})
+    if pairs:
+        # Grouped by the left district rather than listed as pairs. Six
+        # "x and y" clauses in one sentence wraps into a paragraph of place
+        # names that nobody reads; four short rows can be scanned.
+        joins: dict[str, list[str]] = {}
+        for a, b in pairs:
+            joins.setdefault(a, []).append(b)
+        c.blank()
+        c.say('[dim]Also joined, which the shape above cannot show:[/]')
+        for a in sorted(joins):
+            c.raw(f'  [fg]{a:<11}[/] [dim]{", ".join(sorted(joins[a]))}[/]')
+
+    if goal and goal != city.where:
+        route = city.route(goal)
+        c.blank()
+        c.say(f'[accent2]The job is in {districts.BY_KEY[goal].name}[/][dim], '
+              f'{len(route)} shift{"s" if len(route) != 1 else ""} from '
+              f'here.[/]')
+        # On its own line, because prose wraps and a command chain broken
+        # across two lines is a command chain somebody has to reassemble
+        # before they can use it.
+        c.raw(f'  [fg]{city.walk_to(goal)}[/]')
+
+
+def _district_label(sess, key: str, walked: set, goal: str) -> str:
+    """One district: where it is in your week, and what is on it."""
+    game = sess.game
+    d = districts.BY_KEY[key]
+    here = key == game.city.where
+    hops = game.city.shifts_to(key)
+    name = f'[{"accent" if here else "fg" if key in walked else "dim"}]' \
+           f'{key:<11}[/]'
+    # Padded on the visible text rather than on the marked-up string. A role
+    # tag is four characters nobody can see and every column downstream of it
+    # would be four characters out.
+    said = 'here' if here else f'{hops} shift{"s" if hops != 1 else ""}'
+    when = (f'[accent]{said}[/]' if here else f'[dim]{said}[/]') \
+        + ' ' * max(1, 10 - len(said))
+    marks = []
+    if key == goal:
+        marks.append('[accent2]the job[/]')
+    if key not in walked:
+        marks.append('[dim]not been[/]')
+    elif not here:
+        # Only for somewhere you might go. What the people in this district
+        # think of you is not news when you are already standing in it, and
+        # it costs the row the width that the useful half needs.
+        danger, who = game.city.danger(game.alias, key)
+        if danger >= fallout.INCIDENT_FLOOR:
+            marks.append(f'[err]{factions.BY_KEY[who].short} want you[/]')
+        elif danger >= 25:
+            marks.append(f'[warn]{factions.BY_KEY[who].short} looking[/]')
+    role = 'info' if key in walked else 'dim'
+    tail = f'[{role}]{" ".join(d.services)}[/]'
+    line = (f'{name} [dim]{factions.BY_KEY[d.controller].short:<11}[/] '
+            f'{when}' + '  '.join(marks + [tail]))
+    # The full terminal, less a column. These rows are drawn rather than
+    # wrapped, so the only thing a narrow budget buys is an ellipsis on a line
+    # that had room.
+    return ui.truncate(line, max(40, sess.console.caps.width - 2),
+                       sess.console.caps)
 
 
 @command('travel', 'Move to another district. Costs a shift.',

@@ -2979,6 +2979,108 @@ def test_anim() -> None:
 
 
 
+def test_city_map() -> None:
+    T.section('city map')
+
+    game = Game.new(Character.from_origin('gutter', 'walker'), seed=8829)
+    sess, out = play(['map'], game=game)
+
+    # The shape is drawn from the start district rather than from wherever you
+    # are, so the picture is the same every time and can be learned. What
+    # changes is the distance column.
+    for d in districts.DISTRICTS:
+        T.ok(d.key in out, f'{d.key} is on the map')
+    T.ok('1 of 9 walked' in out, 'a new character has walked one district')
+    T.ok('here' in out, 'and the map says which one')
+
+    # Distances are real distances, in both directions, for every pair.
+    for a in districts.DISTRICT_KEYS:
+        game.city.where = a
+        for b in districts.DISTRICT_KEYS:
+            route = game.city.route(b)
+            if a == b:
+                T.eq(route, [], 'nowhere to walk to where you are')
+                continue
+            T.eq(route[-1], b, f'the route from {a} ends at {b}')
+            T.eq(len(route), game.city.shifts_to(b),
+                 'the shift count is the length of the walk')
+            prev = a
+            for step in route:
+                T.ok(step in districts.BY_KEY[prev].neighbours,
+                     f'{prev} to {step} is a step you can take')
+                prev = step
+            # And it is the *shortest* walk, checked against a plain flood
+            # rather than against the same function that produced it.
+            depth, seen, frontier = {a: 0}, {a}, [a]
+            while frontier:
+                here = frontier.pop(0)
+                for nxt in districts.BY_KEY[here].neighbours:
+                    if nxt not in seen:
+                        seen.add(nxt)
+                        depth[nxt] = depth[here] + 1
+                        frontier.append(nxt)
+            T.eq(len(route), depth[b], f'{a} to {b} is the shortest walk')
+    game.city.where = districts.START
+
+    # Refusing a walk you cannot make in one shift hands over the walk you
+    # can. The line it prints has to be a line that works.
+    game.city.where = 'shambles'
+    game.city.visited.add('shambles')
+    ok, why = game.city.can_travel('green')
+    T.ok(not ok, 'Aoyama Green is not one shift from the Shambles')
+    T.ok('travel' in why, 'and the refusal hands over the route')
+    typed = [part.strip() for part in why.split('`')[1].split(';')]
+    T.eq(typed, [f'travel {k}' for k in game.city.route('green')],
+         'the route in the refusal is the route')
+    sess2, out2 = play(typed, game=game)
+    T.eq(game.city.where, 'green', 'and typing it gets you there')
+
+    # Walking somewhere fills it in. This is the whole "builds out as you
+    # explore" half: the shape never changes, the detail arrives.
+    _, before = play(['map'], game=Game.new(
+        Character.from_origin('gutter', 'a'), seed=8829))
+    T.ok(before.count('not been') == len(districts.DISTRICTS) - 1,
+         'everywhere you have not been says so')
+    _, after = play(['map'], game=game)
+    T.ok(after.count('not been') < before.count('not been'),
+         'and one fewer of them does after you have walked')
+
+    # An accepted contract elsewhere puts the walk to it on the map.
+    game2 = Game.new(Character.from_origin('gutter', 'b'), seed=4242)
+    away = [c for c in game2.city.board if c.district != game2.city.where]
+    if away:
+        sess3, out3 = play([f'take {away[0].cid}', 'map'], game=game2)
+        T.ok('the job' in out3, 'the map marks the district the job is in')
+        T.ok('travel' in out3.split('The job is in')[-1],
+             'and says how to walk there')
+
+    # Both maps use the same drawing, so the run map has to still work. The
+    # walk to the job is taken from the router, which is also the thing under
+    # test, so the jack in is the check that it produced a real walk.
+    game3 = Game.new(Character.from_origin('gutter', 'c'), seed=8829)
+    job = game3.city.board[0]
+    walk = [f'travel {k}' for k in game3.city.route(job.district)]
+    _, run_out = play([f'take {job.cid}'] + walk + ['jack in --force', 'map'],
+                      game=game3)
+    T.ok('Known hosts' in run_out, 'the run map still draws')
+
+    # Prefixes pad to a common width, so every column after them lines up.
+    for ascii_only in (False, True):
+        rows = ui.tree_rows(districts.GRAPH, districts.START,
+                            set(districts.DISTRICT_KEYS), ascii_only)
+        led = ui.tree_leads(rows)
+        T.eq(len({len(prefix) for prefix, _ in led}), 1,
+             'every padded prefix is the same width')
+        T.eq([uid for _, uid in led], [uid for _, uid in rows],
+             'and padding changes nothing but the prefix')
+        T.ok(all(prefix.endswith(' ') for prefix, _ in led),
+             'and every one of them ends clear of its label')
+        if ascii_only:
+            T.ok(all(ord(ch) < 128 for prefix, _ in led for ch in prefix),
+                 'ascii mode pads in ascii')
+    T.eq(ui.tree_leads([]), [], 'no rows pad to no rows')
+
+
 def test_topology() -> None:
     T.section('topology')
     from flatline.run import network as net_mod
@@ -3581,7 +3683,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_topology, test_clock, test_rice, test_migration, test_shell,
+    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_city_map, test_topology, test_clock, test_rice, test_migration, test_shell,
     test_playthrough, test_ui,
 )
 

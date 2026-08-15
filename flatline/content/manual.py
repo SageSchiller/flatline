@@ -501,6 +501,12 @@ TOPICS: tuple[Topic, ...] = (
         'Time moves in [accent]shifts[/], three to a day. Travelling costs '
         'one, legwork costs one, resting costs as many as you spend, and '
         'establishing a new identity costs two.\n\n'
+        'Nine districts, and [accent]travel only goes to a neighbour[/], so '
+        'somewhere on the far side of the city costs two or three shifts to '
+        'reach and the contract expiring is counting all of them. [fg]map[/] '
+        'draws the whole shape, marks where you are, and says how many shifts '
+        'each district is from here. Anything that sends you somewhere hands '
+        'you the walk as a line you can type.\n\n'
         'While shifts pass: contracts expire, heat decays, market stock '
         'rotates, faction posture drifts back toward baseline, and '
         '[warn]other runners take work off the board[/].\n\n'
@@ -511,7 +517,7 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] doing nothing is a real strategy with a real '
         'price, and knowing when to pay it is most of the city layer.',
         see=('heat', 'rivals', 'contracts', 'reading', 'clock'),
-        commands=('travel', 'rest', 'board'),
+        commands=('travel', 'map', 'rest', 'board'),
         group='city'),
     Topic(
         'contracts', 'The board and legwork',

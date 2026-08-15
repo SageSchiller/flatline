@@ -169,6 +169,11 @@ DISTRICTS: tuple[District, ...] = (
 BY_KEY: dict[str, District] = {d.key: d for d in DISTRICTS}
 DISTRICT_KEYS: tuple[str, ...] = tuple(BY_KEY)
 
+#: The city as a plain graph. Derived rather than authored, so it cannot drift
+#: from the districts themselves, and shaped for `ui.spanning_tree` and
+#: `ui.shortest_path` which are the two things that ever ask.
+GRAPH: dict[str, list[str]] = {d.key: list(d.neighbours) for d in DISTRICTS}
+
 #: Where a new character wakes up. Marrow because it is neutral, has a fixer,
 #: and touches more of the city than anywhere else.
 START = 'marrow'
