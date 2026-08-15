@@ -29,6 +29,32 @@ OBJECTIVE_BLURB = {
     'escort': 'Cover somebody else\'s run. Their noise is not your decision.',
 }
 
+#: What finishing looks like, in the words the player will use to do it.
+#:
+#: `OBJECTIVE_BLURB` above is the pitch, written for somebody reading the
+#: board and deciding whether to take the work. This is the brief: written for
+#: somebody already inside, who needs to know what the run is for. The fields
+#: are filled from the network, so the sentence names the host and the record
+#: this contract is actually about rather than describing a kind of job.
+#:
+#: `{node}` is the objective host, `{asset}` the record on it, `{ticks}` the
+#: residency a surveil job wants, `{who}` the runner an escort is covering.
+OBJECTIVE_AIM = {
+    'exfiltrate': 'Take {asset} off {node}, and still be holding it when you '
+                  'jack out.',
+    'implant': 'Get onto {node} and `push` a payload into it. It has to be '
+               'that host: the money is for a foothold somewhere that '
+               'matters.',
+    'corrupt': 'Get onto {node} and `push` an edit into {asset}, so that it '
+               'has always said what your patron wants it to say.',
+    'wipe': 'Destroy {asset} on {node} with `wipe`. Nobody is paying you to '
+            'carry it out, which is the whole appeal.',
+    'surveil': 'Sit on {node} and `observe` until you have banked {ticks} '
+               'clean ticks. Take nothing, break nothing.',
+    'escort': 'Keep {who} alive and moving until they are done and out. '
+              'Their noise is not your decision and never will be.',
+}
+
 #: What each objective needs in the loadout. Checked before `jack in` so a
 #: player is told at the door rather than three zones deep.
 OBJECTIVE_PROGRAM = {

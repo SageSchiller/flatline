@@ -23,6 +23,19 @@ from ..rng import Stream
 #: Shifts between stock rotations.
 REFRESH = 6
 
+#: Categories a market always carries at least one of, at the cheapest tier it
+#: stocks. Rotation is a reason to travel and a reason to hurry, which is what
+#: makes it good, and it is only good for things a player can do without.
+#:
+#: A payload is not one of those. Four of the six objectives cannot be
+#: finished without one, nine of the ten origins ship without one, and the
+#: shelves carried one in about three worlds in five. The rest of the time a
+#: new character's first contract was unfinishable for a reason nobody had
+#: mentioned, findable only by walking to another district and looking again.
+#: A breaker is on the list for the same reason at one remove: without one you
+#: cannot open the door the payload was for.
+STAPLES = ('payload', 'breaker')
+
 #: What each service sells.
 STOCK_KINDS = {
     'market': ('program', 'component'),
@@ -99,6 +112,31 @@ def restock(rng: Stream, district_key: str, shift: int) -> list[Listing]:
                 out.append(Listing(kind=kind, key=key,
                                    price=max(1, int(round(price * markup))),
                                    stock=1 if service == 'fence' else rng.int(1, 3)))
+
+    # The staples, if the roll above did not happen to produce them. Only in a
+    # market: a fence deals in what fell off something, and what fell off
+    # something is not a reliable supply of anything.
+    if 'market' in district.services:
+        for category in STAPLES:
+            pool = [p for p in programs.by_category(category)
+                    if p.tier <= district.max_tier]
+            if not pool:
+                continue
+            # The cheapest thing that does the job, and specifically that one
+            # rather than whatever payload the roll happened to produce. A
+            # guaranteed line of stock should be the floor of the market
+            # rather than a shortcut past it, so the good programs stay
+            # something you go looking for; and a four thousand credit payload
+            # on the shelf is not stock as far as somebody holding seven
+            # hundred is concerned.
+            basic = min(pool, key=lambda p: (p.tier, p.price))
+            if ('program', basic.key) in seen:
+                continue
+            seen.add(('program', basic.key))
+            out.append(Listing(
+                kind='program', key=basic.key,
+                price=max(1, int(round(basic.price * district.price_mult))),
+                stock=1))
 
     # The back of the clinic. Restricted chrome, at a discount, sold to people
     # the front of the clinic has stopped being able to help. Generated for

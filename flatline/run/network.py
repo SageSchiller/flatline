@@ -484,6 +484,94 @@ def _place_objective(rng: Stream, net: Network, objective: str) -> None:
         net.objective_node = node.uid
 
     _ensure_reachable(net)
+    # After the edges exist, because it walks them.
+    _ensure_passable(net)
+
+
+#: Wardens that cannot be answered with credentials. A warden is the one kind
+#: of countermeasure that guards the *door* rather than the room, so you meet
+#: it from the node next to it, and `strike` and `overload` only reach what is
+#: on the node you are standing on or what has locked on to you. That leaves
+#: exactly two counters to one of these, `pivot` at Intrusion 4 and going
+#: round, and a new character has neither.
+def _is_wall(node: Node) -> bool:
+    return any(i.behaviour == 'warden' and i.alive
+               and not i.data.effects.get('credential_check')
+               for i in node.ice)
+
+
+def _ensure_passable(net: Network) -> None:
+    """A route to the objective that does not need a technique to walk.
+
+    `_ensure_reachable` guarantees the edges exist. It does not guarantee you
+    can use them, and those are different promises: a Gatekeeper on every
+    route to the objective is a run that cannot be finished by anybody who has
+    not bought Intrusion rank 4, which is every new character and most old
+    ones. Before this, seven networks in ten were shaped that way.
+
+    The repair is to open one route rather than to remove every wall. Wardens
+    keep the shortcuts, the deep alternatives, and everything that is not the
+    one path this walks, so the build that can break them still gets paid for
+    it in ticks saved rather than in runs that finish at all.
+    """
+    objective = net.objective_node
+    if not objective or objective not in net.nodes:
+        return
+    walls = {uid for uid, node in net.nodes.items() if _is_wall(node)}
+    if not walls:
+        return
+
+    # Breadth-first from the entry, refusing to enter a wall. If that finds
+    # the objective, some route is already walkable and nothing needs doing.
+    def open_route() -> bool:
+        seen = {net.entry}
+        queue = [net.entry]
+        while queue:
+            uid = queue.pop(0)
+            for edge in net.nodes[uid].edges:
+                if edge in seen or edge not in net.nodes or edge in walls:
+                    continue
+                if edge == objective:
+                    return True
+                seen.add(edge)
+                queue.append(edge)
+        return objective == net.entry or objective in seen
+
+    while not open_route():
+        # Take the wall nearest the front door on the shortest path to the
+        # objective and stand it down. Nearest rather than any, so the repair
+        # opens the route a player would have taken anyway.
+        blocking = _first_wall_on_route(net, objective, walls)
+        if blocking is None:
+            return
+        for construct in net.nodes[blocking].ice:
+            if (construct.behaviour == 'warden'
+                    and not construct.data.effects.get('credential_check')):
+                construct.state = 'dead'
+        walls.discard(blocking)
+
+
+def _first_wall_on_route(net: Network, objective: str,
+                         walls: set[str]) -> str | None:
+    """The first walled host on the shortest route from the entry."""
+    parent: dict[str, str] = {net.entry: ''}
+    queue = [net.entry]
+    while queue:
+        uid = queue.pop(0)
+        if uid == objective:
+            path = [uid]
+            while parent[path[-1]]:
+                path.append(parent[path[-1]])
+            for step in reversed(path):
+                if step in walls:
+                    return step
+            return None
+        for edge in net.nodes[uid].edges:
+            if edge in parent or edge not in net.nodes:
+                continue
+            parent[edge] = uid
+            queue.append(edge)
+    return None
 
 
 def _ensure_reachable(net: Network) -> None:

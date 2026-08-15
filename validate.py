@@ -1437,6 +1437,58 @@ def check_contracts(rep: Report) -> None:
         if o not in wanted:
             rep.warn('contracts', f'no faction wants {o!r}, so it is rare')
 
+    check_briefs(rep)
+
+
+#: Fields the brief fills in from the network. Anything else in an aim is a
+#: `KeyError` at the moment a player asks what they are doing, which is the
+#: worst possible moment for one.
+AIM_FIELDS = {'node', 'asset', 'ticks', 'who'}
+
+
+def check_briefs(rep: Report) -> None:
+    """`job`, and the sentence it prints. See `run/session.py: brief`.
+
+    The aim is the only piece of content in the game that is read out loud at
+    the moment somebody has admitted they are lost, so it has a shorter leash
+    than most: it has to name a verb they can type, and it has to be one
+    sentence they can act on rather than three they have to parse.
+    """
+    import string
+
+    for o in contract_mod.OBJECTIVES:
+        where = f'contracts/{o}'
+        aim = contract_mod.OBJECTIVE_AIM.get(o)
+        if not aim:
+            rep.error(where, 'has no aim, so `job` cannot say what it wants')
+            continue
+        fields = {name for _, name, _, _ in string.Formatter().parse(aim)
+                  if name}
+        unknown = fields - AIM_FIELDS
+        rep.check(not unknown, where,
+                  f'aim uses fields nothing fills in: {sorted(unknown)}')
+        # It has to name something to type. An aim that describes the outcome
+        # without naming the verb is a restatement of the blurb.
+        rep.check('`' in aim or o in ('exfiltrate', 'escort'), where,
+                  'aim names no command to type')
+        rep.check(aim[0].isupper() and aim.rstrip().endswith('.'), where,
+                  'aim is not a sentence')
+        rep.check(len(aim) <= 220, where,
+                  f'aim is {len(aim)} characters, which is a paragraph')
+        rep.check(contract_mod.OBJECTIVE_BLURB[o] != aim, where,
+                  'aim and blurb are the same text, so one of them is unused')
+
+    # Every alert level says what it costs and what answers it, except the one
+    # where nothing has happened.
+    for level in ice_content.ALERT_LEVELS:
+        rep.check(level in ice_content.ALERT_ADVICE, 'ice',
+                  f'alert level {level!r} has no advice')
+    rep.check(not ice_content.ALERT_ADVICE.get('green'), 'ice',
+              'green is not an event and should not be advised about')
+    for level in ('amber', 'red', 'lockdown'):
+        rep.check(bool(ice_content.ALERT_ADVICE.get(level)), 'ice',
+                  f'{level} escalates and says nothing about what to do')
+
 
 # --------------------------------------------------------------------------
 # commands
@@ -1795,6 +1847,17 @@ def check_commands(rep: Report) -> None:
             if cmd.name not in ('look',):
                 rep.error(where, 'is city work but is legal inside a run: '
                                  "declare contexts=('city',)")
+        # The sentence appended to "only works in the city". It is only ever
+        # read by somebody who has just been refused, so it has to explain the
+        # rule rather than restate the refusal.
+        if cmd.blocked:
+            rep.check('any' not in cmd.contexts, where,
+                      'explains why it is blocked but is legal everywhere')
+            rep.check(cmd.blocked[0].isupper()
+                      and cmd.blocked.rstrip().endswith('.'), where,
+                      'blocked reason is not a sentence')
+            rep.check('only works' not in cmd.blocked, where,
+                      'blocked reason restates the refusal instead of the rule')
 
     # Both contexts need to be usable on their own.
     for context in ('city', 'run'):

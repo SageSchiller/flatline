@@ -164,6 +164,12 @@ class Command:
     complete: Callable | None = None
     #: True for commands that must work even with no character loaded.
     bare: bool = False
+    #: Why this verb does not exist in the other context, in one sentence.
+    #: Optional, and worth writing whenever the answer is a rule rather than
+    #: a category: "you cannot buy things from inside a network" teaches
+    #: nothing, and "the loadout is fixed the moment you jack in" is most of
+    #: what a player needs to know about how a run is packed.
+    blocked: str = ''
 
     def legal_in(self, context: str) -> bool:
         return 'any' in self.contexts or context in self.contexts
@@ -305,7 +311,17 @@ def resolve(line: str, context: str, registry: Registry = REGISTRY) -> Invocatio
                 f'{word!r} is not a command. Type `help` for what is.')
 
     if not cmd.legal_in(context):
-        where = 'inside a run' if 'run' in cmd.contexts else 'in the city'
-        raise CommandError(f'`{cmd.name}` only works {where}.')
+        # Three sentences: what is wrong, why, and the way out of it. The bare
+        # form of this said only the first, which tells a new player that they
+        # have hit a wall without telling them it has a door in it.
+        if 'run' in cmd.contexts:
+            msg = (f'`{cmd.name}` only works inside a run. '
+                   f'`jack in` to start one.')
+        else:
+            msg = (f'`{cmd.name}` only works in the city, and you are inside '
+                   f'somebody\'s network. `jack out` first.')
+        if cmd.blocked:
+            msg += f' {cmd.blocked}'
+        raise CommandError(msg)
 
     return Invocation(cmd, Args(rest), word, line)

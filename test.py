@@ -1494,6 +1494,23 @@ def test_regressions() -> None:
         T.ok(sess.game.char.runs > runs_before,
              'and the run is counted')
 
+    # Every verb, not just `scan`. `probe` printed the node it had just
+    # enumerated *after* spending the tick, so probing on the tick the trace
+    # filled read `state.here` off a run that had already been torn down and
+    # took the whole shell out with an AttributeError.
+    for verb in ('scan', 'probe', 'here', 'map', 'status', 'job', 'log',
+                 'mask', 'steady', 'jack out --anyway'):
+        sess = in_run()
+        sess.run.trace = 99.5
+        try:
+            sess.execute(verb)
+        except CommandError:
+            pass  # A refusal is fine. A traceback is not.
+        except Exception as exc:  # noqa: BLE001
+            T.failures.append(f'regressions: `{verb}` on the last tick '
+                              f'raised {type(exc).__name__}: {exc}')
+        T.checks += 1
+
     # Jacking out of an already-finished run must not double-resolve.
     sess = in_run()
     sess.run.trace = 99.5
@@ -1503,12 +1520,34 @@ def test_regressions() -> None:
     sess.execute('jack out')
     T.eq(sess.game.char.runs, counted, 'jacking out again changes nothing')
 
-    # And a normal jack out still resolves exactly once.
+    # And a normal jack out still resolves exactly once. Leaving an unfinished
+    # job at a low trace is argued with once before it is allowed, so the bare
+    # form has to be typed twice or told to stop asking.
     sess = in_run()
     before = sess.game.char.runs
     sess.execute('jack out')
+    T.ok(sess.run is not None, 'an unfinished job is queried on the way out')
+    T.eq(sess.game.char.runs, before, 'and nothing has resolved yet')
+    sess.execute('jack out')
     T.ok(sess.run is None, 'a deliberate exit resolves')
     T.eq(sess.game.char.runs, before + 1, 'and counts exactly one run')
+
+    # Said once. A player who has heard it does not hear it again, and a
+    # player who says so up front never hears it at all.
+    sess = in_run()
+    before = sess.game.char.runs
+    sess.execute('jack out --anyway')
+    T.ok(sess.run is None, '--anyway skips the question entirely')
+    T.eq(sess.game.char.runs, before + 1, 'and resolves the run')
+
+    # Nor when the trace has made the decision for you: somebody bailing at 70
+    # knows what they are giving up.
+    sess = in_run()
+    sess.run.trace = 80.0
+    before = sess.game.char.runs
+    sess.execute('jack out')
+    T.ok(sess.run is None, 'a high trace is not argued with')
+    T.eq(sess.game.char.runs, before + 1, 'and resolves the run')
 
     # 4. The protege's Known Quantity says "one extra contract on the board
     #    at all times". `board_size` handled it and `char` was never threaded
@@ -1925,6 +1964,37 @@ def test_dissonance() -> None:
     listings = market_mod.restock(Rng(3)('market'), 'ninth', 0)
     T.ok(not [l for l in listings if l.deep],
          'a district with no clinic has no back room')
+
+    # The staples are always on the shelf. Four of the six objectives cannot
+    # be finished without a payload and nine of the ten origins ship without
+    # one, so a market that happens not to stock any is a first contract that
+    # cannot be completed for a reason nobody mentioned. Checked over enough
+    # rotations that a lucky roll cannot pass for a guarantee.
+    for district in districts.DISTRICTS:
+        if 'market' not in district.services:
+            continue
+        for shift in range(0, 40, market_mod.REFRESH):
+            listings = market_mod.restock(
+                Rng(shift + 7)('market'), district.key, shift)
+            stocked = {programs.BY_KEY[l.key].category for l in listings
+                       if l.kind == 'program' and l.stock > 0}
+            for category in market_mod.STAPLES:
+                T.ok(category in stocked,
+                     f'{district.key} carries a {category} at shift {shift}')
+    # And a fence is not a supply line. Whatever fell off something this week
+    # is exactly the kind of stock that is allowed to have gaps in it.
+    fence_only = [d for d in districts.DISTRICTS
+                  if 'fence' in d.services and 'market' not in d.services]
+    for district in fence_only:
+        gaps = 0
+        for shift in range(0, 60, market_mod.REFRESH):
+            listings = market_mod.restock(
+                Rng(shift + 7)('market'), district.key, shift)
+            stocked = {programs.BY_KEY[l.key].category for l in listings
+                       if l.kind == 'program' and l.stock > 0}
+            if 'payload' not in stocked:
+                gaps += 1
+        T.ok(gaps > 0, f'{district.key} is a fence and can run dry')
 
     # And the city filters it by who is asking.
     game = Game.new(Character.from_origin('gutter', 'x'), seed=4242)
@@ -2979,6 +3049,164 @@ def test_anim() -> None:
 
 
 
+def test_brief() -> None:
+    T.section('brief')
+    from flatline.world.contracts import OBJECTIVES, OBJECTIVE_AIM
+
+    char = Character.from_origin('gutter', 'briefed')
+    for skill in ('intrusion', 'signal', 'cryptography', 'forensics'):
+        char.base_skills[skill] = 4
+    char.deck.loaded = ['crowbar', 'siphon']
+    console = quiet_console()
+
+    # Nothing is met at the door, and everything says what it wants.
+    for objective in OBJECTIVES:
+        net = net_mod.generate(Rng(3).fork('network', objective), 'sixes', 30,
+                               objective)
+        state = RunState.begin(net, char, Rng(3)('combat'), console,
+                               contract={'objective': objective})
+        brief = state.brief()
+        T.ok(not brief.done, f'{objective} is not finished at the door')
+        T.ok(brief.aim, f'{objective} says what it wants')
+        T.ok(brief.steps, f'{objective} says what to do about it')
+        T.ok('{' not in brief.aim,
+             f'{objective} filled in every field of its aim')
+
+    # Following the advice has to get somewhere. Run with the trace held at
+    # zero, so this measures whether the advice is a route rather than whether
+    # this character is fast enough to walk it: those are separate questions
+    # and only the first is this code's fault.
+    #
+    # The invariant is termination, not victory. Doing what the brief says has
+    # to end in one of three places every time: the job done, the run over, or
+    # the brief saying there is no way on and to leave. Never a loop. Not
+    # every network is winnable by every build and the advice is allowed to
+    # say so; what it may not do is walk in a circle until the trace fills,
+    # which is what it did in every one of the shapes below before this test
+    # existed.
+    finished = 0
+    gave_up = 0
+    looped = 0
+    attempts = 0
+    for objective in OBJECTIVES:
+        for seed in range(4):
+            if objective == 'escort':
+                continue  # Their pace, not yours. Covered in `objectives`.
+            attempts += 1
+            sess = Session(console=console, slot='brieftest')
+            sess.game = Game.new(Character.from_origin('gutter', 'b'),
+                                 seed=seed)
+            # A competently built runner rather than a fresh one. The advice
+            # is on trial here, not the loadout: somebody carrying a rating-2
+            # breaker cannot open a core node at any tier, the brief correctly
+            # tells them so, and that measures the deck.
+            sess.game.char.base_skills.update(
+                {k: 5 for k in ('intrusion', 'signal', 'cryptography',
+                                'forensics', 'subterfuge')})
+            # Set straight onto the deck rather than through `load`, which
+            # would have to fit them in the memory this origin ships with.
+            sess.game.char.deck.loaded = ['thunderhead', 'revision']
+            net = net_mod.generate(Rng(seed).fork('network', objective),
+                                   'sixes', 25, objective)
+            sess.run = RunState.begin(net, sess.game.char, Rng(seed)('combat'),
+                                      console, contract={'objective': objective,
+                                                         'title': 'T'})
+            stuck_on = None
+            ended = False
+            for _ in range(160):
+                if sess.run is None:
+                    ended = True
+                    break
+                sess.run.trace = 0.0      # the clock is not on trial here
+                sess.run.alert = 'green'
+                brief = sess.run.brief()
+                if brief.done:
+                    ended = True
+                    break
+                step = brief.steps[0]
+                T.ok('<' not in step,
+                     f'{objective}: the brief names a real target, not {step!r}')
+                if step == 'jack out':
+                    # It has said there is no way on. Believe it, and check it
+                    # was telling the truth.
+                    ended = True
+                    gave_up += 1
+                    T.ok(not sess.run.brief().done,
+                         f'{objective}: it does not give up on a finished job')
+                    break
+                # A refusal and a failed roll both print a cross, and only one
+                # of them is bad advice. They are told apart by the clock: a
+                # command the game refuses is raised before any time is spent,
+                # and a command it attempts costs a tick whether or not it
+                # worked. Every verb the brief can name costs ticks.
+                #
+                # One free refusal in a row is fine and is how the game is
+                # meant to work: nothing reveals a warden except trying the
+                # door, and trying it costs nothing precisely so that finding
+                # out is free. Two in a row is the advice not learning.
+                before = sess.run.tick
+                console.start_capture()
+                sess.execute(step)
+                said = ui.plain(console.end_capture())
+                spent = sess.run is None or sess.run.tick > before
+                if not spent and step == stuck_on:
+                    T.failures.append(
+                        f'brief: {objective} advised `{step}` twice running '
+                        f'and the game refused it both times: '
+                        f'{said.strip().splitlines()[0]}')
+                    T.checks += 1
+                    break
+                stuck_on = None if spent else step
+            if not ended:
+                looped += 1
+            if sess.run is not None and sess.run.brief().done:
+                finished += 1
+    T.eq(looped, 0, 'doing what the brief says always arrives somewhere')
+    T.ok(finished > gave_up,
+         f'and it is usually the finished job ({finished} done, '
+         f'{gave_up} given up on, of {attempts})')
+
+    # The strict half. These three used to pass on any node and any asset, so
+    # a payload left on the doormat closed a contract that named a controller.
+    for objective, field in (('implant', 'objective_node'),
+                             ('corrupt', 'objective_node'),
+                             ('wipe', 'objective_asset')):
+        net = net_mod.generate(Rng(9).fork('network', objective), 'sixes', 30,
+                               objective)
+        state = RunState.begin(net, char, Rng(9)('combat'), console,
+                               contract={'objective': objective})
+        state.done[objective] = 'somewhere-else'
+        T.ok(not state.objective_met(),
+             f'{objective} somewhere other than the target is not the job')
+        state.done[objective] = getattr(net, field)
+        T.ok(state.objective_met(),
+             f'{objective} on the target is')
+
+    # And the trap that strictness creates: `wipe` cannot reach an asset you
+    # are holding, so taking the one you were paid to destroy is refused.
+    net = net_mod.generate(Rng(11).fork('network', 'wipe'), 'sixes', 30, 'wipe')
+    sess = Session(console=console, slot='brieftest')
+    sess.game = Game.new(Character.from_origin('gutter', 'w'), seed=11)
+    sess.game.char.deck.loaded = ['crowbar', 'siphon']
+    sess.run = RunState.begin(net, sess.game.char, Rng(11)('combat'), console,
+                              contract={'objective': 'wipe', 'title': 'T'})
+    where, asset = net.find_asset(net.objective_asset)
+    sess.run.here = where.uid
+    where.open = where.known = where.mapped = True
+    # Unsealed, so this measures the refusal rather than a decrypt roll.
+    asset.encrypted = False
+    console.start_capture()
+    sess.execute(f'pull {net.objective_asset}')
+    refusal = ui.plain(console.end_capture())
+    T.ok('paid to destroy' in refusal,
+         'pulling the record you were paid to destroy is refused')
+    T.ok(not asset.taken, 'and it is still on the node')
+    console.start_capture()
+    sess.execute(f'pull {net.objective_asset} --anyway')
+    console.end_capture()
+    T.ok(asset.taken, 'and --anyway still lets you do it')
+
+
 def test_city_map() -> None:
     T.section('city map')
 
@@ -3683,7 +3911,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_city_map, test_topology, test_clock, test_rice, test_migration, test_shell,
+    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_brief, test_city_map, test_topology, test_clock, test_rice, test_migration, test_shell,
     test_playthrough, test_ui,
 )
 

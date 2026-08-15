@@ -139,6 +139,19 @@ STEPS: tuple[Step, ...] = (
         payoff='You are inside somebody else\'s network now.',
         topic='city'),
     Step(
+        'brief',
+        'Type `job`.',
+        'The one screen that answers "what am I doing here". It names what '
+        'finishing looks like for this contract, where the thing is or what '
+        'to look for if you have not found it, how far along you are, and the '
+        'next command to type. It costs no time, it is always safe to ask, '
+        'and it is the answer whenever you lose the thread.',
+        done=lambda s: 'job' in getattr(s, 'seen', set()),
+        payoff='Every run is the same five beats: find it, reach it, open it, '
+               'do the thing, leave. That screen tells you which one you are '
+               'on.',
+        topic='firstrun'),
+    Step(
         'scan',
         'Type `scan`.',
         'This shows what the node you are standing in connects to. It is '
@@ -203,7 +216,9 @@ STEPS: tuple[Step, ...] = (
         'When you have what you came for, or when the trace gets close: '
         '`jack out`.',
         'There is no prize for the last asset you grabbed if the trace lands '
-        'on you carrying it. Leaving early is a skill.',
+        'on you carrying it. Leaving early is a skill. If the job is not done '
+        'and you still have room, this says so once and makes you type it '
+        'again, so an accidental exit and a deliberate one look different.',
         done=lambda s: _run(s) is None and _has_game(s)
         and s.game.char.runs > 0,
         payoff='Out. Look at the residue line in that summary: it is the only '

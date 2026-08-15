@@ -70,14 +70,20 @@ TOPICS: tuple[Topic, ...] = (
     Topic(
         'firstrun', 'Your first run, step by step',
         'The exact sequence, with the reasons.',
+        '[accent2]If you remember one command, remember [fg]job[/][accent2]. '
+        'It says what this run is for, where the thing is, how far along you '
+        'are, and the next command to type. It costs no time.[/]\n\n'
         '[accent]In the city:[/]\n'
         '  [fg]board[/]              see what work is on offer\n'
         '  [fg]board c001[/]         read one properly before taking it\n'
         '  [fg]take c001[/]          accept it\n'
+        '  [fg]job[/]                what you agreed to, and what is missing\n'
         '  [fg]deck[/]               check what you are carrying\n'
-        '  [fg]travel <district>[/]  if the job is not where you are\n'
+        '  [fg]map[/]                the city, and the walk to the job\n'
+        '  [fg]travel <district>[/]  toward it, one district a shift\n'
         '  [fg]jack in[/]            go\n\n'
         '[accent]Inside:[/]\n'
+        '  [fg]job[/]                what finishing looks like, and the next move\n'
         '  [fg]scan[/]               see what this node connects to\n'
         '  [fg]probe <host>[/]       see what a host runs, and what guards it\n'
         '  [fg]odds crack <host> <service>[/]   the maths, before you commit\n'
@@ -86,13 +92,20 @@ TOPICS: tuple[Topic, ...] = (
         '  [fg]status[/]             where the trace is\n'
         '  [fg]pull[/]               take what you came for\n'
         '  [fg]jack out[/]           leave\n\n'
-        'Repeat the middle four until you are standing on the objective. '
-        '[dim]`status` tells you which node that is.[/]\n\n'
+        'Every run is the same five beats: find it, reach it, open it, do the '
+        'thing, leave. Repeat scan, probe, crack, connect until you are '
+        'standing on the objective, and ask [fg]job[/] whenever you lose the '
+        'thread.\n\n'
+        '[warn]What you cannot do once you are inside:[/] change the loadout. '
+        'The programs on the deck at the moment you jack in are the programs '
+        'you have, so [fg]deck[/] and [fg]load[/] happen out in the city, '
+        'before the door shuts.\n\n'
         '[warn]The mistake everybody makes first:[/] staying too long. Every '
         'command costs time, time advances the trace, and there is no prize '
         'for the last asset you grabbed if the trace lands on you carrying it.',
         see=('triangle', 'checks', 'objectives'),
-        commands=('scan', 'probe', 'odds', 'crack', 'connect', 'jack out'),
+        commands=('job', 'scan', 'probe', 'odds', 'crack', 'connect',
+                  'jack out'),
         group='start'),
 
     Topic(

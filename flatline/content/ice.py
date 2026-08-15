@@ -48,6 +48,29 @@ ALERT_BLURB = {
 #: Per-level multipliers applied to trace advance and ICE aggression.
 ALERT_TRACE_MULT = {'green': 1.0, 'amber': 1.25, 'red': 1.7, 'lockdown': 2.4}
 
+#: What each level costs you and what answers it, printed at the moment the
+#: network escalates. The blurb above is the fiction; this is the decision.
+#:
+#: Escalating is the point in a run where a new player most often freezes,
+#: because a red banner with no reading on it says "something bad" and says
+#: nothing about whether the correct response is to leave, to hurry, or to
+#: carry on exactly as before. It is usually one of the first two, and which
+#: one depends on numbers the player already has.
+ALERT_ADVICE = {
+    'green': '',
+    'amber': 'The trace runs a quarter faster from here. Nothing has been '
+             'decided about you yet, so this is the cheap moment to `scrub` '
+             'what you have left behind and keep moving.',
+    'red': 'The trace runs at nearly double and the countermeasures are '
+           'hunting rather than watching. `mask` buys you a tick of distance '
+           'and `job` will tell you how much is left to do. If the answer is '
+           '"most of it", leaving with nothing costs less than the alternative.',
+    'lockdown': 'Everything is at two and a half times and routes are being '
+                'cut behind you. There is no version of this that ends well '
+                'slowly: finish the one thing you are standing on, or get out '
+                'now.',
+}
+
 
 @dataclass(frozen=True, slots=True)
 class IceType:

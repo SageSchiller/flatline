@@ -32,6 +32,7 @@ from ..content import programs
 from ..content import skills as skill_content
 from ..model.character import Character
 from ..rng import Stream
+from .. import ui
 from ..ui import Console
 from . import network as net_mod
 from .checks import Check
@@ -64,6 +65,27 @@ RESIDUE_TO_HEAT = 0.55
 DECK_HIT = 1
 
 OUTCOMES = ('running', 'clean', 'burned', 'severed', 'flatline')
+
+
+@dataclass(frozen=True, slots=True)
+class Brief:
+    """What the run is for, in four parts, filled from the run itself.
+
+    Kept as data rather than as printed lines because three different places
+    want different amounts of it: `status` takes one row of it, `job` prints
+    all of it, and `jack out` reads `done` to decide whether to argue.
+    """
+
+    #: What finishing looks like. One sentence, naming real hosts and records.
+    aim: str
+    #: Where it is, or what to look for when you have not found it yet.
+    where: str
+    #: How far along. Deliberately short: it goes on one line beside a bar.
+    progress: str
+    #: Whether the contract is satisfied right now.
+    done: bool
+    #: What to type next. One move ahead, never a walkthrough.
+    steps: tuple[str, ...] = ()
 
 
 @dataclass(slots=True)
@@ -151,6 +173,14 @@ class RunState:
     #: Set once a surveil job has banked enough. Latches: having held it, you
     #: have held it, and the walk back out cannot take it away.
     observed_enough: bool = False
+    #: Whether `jack out` has already pointed out that the job is unfinished.
+    #: Once per run: the second time you type it, you mean it.
+    warned_incomplete: bool = False
+    #: Hosts you have scanned *from*. A scan reveals the neighbourhood of
+    #: wherever you are standing, so scanning twice from one host is the same
+    #: answer twice, and knowing that is the difference between advice that
+    #: searches a network and advice that walks between two hosts forever.
+    scanned: set = field(default_factory=set)
 
     outcome: str = 'running'
     #: Human-readable record, shown by `log` and after the run.
@@ -276,6 +306,13 @@ class RunState:
                          f'[dim]{ice_content.ALERT_BLURB[self.alert]}[/]')
         if why:
             self.console.say(f'[dim]{why}[/]')
+        # What it costs and what answers it, once per level. A banner that
+        # only says something bad has happened leaves the player to guess
+        # whether the move is to leave, to hurry, or to carry on, and the
+        # commonest guess is to leave immediately with nothing.
+        advice = ice_content.ALERT_ADVICE.get(self.alert, '')
+        if advice:
+            self.console.say(f'[warn]{advice}[/]')
         self.log(f'alert -> {self.alert}' + (f' ({why})' if why else ''))
 
     # ------------------------------------------------------------------
@@ -1043,6 +1080,386 @@ class RunState:
         self.char.hurt = min(self.char.integrity_max - 1,
                              self.char.hurt + self.hurt)
 
+    # ------------------------------------------------------------------
+    # what you are here to do
+    # ------------------------------------------------------------------
+
+    def brief(self) -> Brief:
+        """The job, where it is, how far along it is, and what to type next.
+
+        The last of those is the part that matters. A player who knows the
+        objective and cannot see the move is in the same position as one who
+        knows neither, and inside a run the move is nearly always mechanical:
+        find it, reach it, open it, do the thing, leave. This works that out
+        from the state rather than describing it in general, because the
+        general description is what the manual is for.
+        """
+        from ..world.contracts import OBJECTIVE_AIM, OBJECTIVE_PROGRAM
+
+        kind = (self.contract or {}).get('objective', '')
+        target = self.net.node(self.net.objective_node)
+        found = bool(target and target.known)
+        asset = self.net.find_asset(self.net.objective_asset)
+        # Named once you have enumerated the host it sits on. Before that it
+        # is a shape in somebody's filesystem and calling it by name would be
+        # the game telling you something you have not earned.
+        asset_name = (asset[1].name if asset and asset[0].mapped
+                      else 'the record they want')
+
+        if not self.contract:
+            return Brief(
+                aim='Nobody is paying for this one. Take what is worth '
+                    'taking and get out with it.',
+                where='', progress=f'{len(self.haul)} assets in hand',
+                done=bool(self.haul),
+                steps=('scan', 'probe <host>', 'pull') if not self.haul
+                      else ('jack out',))
+
+        aim = OBJECTIVE_AIM.get(kind, 'Take something worth taking.').format(
+            node=(self.net.objective_node if found else 'a host you have not '
+                  'found yet'),
+            asset=asset_name,
+            ticks=self.SURVEIL_TICKS,
+            who=(self.escort or {}).get('name', 'them'))
+
+        # Nothing else in the brief matters if the thing that does the job is
+        # not on the deck. The loadout is fixed at the door and `jack in` says
+        # so, but `--force` exists and people use it, and the run that follows
+        # is one where every step of the advice is correct right up to the
+        # last one, which cannot be taken at all.
+        if self._missing_program():
+            need = OBJECTIVE_PROGRAM.get(kind, '')
+            return Brief(
+                aim=aim,
+                where=f'You came in without a {need}, and the loadout is '
+                      f'fixed from the moment you jack in. There is no way to '
+                      f'finish this one tonight.',
+                progress=f'no {need} on the deck',
+                done=False, steps=('jack out',))
+
+        return Brief(aim=aim, where=self._objective_where(target, found),
+                     progress=self._objective_progress(kind, asset_name),
+                     done=self.objective_met(),
+                     steps=self._objective_steps(kind, target, found))
+
+    def _missing_program(self) -> str:
+        """The program category this contract needs and the deck has not got."""
+        from ..world.contracts import OBJECTIVE_PROGRAM
+        kind = (self.contract or {}).get('objective', '')
+        need = OBJECTIVE_PROGRAM.get(kind, '')
+        if need and not self.char.deck.has_category(need):
+            return need
+        return ''
+
+    def _objective_where(self, target, found: bool) -> str:
+        """Where the job is, or what to look for if you have not found it."""
+        if target is None:
+            return ''
+        if not found:
+            # The zone is a real hint and not a giveaway: it says how deep to
+            # go, which is the decision, without naming the host.
+            return (f'It is in their {target.zone}, which you have not '
+                    f'reached. Everything between here and there is in the '
+                    f'way on purpose.')
+        if self.here == self.net.objective_node:
+            return 'You are standing on it.'
+        route = self.route_to(self.net.objective_node)
+        if not route:
+            return (f'{self.net.objective_node} is on the map and nothing you '
+                    f'have opened reaches it yet.')
+        line = (f'{self.net.objective_node} is {len(route)} hop'
+                f'{"s" if len(route) != 1 else ""} from here, through '
+                f'{", ".join(route[:-1]) or "nothing in the way"}.')
+        # The one obstacle in a run that is invisible from the thing blocking
+        # you. A door you cannot open looks the same whether you are short a
+        # program or short a credential, and only one of those is fixed by
+        # trying again.
+        deepest = max((n.tier for n in (self.net.node(u) for u in route)
+                       if n is not None), default=0)
+        if deepest > self.tier:
+            line += (f' You hold tier {self.tier} and the way in goes through '
+                     f'tier {deepest}, which is a penalty on every attempt '
+                     f'until you have the badge for it.')
+        return line
+
+    def _objective_progress(self, kind: str, asset_name: str) -> str:
+        if kind == 'surveil':
+            return (f'{self.observed} of {self.SURVEIL_TICKS} clean ticks '
+                    f'banked' + (', which is enough' if self.observed_enough
+                                 else ''))
+        if kind == 'escort' and self.escort:
+            return (f'{self.escort["name"]} is on {self.escort["node"]}, '
+                    f'{self.escort["state"]}'
+                    + (', carrying it' if self.escort['done'] else ''))
+        if kind == 'exfiltrate':
+            return ('you have it' if self.objective_met()
+                    else f'{asset_name} is still theirs')
+        if self.objective_met():
+            return 'done'
+        return 'not yet'
+
+    def _objective_steps(self, kind, target, found: bool) -> tuple[str, ...]:
+        """The next thing to type. One move ahead, never a walkthrough.
+
+        Written to name real hosts and real services rather than to print the
+        shape of the command. `probe fl-db12` is a move; `probe <host>` is a
+        syntax reminder, and somebody who had to ask what to do next did not
+        need reminding of the syntax.
+
+        Every run is the same five beats, which is why this can be worked out
+        rather than authored: find it, reach it, open it, do the thing, leave.
+        """
+        if self.objective_met():
+            return ('jack out',)
+        if target is None:
+            return ('scan',)
+        if not found:
+            return self._search_steps()
+        if self.here != self.net.objective_node:
+            return self._approach_steps()
+        return self._finish_steps(kind)
+
+    def _search_steps(self) -> tuple[str, ...]:
+        """You have not found it. Search, in the order a person would.
+
+        Look out from where you are standing, look properly at whatever that
+        turned up, open the way onward, and then go and stand somewhere you
+        have not looked out from. Without that last condition the advice walks
+        between the same two open hosts forever, because both of them are
+        always somewhere you could go.
+        """
+        if self.here not in self.scanned:
+            return ('scan',)
+        # Deepest first, everywhere below. The objective is always in the core
+        # or the restricted zone, the brief has already said so, and the trace
+        # is a clock: an even-handed sweep of the perimeter is a thorough way
+        # to run out of time in the part of the network the job is not in.
+        unmapped = [n for n in self.net.nodes.values()
+                    if n.known and not n.mapped]
+        if unmapped:
+            return (f'probe {self._deepest(unmapped).uid}',)
+        shut = self._first_shut()
+        if shut:
+            return (f'crack {shut[0]} {shut[1]}', f'connect {shut[0]}')
+        fresh = [n for n in self.net.nodes.values()
+                 if n.open and n.uid not in self.scanned and n.uid != self.here]
+        while fresh:
+            node = self._deepest(fresh, penalise_tier=False)
+            if self.route_to(node.uid):
+                return self._steps_toward(node.uid)
+            fresh.remove(node)
+        return self._nothing_left()
+
+    def _deepest(self, nodes, penalise_tier: bool = True):
+        """The one furthest in. Deeper is where the job is, always.
+
+        `penalise_tier` puts anything above your access last, which is right
+        for picking a door to break, because a zone above your tier is a
+        three-point penalty on every attempt at it. It is wrong for picking
+        somewhere to walk: a tier only ever costs you the *opening* of a node,
+        so a host that is already open is free to stand on however deep it is.
+        """
+        return min(nodes, key=lambda n: ((n.tier > self.tier) if penalise_tier
+                                         else False, -n.tier, n.uid))
+
+    def _approach_steps(self) -> tuple[str, ...]:
+        """You know where it is. Open the next hop and take it."""
+        return self._steps_toward(self.net.objective_node)
+
+    def _steps_toward(self, uid: str) -> tuple[str, ...]:
+        """The next move toward a host you can see and are not standing on."""
+        route = self.route_to(uid)
+        if not route:
+            shut = self._first_shut()
+            if shut:
+                return (f'crack {shut[0]} {shut[1]}', f'connect {shut[0]}')
+            return self._nothing_left()
+        step = route[0]
+        hop = self.net.node(step)
+        if hop is None:
+            return ('scan',)
+        if not hop.mapped:
+            return (f'probe {step}',)
+        if hop.open and self._blocked(hop):
+            # Open and still impassable, which only a warden does. Route
+            # around it if the map allows, and otherwise say so rather than
+            # advising a command the game is about to refuse.
+            return self._nothing_left()
+        if not hop.open:
+            # A zone above your access is a three-point penalty on every
+            # attempt, and grinding at it is the commonest way to spend a
+            # whole run getting nowhere loudly. The answer is somewhere else
+            # on the network, which is exactly why it needs pointing at.
+            if hop.tier > self.tier:
+                badge = self._tier_steps()
+                if badge:
+                    return badge
+            way = self._easiest(hop)
+            if way:
+                return (f'crack {step} {way}', f'connect {step}')
+        if not hop.open:
+            # Nothing on it worth an attempt, and nowhere else to be. Saying
+            # `connect` here produces a refusal, which is the one thing advice
+            # must never do.
+            return self._nothing_left()
+        # A warden guards the door rather than the room, so an open node can
+        # still refuse you, and the answer is a different command rather than
+        # more of the same one.
+        warden = next((i for i in hop.live_ice
+                       if i.behaviour == 'warden' and i.known), None)
+        if warden is not None and self.credential_challenge(warden) is not None:
+            return (f'connect {step} --present',)
+        return (f'connect {step}',)
+
+    def _nothing_left(self) -> tuple[str, ...]:
+        """No way on that you can see. Look once more, then go.
+
+        The least popular advice in the game and the most important, because
+        the alternative to hearing it is finding out at a hundred trace. A run
+        you cannot finish is still a run you can walk out of.
+        """
+        # Only if standing here has not already been tried. A scan reveals the
+        # neighbourhood of wherever you are, so a second one from the same
+        # host is the same answer, and "scan" as a fallback for "I have run
+        # out of ideas" is a hundred and fifty identical ticks.
+        if self.here not in self.scanned:
+            return ('scan',)
+        # A tier you have not taken yet is worth three points on every locked
+        # door and on every warden between you and the job, and it is the one
+        # thing left that can make a wall stop being one. Somebody with no
+        # Subterfuge cannot talk their way past a Steward at tier zero and can
+        # at tier two, and the difference is an auth server they walked past.
+        badge = self._tier_steps()
+        if badge:
+            return badge
+        return ('jack out',)
+
+    def _tier_steps(self) -> tuple[str, ...] | None:
+        """The way to hold a higher access tier, if there is one in reach.
+
+        Cracking every service on an auth server is the standard route to a
+        badge. Only ones at or below your current tier: sending somebody at a
+        locked door to open a locked door behind it is not advice.
+        """
+        for node in self.net.nodes.values():
+            if node.type != 'auth' or not node.known or node.tier > self.tier:
+                continue
+            if not node.mapped:
+                return (f'probe {node.uid}',)
+            way = self._easiest(node)
+            if way:
+                return (f'crack {node.uid} {way}',)
+        return None
+
+    def _easiest(self, node) -> str:
+        """The best way into a host: the shut service with the best odds.
+
+        Priced with `crack_check`, which is the same sum `odds` prints, so the
+        advice and the maths can never disagree. Sorting on the declared
+        difficulty instead recommended a difficulty-3 badge reader over a
+        difficulty-8 process controller without noticing that the reader is a
+        physical service resolved on Hardware and Grit, which this character
+        does not have, and the controller was the one they could actually
+        open.
+
+        The bar is *possible*, not *likely*. A long shot is a decision and the
+        player can price it with `odds`; a service this build cannot pass at
+        all is not a decision, and naming one produced a hundred and fifty
+        identical attempts and a filled trace.
+        """
+        best, best_chance = '', 0.0
+        for svc in node.services:
+            if svc.cracked:
+                continue
+            _, category = node_content.FAMILIES[svc.family]
+            program = programs.best(self.char.deck.loaded, category)
+            chance = crack_check(self, node, svc, program).chance
+            if chance > best_chance:
+                best, best_chance = svc.key, chance
+        return best
+
+    def _finish_steps(self, kind: str) -> tuple[str, ...]:
+        """You are standing on it. Do the thing you came to do."""
+        if not self.node.mapped:
+            return (f'probe {self.here}',)
+        if not self.node.open:
+            way = self._easiest(self.node)
+            if way:
+                return (f'crack {self.here} {way}',)
+        # Named, because both `pull` and `wipe` default to the first asset on
+        # the node and the first asset on the node is frequently not the one
+        # the contract is about.
+        asset = self.net.objective_asset
+        return {
+            'exfiltrate': (f'pull {asset}' if asset else 'pull',),
+            'implant': ('push',),
+            'corrupt': ('push',),
+            'wipe': (f'wipe {asset}' if asset else 'wipe',),
+            'surveil': ('observe',),
+            'escort': ('signal move', 'signal out'),
+        }.get(kind, ('pull',))
+
+    def _first_shut(self) -> tuple[str, str] | None:
+        """An adjacent host you have looked at and not opened, and its way in."""
+        shut = [n for n in (self.net.node(u) for u in self.node.edges)
+                if n is not None and not n.open and n.mapped
+                and self._easiest(n)]
+        if not shut:
+            return None
+        node = self._deepest(shut)
+        return node.uid, self._easiest(node)
+
+    def route_to(self, uid: str) -> list[str]:
+        """The hops from here to a host, over what you have actually found.
+
+        Over `known` rather than over the whole network, so this can never
+        route you through a host you have not seen: the answer a player gets
+        is one they could have worked out themselves from the map.
+
+        Doors you have seen and know you cannot open are routed around, when
+        there is a way round. Only ones you have actually identified: routing
+        around a warden nobody has looked at yet would be the game quietly
+        using what it knows instead of what you know.
+        """
+        known = {n.uid for n in self.net.nodes.values() if n.known}
+        edges = {uid_: [e for e in node.edges if e in known]
+                 for uid_, node in self.net.nodes.items() if uid_ in known}
+        walls = {u for u in known if u != uid and u != self.here
+                 and self._blocked(self.net.node(u))}
+        if walls:
+            around = {u: [e for e in es if e not in walls]
+                      for u, es in edges.items() if u not in walls}
+            path = ui.shortest_path(around, self.here, uid)
+            if path:
+                return path
+        return ui.shortest_path(edges, self.here, uid)
+
+    def _blocked(self, node) -> bool:
+        """A host you have looked at and cannot get through.
+
+        Two ways that happens, and they look identical from outside: a warden
+        that does not take credentials, and a host whose every service is out
+        of reach of this build. Both are only counted once you have actually
+        seen them, so the route offered is one the player could have worked
+        out from the same information.
+        """
+        if node is None:
+            return False
+        for construct in node.ice:
+            if construct.behaviour != 'warden' or not construct.alive:
+                continue
+            if not construct.known:
+                continue
+            challenge = self.credential_challenge(construct)
+            # No challenge means it does not take credentials at all. A
+            # challenge nobody could pass is the same wall with a politer sign
+            # on it. Anything in between is a long shot, and a long shot is a
+            # decision the player gets to make with the odds in front of them
+            # rather than one the advice makes for them.
+            if challenge is None or challenge.impossible:
+                return True
+        return node.mapped and not node.open and not self._easiest(node)
+
     def objective_met(self) -> bool:
         """Whether the contract's requirement has been satisfied."""
         if not self.contract:
@@ -1056,8 +1473,19 @@ class RunState:
             # They have to have done the job and got out of it alive.
             escort = self.escort
             return bool(escort and escort['done'] and escort['state'] == 'out')
-        if kind in ('corrupt', 'wipe', 'implant'):
-            return bool(self.done.get(kind))
+        # These three record what they acted on, and the check has to read it.
+        # Taking `bool(done[kind])` accepted an implant left on the reception
+        # desk, an edit pushed into whatever host you happened to be holding,
+        # and a wipe of any junk file in the building, all paid in full against
+        # a contract that named one host and one record. That is the game
+        # failing to check the thing it is about, and it is also why a player
+        # could not tell whether they had done the job: neither could it.
+        if kind == 'implant':
+            return self.done.get('implant') == self.net.objective_node
+        if kind == 'corrupt':
+            return self.done.get('corrupt') == self.net.objective_node
+        if kind == 'wipe':
+            return self.done.get('wipe') == self.net.objective_asset
         return bool(self.haul)
 
     def haul_value(self) -> int:

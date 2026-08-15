@@ -79,10 +79,15 @@ def cmd_jack_in(sess, args) -> None:
 
     need = OBJECTIVE_PROGRAM.get(contract.objective)
     if need and not game.char.deck.has_category(need) and not args.has('force'):
+        owned = [programs.BY_KEY[k] for k in game.char.library
+                 if k in programs.BY_KEY
+                 and programs.BY_KEY[k].category == need]
+        fix = (f'`load {owned[0].name.lower()}`' if owned
+               else f'you do not own one either, so `market program` first')
         raise CommandError(
             f'a {contract.objective} contract needs a {need} program loaded '
-            f'and you have none. `load` one, or `jack in --force` to go in '
-            f'anyway.')
+            f'and you have none: {fix}. `jack in --force` goes in without '
+            f'one, and the job cannot be finished that way.')
 
     stream = game.rng.fork('network', contract.cid)
     net = net_mod.generate(stream, contract.target, int(contract.posture),
@@ -169,21 +174,55 @@ def cmd_jack_in(sess, args) -> None:
               f'a half-second after you do.[/]')
         c.say('[dim]They are not yours to command. `signal hold|move|out` is '
               'advice, and they take it when they feel like it.[/]')
-    if contract.objective == 'surveil':
-        c.blank()
-        c.say(f'[info]Nobody is paying you to take anything. Get to '
-              f'[accent]{net.objective_node}[/][info], sit still, and '
-              f'`observe` until you have {state.SURVEIL_TICKS} clean ticks.[/]')
+    # What this run is for, said at the door in the words the player will use
+    # to do it. The objective used to arrive as one word in the header line
+    # above, which names a category of job and not this one.
+    brief = state.brief()
     c.blank()
-    c.say('[dim]`scan` to look around. `status` for where you stand. '
-          '`jack out` to leave.[/]')
+    c.rule('the job')
+    c.say(f'[accent2]{brief.aim}[/]')
+    if brief.where:
+        c.say(f'[dim]{brief.where}[/]')
+    c.blank()
+    c.say('[dim]`job` at any point for this and the next move. `scan` to look '
+          'around. `status` for where you stand. `jack out` to leave.[/]')
+
+
+#: Above this much trace, leaving with nothing is a decision rather than a
+#: mistake, and the game stops asking about it. Somebody bailing at 70 knows
+#: exactly what they are giving up; somebody bailing at 15 has usually lost
+#: track of what the job was.
+ARGUE_BELOW = 55.0
 
 
 @command('jack out', 'Leave the run and settle up.',
-         group='defence', contexts=('run',), ticks=1, usage='jack out')
+         group='defence', contexts=('run',), ticks=1, usage='jack out',
+         detail='Ends the run. If the contract is not finished and the trace '
+                'is still low, this says so once and makes you type it again, '
+                'because leaving early is a real move and leaving early by '
+                'accident is not.')
 def cmd_jack_out(sess, args) -> None:
     state = sess.require_run()
     c = sess.console
+
+    # Said once, on the way out, while it can still be acted on. The summary
+    # already reports a burned run, and by then the only thing the player can
+    # do about it is read it.
+    brief = state.brief()
+    if (not brief.done and not args.has('anyway')
+            and not state.warned_incomplete
+            and state.trace < ARGUE_BELOW):
+        state.warned_incomplete = True
+        c.blank()
+        c.warn('You have not done the job yet.')
+        c.say(f'[dim]{brief.aim}[/]')
+        if brief.where:
+            c.say(f'[dim]{brief.where}[/]')
+        c.blank()
+        c.say(f'[dim]Leaving now pays nothing for the contract. The trace is '
+              f'at {int(state.trace)} and you have room. `job` for the whole '
+              f'brief, or `jack out --anyway` to go.[/]')
+        return
     # The Grave Governor holds a session open, and does not distinguish
     # between one you want held and one you are trying to leave.
     riders = state.char.riders()
@@ -388,6 +427,7 @@ def cmd_scan(sess, args) -> None:
     quiet = args.has('quiet')
 
     found = _reveal(state, state.here, depth)
+    state.scanned.add(state.here)
     noise_scale = 0.4 if quiet else 1.0
     if hunter:
         noise_scale *= hunter.signature
@@ -439,6 +479,10 @@ def cmd_probe(sess, args) -> None:
 
     _act(sess, 'probe', node=node,
          noise_scale=hunter.signature if hunter else 1.0)
+    if not state.running:
+        # The tick this probe cost was the one that finished the run, and
+        # there is nobody left to show the node to.
+        return
     _show_node(sess, node, detail=True)
 
 
@@ -597,10 +641,20 @@ def cmd_connect(sess, args) -> None:
         warden = wardens[0]
         challenge = state.credential_challenge(warden)
         if challenge is None:
+            # Named counters rather than "break it". Nothing you can type from
+            # out here reaches a construct standing on another node, so a
+            # player told to break it and left to work out how spends the rest
+            # of the run rattling the same handle.
+            warden.known = True
             raise CommandError(
-                f'{warden.data.name} holds {uid}, and it does not care who '
-                f'you say you are. Break it.')
+                f'{warden.data.name} holds {uid} and does not take '
+                f'credentials. Nothing you can do from here touches it: '
+                f'`pivot` goes past one at Intrusion 4, and otherwise there '
+                f'is another way in. `map` will show you where.')
         if not args.has('present'):
+            # It has just been named and its odds printed. Anything that asks
+            # what the player knows has to count that.
+            warden.known = True
             c.blank()
             c.say(f'[ice]{warden.data.name} holds {uid}, and it is the kind '
                   f'that asks rather than the kind that refuses.[/]')
@@ -954,6 +1008,20 @@ def cmd_pull(sess, args) -> None:
         if not targets:
             raise CommandError(f'nothing here matches {query!r}')
         targets = targets[:1]
+
+    # A wipe contract is satisfied by destroying one specific record, and
+    # `wipe` can only reach a record that is still on the node. Taking it puts
+    # it in your hands and out of reach of the only verb that finishes the
+    # job, which is a soft lock reached by typing an obviously sensible thing.
+    kind = (state.contract or {}).get('objective', '')
+    if kind == 'wipe' and not args.has('anyway'):
+        doomed = [a for a in targets if a.uid == state.net.objective_asset]
+        if doomed:
+            raise CommandError(
+                f'{doomed[0].name} is the record you were paid to destroy, '
+                f'and taking it puts it somewhere `wipe` cannot reach. '
+                f'`wipe` it instead, or `pull {doomed[0].uid} --anyway` and '
+                f'give up the fee.')
 
     for asset in targets:
         if asset.encrypted:
@@ -1544,6 +1612,16 @@ def cmd_status(sess, args) -> None:
               f'over {len(history)} ticks, {rate:+.1f}/tick[/]')
     c.blank()
     when = shifts.phase(state.phase)
+    # The job, first, above every number. `status` has always been the screen
+    # a player checks when they are unsure, and it answered "how much trouble
+    # am I in" without ever answering "what am I doing here", which left the
+    # tutorial telling people to read an objective off a screen that did not
+    # print one.
+    brief = state.brief()
+    c.kv([('job', ('[ok]done, get out[/]' if brief.done
+                   else f'[accent2]{brief.progress}[/]')
+           + f' [dim]{"`job` for the whole of it" if not brief.done else ""}'
+             f'[/]')])
     c.kv([
         ('alert', f'[warn]{state.alert}[/] [dim]'
                   f'{ice_content.ALERT_BLURB[state.alert]}[/]'),
@@ -1583,6 +1661,43 @@ def cmd_status(sess, args) -> None:
         c.info(f'Nullsig holding, {state.nullsig} ticks.')
     if state.overclock:
         c.info(f'Overclocked {state.overclock} steps.')
+
+
+@command('job', 'What you are here to do, and the next move.',
+         group='info', aliases=('brief',), usage='job',
+         detail='The one screen that answers "what am I trying to achieve". '
+                'In the city: the contract, the walk to it, and what is still '
+                'missing from the deck. In a run: what finishing looks like '
+                'for this specific host and record, how far along you are, and '
+                'the next thing to type. It costs no time and it is always '
+                'safe to ask.')
+def cmd_job(sess, args) -> None:
+    if sess.run is None:
+        from .city import city_job
+        city_job(sess)
+        return
+    state, c = sess.require_run(), sess.console
+    brief = state.brief()
+    contract = state.contract or {}
+    c.header(contract.get('title') or 'Speculative',
+             contract.get('objective') or 'no contract')
+    c.say(f'[accent2]{brief.aim}[/]')
+    if brief.where:
+        c.say(f'[dim]{brief.where}[/]')
+    c.blank()
+    if brief.done:
+        c.ok(f'Done: {brief.progress}. Everything from here is spending time '
+             f'you have already been paid for.')
+    else:
+        c.say(f'[dim]Progress: {brief.progress}.[/]')
+    if brief.steps:
+        c.blank()
+        c.say('[dim]Next:[/]')
+        for step in brief.steps:
+            c.raw(f'  [fg]{step}[/]')
+    c.blank()
+    c.say(f'[dim]`status` for the numbers. `map` for the shape. '
+          f'`odds <action>` for any of the maths.[/]')
 
 
 @command('odds', 'Show the maths before you commit.',
@@ -1772,6 +1887,11 @@ def _known_hosts(sess) -> list[str]:
 
 def _show_node(sess, node, detail: bool = False) -> None:
     state, c = sess.run, sess.console
+    if state is None:
+        # Nothing to describe a host relative to. Every caller guards this
+        # too; a display helper that raises when the run has just ended is a
+        # traceback in front of somebody who has already had a bad night.
+        return
     tail = 'you are here' if node.uid == state.here else ''
     c.header(node.uid, tail)
     look_type = 'workstation' if (node.type == 'honeypot' and node.disguised) \

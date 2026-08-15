@@ -408,6 +408,10 @@ def cmd_icon(sess, args) -> None:
 
 @command('load', 'Put a program on the deck.',
          contexts=('city',), group='prep', usage='load <program>',
+         blocked='The loadout is fixed the moment you jack in: what you are '
+                 'carrying is what you have. `hotswap` is the only thing that '
+                 'changes a deck mid-run, and it changes hardware rather than '
+                 'programs.',
          complete=lambda sess, prefix: _library_names(sess))
 def cmd_load(sess, args) -> None:
     game, c = sess.require_game(), sess.console
@@ -424,6 +428,8 @@ def cmd_load(sess, args) -> None:
 
 @command('unload', 'Take a program off the deck.',
          contexts=('city',), group='prep', usage='unload <program>',
+         blocked='The loadout is fixed from the moment you jack in, in both '
+                 'directions.',
          complete=lambda sess, prefix: _loaded_names(sess))
 def cmd_unload(sess, args) -> None:
     game, c = sess.require_game(), sess.console
@@ -436,7 +442,10 @@ def cmd_unload(sess, args) -> None:
 
 
 @command('install', 'Have cyberware fitted. Needs a clinic.',
-         contexts=('city',), group='character', usage='install <ware>')
+         contexts=('city',), group='character', usage='install <ware>',
+         blocked='Surgery is a clinic, a table, and a shift of your life. It '
+                 'is not something you do to yourself in a chair with a deck '
+                 'in your head.')
 def cmd_install(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     if 'clinic' not in game.city.district.services:
@@ -553,6 +562,8 @@ def cmd_market(sess, args) -> None:
 
 
 @command('buy', 'Buy something from the local market.',
+         blocked='Nobody in here is selling, and your credits are out there '
+                 'with the rest of you.',
          contexts=('city',), group='city', usage='buy <name> [--why]')
 def cmd_buy(sess, args) -> None:
     game, c = sess.require_game(), sess.console
@@ -694,6 +705,86 @@ def _show_contract(sess, contract) -> None:
         c.rule('intel')
         for key, value in contract.intel.items():
             c.say(f'[ok]{key}:[/] {value}')
+
+
+def city_job(sess) -> None:
+    """What you have agreed to do, and the next thing standing between you.
+
+    The city half of `job`. The run half is in `run.py` and reads the network;
+    this one reads the calendar, the walk, and the deck, because out here the
+    thing between you and the job is nearly always one of those three.
+    """
+    game, c = sess.require_game(), sess.console
+    from ..world.contracts import OBJECTIVE_BLURB, OBJECTIVE_PROGRAM
+    contract = game.city.current
+    if contract is None:
+        c.header('No job', 'nothing accepted')
+        c.say('[dim]Nothing accepted. `board` for what is on offer and '
+              '`board <id>` to read one properly, then `take <id>`.[/]')
+        return
+
+    c.header(contract.title, contract.cid)
+    c.say(f'[dim]{OBJECTIVE_BLURB[contract.objective]}[/]')
+    c.blank()
+    where = districts.BY_KEY[contract.district]
+    hops = game.city.shifts_to(contract.district)
+    left = contract.expires - game.city.shift
+    c.kv([
+        ('for', f'[info]{contract.patron_data.name}[/]'),
+        ('against', f'[err]{contract.target_data.name}[/]'),
+        ('pay', f'[credit]{contract.pay:,}c[/]'),
+        ('where', f'{where.name} [dim]'
+                  + ('you are here' if not hops
+                     else f'{hops} shift{"s" if hops != 1 else ""} away')
+                  + '[/]'),
+        ('expires', f'in {left} shift{"s" if left != 1 else ""}'),
+    ])
+
+    # The walk is priced in the same currency as the deadline, and a job you
+    # cannot reach in time is worth knowing about before you spend two shifts
+    # walking toward it.
+    if hops >= left:
+        c.blank()
+        c.err(f'The walk is {hops} shift{"s" if hops != 1 else ""} and it '
+              f'expires in {left}. You will not make it. `drop` it, or go '
+              f'anyway and lose the fee.')
+
+    steps: list[str] = []
+    need = OBJECTIVE_PROGRAM.get(contract.objective)
+    if need and not game.char.deck.has_category(need):
+        c.blank()
+        c.warn(f'No {need} loaded, and this objective cannot be finished '
+               f'without one. The loadout is fixed the moment you jack in.')
+        # Naming one you own, or saying plainly that you own none. Telling
+        # somebody to `load <program>` when their library is empty of the
+        # category is an instruction they cannot follow and cannot diagnose.
+        owned = [programs.BY_KEY[k] for k in game.char.library
+                 if k in programs.BY_KEY
+                 and programs.BY_KEY[k].category == need]
+        if owned:
+            steps.append(f'load {owned[0].name.lower()}')
+        else:
+            cheapest = min(programs.by_category(need),
+                           key=lambda p: (p.tier, p.price))
+            c.say(f'[dim]You do not own one either. Every market carries a '
+                  f'{cheapest.name} at around {cheapest.price:,}c, which is '
+                  f'the cheap end of {need}: `market program`.[/]')
+            if game.char.credits < cheapest.price:
+                # The opening squeeze, said out loud. A broke runner is not
+                # stuck, they are on the wrong contract: two of the six
+                # objectives need nothing in the payload slot at all.
+                c.say('[dim]That is more than you are carrying. Surveil and '
+                      'escort work needs no payload, and a run with no '
+                      'contract on it pays for whatever you can carry out. '
+                      '`board` shows which is which.[/]')
+            steps.append('market program')
+    if hops:
+        steps.append(game.city.walk_to(contract.district))
+    steps.append('jack in')
+    c.blank()
+    c.say('[dim]Next:[/]')
+    for step in steps:
+        c.raw(f'  [fg]{step}[/]')
 
 
 @command('take', 'Accept a contract.',
@@ -851,7 +942,10 @@ def _district_label(sess, key: str, walked: set, goal: str) -> str:
 
 
 @command('travel', 'Move to another district. Costs a shift.',
-         contexts=('city',), group='city', aliases=('go',), usage='travel <district>',
+         contexts=('city',), group='city', aliases=('go',),
+         usage='travel <district>',
+         blocked='Your body is in a chair in the district you jacked in from, '
+                 'and it is going to stay there until you are back in it.',
          complete=lambda sess, prefix: list(districts.DISTRICT_KEYS))
 def cmd_travel(sess, args) -> None:
     game, c = sess.require_game(), sess.console
@@ -944,7 +1038,9 @@ def _resolve_incident(sess, faction: str, danger: int) -> None:
 
 
 @command('rest', 'Lie low. Heals, cools heat, and passes time.',
-         contexts=('city',), group='city', usage='rest [shifts]')
+         contexts=('city',), group='city', usage='rest [shifts]',
+         blocked='Time in here is measured in ticks and the trace is spending '
+                 'them. `steady` is the closest thing to a breath you get.')
 def cmd_rest(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     shifts = max(1, min(12, args.int_at(0, 1, 'a number of shifts')))
