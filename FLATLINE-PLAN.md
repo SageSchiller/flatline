@@ -644,6 +644,61 @@ Capability still beats preference, as everywhere else: an ASCII terminal
 ignores every set here, and a saved preference for something a later build no
 longer ships degrades to the default rather than raising.
 
+### D39: The game must be able to say what it is for
+
+A playtester finished their first run without ever finding out what it was
+for. That is not a difficulty problem and it was not fixed by writing more
+help: the game genuinely did not say, and in three places it said it did.
+
+**The single verb is `job`, and it works in both halves.** In the city: the
+contract, the walk to it, the deadline measured against that walk, and what is
+still missing from the deck. In a run: what finishing looks like for this
+host and this record, where the thing is or what to look for when you have not
+found it, how far along you are, and the next command to type. No time cost,
+always safe to ask. `status` carries one row of the same thing, because
+`status` is what a player checks when they are unsure and it used to answer
+only "how much trouble am I in".
+
+**The next step is computed, not authored.** Every run is the same five beats:
+find it, reach it, open it, do the thing, leave. So the advice reads the state
+and names a real host and a real service rather than printing `probe <host>`,
+which is a syntax reminder given to somebody who did not ask about syntax. It
+prices doors with the same `crack_check` that `odds` prints, so the advice and
+the maths cannot disagree. It routes around wardens you have identified and
+cannot pass, points at an auth server when the obstacle is an access tier
+rather than a lock, and says to leave when there is nothing left to try.
+
+**The bar is termination, not victory.** Doing what it says has to arrive
+somewhere every time: the job done, the run over, or an honest "there is no
+way on". Not every network is winnable by every build and the advice is
+allowed to say so. What it may not do is loop, and every shape it could loop
+in is now a test.
+
+**Writing this found three things that were not true.**
+
+`objective_met` did not check what you had acted on. `bool(done[kind])`
+accepted an implant left on the reception desk and a wipe of any junk file in
+the building against a contract that named one host and one record. The player
+could not tell whether they had done the job because neither could the game.
+
+Seven networks in ten put the objective behind a Gatekeeper, and a warden
+guards the door rather than the room: you meet it from the node next to it,
+and `strike` only reaches what is on your own node. Every counter is a rank 2
+or rank 4 technique. `_ensure_passable` now opens one route the way
+`_ensure_reachable` opens one edge, on the same principle stated in the same
+file: generation may not produce a run that cannot be finished.
+
+Nine of the ten origins ship without a payload and four of the six objectives
+need one, while the shelves carried one in three worlds out of five. Markets
+now always stock the cheapest breaker and the cheapest payload. That is a
+floor under the market rather than a shortcut past it: the good programs are
+still something you go looking for.
+
+**The general lesson, which is the same one as D33 and D38.** Content that
+claims something the engine does not do is the recurring bug of this project,
+and it is at its worst in the tutorial, because the tutorial is read by the
+one person with no way to tell it is wrong.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.

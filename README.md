@@ -29,6 +29,13 @@ identical. Ctrl-C during it means "get on with it", not "quit".
 At the prompt, `tutorial` walks you through a first run one instruction at a
 time, and `help` explains both the verbs and the systems behind them.
 
+Two verbs are worth knowing before anything else. **`job`** says what you are
+trying to do, where it is, how far along you are, and the next command to
+type, in the city and inside a run alike. **`map`** draws the shape of
+wherever you are: the nine districts and the walk to each of them, or every
+host you have found and what connects to what. Neither costs any time and
+both are always safe to ask.
+
 Saves live in `$XDG_DATA_HOME/flatline` (usually `~/.local/share/flatline`),
 not beside the code, so moving or reinstalling the game does not touch a
 character. That location is correct and is also the one place nobody thinks to
@@ -116,7 +123,7 @@ verb nobody else can use and its own starting face · 34 implants · 46 programs
 · 28 countermeasures · 9 districts, each with a mark for the faction that
 holds it · 12 factions · 17 named characters · 18 storylines across 39 scenes ·
 102 appearance features · 51 ambient city events · 31 manual topics ·
-99 commands · 67 unlockable pieces of terminal across 6 axes.
+100 commands · 67 unlockable pieces of terminal across 6 axes.
 
 Footnotes are a real feature of the console. `{{like this}}` in any content
 string gets lifted out and printed under the block, and they nest, because the
