@@ -27,7 +27,10 @@ It boots. If you are on a colour terminal you get the animated version, and
 identical. Ctrl-C during it means "get on with it", not "quit".
 
 At the prompt, `tutorial` walks you through a first run one instruction at a
-time, and `help` explains both the verbs and the systems behind them.
+time. `help` is one screen: what to read first, the verbs that answer "what
+now", and where the rest lives. `help commands` is all 106 verbs, `help
+topics` is all 35 explanations, and `help <anything>` finds a verb, a system,
+or searches both, including every proper noun in the game.
 
 Two verbs are worth knowing before anything else. **`job`** says what you are
 trying to do, where it is, how far along you are, and the next command to
@@ -129,7 +132,7 @@ The three ideas everything else hangs off:
 verb nobody else can use and its own starting face · 34 implants · 46 programs
 · 28 countermeasures · 9 districts, each with a mark for the faction that
 holds it · 12 factions · 17 named characters · 18 storylines across 39 scenes ·
-102 appearance features · 51 ambient city events · 32 manual topics ·
+102 appearance features · 51 ambient city events · 35 manual topics ·
 10 drugs · 3 lenders · 2 games of chance in 5 rooms ·
 106 commands · 67 unlockable pieces of terminal across 6 axes.
 

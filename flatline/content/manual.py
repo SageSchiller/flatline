@@ -34,6 +34,21 @@ class Topic:
     commands: tuple[str, ...] = ()
     #: Grouping in the index.
     group: str = 'systems'
+    #: Content modules this topic is the documentation for.
+    #:
+    #: `validate.py` walks `flatline/content/` and fails the build on any
+    #: module that no topic claims and that is not explicitly exempt. That is
+    #: this project's oldest rule turned on its own prose: content declaring
+    #: something the engine never reads is a lie that ships because it works,
+    #: and a system nobody wrote a topic for is the same lie by omission.
+    covers: tuple[str, ...] = ()
+    #: Words a player will search for that the prose does not happen to use.
+    #:
+    #: `help addiction` and `help loan` both found nothing, because the text
+    #: says habit and borrow. Writing a synonym into the prose to satisfy a
+    #: search is how prose gets worse, so it is declared instead, and anything
+    #: already in the body is rejected as a duplicate that will drift.
+    terms: tuple[str, ...] = ()
 
 
 GROUPS = ('start', 'systems', 'character', 'city')
@@ -44,6 +59,22 @@ GROUP_TITLES = {
     'character': 'What you are made of',
     'city': 'The city, and what it remembers',
 }
+
+#: What `help` puts in front of somebody who has just arrived, in order.
+#: Deliberately four: a landing page listing everything is the index it was
+#: supposed to replace.
+STARTER_PATH = ('basics', 'firstrun', 'triangle', 'origins')
+
+#: The verbs that answer "what now", listed on the landing page under their
+#: own heading. Every one costs no time and is safe to ask at any point, which
+#: is what qualifies them: somebody who is lost should never have to spend a
+#: resource to stop being lost. `validate.py` holds them to that.
+ORIENTATION = (
+    ('job', 'what you are trying to do, and the next move'),
+    ('map', 'the shape of where you are, city or network'),
+    ('status', 'where you stand, and how fast'),
+    ('chem', 'what is in you and what it is about to do'),
+)
 
 
 TOPICS: tuple[Topic, ...] = (
@@ -66,6 +97,7 @@ TOPICS: tuple[Topic, ...] = (
         'knowing the trace advances while you do it.',
         see=('triangle', 'firstrun', 'checks', 'saves', 'reading', 'shell'),
         commands=('board', 'take', 'jack in'),
+        terms=('what is this', 'premise', 'overview',),
         group='start'),
     Topic(
         'firstrun', 'Your first run, step by step',
@@ -106,6 +138,8 @@ TOPICS: tuple[Topic, ...] = (
         see=('triangle', 'checks', 'objectives'),
         commands=('job', 'scan', 'probe', 'odds', 'crack', 'connect',
                   'jack out'),
+        covers=('tutorial',),
+        terms=('how to play', 'getting started', 'walkthrough',),
         group='start'),
 
     Topic(
@@ -130,6 +164,7 @@ TOPICS: tuple[Topic, ...] = (
         'those two states is you having typed `save --export` once.',
         see=('death', 'basics', 'shell'),
         commands=('save', 'restore'),
+        terms=('backup', 'savegame', 'load game',),
         group='start'),
     # -- how a run works --------------------------------------------------
     Topic(
@@ -153,7 +188,8 @@ TOPICS: tuple[Topic, ...] = (
         '[ul]at all[/] pull in opposite directions, and you cannot have both '
         'unless you were fast enough earlier to afford the difference.',
         see=('alert', 'heat', 'basics'),
-        commands=('status', 'scrub', 'mask', 'wipe')),
+        commands=('status', 'scrub', 'mask', 'wipe'),
+        terms=('stealth', 'detection', 'timer',)),
     Topic(
         'checks', 'How anything is decided',
         'The one formula, and why you can always see it.',
@@ -170,7 +206,8 @@ TOPICS: tuple[Topic, ...] = (
         'the term that sank it. If a number surprises you, the game is '
         'obliged to show its working, and it will.',
         see=('attributes', 'skills', 'programs'),
-        commands=('odds',)),
+        commands=('odds',),
+        terms=('dice roll', 'random', 'probability', 'rng',)),
     Topic(
         'ice', 'Countermeasures, and reading them',
         'Seven behaviours, and the tell that always comes first.',
@@ -194,7 +231,9 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] a tell is one free tick. Spend it moving, '
         'masking, striking, or leaving, but spend it.',
         see=('alert', 'triangle', 'death'),
-        commands=('probe', 'strike', 'mask', 'overload')),
+        commands=('probe', 'strike', 'mask', 'overload'),
+        covers=('ice',),
+        terms=('countermeasure', 'security', 'defences',)),
     Topic(
         'alert', 'The alert level',
         'The network making up its mind about you.',
@@ -209,7 +248,8 @@ TOPICS: tuple[Topic, ...] = (
         'is running at nearly double speed, so every tick you spend after that '
         'point costs you nearly twice what the same tick cost at green.',
         see=('triangle', 'ice'),
-        commands=('status',)),
+        commands=('status',),
+        terms=('alarm', 'escalation',)),
     Topic(
         'objectives', 'The six kinds of job',
         'What contracts actually ask for.',
@@ -237,7 +277,9 @@ TOPICS: tuple[Topic, ...] = (
         'one should be taking wipes. Taking the wrong shape of job for your '
         'build is the most common reason a run goes badly.',
         see=('basics', 'rivals'),
-        commands=('board', 'take', 'observe', 'signal')),
+        commands=('board', 'take', 'observe', 'signal'),
+        covers=('nodes',),
+        terms=('mission', 'goal', 'quest',)),
 
     # -- what you are made of ---------------------------------------------
     Topic(
@@ -266,6 +308,8 @@ TOPICS: tuple[Topic, ...] = (
         'usually go to whichever attribute your intended skills check against.',
         see=('skills', 'chrome', 'checks'),
         commands=('char', 'boost'),
+        covers=('attributes',),
+        terms=('stats',),
         group='character'),
     Topic(
         'skills', 'The twelve skill lines',
@@ -299,6 +343,8 @@ TOPICS: tuple[Topic, ...] = (
         'different lines will change how a run plays more than one rank 4.',
         see=('attributes', 'techniques', 'traits', 'origins', 'checks'),
         commands=('skills', 'train', 'techniques'),
+        covers=('skills',),
+        terms=('levelling', 'leveling', 'training',),
         group='character'),
     Topic(
         'techniques', 'Techniques',
@@ -327,6 +373,7 @@ TOPICS: tuple[Topic, ...] = (
         'character yours.',
         see=('skills', 'scripting'),
         commands=('techniques', 'train'),
+        terms=('abilities',),
         group='character'),
     Topic(
         'origins', 'Origins and signature abilities',
@@ -367,6 +414,8 @@ TOPICS: tuple[Topic, ...] = (
         'your runs forty shifts in. Read all ten before you pick.',
         see=('attributes', 'traits', 'threads', 'appearance'),
         commands=('new', 'char'),
+        covers=('origins',),
+        terms=('background', 'class', 'starting character',),
         group='character'),
     Topic(
         'traits', 'Traits',
@@ -392,32 +441,57 @@ TOPICS: tuple[Topic, ...] = (
         'where the value is.',
         see=('skills', 'chrome', 'attributes', 'origins'),
         commands=('trait',),
+        covers=('traits',),
+        terms=('perks', 'flaws',),
         group='character'),
     Topic(
         'chrome', 'Cyberware and Dissonance',
         'Nothing here is a pure upgrade, and the cost is permanent.',
-        'Chrome costs two things. [accent]Bandwidth[/] is hard capacity: you '
-        'have 8 + Grit and that is that. [accent2]Dissonance[/] is the long '
-        'arc, and it never goes down on its own.\n\n'
-        'Every single piece also carries a specific named drawback. A reflex '
-        'governor removes the hesitation between deciding and acting by '
-        'removing the hesitation, so your pretexts suffer. If a piece cannot '
-        'be given an honest downside it does not exist.\n\n'
-        '[accent2]Dissonance[/] is the interesting one. It makes you '
-        '[ul]better in the net[/] and [ul]worse in the city[/]: better '
-        'composure against black ICE, the coherence to wear icons no person '
-        'could hold, and in exchange, worse prices, fewer social options, and '
-        'a city that treats you as a walking incident report.\n\n'
-        'Past 50 Dissonance the back of a clinic opens, and [warn]restricted '
-        'chrome is sold nowhere else[/]. The best hardware in the city is '
-        'available only to people who have gone too far to be sold anything '
-        'else.\n\n'
+        'Chrome charges you twice, and the two costs are nothing like each '
+        'other.\n\n'
+        '[accent]Bandwidth[/] is hard capacity: 8 + Grit, and pieces cost 1 to '
+        '4. That is a wall. [accent2]Dissonance[/] is the long arc, 3 to 22 a '
+        'piece, and it never goes down on its own.\n\n'
+        'There are ten slots and thirty-four pieces competing for them:\n\n'
+        '  neural 2     the deck interface, and what sits beside it\n'
+        '  cortex 2     processing, memory, the parts that change how you think\n'
+        '  limb 2       hands and arms\n'
+        '  subdermal 2  power, cooling, storage\n'
+        '  ocular 1     you get one set of eyes\n'
+        '  spinal 1     the bandwidth trunk, the expensive one\n\n'
+        'So the question is never whether you can afford it. It is '
+        '[warn]what you are taking out to fit it[/].\n\n'
+        'Every piece carries a specific named drawback, in the fiction and in '
+        'the numbers. A reflex governor removes the hesitation between '
+        'deciding and acting by removing the hesitation, so your pretexts '
+        'suffer. If a piece cannot be given an honest downside it does not '
+        'exist. You buy it at a clinic or a fence and [fg]install[/] it at a '
+        'clinic, which costs a shift.\n\n'
+        '[accent2]Dissonance is the interesting one.[/] It makes you better in '
+        'the net and worse in the city. Composure against black ICE is Nerve '
+        'x2 + Dissonance/10, and it buys the coherence to wear icons no person '
+        'could hold. In exchange, past 50 the shops quote you differently, and '
+        'past 75 social legwork closes entirely, because a pretext needs a '
+        'voice that does not lag and yours does.\n\n'
+        'The bands sit at 0, 25, 50 and 75, and each has something written for '
+        'the crossing that you see exactly once. Past 50 the back of a clinic '
+        'opens, and [warn]restricted chrome is sold nowhere else[/]: the best '
+        'hardware in the city is available only to people who have gone too '
+        'far to be sold anything else.\n\n'
+        '[err]Taking chrome out does not lower your Dissonance.[/] The piece '
+        'comes out, the benefit goes, the drift stays. [fg]ground[/] at a '
+        'clinic buys some back, at real money, three shifts and real damage, '
+        'and it can never take you below what your installed hardware itself '
+        'accounts for. You can walk back what the work did to you. You cannot '
+        'walk back architecture while it is still in you.\n\n'
         '[warn]The decision:[/] a full-chrome build is a real playstyle, not a '
-        'punishment track. But taking chrome out does not lower your '
-        'Dissonance, only the floor that grounding can reach. You are choosing '
-        'who to be, not renting it.',
-        see=('attributes', 'icons', 'money'),
-        commands=('chrome', 'install', 'clinic', 'ground'),
+        'punishment track. But you are choosing who to be rather than renting '
+        'it, and the one trait that opts out of this system entirely is worth '
+        'reading before you fit anything.',
+        see=('attributes', 'icons', 'money', 'traits', 'chemistry'),
+        commands=('chrome', 'install', 'uninstall', 'clinic', 'ground'),
+        covers=('cyberware', 'dissonance'),
+        terms=('cyborg', 'implant', 'augmentation', 'surgery', 'prosthetic',),
         group='character'),
     Topic(
         'deck', 'The deck and memory',
@@ -438,6 +512,8 @@ TOPICS: tuple[Topic, ...] = (
         'what turns the loadout from a guess into a choice.',
         see=('programs', 'contracts'),
         commands=('deck', 'load', 'unload', 'buy', 'repair'),
+        covers=('hardware',),
+        terms=('rig', 'computer',),
         group='character'),
     Topic(
         'programs', 'Programs',
@@ -461,6 +537,8 @@ TOPICS: tuple[Topic, ...] = (
         'loses harder.',
         see=('deck', 'triangle'),
         commands=('load', 'deck', 'market'),
+        covers=('programs',),
+        terms=('software', 'tools',),
         group='character'),
     Topic(
         'icons', 'Your icon',
@@ -482,6 +560,8 @@ TOPICS: tuple[Topic, ...] = (
         'afford to lose.',
         see=('chrome', 'appearance'),
         commands=('icon',),
+        covers=('icons',),
+        terms=('avatar',),
         group='character'),
     Topic(
         'scripting', 'Scripts and daemons',
@@ -505,6 +585,7 @@ TOPICS: tuple[Topic, ...] = (
         'ones later.',
         see=('techniques',),
         commands=('script', 'daemon'),
+        terms=('automation', 'batch',),
         group='character'),
 
     # -- the city ---------------------------------------------------------
@@ -531,6 +612,8 @@ TOPICS: tuple[Topic, ...] = (
         'price, and knowing when to pay it is most of the city layer.',
         see=('heat', 'rivals', 'contracts', 'reading', 'clock'),
         commands=('travel', 'map', 'rest', 'board'),
+        covers=('districts', 'shifts',),
+        terms=('moving around', 'getting about',),
         group='city'),
     Topic(
         'contracts', 'The board and legwork',
@@ -551,6 +634,7 @@ TOPICS: tuple[Topic, ...] = (
         'for blind.',
         see=('city', 'deck', 'objectives'),
         commands=('board', 'take', 'legwork'),
+        terms=('jobs', 'gigs',),
         group='city'),
     Topic(
         'heat', 'Heat, aliases, and bounties',
@@ -573,6 +657,7 @@ TOPICS: tuple[Topic, ...] = (
         'than the bounty. Usually it is not.',
         see=('triangle', 'factions', 'death'),
         commands=('alias', 'burn', 'rep', 'rest'),
+        terms=('wanted', 'police', 'arrest', 'hiding',),
         group='city'),
     Topic(
         'factions', 'The twelve powers',
@@ -598,6 +683,8 @@ TOPICS: tuple[Topic, ...] = (
         'be liked by everybody.',
         see=('heat', 'contracts', 'rivals'),
         commands=('rep', 'board'),
+        covers=('factions',),
+        terms=('corporations', 'who is who',),
         group='city'),
     Topic(
         'rivals', 'The other runners',
@@ -625,6 +712,8 @@ TOPICS: tuple[Topic, ...] = (
         'available to you and it closes the whole social layer behind it.',
         see=('objectives', 'city'),
         commands=('who', 'hire', 'ask', 'betray'),
+        covers=('rivals',),
+        terms=('competition', 'other runners',),
         group='city'),
     Topic(
         'people', 'The people in this city',
@@ -646,6 +735,8 @@ TOPICS: tuple[Topic, ...] = (
         'into districts you have no job in.',
         see=('threads', 'rivals', 'city'),
         commands=('look', 'talk', 'ask', 'who is'),
+        covers=('npcs',),
+        terms=('npc', 'conversation',),
         group='city'),
     Topic(
         'threads', 'Storylines',
@@ -669,6 +760,8 @@ TOPICS: tuple[Topic, ...] = (
         'in it.',
         see=('people', 'city'),
         commands=('journal', 'choose', 'look'),
+        covers=('threads',),
+        terms=('storyline', 'plot', 'quests',),
         group='city'),
     Topic(
         'money', 'Credits and what things cost',
@@ -688,54 +781,137 @@ TOPICS: tuple[Topic, ...] = (
         'temptation is the game asking you a question every single run.',
         see=('triangle', 'contracts', 'deck', 'vices'),
         commands=('market', 'buy', 'sell', 'debt'),
+        terms=('economy', 'income', 'earning', 'broke', 'poor',),
         group='city'),
     Topic(
         'vices', 'Borrowing against later',
         'Three ways to have something now and pay for it afterwards.',
         'The city runs on getting away with things temporarily. Residue '
-        'becomes heat a shift after you thought you were clean, and these are '
-        'the same shape: something now, priced later.\n\n'
-        '[accent]Money.[/] `borrow` where somebody lends, which is Marrow, '
-        'the Ninth Ward and the Shambles. Three lenders and the difference is '
-        'not the rate: the Switchboard advance against work and collect by '
-        'not giving you any, the Sixes lend more than they should and come '
-        'round in person, and Carrion lend anybody eight thousand and take '
-        'payment in parts. What you can borrow scales on your standing and '
-        'your record, except from Carrion, who offer everybody the same '
-        'number.\n\n'
-        '[accent]Chemistry.[/] `dose` what you are carrying, `chem` for what '
-        'it will do. Every drug is up for a while and down for longer, and '
-        '[warn]the crash always costs more than the high paid[/]. What you '
-        'are buying is when the bill arrives.\n\n'
-        'Then there is habit, which is the part worth understanding. One '
-        'number per drug does three jobs: it weakens the high, it deepens the '
-        'crash, and past four it applies a third set of effects [warn]whenever '
-        'you are not using[/]. That is the turn. A dose stops making you '
-        'better than a person and starts making you a person again, and the '
-        'number you had before is not the number you have now. Five clean '
-        'shifts sheds a point, a clinic will `detox` several for money, and '
-        'neither undoes what the using already cost.\n\n'
-        '[accent]Luck.[/] `dice` is Ninepins: two dice, high is 8 to 12, low '
-        'is 2 to 6, and seven belongs to the house. A sixth of every stake, '
-        'painted on the wall, the same for all three calls, so there is no '
-        'correct bet and only a choice of how hard to breathe. It costs no '
-        'time and it needs nothing but money.\n\n'
-        '`cards` is Threes, and it is the opposite: an evening, resolved on '
-        'Guile and Subterfuge against the table rather than on what you were '
-        'dealt. It is the one place in the game a social build is a build. '
-        'Most characters will be turned away and pointed at the dice, which '
-        'is the room being honest rather than the game being closed.\n\n'
-        '[warn]Winning has a cost that is not money.[/] Take enough off a '
-        'room and the house thinks less of you, the table learns how you '
-        'play, and past five thousand in a night everybody there can describe '
-        'your face to somebody who was not.\n\n'
-        '[warn]The decision:[/] all three are correct sometimes. A payload '
-        'you cannot afford is a contract you cannot finish, and 2,000c at '
-        'thirty-eight percent a shift is cheaper than a fortnight of not '
-        'working. The trap is not any one of them. It is taking the second '
-        'one to pay for the first.',
-        see=('money', 'heat', 'death', 'city'),
-        commands=('borrow', 'debt', 'dose', 'chem', 'detox', 'dice', 'cards'),
+        'becomes heat a shift after you thought you were clean, and the three '
+        'vices are that same sentence in three registers: something now, '
+        'priced afterwards, at a rate you were told first.\n\n'
+        '  [fg]help borrowing[/]   money, and three people who lend it\n'
+        '  [fg]help chemistry[/]   what you can put in yourself, and the bill\n'
+        '  [fg]help gambling[/]    two games, both of which print the odds\n\n'
+        'They are worth reading as one thing because they compound. A payload '
+        'you cannot afford is a contract you cannot finish; two thousand '
+        'credits at thirty-eight percent a shift is cheaper than a fortnight '
+        'of not working; a stimulant makes the run that repays it go better; '
+        'and the comedown lands on the shift the collector calls.\n\n'
+        '[warn]The decision:[/] each of the three is correct sometimes. The '
+        'trap is never the first one. It is taking the second to pay for the '
+        'first.',
+        see=('borrowing', 'chemistry', 'gambling', 'money', 'heat'),
+        commands=('borrow', 'dose', 'dice'),
+        terms=('temptation',),
+        group='city'),
+    Topic(
+        'borrowing', 'Debt, and who lends',
+        'Three lenders, and the difference is not the interest rate.',
+        'You can owe exactly one person at a time. [fg]borrow[/] where '
+        'somebody lends, which is Marrow, the Ninth Ward and the Shambles, and '
+        'what they will put in front of you scales on your standing with them '
+        'and on your record. It compounds every shift, including the ones you '
+        'spend asleep, and the grace period counts from the day you took it '
+        'rather than the day you stopped paying.\n\n'
+        '  [accent]Switchboard[/]  Marrow, at the fixer. Lowest rate, longest '
+        'grace, and they lend against work rather than against you.\n'
+        '  [accent]The Sixes[/]    the Ninth, at the fence. More than is '
+        'sensible, to people they have decided are local.\n'
+        '  [accent]Carrion[/]      the Shambles, at the clinic. Eight '
+        'thousand, to anybody, immediately, without asking what it is for.\n\n'
+        'The rate is the least of it. What separates them is what happens when '
+        'you stop paying. The Switchboard stop finding you work, which in a '
+        'game where the board is the only income is slower and worse than it '
+        'sounds. The Sixes come round in person. Carrion do not do collections '
+        'at all, they do procedures, and they are the only ones whose limit '
+        'does not scale on anything you have ever done.\n\n'
+        'When the grace runs out they take a quarter of the outstanding '
+        'balance every few shifts. [warn]If the account is empty they take it '
+        'out of the room[/], which routes through the same fallout ladder as '
+        'everything else: chrome, damage, or your name in somebody\'s file.\n\n'
+        '[warn]The decision:[/] a debt is a clock that is not the trace, and '
+        'it is the only one you can start yourself. Borrowing to buy the '
+        'program that finishes the contract is usually right. Borrowing to '
+        'cover the last loan is how people end up in the Shambles.',
+        see=('vices', 'money', 'factions', 'death'),
+        commands=('borrow', 'debt'),
+        covers=('lenders',),
+        terms=('loanshark', 'shark', 'interest', 'creditor', 'repay'),
+        group='city'),
+    Topic(
+        'chemistry', 'Drugs, tolerance, and habit',
+        'What you can put in yourself, and what it takes back.',
+        'Ten things, sold by clinics, fences, markets and one fixer, and not '
+        'the same things at each counter. [fg]chem[/] is what is in you, '
+        '[fg]chem <drug>[/] is what one will do at your current tolerance, and '
+        '[fg]dose[/] takes it. It works out here and inside a run alike, and '
+        'inside a run it costs a tick.\n\n'
+        'Everything is up for a while and down for longer, and [warn]the crash '
+        'always costs more than the high paid[/]. That is not balance, it is '
+        'the rule the catalogue is written under, and the build fails if a '
+        'drug breaks it. What you are buying is never the arithmetic. It is '
+        'that the arithmetic lands at a different time from the problem.\n\n'
+        '[accent2]Habit is the part worth understanding.[/] One number per '
+        'drug does three jobs at once:\n\n'
+        '  it weakens the high, so the same dose does less each time\n'
+        '  it deepens the crash, so the same dose costs more\n'
+        '  and past four it applies a third set of effects whenever you are '
+        'not using\n\n'
+        'That last one is the turn. Below it you are somebody who takes '
+        'something occasionally. At it, your baseline is lower than the one '
+        'you started with, and a dose stops making you better than a person '
+        'and starts making you a person again. The number on your sheet that '
+        'used to be five is four, and nothing did that except you.\n\n'
+        'Five clean shifts sheds one point, and using anything at all resets '
+        'that clock for every habit you have, which is why two are much worse '
+        'than twice one. A clinic will [fg]detox[/] several points for money '
+        'and a few shifts. Neither undoes what the using already cost.\n\n'
+        'One thing in the catalogue ends a comedown early, exactly as '
+        'advertised, and moves the price into the habit instead. One does '
+        'nothing at all and is sold by a vending machine that believes in it '
+        'completely.\n\n'
+        '[warn]The decision:[/] a dose before a hard run is often correct, '
+        'because the crash lands on a shift you were going to spend resting '
+        'anyway. A dose to get through a crash is the moment the system starts '
+        'happening to you rather than the other way round.',
+        see=('vices', 'chrome', 'death', 'clock'),
+        commands=('chem', 'dose', 'detox', 'clinic'),
+        covers=('drugs',),
+        terms=('addiction', 'addicted', 'dependency', 'withdrawal', 'overdose',
+               'stim', 'narcotic'),
+        group='city'),
+    Topic(
+        'gambling', 'Ninepins and Threes',
+        'Two games, and both of them tell you the odds first.',
+        'Nobody in these rooms is deceiving you. They are simply correct about '
+        'how it will go on average, and you are going to play anyway, and that '
+        'difference is most of the tone of this city.\n\n'
+        '[accent]Ninepins[/] is [fg]dice[/], in the Ninth, the Shambles and '
+        'Freeport. Two dice: high is 8 to 12, low is 2 to 6, and seven belongs '
+        'to the house. That is a sixth of everything you put down, it is '
+        'painted on the wall, and [warn]it is the same sixth on all three '
+        'calls[/], so there is no correct bet and only a choice of how hard to '
+        'breathe. Costs no time and needs nothing but money.\n\n'
+        '[accent]Threes[/] is [fg]cards[/], in Marrow and the Vertical. An '
+        'evening, so it costs a shift, and it is resolved on Guile and '
+        'Subterfuge against the table rather than on what you were dealt. It '
+        'is the one place in this game where a social build is a build rather '
+        'than a discount on conversations, and how well you read them decides '
+        'the payout. Most characters are turned away and pointed at the dice, '
+        'which is the room being honest rather than the game being shut.\n\n'
+        '[warn]Winning costs something that is not money.[/] Take enough off a '
+        'room and the house thinks less of you, the table measurably learns '
+        'how you play, and past five thousand in a single night everybody '
+        'there can describe your face to somebody who was not.\n\n'
+        '[warn]The decision:[/] the dice are a fast, stupid answer to being '
+        'broke and they are honest about being one. The cards are an income '
+        'for the right character, right up until the table works out what kind '
+        'of character that is.',
+        see=('vices', 'money', 'attributes', 'heat'),
+        commands=('dice', 'cards'),
+        covers=('games',),
+        terms=('casino', 'betting', 'wager', 'luck'),
         group='city'),
     Topic(
         'death', 'How it goes wrong',
@@ -761,6 +937,7 @@ TOPICS: tuple[Topic, ...] = (
         'costs a night. Not trying costs the campaign.',
         see=('ice', 'heat', 'triangle'),
         commands=('status', 'jack out'),
+        terms=('dying', 'killed', 'permadeath',),
         group='city'),
 
     Topic(
@@ -801,6 +978,8 @@ TOPICS: tuple[Topic, ...] = (
         'that is a record rather than a decision.',
         see=('chrome', 'heat', 'people', 'origins'),
         commands=('self', 'clinic'),
+        covers=('appearance',),
+        terms=('looks', 'disguise',),
         group='character'),
 
     Topic(
@@ -831,6 +1010,8 @@ TOPICS: tuple[Topic, ...] = (
         'wall of scrollback.',
         see=('triangle', 'city', 'basics', 'clock'),
         commands=('look', 'rest', 'log'),
+        covers=('events', 'cyberspace',),
+        terms=('footnotes', 'flavour',),
         group='city'),
 
     Topic(
@@ -865,6 +1046,7 @@ TOPICS: tuple[Topic, ...] = (
         'under you.',
         see=('city', 'triangle', 'contracts', 'heat'),
         commands=('look', 'rest', 'travel', 'status'),
+        terms=('time of day', 'schedule',),
         group='city'),
 
     Topic(
@@ -900,6 +1082,8 @@ TOPICS: tuple[Topic, ...] = (
         'keeping it.',
         see=('saves', 'basics', 'death'),
         commands=('rice', 'title', 'career'),
+        covers=('rice',),
+        terms=('ricing', 'theme', 'colours', 'colors', 'customise', 'customize',),
         group='start'),
 )
 

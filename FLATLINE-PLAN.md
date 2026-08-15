@@ -768,6 +768,56 @@ floor in the one place every modifier in the game passes through. Integrity
 cannot take another hit, which is survivable in the street and is not
 survivable in a network, so `jack in` refuses it without `--force`.
 
+### D41: Help is three questions, not one page
+
+`help` printed every verb legal in the current context and then the whole
+manual index. A hundred and forty-one lines, six screenfuls, and it grew every
+time anything was added, which is the shape of every in-game help system that
+nobody reads.
+
+The diagnosis is that one screen was answering three different questions.
+*What can I type* is the command list. *How does this work* is the manual.
+*I am lost* is neither, and it is the only one that is urgent. Somebody asking
+any of the three had to scroll past the other two.
+
+So: `help` is now a landing page of about twenty-five lines. Four topics to
+read in order, the four free verbs that answer "what now", and three pointers
+to where the rest lives. `help commands` and `help topics` are the two indexes,
+separately, and `help --all` is still both at once for anybody who liked it.
+
+**`help <anything>` searches when nothing is called that.** With a hundred and
+six verbs and thirty-five topics, the commonest failure is knowing what you
+want and not what it is called. It scores over keys, titles, summaries, bodies,
+command names and aliases, and one hit opens the thing rather than listing it.
+
+Two things make the search actually work. `terms` are declared synonyms:
+`help addiction` and `help loan` both found nothing because the prose says
+habit and borrow, and writing a synonym into prose to satisfy a search is how
+prose gets worse. And a topic's `covers` is used to index its own catalogue, so
+`help gatekeeper` reaches the ICE topic and `help grave salt` reaches
+chemistry, without anybody maintaining a word list.
+
+**`covers` is the part worth keeping.** Every topic declares which content
+modules it is the documentation for, and `validate.py` walks
+`flatline/content/` and fails the build on any module no topic claims and that
+is not explicitly exempt with a reason. That is this project's oldest rule
+turned on its own prose: content declaring something the engine never reads is
+a lie that ships because it works, and a system nobody wrote a topic for is
+the same lie by omission. Two modules are exempt, the modifier vocabulary and
+the manual itself.
+
+The landing page is also held to being a page: the starter path is capped, and
+every verb on the "lost right now" list has to cost zero ticks and work in both
+halves of the game, because advice that costs the player the thing they are
+short of is not advice.
+
+**What it turned up.** `help --topic <key>`, the documented escape hatch for
+the seven topic keys a command shadows, had never worked: it parses as an
+option rather than a flag, so the check for it never fired and it silently
+printed the index. And those seven pages ended with "Background: `help
+chrome`" at the bottom of the page you reached by typing `help chrome`, which
+also went unnoticed because the collision is through aliases half the time.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.

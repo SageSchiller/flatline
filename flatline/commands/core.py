@@ -35,43 +35,70 @@ GROUP_TITLES = {
 }
 
 
-@command('help', 'What you can type, and what everything means.',
+@command('help', 'Where to start, what you can type, and what it all means.',
          group='session', aliases=('?', 'h'), bare=True,
-         usage='help [command|topic] [--all]',
-         detail='With no argument, shows the commands you can use here and '
-                'the manual index. `help <command>` explains a verb. '
-                '`help <topic>` explains a system: try `help triangle` for '
-                'the three numbers the whole game runs on, or `help firstrun` '
-                'for a walkthrough of one.')
+         usage='help [command|topic|commands|topics|<search>] [--all]',
+         detail='With no argument: one screen. What to read first, the verbs '
+                'that answer "what now", and where the rest lives. '
+                '`help commands` is every verb grouped, `help topics` is every '
+                'explanation grouped, and `help --all` is both at once, which '
+                'is what this used to be and is a hundred and forty lines. '
+                '`help <anything else>` finds a verb, a system, or searches '
+                'both for the word.')
 def cmd_help(sess, args) -> None:
-    c = sess.console
-    if len(args):
-        want = args[0].lower()
-        # A topic and a command can share a name; the command wins, because
-        # somebody typing `help scan` wants the verb. Topics that collide are
-        # reachable as `help --topic <name>`, and none currently do.
-        cmd = REGISTRY.lookup(want)
-        if cmd is None and not args.has('topic'):
-            matches = REGISTRY.prefix_matches(want, sess.context)
-            if len(matches) == 1:
-                cmd = matches[0]
-        if cmd is not None and not args.has('topic'):
-            _help_command(sess, cmd)
-            return
+    if args.has('all'):
+        _help_everything(sess)
+        return
 
-        topic = manual.BY_KEY.get(want)
+    # `--topic <key>` forces the manual entry when a command shadows it, and
+    # is what the seven colliding pages tell you to type. It parses as an
+    # option rather than a flag, so `args.has('topic')` never saw it and the
+    # documented escape hatch quietly showed the index instead.
+    forced = args.opt('topic') or (args.get(0) if args.has('topic') else None)
+    if forced:
+        topic = manual.BY_KEY.get(forced.lower())
         if topic is None:
-            near = [k for k in manual.TOPIC_KEYS if k.startswith(want)]
-            if len(near) == 1:
-                topic = manual.BY_KEY[near[0]]
-        if topic is not None:
-            _help_topic(sess, topic)
-            return
-        raise CommandError(
-            f'nothing called {want!r}. `help` for the command list and the '
-            f'manual index.')
+            raise CommandError(f'no manual topic called {forced!r}. '
+                               f'`help topics` for the list.')
+        _help_topic(sess, topic)
+        return
 
-    _help_index(sess, everything=args.has('all'))
+    if not len(args):
+        _help_landing(sess)
+        return
+
+    want = args[0].lower()
+    # The two index pages. Checked before the registry so they cannot be
+    # shadowed later by a verb that happens to be called `topics`.
+    if want in ('commands', 'verbs'):
+        _help_commands(sess, (args.get(1) or sess.context).lower())
+        return
+    if want in ('topics', 'manual', 'systems'):
+        _help_topics(sess)
+        return
+
+    # A topic and a command can share a name; the command wins, because
+    # somebody typing `help scan` wants the verb. The command page links to
+    # any topic that covers it, so the other one is one hop away.
+    cmd = REGISTRY.lookup(want)
+    if cmd is None and not args.has('topic'):
+        matches = REGISTRY.prefix_matches(want, sess.context)
+        if len(matches) == 1:
+            cmd = matches[0]
+    if cmd is not None and not args.has('topic'):
+        _help_command(sess, cmd)
+        return
+
+    topic = manual.BY_KEY.get(want)
+    if topic is None:
+        near = [k for k in manual.TOPIC_KEYS if k.startswith(want)]
+        if len(near) == 1:
+            topic = manual.BY_KEY[near[0]]
+    if topic is not None:
+        _help_topic(sess, topic)
+        return
+
+    _help_search(sess, args.rest().lower())
 
 
 def _help_command(sess, cmd) -> None:
@@ -92,16 +119,34 @@ def _help_command(sess, cmd) -> None:
     c.blank()
     c.kv(rows)
     # Point at the manual topics that explain what this verb operates on.
-    related = [t for t in manual.TOPICS if cmd.name in t.commands]
+    #
+    # A topic whose key is this command's own name, or one of its aliases, is
+    # called out separately and by the form that actually reaches it. Seven
+    # collide, and listing one the ordinary way put "Background: `help
+    # chrome`" at the bottom of the page somebody got by typing `help chrome`.
+    names = {cmd.name, *cmd.aliases}
+    same = next((manual.BY_KEY[n] for n in names if n in manual.BY_KEY), None)
+    related = [t for t in manual.TOPICS
+               if cmd.name in t.commands and t.key not in names]
     if related:
         c.blank()
         c.say('[dim]Background: '
               + ', '.join(f'`help {t.key}`' for t in related) + '[/]')
+    if same is not None:
+        if not related:
+            c.blank()
+        c.say(f'[dim]There is a manual topic of the same name, about the '
+              f'system rather than the verb: [fg]help --topic {cmd.name}[/]'
+              f'[dim] ({same.summary})[/]')
 
 
 def _help_topic(sess, topic) -> None:
     c = sess.console
-    c.header(topic.title, f'help {topic.key}')
+    # The header names the form that reaches this page. For the seven keys a
+    # command shadows, `help <key>` is not that form and printing it is the
+    # page lying about its own address.
+    reached = ('help --topic' if REGISTRY.lookup(topic.key) else 'help')
+    c.header(topic.title, f'{reached} {topic.key}')
     for para in topic.body.split('\n\n'):
         for line in para.split('\n'):
             # Lines that are already laid out as a table keep their spacing;
@@ -115,53 +160,227 @@ def _help_topic(sess, topic) -> None:
         c.say('[dim]Commands: '
               + ', '.join(f'[fg]{x}[/]' for x in topic.commands) + '[/]')
     if topic.see:
-        c.say('[dim]See also: '
-              + ', '.join(f'`help {k}`' for k in topic.see) + '[/]')
+        c.say('[dim]See also: ' + ', '.join(
+            f'`help {"--topic " if REGISTRY.lookup(k) else ""}{k}`'
+            for k in topic.see) + '[/]')
 
 
-def _help_index(sess, everything: bool = False) -> None:
+def _listing(c, rows: list[tuple[str, str]], indent: str = '  ') -> None:
+    """A name-and-blurb list, aligned, wrapping under its own name column."""
+    if not rows:
+        return
+    width = max(len(name) for name, _ in rows)
+    for name, blurb in rows:
+        pad = ' ' * (width - len(name))
+        # The indent goes through `say`'s own parameter rather than into the
+        # string: `wrap` strips leading space off what it is given, so an
+        # indent written inline disappears and the continuation lines of a
+        # long blurb hang under nothing.
+        c.say(f'[fg]{name}[/]{pad}  [dim]{blurb}[/]', indent=indent,
+              subsequent=indent + ' ' * (width + 2))
+
+
+def _help_landing(sess) -> None:
+    """One screen, answering the three questions separately.
+
+    This used to print every verb in context and every topic in the manual,
+    which was a hundred and forty lines and six screenfuls. It was trying to
+    answer three different questions at once: what do I type, how does this
+    work, and I am lost. Somebody asking any one of them had to scroll past
+    the other two.
+    """
     c = sess.console
     context = sess.context
     c.header(f'{APP_TITLE} help',
              'in a run' if context == 'run' else 'in the city')
 
+    c.say('[accent]Read these four, in this order[/]')
+    _listing(c, [(k, manual.BY_KEY[k].summary) for k in manual.STARTER_PATH
+                 if k in manual.BY_KEY])
     if sess.game is None:
-        c.say('[dim]New here? `help basics` is four sentences on what this '
-              'game is, and `tutorial` will walk you through one run while '
-              'you play it.[/]')
-        c.blank()
+        c.say('[dim]...or `tutorial`, which walks you through a run one '
+              'instruction at a time while you play it.[/]', indent='  ',
+              subsequent='  ')
 
+    c.blank()
+    c.say('[accent]Lost right now[/]')
+    _listing(c, [(name, blurb) for name, blurb in manual.ORIENTATION
+                 if REGISTRY.lookup(name)])
+    c.say('[dim]None of those cost time, and all of them are safe to ask at '
+          'any point.[/]', indent='  ', subsequent='  ')
+
+    c.blank()
+    c.say('[accent]Everything else[/]')
+    verbs = len(REGISTRY.in_context(context))
+    _listing(c, [
+        ('help commands', f'all {verbs} verbs you can use here, grouped'),
+        ('help topics', f'all {len(manual.TOPICS)} explanations, grouped'),
+        ('help <word>', 'a verb, a system, or a search across both'),
+    ])
+
+    c.blank()
+    c.say('[dim]Prefixes work: `conn` reaches `connect`. Chain commands with '
+          '`;`. `help --all` is the old everything-at-once index.[/]')
+
+
+def _help_commands(sess, which: str) -> None:
+    """Every verb, grouped. `which` is a context, or `all` for both."""
+    c = sess.console
+    if which in ('all', 'any', 'both'):
+        context, label = None, 'everywhere'
+    elif which in ('city', 'run'):
+        context = which
+        label = 'in a run' if which == 'run' else 'in the city'
+    else:
+        raise CommandError(f'`help commands` takes city, run or all, '
+                           f'not {which!r}')
+    cmds = (REGISTRY.in_context(context) if context
+            else sorted(REGISTRY.commands.values(),
+                        key=lambda x: (GROUPS.index(x.group), x.name)))
+    c.header('Commands', label)
     for group in GROUPS:
-        cmds = [x for x in REGISTRY.in_context(context) if x.group == group]
-        if not cmds:
+        rows = [(x.name, x.summary) for x in cmds if x.group == group]
+        if not rows:
             continue
         c.blank()
         c.raw(f'[accent]{GROUP_TITLES[group]}[/]')
-        width = max(len(x.name) for x in cmds)
-        for cmd in cmds:
-            pad = ' ' * (width - len(cmd.name))
-            c.say(f'  [fg]{cmd.name}[/]{pad}  [dim]{cmd.summary}[/]',
-                  subsequent=' ' * (width + 4))
-
+        _listing(c, rows)
     c.blank()
-    c.rule('the manual')
-    c.say('[dim]These explain the systems rather than the verbs. '
-          '`help <topic>`.[/]')
+    c.say('[dim]`help <verb>` for what one does, what it costs, and the '
+          'topic that explains what it operates on. `help commands all` for '
+          'the ones that only work elsewhere.[/]')
+
+
+def _help_topics(sess) -> None:
+    """Every explanation, grouped."""
+    c = sess.console
+    c.header('The manual', f'{len(manual.TOPICS)} topics')
+    c.say('[dim]These explain the systems rather than the verbs.[/]')
     for group in manual.GROUPS:
         topics = [t for t in manual.TOPICS if t.group == group]
         if not topics:
             continue
         c.blank()
         c.raw(f'[accent2]{manual.GROUP_TITLES[group]}[/]')
-        width = max(len(t.key) for t in topics)
-        for topic in topics:
-            pad = ' ' * (width - len(topic.key))
-            c.say(f'  [fg]{topic.key}[/]{pad}  [dim]{topic.summary}[/]',
-                  subsequent=' ' * (width + 4))
-
+        _listing(c, [(t.key, t.summary) for t in topics])
     c.blank()
-    c.say('[dim]Prefixes work: `conn` reaches `connect`. Chain with `;`. '
-          'Start with `help basics`.[/]')
+    c.say('[dim]`help <topic>` to read one. Every topic ends with the '
+          'decision it exists to inform.[/]')
+
+
+def _help_everything(sess) -> None:
+    """Both indexes at once. What `help` used to be, for anybody who wants it."""
+    _help_commands(sess, sess.context)
+    sess.console.blank()
+    _help_topics(sess)
+
+
+#: How many search hits are worth printing. Past this it is not a search
+#: result, it is the index again.
+SEARCH_LIMIT = 12
+
+
+def _in_catalogue(topic, word: str) -> bool:
+    """Whether a topic's own content module names something called this.
+
+    Read off `covers`, so it stays true for free: a topic that documents the
+    drugs is searchable by every drug name the moment one is added, and a
+    module renamed out from under it fails `validate.py` rather than quietly
+    unindexing itself.
+    """
+    import importlib
+    for module_name in topic.covers:
+        try:
+            module = importlib.import_module(
+                f'..content.{module_name}', __package__)
+        except ImportError:
+            continue
+        table = getattr(module, 'BY_KEY', None)
+        if not isinstance(table, dict):
+            continue
+        for key, value in table.items():
+            if word in str(key).lower():
+                return True
+            name = getattr(value, 'name', '')
+            if name and word in str(name).lower():
+                return True
+    return False
+
+
+def _help_search(sess, word: str) -> None:
+    """Nothing is called that. Find what does mention it.
+
+    A hundred and six verbs and thirty-five topics is more than anybody can
+    hold the names of, and the commonest failure is knowing what you want and
+    not what it is called. `help addiction` and `help loan` and `help odds of
+    winning` all have to land somewhere rather than raising.
+    """
+    c = sess.console
+    if not word:
+        raise CommandError('search for what?')
+
+    topics: list[tuple[int, str, str]] = []
+    for topic in manual.TOPICS:
+        score = 0
+        if word in topic.key or word in topic.terms:
+            score = 3
+        elif word in topic.title.lower() or word in topic.summary.lower():
+            score = 2
+        elif any(word in term for term in topic.terms):
+            score = 2
+        elif word in ui.plain(topic.body).lower():
+            score = 1
+        elif _in_catalogue(topic, word):
+            # The proper nouns of whatever this topic documents. `help kick`
+            # and `help gatekeeper` and `help carrion` are all things a player
+            # will type, and none of them appear in any prose.
+            score = 2
+        if score:
+            topics.append((score, topic.key, topic.summary))
+
+    verbs: list[tuple[int, str, str]] = []
+    for cmd in REGISTRY.in_context(sess.context):
+        haystack = ' '.join((cmd.name, ' '.join(cmd.aliases))).lower()
+        score = 0
+        if word in haystack:
+            score = 3
+        elif word in cmd.summary.lower():
+            score = 2
+        elif word in (cmd.detail or '').lower():
+            score = 1
+        if score:
+            verbs.append((score, cmd.name, cmd.summary))
+
+    if not topics and not verbs:
+        raise CommandError(
+            f'nothing called {word!r}, and nothing mentions it. '
+            f'`help topics` for the manual, `help commands` for the verbs.')
+
+    # One hit is an answer, not a result set. Making somebody read a list of
+    # length one and then type the only thing on it is a search being pleased
+    # with itself.
+    if len(topics) + len(verbs) == 1:
+        if topics:
+            c.say(f'[dim]Nothing is called {word!r}. This is the one that '
+                  f'covers it.[/]')
+            _help_topic(sess, manual.BY_KEY[topics[0][1]])
+        else:
+            c.say(f'[dim]Nothing is called {word!r}. This is the one that '
+                  f'mentions it.[/]')
+            _help_command(sess, REGISTRY.lookup(verbs[0][1]))
+        return
+
+    c.header(f'Anything about {word!r}', f'{len(topics) + len(verbs)} found')
+    for label, found in (('Explanations', topics), ('Verbs', verbs)):
+        if not found:
+            continue
+        found.sort(key=lambda row: (-row[0], row[1]))
+        c.blank()
+        c.raw(f'[accent]{label}[/]')
+        _listing(c, [(name, blurb) for _, name, blurb
+                     in found[:SEARCH_LIMIT]])
+        if len(found) > SEARCH_LIMIT:
+            c.say(f'[dim]  ...and {len(found) - SEARCH_LIMIT} more.[/]')
 
 
 @command('quit', 'Leave. Saves first unless you say otherwise.',

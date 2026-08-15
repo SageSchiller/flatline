@@ -789,6 +789,88 @@ def test_city() -> None:
 # --------------------------------------------------------------------------
 
 
+def test_help() -> None:
+    T.section('help')
+    from flatline.content import manual
+
+    # The landing page has to stay a page. It replaced a hundred-and-forty
+    # line index that tried to answer three questions at once, and the only
+    # thing stopping it growing back into one is this number.
+    _, landing = play(['help'])
+    lines = [x for x in landing.splitlines() if x.strip()]
+    T.ok(len(lines) <= 30,
+         f'`help` fits a screen ({len(lines)} lines)')
+    for key in manual.STARTER_PATH:
+        T.ok(key in landing, f'the landing page points at {key}')
+    for name, _ in manual.ORIENTATION:
+        T.ok(name in landing, f'and offers {name} to somebody who is lost')
+
+    # The two index pages exist and are where everything actually lives.
+    _, verbs = play(['help commands'])
+    for cmd in REGISTRY.in_context('city'):
+        T.ok(cmd.name in verbs, f'`help commands` lists {cmd.name}')
+    _, topics = play(['help topics'])
+    for topic in manual.TOPICS:
+        T.ok(topic.key in topics, f'`help topics` lists {topic.key}')
+    _, run_verbs = play(['help commands run'])
+    T.ok('crack' in run_verbs, '`help commands run` lists the run verbs')
+    T.ok('nothing' in play(['help commands sideways'])[1].lower()
+         or 'takes city' in play(['help commands sideways'])[1],
+         'and an unknown context is refused rather than guessed')
+
+    # `help --all` is still the everything-at-once index, for anybody who
+    # liked it, and it is genuinely longer than the landing page.
+    _, everything = play(['help --all'])
+    T.ok(len(everything.splitlines()) > len(landing.splitlines()) * 3,
+         '`help --all` is the long one')
+
+    # Search. This is the half that makes 141 things findable: a player knows
+    # what they want and rarely what it is called.
+    for word, expect in (('addiction', 'chemistry'), ('loan', 'borrowing'),
+                         ('casino', 'gambling'), ('cyborg', 'chrome'),
+                         ('permadeath', 'death'), ('backup', 'saves')):
+        _, found = play([f'help {word}'])
+        T.ok(expect in found,
+             f'searching {word!r} reaches the {expect} topic')
+
+    # Proper nouns, off the catalogue of whatever a topic covers. Nothing in
+    # any prose says Gatekeeper or Grave Salt, and both are things a player
+    # will type.
+    for word, expect in (('gatekeeper', 'ice'), ('grave salt', 'chemistry')):
+        _, found = play([f'help {word}'])
+        T.ok(expect in found, f'searching {word!r} reaches {expect}')
+
+    # A search with one hit shows the thing rather than a list of length one.
+    _, single = play(['help addiction'])
+    T.ok('habit' in single.lower(),
+         'a single hit opens the topic instead of listing it')
+
+    _, nothing = play(['help zzzznotathing'])
+    T.ok('nothing' in nothing.lower(),
+         'and a search with no hits says so without raising')
+
+    # Every command still explains itself, and links to whatever covers it.
+    for cmd in REGISTRY.commands.values():
+        _, page = play([f'help {cmd.name}'])
+        T.ok(ui.plain(page).strip(), f'`help {cmd.name}` prints something')
+    # Seven topic keys collide with command names, and the command wins on
+    # purpose: somebody typing `help scan` wants the verb. The collision is
+    # only acceptable if the command page says so and names the form that
+    # reaches the other one.
+    for topic in manual.TOPICS:
+        shadow = REGISTRY.lookup(topic.key)
+        _, page = play([f'help --topic {topic.key}' if shadow
+                        else f'help {topic.key}'])
+        T.ok(topic.title in page, f'`help {topic.key}` prints the topic')
+        if shadow is not None:
+            _, verb_page = play([f'help {topic.key}'])
+            T.ok(f'help --topic {shadow.name}' in ui.plain(verb_page)
+                 or f'help --topic {topic.key}' in ui.plain(verb_page),
+                 f'the {shadow.name} command points at the {topic.key} topic')
+            T.ok(f'`help {topic.key}`' not in ui.plain(verb_page),
+                 f'and does not tell you to type what you just typed')
+
+
 def test_shell() -> None:
     T.section('shell')
     sess, _ = play(['help'])
@@ -4100,7 +4182,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_migration, test_shell,
+    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_migration, test_help, test_shell,
     test_playthrough, test_ui,
 )
 

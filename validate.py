@@ -2049,6 +2049,113 @@ def check_manual(rep: Report) -> None:
         rep.check(key in manual.BY_KEY, 'manual',
                   f'STARTER names unknown topic {key!r}')
 
+    check_documented(rep)
+    check_landing(rep)
+
+
+#: Content modules that are deliberately not documented for the player, and
+#: why. Anything else under `flatline/content/` must be claimed by a topic.
+NOT_PLAYER_FACING = {
+    'effects': 'the modifier vocabulary: an implementation detail of every '
+               'other system, and named by none of them in play',
+    'manual': 'the manual itself',
+}
+
+
+def check_documented(rep: Report) -> None:
+    """Every system has a topic, and every topic points at a real system.
+
+    This is the project's oldest rule turned on its own prose. Content that
+    declares something the engine never reads is a lie that ships because it
+    works; a system nobody wrote a topic for is the same lie told by omission,
+    and it also ships, and it also works. Adding a content module now fails
+    the build until somebody either explains it or says out loud that it does
+    not need explaining.
+    """
+    import pathlib
+
+    modules = {p.stem for p in pathlib.Path('flatline/content').glob('*.py')}
+    modules.discard('__init__')
+    claimed: dict[str, list[str]] = {}
+    for topic in manual.TOPICS:
+        for name in topic.covers:
+            claimed.setdefault(name, []).append(topic.key)
+
+    for name in sorted(modules):
+        if name in NOT_PLAYER_FACING:
+            rep.check(name not in claimed, 'manual',
+                      f'{name} is both documented and declared not to need it')
+            continue
+        owners = claimed.get(name, [])
+        rep.check(bool(owners), 'manual',
+                  f'content/{name}.py is a system with no topic explaining '
+                  f'it: give one a `covers`, or add it to NOT_PLAYER_FACING '
+                  f'with a reason')
+        rep.check(len(owners) <= 1, 'manual',
+                  f'content/{name}.py is claimed by {owners}, so a player '
+                  f'reading either does not know they have the whole of it')
+
+    for name, owners in claimed.items():
+        rep.check(name in modules, 'manual',
+                  f'{owners} claims to document content/{name}.py, which is '
+                  f'not there')
+
+    # Declared search terms exist to catch the words the prose does not use.
+    # One that is already in the prose is not a synonym, it is a duplicate,
+    # and it will drift when the prose is rewritten.
+    for topic in manual.TOPICS:
+        where = f'manual/{topic.key}'
+        body = ui.plain(topic.body).lower()
+        for term in topic.terms:
+            rep.check(term == term.lower().strip(), where,
+                      f'search term {term!r} is not normalised')
+            rep.check(term not in body, where,
+                      f'search term {term!r} is already in the body, so the '
+                      f'search finds this topic without it')
+            rep.check(term not in topic.key, where,
+                      f'search term {term!r} is the topic key')
+    # Two topics claiming the same search word send the player somewhere
+    # arbitrary.
+    seen: dict[str, str] = {}
+    for topic in manual.TOPICS:
+        for term in topic.terms:
+            if term in seen:
+                rep.error('manual', f'both {seen[term]} and {topic.key} claim '
+                                    f'the search term {term!r}')
+            seen[term] = topic.key
+
+
+def check_landing(rep: Report) -> None:
+    """The one screen `help` opens on has to stay one screen.
+
+    It replaced a hundred and forty line index, and the only thing stopping it
+    growing back into one is this.
+    """
+    rep.check(len(manual.STARTER_PATH) <= 5, 'manual',
+              f'the starter path is {len(manual.STARTER_PATH)} topics, which '
+              f'is a reading list rather than a first step')
+    for key in manual.STARTER_PATH:
+        rep.check(key in manual.BY_KEY, 'manual',
+                  f'STARTER_PATH names unknown topic {key!r}')
+    rep.check(len(manual.ORIENTATION) <= 6, 'manual',
+              'the "lost right now" list is long enough to get lost in')
+    for name, blurb in manual.ORIENTATION:
+        cmd = REGISTRY.lookup(name)
+        rep.check(cmd is not None, 'manual',
+                  f'ORIENTATION names no command: {name!r}')
+        rep.check(bool(blurb) and blurb == blurb.lower().lstrip(), 'manual',
+                  f'ORIENTATION blurb for {name!r} is not a lowercase phrase')
+        if cmd is not None:
+            # These are offered to somebody who is lost. Every one of them has
+            # to be free, or the advice costs the player the thing they are
+            # short of.
+            rep.check(cmd.ticks == 0, 'manual',
+                      f'ORIENTATION offers {name!r}, which costs '
+                      f'{cmd.ticks} ticks')
+            rep.check('any' in cmd.contexts, 'manual',
+                      f'ORIENTATION offers {name!r}, which does not work in '
+                      f'both halves of the game')
+
 
 def check_tutorial(rep: Report) -> None:
     """Tutorial conditions run after every command. They must be total."""
