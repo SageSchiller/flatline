@@ -21,6 +21,7 @@ import io
 import os
 from pathlib import Path
 import random
+import re
 import json
 import os
 import pathlib
@@ -91,6 +92,123 @@ def quiet_console() -> Console:
                 palette=theme.NEUTRAL)
     console = Console(caps, stream=io.StringIO())
     return console
+
+
+#: SGR and cursor sequences. `ui.plain` strips the game's own `[role]` markup
+#: and knows nothing about these, because everything that goes through Console
+#: is markup and only the animation writes escapes directly.
+_ANSI = re.compile(r'\033\[[0-9;?]*[A-Za-z]')
+
+
+def strip_ansi(text: str) -> str:
+    return _ANSI.sub('', text)
+
+
+class FakeTerm:
+    """Enough of a terminal to answer "what is actually on screen".
+
+    The animation bypasses `Console` and writes cursor movement straight to the
+    stream, so capturing the bytes proves nothing: `\033[4A` followed by four
+    lines is either a clean redraw or a frame painted over a frame, and the
+    only way to know which is to keep a screen buffer and apply the escapes to
+    it the way a terminal would.
+
+    Nothing else in the suite exercises the animated path at all, because it
+    sleeps. That is exactly why a redraw bug lived in it: `quick=True` skips
+    every frame but the last, so the last frame was the only one ever checked.
+    """
+
+    def __init__(self) -> None:
+        self.lines: list[str] = ['']
+        self.row = 0
+        self.col = 0
+
+    # -- stream protocol ---------------------------------------------------
+
+    def isatty(self) -> bool:
+        return True
+
+    def flush(self) -> None:
+        pass
+
+    def write(self, s: str) -> None:
+        i = 0
+        while i < len(s):
+            if s.startswith('\033[', i):
+                m = re.match(r'\033\[([0-9;?]*)([A-Za-z])', s[i:])
+                if m:
+                    self._csi(m.group(1), m.group(2))
+                    i += m.end()
+                    continue
+            self._putc(s[i])
+            i += 1
+
+    # -- the emulator ------------------------------------------------------
+
+    def _fit(self, row: int) -> None:
+        while len(self.lines) <= row:
+            self.lines.append('')
+
+    def _putc(self, ch: str) -> None:
+        if ch == '\n':
+            self.row += 1
+            self.col = 0
+            self._fit(self.row)
+        elif ch == '\r':
+            self.col = 0
+        else:
+            self._fit(self.row)
+            line = self.lines[self.row].ljust(self.col)
+            self.lines[self.row] = line[:self.col] + ch + line[self.col + 1:]
+            self.col += 1
+
+    def _csi(self, params: str, final: str) -> None:
+        n = int(params) if params.isdigit() else 1
+        mode = int(params) if params.isdigit() else 0
+        if final == 'A':
+            self.row = max(0, self.row - n)
+        elif final == 'B':
+            self.row += n
+            self._fit(self.row)
+        elif final == 'K':
+            self._fit(self.row)
+            if mode == 2:
+                self.lines[self.row] = ''
+            elif mode == 0:
+                self.lines[self.row] = self.lines[self.row][:self.col]
+        elif final == 'J':
+            self._fit(self.row)
+            if mode == 0:
+                self.lines[self.row] = self.lines[self.row][:self.col]
+                del self.lines[self.row + 1:]
+            elif mode == 2:
+                self.lines = ['']
+
+    def screen(self) -> list[str]:
+        """What a player would see: colour stripped, trailing space gone."""
+        return [strip_ansi(line).rstrip() for line in self.lines]
+
+
+def animated_console(width: int = 80) -> tuple[Console, FakeTerm]:
+    """A console the animation gate will open for, over a fake terminal."""
+    term = FakeTerm()
+    caps = Caps(color=ColorLevel.TRUE, glyphs=GlyphLevel.UNICODE, width=width,
+                palette=theme.DEFAULT)
+    return Console(caps, stream=term), term
+
+
+class no_pauses:
+    """Run an animation at full speed. Restores the real pause on the way out."""
+
+    def __enter__(self):
+        from flatline import anim
+        self._real = anim._Screen.pause
+        anim._Screen.pause = lambda screen, seconds: None
+        return self
+
+    def __exit__(self, *exc):
+        from flatline import anim
+        anim._Screen.pause = self._real
 
 
 def play(lines, seed=4242, origin='gutter', game=None):
@@ -2723,6 +2841,53 @@ def test_anim() -> None:
     narrow = con.end_capture()
     for line in narrow.splitlines():
         T.ok(len(line) <= 40, 'nothing overflows a 40-column terminal')
+
+    # ---------------------------------------------------------------------
+    # The animated path, on a fake terminal.
+    #
+    # Every frame of the boot sequence is drawn in place over the one before
+    # it, and the POST log is up to fourteen lines against a wordmark frame of
+    # seven. A redraw that only clears the lines it writes leaves the bottom of
+    # the self test sitting under the finished title card, which is what the
+    # art being drawn over the loading log looks like from the outside.
+    # ---------------------------------------------------------------------
+    for style in anim.BANNERS:
+        con, term = animated_console()
+        with no_pauses():
+            anim.boot(con, char=a.char, style=style)
+        screen = term.screen()
+        leftovers = [line for line in screen
+                     if any(label in line for label, _ in anim.POST)]
+        T.eq(leftovers, [], f'{style}: no POST line survives the wordmark')
+        deck_labels = [label for label, _ in anim.deck_lines(a.char)]
+        stale = [line for line in screen
+                 if any(label in line for label in deck_labels)]
+        T.eq(stale, [], f'{style}: no deck line survives it either')
+
+    # The same screen, reached the slow way, has to match the screen reached
+    # by skipping. If they differ, one of the two is lying about the game.
+    for style in anim.BANNERS:
+        con, term = animated_console()
+        with no_pauses():
+            anim.boot(con, char=a.char, style=style)
+        slow = [line for line in term.screen() if line]
+        quick_con = Console(Caps(ColorLevel.TRUE, GlyphLevel.UNICODE, 80,
+                                 theme.DEFAULT), stream=io.StringIO())
+        quick_con.start_capture()
+        anim.boot(quick_con, char=a.char, quick=True, style=style)
+        fast = [strip_ansi(line).rstrip()
+                for line in quick_con.end_capture().splitlines()
+                if strip_ansi(line).strip()]
+        T.eq(slow, fast, f'{style}: watching it lands where skipping it does')
+
+    # And the handshake, which shrinks by nothing but is drawn the same way.
+    con, term = animated_console()
+    with no_pauses():
+        anim.connect(con, 'Kagawa Heavy Industries')
+    T.ok(any('carrier locked' in line for line in term.screen()),
+         'the handshake ends on the lock')
+    T.eq(len([line for line in term.screen() if 'carrier' in line]), 2,
+         'and does not leave a second copy of itself on screen')
 
     # The gate has to be closed everywhere it matters, or test.py sleeps.
     T.ok(not anim.can_animate(quiet_console()),

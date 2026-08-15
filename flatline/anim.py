@@ -501,11 +501,24 @@ class _Screen:
         self.stream.write(s)
 
     def draw(self, lines: list[str]) -> None:
-        """Replace the previous frame in place."""
+        """Replace the previous frame in place.
+
+        **A frame shorter than the one before it has to erase what it does not
+        cover.** Clearing each line as it is written handles a frame that grows
+        and a frame that stays the same size, and does nothing at all about a
+        frame that shrinks: the tail of the old one is below the last line
+        written and nothing ever touches it again. The boot sequence shrinks by
+        seven lines when the POST log gives way to the wordmark, so the bottom
+        of the self test sat under the finished title card, which reads exactly
+        like the art being drawn on top of the log.
+        """
         if self.drawn:
             self._w(f'\033[{self.drawn}A')
         for line in lines:
             self._w('\033[2K' + line + '\n')
+        if len(lines) < self.drawn:
+            # The cursor is on the first uncovered line. Erase from here down.
+            self._w('\033[J')
         self.drawn = len(lines)
         self.stream.flush()
 
