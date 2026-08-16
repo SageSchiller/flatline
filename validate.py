@@ -3034,6 +3034,164 @@ def check_guile(rep: Report) -> None:
                       f'point of the attribute buys nothing here')
 
 
+def check_roster(rep: Report) -> None:
+    """The character management layer, and the two rules that hold it up.
+
+    Rule one: nothing except `delete` may remove a character. Everybody used
+    to share one slot called 'default', so making a second character wrote
+    over the first at the next autosave, with no warning, because from the
+    save layer's point of view nothing unusual had happened. `new` refused
+    until you passed `--force`, and the word it used was "abandon".
+
+    Rule two: every command a player is told to type has to exist. The splash
+    said `load` to continue a character. `load` puts a program on a deck. The
+    command is `restore`, and the game had been sending new players to the
+    wrong verb from the first line they ever read.
+    """
+    import ast
+    import pathlib
+
+    from flatline.shell import AFTER_THE_END, REGISTRY
+
+    root = pathlib.Path('flatline')
+
+    # Every command named in something the player reads must resolve.
+    # Restricted to console output and refusals rather than every string in
+    # the tree: a docstring saying `parse` is talking to me, and a `c.say`
+    # saying `parse` is telling a player to type it.
+    known = set(REGISTRY.commands)
+    for cmd in REGISTRY.commands.values():
+        known.update(cmd.aliases)
+    # Words that are vocabulary rather than verbs: things you type *at* a
+    # command. Taken from the content tables, so adding an origin or a theme
+    # does not fail the build.
+    vocabulary = set(known)
+    vocabulary |= set(origins.ORIGIN_KEYS) | set(theme.PALETTES)
+    vocabulary |= set(districts.DISTRICT_KEYS) | set(factions.FACTION_KEYS)
+    vocabulary |= set(attr_content.ATTR_KEYS) | set(skills.SKILL_KEYS)
+
+    # Scoped to what a new player reads before they know anything: the boot
+    # path, the messages the shell prints when it refuses, the manual and the
+    # tutorial. Every file in the project was the obvious scope and it was
+    # the wrong one, because a `detail=` string listing the modes a daemon
+    # takes is not an instruction to type `grind`. The bug this is for lived
+    # in exactly these four files: the line under the banner said `load`,
+    # which is the command that puts a program on a deck.
+    for name in ('app.py', 'session.py', 'content/manual.py',
+                 'content/tutorial.py'):
+        path = root / name
+        for text, line in _prose(path.read_text()):
+            for quoted in _BACKTICKED.findall(text):
+                words = quoted.split()
+                if not words:
+                    continue
+                # Longest match first, so `jack in` is not read as `jack`.
+                if (' '.join(words[:2]) in vocabulary
+                        or words[0] in vocabulary):
+                    continue
+                word = words[0]
+                if not word.isalpha() or word in _NOT_A_COMMAND:
+                    continue
+                rep.error(f'{path.name}:{line}',
+                          f'tells the player to type `{word}`, which is '
+                          f'not a command')
+
+    # A finished character must be able to look and to leave, and must not be
+    # able to work. The allowlist is the rule, so it has to be real.
+    for name in sorted(AFTER_THE_END):
+        rep.check(name in known, 'shell/AFTER_THE_END',
+                  f'{name!r} still works after the end, but is not a command')
+    for need in ('new', 'switch', 'characters', 'quit', 'help', 'char'):
+        rep.check(need in AFTER_THE_END, 'shell/AFTER_THE_END',
+                  f'a finished character cannot type {need!r}, which leaves '
+                  f'them with no way to look at what happened or to leave')
+    for banned in ('board', 'travel', 'buy', 'legwork'):
+        rep.check(banned not in AFTER_THE_END, 'shell/AFTER_THE_END',
+                  f'a flatlined character can still {banned}')
+
+    # Nothing but `delete` may unlink a save. Source level, because the
+    # damage is permanent and a test can only catch the paths it thought of.
+    for path in sorted(root.rglob('*.py')):
+        if path.name in ('save.py',):
+            continue
+        src = path.read_text()
+        for node in ast.walk(ast.parse(src)):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            if not (isinstance(func, ast.Attribute) and func.attr == 'delete'):
+                continue
+            if 'save' not in getattr(func.value, 'id', ''):
+                continue
+            fn = _enclosing_def(ast.parse(src), node)
+            rep.check(fn == 'cmd_delete', f'{path.name}:{node.lineno}',
+                      f'{fn or "something"} deletes a save. Only `delete` may '
+                      f'do that, and only after --confirm')
+
+
+#: Backticked words in player-facing prose, which are instructions to type.
+_BACKTICKED = __import__('re').compile(r'`([^`]+)`')
+
+def _prose(src: str):
+    """Every string in a module that is not a docstring, with its line.
+
+    Docstrings are talking to whoever is reading the code; everything else in
+    a quoted string in this project is, sooner or later, printed. An f-string
+    is reassembled from its literal pieces first, with interpolations standing
+    in as a placeholder, because yielding the pieces separately makes
+    backticks pair across the gap where a `{name}` used to be: `rest` until it
+    cools, or `burn` would otherwise read as a quoted phrase called "until it
+    cools, or".
+    """
+    import ast
+
+    tree = ast.parse(src)
+    skip = set()
+    for scope in (tree, *[n for n in ast.walk(tree) if isinstance(
+            n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))]):
+        body = getattr(scope, 'body', [])
+        if body and isinstance(body[0], ast.Expr):
+            first = body[0].value
+            if isinstance(first, ast.Constant) and isinstance(first.value, str):
+                skip.add(id(first))
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.JoinedStr):
+            for part in ast.walk(node):
+                skip.add(id(part))
+            yield ('_'.join(v.value for v in node.values
+                            if isinstance(v, ast.Constant)
+                            and isinstance(v.value, str)), node.lineno)
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Constant) and isinstance(node.value, str)
+                and id(node) not in skip):
+            yield node.value, node.lineno
+
+
+#: Backticked things that are not commands: flags, files, shell, fiction.
+_NOT_A_COMMAND = frozenset({
+    # The scripting language, which is typed into `script` rather than at the
+    # prompt. See content/scripting.
+    'if', 'not', 'for', 'stop', 'repeat', 'when', 'needs', 'alert',
+    # Prose about the shell rather than instructions to it.
+    'fine', 'flatline', 'conn',
+    # A slot name, in the sentence explaining where an imported save lands.
+    'imported',
+})
+
+
+def _enclosing_def(tree, target) -> str:
+    """Which function a node sits in, by line number."""
+    import ast
+
+    best, best_line = '', -1
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            if node.lineno <= target.lineno and node.lineno > best_line:
+                best, best_line = node.name, node.lineno
+    return best
+
+
 def check_balance(rep: Report) -> None:
     """Cheap invariants that catch a decimal point in the wrong place."""
     for w in cyberware.WARE:
@@ -3071,7 +3229,7 @@ CHECKS = (
     check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_offers, check_legacy, check_bonds, check_safehouses, check_crew, check_mods, check_commands,
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_palette_separation, check_markup, check_balance,
-    check_heat, check_guile,
+    check_heat, check_guile, check_roster,
 )
 
 

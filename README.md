@@ -87,7 +87,7 @@ slow effect but no effect, and looks identical to a slow one from outside.
 
 ## The design
 
-`FLATLINE-PLAN.md` is the long version: forty-eight numbered locked decisions,
+`FLATLINE-PLAN.md` is the long version: forty-nine numbered locked decisions,
 the systems design, and a session log. **Read it first** before changing
 anything structural.
 

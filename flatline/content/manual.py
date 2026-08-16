@@ -145,6 +145,25 @@ TOPICS: tuple[Topic, ...] = (
     Topic(
         'saves', 'Saves, and keeping one',
         'Where a character lives, and how to make sure they survive.',
+        'You can have as many characters as you like and they do not '
+        'interact. Each one is filed under their own handle, so making a '
+        'second never touches the first.\n\n'
+        '  [fg]characters[/]              everybody you have, living or not\n'
+        '  [fg]switch <handle>[/]         put this one down, pick that one '
+        'up\n'
+        '  [fg]new <handle> --origin[/]   somebody else entirely\n'
+        '  [fg]delete <handle>[/]         the only thing that loses '
+        'anybody\n\n'
+        'Switching saves whoever you are first, so it is never how you lose '
+        'somebody. [warn]Nothing except `delete` removes a character[/], and '
+        '`delete` tells you what it is about to throw away before it will do '
+        'it.\n\n'
+        'Starting the game with one character opens them. With several it '
+        'shows you the list and waits, because being handed the wrong runner '
+        'is worse than typing one more word.\n\n'
+        'A finished character stays on the list. You can read their sheet, '
+        'their standing and their log; you cannot work with them, because '
+        'they are finished. That is most of what finished means.\n\n'
         'The game autosaves on every shift boundary and on quitting. Saves '
         'live in your XDG data directory, usually '
         '[dim]~/.local/share/flatline[/], not beside the code, so moving or '
@@ -163,8 +182,9 @@ TOPICS: tuple[Topic, ...] = (
         'one disk failure from gone, and the only thing standing between '
         'those two states is you having typed `save --export` once.',
         see=('death', 'basics', 'shell'),
-        commands=('save', 'restore'),
-        terms=('backup', 'savegame', 'load game',),
+        commands=('save', 'restore', 'characters', 'switch', 'delete'),
+        terms=('backup', 'savegame', 'load game', 'roster',
+               'multiple characters', 'slots', 'another character'),
         group='start'),
     # -- how a run works --------------------------------------------------
     Topic(

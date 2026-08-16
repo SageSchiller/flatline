@@ -34,6 +34,29 @@ GROUPS = (
     'info',       # status, log, odds
 )
 
+#: What still works once a character is finished.
+#:
+#: Death used to change nothing about what you could type. `game.over` was
+#: set, autosaved, and then read in exactly one place, so a flatlined runner
+#: could stand up from the chair the game had just described them dying in
+#: and go shopping. D6 says only black ICE ends a character; it is not much
+#: of an ending if it does not end anything.
+#:
+#: An allowlist rather than a blocklist, because the failure modes are not
+#: symmetrical: forgetting to add a verb here means a dead character cannot
+#: read their own sheet, and forgetting to add one to a blocklist means they
+#: can go back to work. Names only, checked by `validate.py`.
+AFTER_THE_END = frozenset({
+    # Look at what happened.
+    'char', 'rep', 'deck', 'skills', 'log', 'journal', 'who', 'self',
+    'status', 'history', 'crew', 'safehouse', 'techniques', 'career',
+    # Leave, or go somewhere else.
+    'new', 'switch', 'characters', 'delete', 'restore', 'save', 'quit',
+    # The parts that were never theirs. D38: the city takes the runner and
+    # does not get the shell.
+    'help', 'rice', 'bind', 'script', 'title',
+})
+
 
 class CommandError(Exception):
     """A problem the player caused and can fix. Printed, never traced."""

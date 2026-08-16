@@ -20,6 +20,7 @@ from .. import ui
 from .. import theme
 from .. import prompt as prompt_mod
 from ..content import districts
+from ..content import origins
 from ..content import rice
 from ..shell import GROUPS, REGISTRY, CommandError, Quit, command
 
@@ -623,6 +624,170 @@ def cmd_restore(sess, args) -> None:
                     f'{game.city.district.name}.')
     if game.over:
         sess.console.warn(f'This character is finished: {game.over}')
+
+
+# --------------------------------------------------------------------------
+# the roster
+# --------------------------------------------------------------------------
+
+
+def _roster_rows(sess, entries):
+    """One table of characters, marking whoever is loaded."""
+    here = sess.slot if sess.game is not None else None
+    rows = []
+    for e in entries:
+        if e.broken:
+            rows.append((f'[err]{e.slot}[/]', '[err]unreadable[/]', '', '',
+                         '[dim]-[/]'))
+            continue
+        mark = '[accent]you[/]' if e.slot == here else ''
+        if e.finished:
+            mark = f'[dim]{e.over}[/]' if not mark else f'[warn]{e.over}[/]'
+        rows.append((
+            e.handle,
+            origins.BY_KEY[e.origin].name if e.origin in origins.BY_KEY
+            else e.origin,
+            f'day {e.day}, {e.phase}',
+            f'{e.runs} run{"s" if e.runs != 1 else ""}, {e.credits:,}c',
+            mark or '[dim]waiting[/]'))
+    return rows
+
+
+@command('characters', 'Everybody you have made.',
+         aliases=('chars', 'roster'), group='session', bare=True,
+         usage='characters',
+         detail='Characters are filed under their own handle, so making a '
+                'second one does not touch the first. `switch <handle>` to '
+                'pick one up, `delete <handle>` to lose one on purpose. This '
+                'is the only screen that lists them, and it lists the '
+                'finished ones too, because a roster you can only see the '
+                'living on quietly deletes your history the moment it stops '
+                'being useful.')
+def cmd_characters(sess, args) -> None:
+    c = sess.console
+    entries = save_mod.roster()
+    if not entries:
+        c.info('Nobody yet. `new` to see the origins.')
+        return
+    c.header('Characters', f'{len(entries)} of them')
+    c.table(('handle', 'origin', 'when', 'done', ''),
+            _roster_rows(sess, entries),
+            roles=('accent', 'dim', None, 'dim', None))
+    c.blank()
+    if any(e.broken for e in entries):
+        c.say('[err]One of these will not open.[/] [dim]It is still on disk; '
+              'nothing here has thrown it away.[/]')
+    living = [e for e in entries if not e.finished and not e.broken]
+    other = [e for e in living if sess.game is None or e.slot != sess.slot]
+    if other:
+        after = ('Whoever you are now is saved first.' if sess.game is not None
+                 else 'Nobody is loaded at the moment.')
+        c.say(f'[dim]`switch {other[0].handle}` to pick somebody up. '
+              f'{after}[/]')
+    else:
+        c.say('[dim]`new <handle> --origin <key>` to make another. Nobody '
+              'here is written over by it.[/]')
+
+
+@command('switch', 'Put this character down and pick up another.',
+         group='session', bare=True, usage='switch <handle>',
+         detail='Saves whoever you are before loading whoever you asked for, '
+                'so switching is never how you lose somebody. Refuses during '
+                'a run, because there is no coherent thing to do with a '
+                'connection that is still open.')
+def cmd_switch(sess, args) -> None:
+    c = sess.console
+    if sess.run is not None:
+        raise CommandError('finish the run first.')
+    want = args.get(0)
+    if want is None:
+        raise CommandError('switch to whom? `characters` for the list.')
+
+    found = save_mod.find(want)
+    if not found:
+        known = ', '.join(e.handle for e in save_mod.roster()[:6])
+        raise CommandError(f'no character called {want!r}'
+                           + (f'. You have: {known}' if known else ''))
+    if len(found) > 1:
+        raise CommandError(
+            f'{want!r} matches {len(found)}: '
+            + ', '.join(f'{e.handle} ({e.slot})' for e in found)
+            + '. Use the one in brackets.')
+    target = found[0]
+    if target.broken:
+        raise CommandError(f'{target.slot} will not open: {target.broken}')
+    if sess.game is not None and target.slot == sess.slot:
+        raise CommandError(f'you are already {sess.game.char.handle}.')
+
+    if sess.game is not None:
+        leaving = sess.game.char.handle
+        sess.sync_scripts()
+        sess.game.save(sess.slot)
+        c.info(f'{leaving} is saved.')
+    sess.load_game(target.slot)
+    game = sess.game
+    c.ok(f'You are [accent]{game.char.handle}[/], running as '
+         f'[accent]{game.alias.name}[/]. {game.city.when}, '
+         f'{game.city.district.name}.')
+    if game.over:
+        c.warn(f'This character is finished: {game.over}')
+
+
+@command('delete', 'Lose a character on purpose.',
+         group='session', bare=True, usage='delete <handle> --confirm',
+         detail='The only thing in this game that removes a character. It '
+                'says what it is about to throw away and then needs '
+                '`--confirm`, because there is no undo and no second copy: '
+                'nothing else, including `new`, touches a save that is not '
+                'the one you are playing.')
+def cmd_delete(sess, args) -> None:
+    c = sess.console
+    want = args.get(0)
+    if want is None:
+        raise CommandError('delete whom? `characters` for the list.')
+    found = save_mod.find(want)
+    if not found:
+        raise CommandError(f'no character called {want!r}.')
+    if len(found) > 1:
+        raise CommandError(
+            f'{want!r} matches {len(found)}: '
+            + ', '.join(f'{e.handle} ({e.slot})' for e in found)
+            + '. Use the one in brackets.')
+    target = found[0]
+
+    if not args.has('confirm'):
+        c.blank()
+        c.say(f'[warn]This throws {target.handle} away.[/]')
+        if target.broken:
+            c.say('[dim]The save will not open, so this is all that is known '
+                  'about it.[/]')
+        else:
+            c.kv([('handle', target.handle),
+                  ('running as', target.alias),
+                  ('when', f'day {target.day}, {target.phase}'),
+                  ('runs', str(target.runs)),
+                  ('credits', f'{target.credits:,}c'),
+                  ('dissonance', str(target.dissonance))])
+            if target.finished:
+                c.say(f'[dim]Already finished: {target.over}.[/]')
+        c.blank()
+        c.say(f'[dim]`delete {target.handle} --confirm` to go through with '
+              f'it. There is no undo.[/]')
+        return
+
+    was_current = sess.game is not None and target.slot == sess.slot
+    save_mod.delete(target.slot)
+    c.ok(f'{target.handle} is gone.')
+    if was_current:
+        sess.game = None
+        sess.run = None
+        sess.slot = 'default'
+        left = [e for e in save_mod.roster() if not e.broken]
+        if left:
+            c.say(f'[dim]`switch {left[0].handle}` for somebody else, or '
+                  f'`new` to start again.[/]')
+        else:
+            c.say('[dim]Nobody left. `new` to see the origins.[/]')
 
 
 @command('history', 'What you have typed this session.',

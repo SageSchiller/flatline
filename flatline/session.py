@@ -26,7 +26,8 @@ from .content import tutorial
 from .script import MAX_DISPATCH, ScriptError, parse
 from . import anim
 from . import prompt as prompt_mod
-from .shell import REGISTRY, CommandError, Invocation, Quit, resolve, split_line
+from .shell import (AFTER_THE_END, REGISTRY, CommandError, Invocation, Quit,
+                    resolve, split_line)
 from .ui import Caps, Console
 
 
@@ -71,9 +72,43 @@ class Session:
 
     def require_game(self) -> Game:
         if self.game is None:
-            raise CommandError('no character loaded. `new` to make one, '
-                               '`load` to open a save.')
+            raise CommandError(self.nobody_loaded())
         return self.game
+
+    def after_the_end(self) -> str:
+        """Why a finished character cannot do that.
+
+        Named for what it is rather than for death, because retirement ends a
+        character too and telling somebody who walked away that they are dead
+        would be worse than saying nothing.
+        """
+        game = self.game
+        handle = game.char.handle if game else 'this character'
+        how = game.over if game else 'finished'
+        others = [e for e in save_mod.roster()
+                  if not e.broken and not e.finished and e.slot != self.slot]
+        tail = (f'`switch {others[0].handle}`' if others else '`new`')
+        return (f'{handle} {how}. You can still read the sheet and the log. '
+                f'{tail} to carry on somewhere else.')
+
+    def nobody_loaded(self) -> str:
+        """What to say when a command needs a character and there is none.
+
+        Adaptive, because the fixed version of this line told the player to
+        type `load`, which is the command that puts a program on a deck. Being
+        sent to the wrong command by the game's own error message is worse
+        than no advice, and it named a character they might not have while
+        saying nothing about the four they did.
+        """
+        living = [e for e in save_mod.roster() if not e.broken]
+        if not living:
+            return 'no character loaded. `new` to make one.'
+        if len(living) == 1:
+            return (f'no character loaded. `switch {living[0].handle}` for '
+                    f'the one you have, or `new` to make another.')
+        names = ', '.join(e.handle for e in living[:4])
+        return (f'no character loaded. `characters` to see all {len(living)} '
+                f'({names}), `switch <handle>` to pick one up.')
 
     def require_run(self):
         if self.run is None:
@@ -193,9 +228,30 @@ class Session:
                   quick=quick, style=self.shell.get('banner', 'block'))
         c.raw(f'[dim]{sep.join(TAGLINE_PARTS)}[/]')
         c.blank()
-        c.say('[dim]`help` for commands. `new` to make a character. '
-              '`load` to continue one.[/]')
+        c.say(f'[dim]{self.opening_line()}[/]')
         c.blank()
+
+    def opening_line(self) -> str:
+        """The one line under the banner, which has to be true.
+
+        It used to be fixed, and it read `new` to make a character, `load` to
+        continue one. Both halves were wrong at once: `load` puts a program on
+        a deck, the command is `restore`, and by the time this printed the
+        game had usually already continued somebody, so the player was being
+        told to start when they had in fact been handed a character they did
+        not ask for.
+        """
+        living = [e for e in save_mod.roster() if not e.broken]
+        if self.game is not None:
+            return ('`help` for commands. `characters` for everybody you '
+                    'have, `switch <handle>` to become one of them.')
+        if not living:
+            return '`help` for commands. `new` to make a character.'
+        if len(living) == 1:
+            return (f'`help` for commands. `switch {living[0].handle}` to '
+                    f'carry on, `new` to make somebody else.')
+        return ('`help` for commands. `characters` to see who you have, '
+                '`new` to make somebody else.')
 
     # ------------------------------------------------------------------
     # dispatch
@@ -231,8 +287,11 @@ class Session:
 
     def invoke(self, inv: Invocation) -> None:
         if inv.command.bare is False and self.game is None:
-            self.console.err('no character loaded. `new` to make one, '
-                             '`load` to open a save.')
+            self.console.err(self.nobody_loaded())
+            return
+        if (self.game is not None and self.game.over
+                and inv.command.name not in AFTER_THE_END):
+            self.console.err(self.after_the_end())
             return
         try:
             inv.command.handler(self, inv.args)

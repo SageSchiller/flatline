@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
@@ -241,6 +242,132 @@ def slots() -> list[str]:
     if not d.exists():
         return []
     return sorted(p.stem[len('save-'):] for p in d.glob('save-*.json'))
+
+
+# --------------------------------------------------------------------------
+# the roster: characters, addressed by who they are
+# --------------------------------------------------------------------------
+
+#: Characters the game will list. A cap, not a limit on how many can exist:
+#: it stops a directory somebody has been scripting against from printing two
+#: hundred lines when they ask who they have.
+ROSTER_MAX = 40
+
+
+def slot_for(handle: str, taken: list[str] | None = None) -> str:
+    """A slot name derived from a handle, unique against what already exists.
+
+    Everybody used to share one slot called 'default', which meant making a
+    second character wrote over the first one at the next autosave. Nothing
+    warned, because from the save layer's point of view nothing unusual had
+    happened. Filing a character under their own name is what makes having two
+    of them possible at all.
+    """
+    keep = '-_'
+    base = ''.join(ch if (ch.isalnum() or ch in keep) else '-'
+                   for ch in handle.strip().lower()).strip('-')
+    base = base or 'runner'
+    existing = set(taken if taken is not None else slots())
+    if base not in existing:
+        return base
+    n = 2
+    while f'{base}-{n}' in existing:
+        n += 1
+    return f'{base}-{n}'
+
+
+@dataclass(frozen=True, slots=True)
+class Entry:
+    """One line of the roster, cheap enough to build for every save at once."""
+    slot: str
+    handle: str
+    #: Empty when the save is unreadable, which is the whole reason this is a
+    #: summary rather than a loaded Game: one corrupt file must not be able to
+    #: stop the player seeing the other five characters they have.
+    broken: str = ''
+    alias: str = ''
+    origin: str = ''
+    day: int = 0
+    phase: str = ''
+    where: str = ''
+    runs: int = 0
+    credits: int = 0
+    dissonance: int = 0
+    #: Non-empty when this character is finished. They stay on the roster:
+    #: a list you can only see the living on is a list that quietly deletes
+    #: your history the moment it stops being useful.
+    over: str = ''
+    #: Seconds since the epoch, for ordering. Most recently played first.
+    played: float = 0.0
+
+    @property
+    def finished(self) -> bool:
+        return bool(self.over)
+
+
+def peek(slot: str) -> Entry:
+    """Summarise one save, for a roster line.
+
+    Builds the real Game rather than reading fields out of the JSON. A
+    summary that picks its own way through the save format is a second,
+    undeclared copy of the schema, and it goes wrong silently the first time
+    a field moves: the roster would keep printing, with the wrong day on it.
+
+    Anything that goes wrong is caught and reported on the entry instead of
+    raised, because the roster is exactly the screen a player goes to when
+    something has gone wrong, and one bad file must not be able to hide the
+    other five characters they have.
+    """
+    from .game import Game
+
+    try:
+        mtime = save_path(slot).stat().st_mtime
+    except OSError:
+        mtime = 0.0
+    try:
+        game = Game.load(slot)
+    except Exception as e:  # noqa: BLE001
+        return Entry(slot=slot, handle=slot, broken=str(e) or type(e).__name__,
+                     played=mtime)
+    char, city = game.char, game.city
+    return Entry(
+        slot=slot,
+        handle=char.handle,
+        alias=game.alias.name,
+        origin=char.origin,
+        day=city.day,
+        phase=city.phase,
+        where=city.district.name,
+        runs=char.runs,
+        credits=char.credits,
+        dissonance=char.dissonance,
+        over=game.over,
+        played=mtime)
+
+
+def roster() -> list[Entry]:
+    """Every character on this machine, most recently played first."""
+    entries = [peek(slot) for slot in slots()]
+    entries.sort(key=lambda e: e.played, reverse=True)
+    return entries[:ROSTER_MAX]
+
+
+def find(handle: str) -> list[Entry]:
+    """Roster entries matching a handle or a slot name, case-insensitively.
+
+    Returns every match rather than the best one, so the caller can tell the
+    player about an ambiguity instead of guessing which of their two
+    characters called Vex they meant.
+    """
+    want = handle.strip().lower()
+    if not want:
+        return []
+    exact = [e for e in roster()
+             if want in (e.handle.lower(), e.slot.lower())]
+    if exact:
+        return exact
+    return [e for e in roster()
+            if e.handle.lower().startswith(want) or e.slot.startswith(want)]
 
 
 # --------------------------------------------------------------------------

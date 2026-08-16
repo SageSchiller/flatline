@@ -5068,6 +5068,188 @@ def _rice_body(T, rice, prompt_mod, anim, Caps, ColorLevel, GlyphLevel,
 
 
 
+def test_roster() -> None:
+    """Characters, and the several ways the game used to lose one."""
+    T.section('roster')
+    import re
+    import tempfile
+    from flatline import save as save_mod
+    from flatline.shell import AFTER_THE_END, REGISTRY
+
+    old_home = os.environ.get('XDG_DATA_HOME')
+    os.environ['XDG_DATA_HOME'] = tempfile.mkdtemp()
+    try:
+        _roster_body(save_mod, REGISTRY, AFTER_THE_END, re)
+    finally:
+        if old_home is None:
+            del os.environ['XDG_DATA_HOME']
+        else:
+            os.environ['XDG_DATA_HOME'] = old_home
+
+
+def _roster_body(save_mod, REGISTRY, AFTER_THE_END, re) -> None:
+    from flatline.session import Session
+
+    def fresh():
+        return Session(console=quiet_console(), slot='default')
+
+    # --- making a second character must not touch the first --------------
+    # It used to. Everybody shared one slot called 'default', so the next
+    # autosave after `new` wrote the new character over the old one. Nothing
+    # said so, because from the save layer's point of view nothing unusual
+    # had happened, and the refusal you cleared to get there said "abandon".
+    sess = fresh()
+    sess.execute('new Jack --origin gutter')
+    T.eq(sess.slot, 'jack', 'a character is filed under their own name')
+    jack_seed = sess.game.rng.seed
+
+    sess.execute('new Vex --origin ghost')
+    T.eq(sess.slot, 'vex', 'and so is the next one')
+    T.eq(sess.game.char.handle, 'Vex', 'who is who you are now')
+    handles = {e.handle for e in save_mod.roster()}
+    T.eq(handles, {'Jack', 'Vex'}, 'and both of them still exist')
+
+    # The one that was put away has to come back *as they were*.
+    sess.execute('switch Jack')
+    T.eq(sess.game.char.handle, 'Jack', 'switching goes back to them')
+    T.eq(sess.game.rng.seed, jack_seed, 'and it is the same world they had')
+
+    # --- switching saves before it leaves --------------------------------
+    sess.game.char.credits = 4242
+    sess.execute('switch Vex')
+    sess.execute('switch Jack')
+    T.eq(sess.game.char.credits, 4242,
+         'what you did before switching away is still done')
+
+    # --- nothing but `delete` removes anybody ----------------------------
+    before = {e.handle for e in save_mod.roster()}
+    for line in ('new Ash --origin academic', 'switch Jack', 'save',
+                 'restore vex'):
+        sess.execute(line)
+    after = {e.handle for e in save_mod.roster()}
+    T.ok(before <= after, 'no ordinary command loses a character')
+
+    # `delete` asks first, and says what it is about to throw away.
+    sess.console.start_capture()
+    sess.execute('delete Ash')
+    asked = sess.console.end_capture()
+    T.ok('Ash' in asked, 'delete names who it is about to lose')
+    T.ok('--confirm' in asked, 'and does not do it until you confirm')
+    T.ok('Ash' in {e.handle for e in save_mod.roster()},
+         'and has not done it yet')
+
+    sess.execute('delete Ash --confirm')
+    T.ok('Ash' not in {e.handle for e in save_mod.roster()},
+         'confirming does it')
+
+    # Deleting whoever you are leaves you as nobody rather than as a ghost
+    # pointing at a file that is not there.
+    sess.execute('switch Jack')
+    sess.execute('delete Jack --confirm')
+    T.eq(sess.game, None, 'deleting yourself leaves nobody loaded')
+    T.ok('Jack' not in {e.handle for e in save_mod.roster()}, 'and they are gone')
+
+    # --- the lines the game offers have to work --------------------------
+    # The splash said `new` to make a character, `load` to continue one. Both
+    # halves were wrong: `load` puts a program on a deck, the command is
+    # `restore`, and by the time it printed the game had usually already
+    # continued somebody. A player following the game's own first sentence
+    # got an error.
+    def offered(text: str) -> list[str]:
+        out = []
+        for quoted in re.findall(r'`([^`]+)`', text):
+            words = quoted.split()
+            if not words:
+                continue
+            cmd = (REGISTRY.lookup(' '.join(words[:2]))
+                   or REGISTRY.lookup(words[0]))
+            if cmd is not None:
+                out.append(cmd)
+        return out
+
+    empty = Session(console=quiet_console(), slot='default')
+    for e in save_mod.roster():
+        save_mod.delete(e.slot)
+    for text, where in ((empty.opening_line(), 'the splash with nobody'),
+                        (empty.nobody_loaded(), 'the no-character refusal')):
+        cmds = offered(text)
+        T.ok(bool(cmds), f'{where} names at least one command')
+        for cmd in cmds:
+            T.ok(cmd.bare, f'{where} offers `{cmd.name}`, which works '
+                           f'with no character loaded')
+
+    # With characters on disk it must still only offer usable verbs.
+    empty.execute('new Nine --origin courier')
+    empty.execute('new Ten --origin burnout')
+    empty.game = None
+    empty.slot = 'default'
+    for text, where in ((empty.opening_line(), 'the splash with saves'),
+                        (empty.nobody_loaded(), 'the refusal with saves')):
+        for cmd in offered(text):
+            T.ok(cmd.bare, f'{where} offers `{cmd.name}`, which works with '
+                           f'no character loaded')
+
+    # --- a finished character is finished --------------------------------
+    # `game.over` was set on death, autosaved, and then read in exactly one
+    # place, so a flatlined runner could stand up from the chair the game had
+    # just described them dying in and go shopping.
+    sess = fresh()
+    sess.execute('new Doomed --origin burnout')
+    sess.game.over = 'flatlined'
+    sess.autosave()  # what the flatline path itself does
+    for verb in ('board', 'travel vertical', 'buy Crowbar', 'legwork perimeter'):
+        sess.console.start_capture()
+        sess.execute(verb)
+        said = sess.console.end_capture()
+        T.ok('flatlined' in said,
+             f'a dead character cannot {verb.split()[0]}')
+    # Checked against the refusal's own wording rather than against the word
+    # "flatlined", because `characters` legitimately prints it: the roster
+    # says so in the column that says how everybody ended.
+    for verb, want in (('char', 'Bandwidth'), ('characters', 'Characters'),
+                       ('rep', 'Standing')):
+        sess.console.start_capture()
+        sess.execute(verb)
+        said = sess.console.end_capture()
+        T.ok('You can still read' not in said,
+             f'but can still {verb}, to see what happened')
+        T.ok(want in said, f'and {verb} actually runs')
+    T.ok(any(e.finished for e in save_mod.roster()),
+         'and the roster says so')
+
+    # Retirement ends a character too, and must not be described as death.
+    sess.game.over = 'retired'
+    sess.console.start_capture()
+    sess.execute('board')
+    said = sess.console.end_capture()
+    T.ok('retired' in said, 'somebody who walked away is told they walked away')
+    T.ok('flatlined' not in said, 'and is not told they are dead')
+
+    # Every verb on the allowlist has to exist, and the allowlist has to
+    # leave a finished character a way out.
+    for name in AFTER_THE_END:
+        T.ok(REGISTRY.lookup(name) is not None,
+             f'`{name}` still works after the end and is a real command')
+    sess.console.start_capture()
+    sess.execute('new Somebody --origin gutter')
+    T.eq(sess.game.char.handle, 'Somebody',
+         'and you can always make somebody else')
+    sess.console.end_capture()
+
+    # --- a corrupt save must not hide the others -------------------------
+    from flatline.config import data_dir
+    (data_dir() / 'save-wrecked.json').write_text('{ not json')
+    entries = save_mod.roster()
+    T.ok(any(e.broken for e in entries), 'a bad save reads as broken')
+    T.ok(any(not e.broken for e in entries),
+         'and the readable ones are still listed')
+    sess.console.start_capture()
+    sess.execute('characters')
+    listed = sess.console.end_capture()
+    T.ok('Somebody' in listed, 'the roster still prints the living')
+    T.ok('unreadable' in listed, 'and says which one will not open')
+
+
 def test_migration() -> None:
     T.section('migration')
     import json
@@ -5128,7 +5310,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_migration, test_help, test_shell,
+    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,
 )
 

@@ -22,6 +22,7 @@ from ..model.character import Character
 from ..model import identity
 from ..model.identity import ALIAS_COST, ALIAS_SHIFTS
 from ..rng import random_seed
+from .. import save as save_mod
 from .. import ui
 from ..shell import CommandError, command
 from ..world import debt as debt_mod
@@ -65,9 +66,8 @@ def cmd_new(sess, args) -> None:
         c.say('[dim]`new <handle> --origin <key>` when you have picked.[/]')
         return
 
-    if sess.game is not None and not args.has('force'):
-        raise CommandError('a character is already loaded. `new ... --force` '
-                           'to abandon them.')
+    if sess.run is not None:
+        raise CommandError('finish the run first.')
 
     origin_key = (args.opt('origin') or '').lower()
     if origin_key not in origins.BY_KEY:
@@ -76,11 +76,30 @@ def cmd_new(sess, args) -> None:
     handle = args.get(0) or 'nobody'
     seed = args.int_opt('seed', random_seed())
 
+    # Put the character who is already here away before making another one.
+    # This used to be a refusal you cleared with `--force`, and `--force` did
+    # not abandon them, it destroyed them: everybody shared one slot, so the
+    # next autosave wrote the new character over the old one and nothing in
+    # the game said so. Saving first is the whole fix. Nothing but `delete`
+    # removes a character now.
+    leaving = None
+    if sess.game is not None:
+        leaving = sess.game.char.handle
+        sess.sync_scripts()
+        sess.game.save(sess.slot)
+
     char = Character.from_origin(origin_key, handle)
     char.points = attr_content.CREATION_POINTS
     char.xp = skill_content.CREATION_XP
     sess.game = Game.new(char, seed=seed)
     sess.run = None
+    # Filed under their own name, so having two characters is possible.
+    sess.slot = save_mod.slot_for(handle)
+    sess.autosave()
+    if leaving is not None:
+        c.blank()
+        c.info(f'{leaving} is saved and waiting. `characters` to see '
+               f'everybody, `switch {leaving}` to go back.')
 
     origin = char.origin_data
     c.blank()
@@ -100,7 +119,6 @@ def cmd_new(sess, args) -> None:
           ('world seed', f'[dim]{seed}[/]'),
           ('to spend', f'{char.points} attribute points, '
                        f'{char.xp} experience')])
-    from .. import save as save_mod
     save_mod.bump_meta(characters_created=1)
     _inherit(sess)
     sess.record_progress()
@@ -122,7 +140,6 @@ def _inherit(sess) -> None:
     somebody who is no longer in it.
     """
     from ..content import legacy
-    from .. import save as save_mod
 
     game, c = sess.game, sess.console
     estate = save_mod.claim_estate()

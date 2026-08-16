@@ -38,9 +38,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument('--no-intro', action='store_true',
                    help='skip the cold start. FLATLINE_NO_INTRO does the '
                         'same thing permanently. Ctrl-C skips it once.')
-    p.add_argument('--slot', default='default', help='save slot to use.')
+    # No default, so "the player named a slot" is distinguishable from "the
+    # player said nothing", which is the difference between obeying an
+    # instruction and inventing one.
+    p.add_argument('--slot', default=None,
+                   help='save slot to use. Defaults to the character you '
+                        'played last.')
     p.add_argument('--continue', dest='cont', action='store_true',
-                   help='load the save slot immediately.')
+                   help='open the most recently played character.')
+    p.add_argument('--no-continue', dest='no_continue', action='store_true',
+                   help='start at the roster and open nobody.')
     p.add_argument('-c', '--command', action='append', default=[],
                    metavar='CMD',
                    help='run a command and exit. Repeatable. Used by test.py '
@@ -54,7 +61,7 @@ def main(argv: list[str] | None = None) -> int:
     caps = detect_caps(theme_name=args.theme, ascii_only=args.ascii,
                        no_color=args.no_color)
     console = Console(caps)
-    sess = Session(console=console, slot=args.slot)
+    sess = Session(console=console, slot=args.slot or 'default')
     # The shell the player earned, before anything is printed. An explicit
     # --theme on the command line still wins: a flag you typed this second
     # beats a preference you set last week.
@@ -63,11 +70,7 @@ def main(argv: list[str] | None = None) -> int:
         sess.console.caps = replace(sess.console.caps,
                                     palette=theme.get(args.theme))
 
-    if args.cont or (not args.command and save_mod.exists(args.slot)):
-        try:
-            sess.load_game(args.slot)
-        except Exception as e:  # a bad save must not stop the game booting
-            console.err(str(e))
+    _open_a_character(sess, args, console)
 
     if args.command:
         # Non-interactive mode: no splash, no readline, no autosave surprises.
@@ -83,8 +86,57 @@ def main(argv: list[str] | None = None) -> int:
         console.say(f'[dim]Continuing as [/][accent]{game.char.handle}[/]'
                     f'[dim], running as {game.alias.name}. '
                     f'{game.city.when}, {game.city.district.name}.[/]')
+        if len(_living(sess)) > 1:
+            console.say('[dim]`characters` for the others.[/]')
+        console.blank()
+    elif len(_living(sess)) > 1:
+        # Nobody open and several to choose from. Show them rather than
+        # picking, because picking for the player is exactly the thing that
+        # dropped somebody into a character they had not asked for.
+        sess.execute('characters')
         console.blank()
     return sess.loop()
+
+
+def _living(sess) -> list:
+    return [e for e in save_mod.roster() if not e.broken]
+
+
+def _open_a_character(sess, args, console) -> None:
+    """Decide who the player is, before anything is printed.
+
+    The old rule was: if the default slot has a save in it, become that
+    person. That was fine while there could only ever be one character, and
+    became a trap the moment there could be several, because it silently
+    resumed one of them and the banner underneath still said `new` to make a
+    character.
+
+    The rule now: an explicit --slot or --continue is obeyed. A single
+    character is continued, because that is the whole reason the game
+    remembers anything. Several characters and no instruction means the
+    player gets the roster and picks, since being handed the wrong one is
+    worse than one extra command.
+    """
+    asked = args.slot
+    if args.no_continue and not (asked or args.cont):
+        return
+
+    living = _living(sess)
+    slot = asked
+    if slot is None and (args.cont or len(living) == 1):
+        # Most recently played, which for one character is that character and
+        # for --continue is the one they were last in the middle of.
+        slot = living[0].slot if living else None
+    if slot is None:
+        return
+    if not save_mod.exists(slot):
+        if asked is not None and not args.command:
+            console.err(f'no character in slot {slot!r}.')
+        return
+    try:
+        sess.load_game(slot)
+    except Exception as e:  # a bad save must not stop the game booting
+        console.err(str(e))
 
 
 if __name__ == '__main__':

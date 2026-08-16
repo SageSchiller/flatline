@@ -1070,6 +1070,55 @@ haggle discount was capped at a flat 18%, which made Guile 7, 8 and 9 points
 the character sheet sells and nothing reads. Every value in the attribute range
 must now buy something.
 
+### D49: The character is the address, not the slot
+
+Reported as "I am loaded automatically into Jack", which was one symptom of
+six problems sharing a cause: characters were addressed by *slot*, everybody
+shared a slot called `default`, and nothing in the game ever showed the
+player a list of who they had.
+
+**The destructive one.** `new` refused while a character was loaded and told
+you to pass `--force` to "abandon" them. `--force` did not abandon them. The
+new character was made in the same slot and the next autosave wrote over the
+old one, permanently, with no warning, because from the save layer's point of
+view nothing unusual had happened. The word "abandon" reads as leaving
+somebody behind. It meant deleting them.
+
+Filing each character under a slot derived from their own handle is the whole
+fix. `new` now saves whoever is loaded before making anybody, and nothing in
+the game removes a character except `delete`, which prints what it is about
+to throw away and then wants `--confirm`. `validate.py` walks the AST for
+calls to `save.delete` outside `cmd_delete` and fails the build on any.
+
+**The one that was wrong from the first line the player ever read.** The
+splash said: `new` to make a character, `load` to continue one. `load` puts a
+program on a deck. The command is `restore`, and it is called `restore`
+*specifically* because of that collision, which is written down in its own
+help text. So the game's opening sentence sent every new player to the wrong
+verb, and by the time it printed, the game had usually already continued
+somebody, which made the other half wrong as well.
+
+That is a class, not an incident: **a verb the game offers has to work at the
+moment it is offered.** The test drives `opening_line()` and
+`nobody_loaded()`, pulls every backticked command out of what they return,
+and asserts each one is `bare`, meaning usable with no character loaded. `load` is a
+real command, so a check that only asked "does this resolve" would have
+passed it.
+
+**Boot behaviour.** One character is opened, because that is what remembering
+is for. Several and no instruction means the roster is printed and nobody is
+picked, because being handed the wrong runner is worse than one more word.
+`--continue` takes the most recent, `--no-continue` opens nobody.
+
+**And a character who is finished is finished.** `game.over` was set on
+death, autosaved, and then read in exactly one place, so a flatlined runner
+could stand up from the chair the game had just finished describing them
+dying in and go shopping. D6 says only black ICE ends a character; it is not
+much of an ending if it ends nothing. `AFTER_THE_END` is an allowlist rather
+than a blocklist, because the failure modes are not symmetrical: a missing
+entry means a dead character cannot read their own sheet, and a missing
+blocklist entry means they can go back to work.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -1815,4 +1864,30 @@ forgets, every campaign cooled, Guile 1 to 6 is 19% faster. It reports the
 original bug as "carrion never forgets".
 
 `validate.py` clean, `test.py` green at **12,849 checks**. All seven soaks
+clean.
+
+### 2026-08-15 (c): the character is the address
+
+**D49.** Reported as being dropped into a character without asking, which
+turned out to be one of six problems with a single cause: characters were
+addressed by slot, everybody shared the slot called `default`, and there was
+no screen anywhere that listed who you had.
+
+The serious one was silent and permanent. `new --force` did not abandon the
+loaded character, it destroyed them: same slot, next autosave, gone. Each
+character is filed under their own handle now, `new` saves whoever is here
+first, and `delete` is the only thing in the game that removes anybody.
+
+The oldest one was the first sentence a new player ever read. The splash said
+`load` to continue a character; `load` puts a program on a deck; the command
+is `restore` and is named that *because* of the collision. The general rule
+that came out of it is that a verb the game offers has to work at the moment
+it is offered, which is a stronger check than "does this command exist",
+because `load` exists.
+
+`characters`, `switch` and `delete` are the system. A finished character
+stays on the roster and can be read but not played, which required noticing
+that death previously changed nothing at all about what you could type.
+
+`validate.py` clean, `test.py` green at **12,932 checks**. All seven soaks
 clean.
