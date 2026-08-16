@@ -136,11 +136,11 @@ The three ideas everything else hangs off:
 
 12 skills with 24 techniques · 26 traits · 10 origins, each with a signature
 verb nobody else can use and its own starting face · 34 implants · 46 programs
-· 28 countermeasures · 9 districts, each with a mark for the faction that
+· 28 countermeasures · 9 pieces of bench work · 9 districts, each with a mark for the faction that
 holds it · 12 factions · 7 rival runners who decide about you, and one you can keep · 17 named characters who hand out work, keep private stock and do favours on a tab · 18 storylines across 39 scenes ·
-102 appearance features · 51 ambient city events · 37 manual topics ·
+102 appearance features · 51 ambient city events · 38 manual topics ·
 10 drugs · 3 lenders · 2 games of chance in 5 rooms ·
-110 commands · 67 unlockable pieces of terminal across 6 axes.
+112 commands · 67 unlockable pieces of terminal across 6 axes.
 
 Footnotes are a real feature of the console. `{{like this}}` in any content
 string gets lifted out and printed under the block, and they nest, because the

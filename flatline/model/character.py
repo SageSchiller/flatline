@@ -58,6 +58,9 @@ class Character:
     #: decided is normal. See `content/drugs.py`; it is plain data because it
     #: round-trips through JSON on every autosave.
     chem: dict = field(default_factory=drugs.blank)
+    #: Parts, wire and dead components, in a bag. What breaking things down
+    #: gets you, and the only thing bench work is paid for in besides money.
+    scrap: int = 0
     #: Doses carried, by drug key. Separate from `chem` because owning one and
     #: being on one are very different states and the interesting decisions
     #: are all about the gap between them.
@@ -494,6 +497,7 @@ class Character:
             'marks': list(self.marks),
             'chem': drugs.normalise(self.chem),
             'stash': {k: v for k, v in self.stash.items() if v > 0},
+            'scrap': self.scrap,
             'credits': self.credits,
             'xp': self.xp,
             'points': self.points,
@@ -523,6 +527,7 @@ class Character:
             chem=drugs.normalise(d.get('chem')),
             stash={k: int(v) for k, v in (d.get('stash') or {}).items()
                    if k in drugs.BY_KEY and int(v) > 0},
+            scrap=max(0, int(d.get('scrap', 0))),
             credits=int(d.get('credits', 0)),
             xp=int(d.get('xp', 0)),
             points=int(d.get('points', 0)),

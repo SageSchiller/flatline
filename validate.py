@@ -1615,6 +1615,82 @@ def check_games(rep: Report) -> None:
               'the floor below which a table refuses you is not a probability')
 
 
+def check_mods(rep: Report) -> None:
+    """Bench work, per D47. See `content/mods.py`.
+
+    One rule carries this file, and it is the same one the drugs are written
+    under: **nothing comes out ahead**. A modification that were simply better
+    would not be a decision, it would be an upgrade you do to everything once,
+    and it would make every price in the component shop mean less.
+    """
+    from flatline.content import mods as mod_content
+
+    for mod in mod_content.MODS:
+        where = f'mods/{mod.key}'
+        for problems in (fx.check(mod.gives, f'{where}.gives'),
+                         fx.check(mod.takes, f'{where}.takes')):
+            for problem in problems:
+                rep.error(where, problem)
+        rep.check(bool(mod.gives), where, 'changes nothing')
+        rep.check(bool(mod.takes), where,
+                  'costs nothing, which makes it an upgrade rather than a '
+                  'decision')
+        rep.check(_weight(mod.takes) >= _weight(mod.gives), where,
+                  f'gives {_weight(mod.gives):.1f} and takes '
+                  f'{_weight(mod.takes):.1f}: bench work is a trade')
+        # And the two halves have to be different axes, or it is a rounding
+        # error dressed up as a choice.
+        rep.check(not (set(mod.gives) & set(mod.takes)), where,
+                  f'gives and takes the same keys: '
+                  f'{sorted(set(mod.gives) & set(mod.takes))}')
+        for key, value in mod.gives.items():
+            rep.check(fx.improves(key, value), where,
+                      f'"gives" {key} {value}, which is not an improvement')
+        for key, value in mod.takes.items():
+            rep.check(not fx.improves(key, value), where,
+                      f'"takes" {key} {value}, which is not a cost')
+
+        rep.check(bool(mod.slots), where, 'can be done to nothing')
+        for slot in mod.slots:
+            rep.check(slot in hardware.SLOTS, where,
+                      f'names slot {slot!r}, which does not exist')
+            rep.check(any(c.slot == slot for c in hardware.COMPONENTS), where,
+                      f'{slot} has no components in it')
+        rep.check(mod.scrap > 0 and mod.price > 0, where, 'is free')
+        rep.check(bool(mod.blurb) and bool(mod.bench), where,
+                  'has nothing to say about itself')
+        rep.check(mod.name and mod.name[0].isupper(), where,
+                  'is not named like a thing')
+
+    # Every slot needs something worth doing to it, or a component in that
+    # slot can never be worked on and the screen has a hole in it.
+    for slot in hardware.SLOTS:
+        rep.check(bool(mod_content.for_slot(slot)), 'mods',
+                  f'nothing can be done to a {slot}')
+    rep.check(mod_content.MAX_PER_COMPONENT >= 2, 'mods',
+              'one piece of work per component, so there is never a second '
+              'choice made against the first')
+    rep.check(len({m.key for m in mod_content.MODS})
+              == len(mod_content.MODS), 'mods', 'two mods share a key')
+
+    # Salvage has to be a poor deal. If breaking things down paid near list,
+    # it would be a way to turn goods into a currency rather than a use for
+    # things nobody will buy.
+    rep.check(0 < mod_content.SALVAGE_RATE < 0.4, 'mods',
+              f'salvage returns {mod_content.SALVAGE_RATE:.0%} of list, which '
+              f'is a second economy')
+    rep.check(0 < mod_content.BROKEN_RATE <= 1.0, 'mods',
+              'a wreck is worth more than the working component')
+    rep.check(mod_content.salvage_value(1000, broken=True)
+              < mod_content.salvage_value(1000), 'mods',
+              'breaking a component first pays better')
+    # And the cheapest work has to cost more scrap than the cheapest thing
+    # you could break down returns, or one spare part buys a modification.
+    floor = min(mod_content.salvage_value(p.price) for p in programs.PROGRAMS)
+    rep.check(min(m.scrap for m in mod_content.MODS) > floor, 'mods',
+              'the cheapest bench work is paid for by one junk program')
+
+
 def check_crew(rep: Report) -> None:
     """A crew rather than a hire, per D46. See `content/rivals.py`."""
     from flatline.content import rivals as rival_content
@@ -2834,7 +2910,7 @@ CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
     check_icons, check_dissonance, check_cyberspace, check_rivals, check_debt,
     check_origins, check_appearance, check_events, check_rice, check_shifts, check_district_mood, check_dead_fields, check_skills, check_factions, check_districts,
-    check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_offers, check_legacy, check_bonds, check_safehouses, check_crew, check_commands,
+    check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_offers, check_legacy, check_bonds, check_safehouses, check_crew, check_mods, check_commands,
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_palette_separation, check_markup, check_balance,
 )

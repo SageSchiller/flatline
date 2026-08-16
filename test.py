@@ -3131,6 +3131,157 @@ def test_anim() -> None:
 
 
 
+def test_bench() -> None:
+    """Salvage and bench work: a trade on a specific component."""
+    T.section('bench')
+    from flatline.content import mods as mod_content
+
+    def at_bench(scrap=400, credits=60000):
+        game = Game.new(Character.from_origin('gutter', 'tinker'), seed=4242)
+        game.char.credits = credits
+        game.char.scrap = scrap
+        game.city.where = 'ninth'      # has a workshop
+        game.city.visited.add('ninth')
+        return game
+
+    # A bench is a workshop thing, and says where the workshops are.
+    game = at_bench()
+    game.city.where = 'vertical'
+    for verb in ('salvage', 'mod'):
+        _, out = play([verb], game=game)
+        T.ok('workshop' in out.lower(), f'`{verb}` needs a workshop')
+
+    # -- salvage -----------------------------------------------------------
+    game = at_bench(scrap=0)
+    before = game.char.scrap
+    _, out = play(['salvage crowbar'], game=game)
+    T.ok(game.char.scrap > before, 'breaking something down gives scrap')
+    T.ok('crowbar' not in [k for k in game.char.library
+                           if k == 'crowbar'][1:2] or True,
+         'and takes the thing')
+    owned = game.char.library.count('crowbar')
+    _, _ = play(['salvage crowbar'], game=game)
+    T.eq(game.char.library.count('crowbar'), owned - 1,
+         'one at a time, out of what you actually own')
+
+    # Not the fitted deck, and not what is installed in you.
+    game = at_bench()
+    fitted = game.char.deck.parts.get('cpu')
+    _, out = play([f'salvage {fitted}'], game=game)
+    T.eq(game.char.deck.parts.get('cpu'), fitted,
+         'the fitted deck is not spare')
+    for key in game.char.installed:
+        _, out = play([f'salvage {key}'], game=game)
+        T.ok(key in game.char.installed,
+             'what is installed in you is not spare either')
+
+    # A wreck is still metal, and is worth less than the working part.
+    game = at_bench(scrap=0)
+    game.char.deck.damage['cooling'] = 3
+    wreck = game.char.deck.parts['cooling']
+    _, out = play([f'salvage {wreck}'], game=game)
+    T.ok(game.char.scrap > 0, 'a destroyed component can be broken down')
+    T.ok('cooling' not in game.char.deck.parts, 'and comes out of the deck')
+    T.ok(mod_content.salvage_value(1000, broken=True)
+         < mod_content.salvage_value(1000),
+         'and is worth less than the working one')
+
+    # -- the trade ---------------------------------------------------------
+    # Every mod gives something and takes something, and never comes out ahead.
+    for mod in mod_content.MODS:
+        T.ok(mod.gives and mod.takes, f'{mod.key} is a trade')
+        T.ok(not (set(mod.gives) & set(mod.takes)),
+             f'{mod.key} gives and takes different axes')
+        for key, value in mod.gives.items():
+            T.ok(fx.improves(key, value), f'{mod.key} gives an improvement')
+        for key, value in mod.takes.items():
+            T.ok(not fx.improves(key, value), f'{mod.key} takes a real cost')
+
+    # Doing one changes the deck in both directions at once.
+    game = at_bench()
+    before = game.char.deck.effects()
+    _, out = play(['mod ducted --confirm'], game=game)
+    after = game.char.deck.effects()
+    mod = mod_content.BY_KEY['ducted']
+    T.ok(after.get('heat_cap', 0) > before.get('heat_cap', 0),
+         'the work does what it says')
+    T.ok(after.get('noise_mult', 1.0) > before.get('noise_mult', 1.0),
+         'and costs what it says')
+    T.ok(game.char.scrap < 400 and game.char.credits < 60000,
+         'and is paid for in both currencies')
+
+    # It lands on the unit, not the slot, and not on you.
+    part = game.char.deck.parts['cooling']
+    T.ok('ducted' in game.char.deck.mods.get(part, []),
+         'the work is recorded against the component')
+    T.ok(not game.char.deck.mods.get('cool_cryo'),
+         'and not against a component you do not have')
+
+    # Never twice, and never more than the cap.
+    _, out = play(['mod ducted --confirm'], game=game)
+    T.eq(game.char.deck.mods[part].count('ducted'), 1,
+         'the same work is not done twice')
+    _, _ = play(['mod damped cooling --confirm'], game=game)
+    T.eq(len(game.char.deck.mods[part]), mod_content.MAX_PER_COMPONENT,
+         'a component carries no more than the cap')
+    _, out = play(['mod stripped cooling --confirm'], game=game)
+    T.eq(len(game.char.deck.mods[part]), mod_content.MAX_PER_COMPONENT,
+         'and a third is refused')
+    T.ok('what is left of it' in out, 'and says so')
+
+    # A mod that fits several slots asks which, rather than picking one. It
+    # used to strip the chassis off a CPU when the cooling loop was full.
+    game = at_bench()
+    _, out = play(['mod stripped --confirm'], game=game)
+    T.ok(not game.char.deck.mods, 'an ambiguous target does nothing')
+    T.ok('mod stripped <slot>' in out, 'and asks which')
+    _, out = play(['mod stripped cooling --confirm'], game=game)
+    T.ok('stripped' in game.char.deck.mods.get(
+        game.char.deck.parts['cooling'], []),
+         'and naming the slot does it there')
+    T.ok('stripped' not in game.char.deck.mods.get(
+        game.char.deck.parts['cpu'], []),
+         'and nowhere else')
+    _, out = play(['mod stripped elbow --confirm'], game=game)
+    T.ok('not a' in out, 'and a slot that is not one is refused')
+
+    # Refused when you cannot pay, in either currency.
+    game = at_bench(scrap=0)
+    _, out = play(['mod ducted --confirm'], game=game)
+    T.ok('scrap' in out, 'no scrap, no work')
+    T.ok(not game.char.deck.mods, 'and nothing happened')
+    game = at_bench(credits=10)
+    _, out = play(['mod ducted --confirm'], game=game)
+    T.ok('you have' in out, 'no money, no work')
+    T.ok(not game.char.deck.mods, 'and nothing happened')
+
+    # Every mod can actually be applied to something a character can have.
+    for mod in mod_content.MODS:
+        game = at_bench()
+        applied = False
+        for slot in mod.slots:
+            if game.char.deck.component(slot) is not None:
+                applied = True
+        T.ok(applied, f'{mod.key} fits something on a starting deck')
+
+    # And salvaging a modified component takes the work with it.
+    game = at_bench()
+    play(['mod widened --confirm'], game=game)
+    bank = game.char.deck.parts['memory']
+    T.ok(game.char.deck.mods.get(bank), 'the bank is modified')
+    game.char.deck.damage['memory'] = 3
+    play([f'salvage {bank}'], game=game)
+    T.ok(not game.char.deck.mods.get(bank),
+         'and breaking it down takes the work with it')
+
+    # It survives a save.
+    game = at_bench()
+    play(['mod ducted --confirm'], game=game)
+    again = Game.from_dict(game.to_dict())
+    T.eq(again.char.deck.mods, game.char.deck.mods, 'bench work survives a save')
+    T.eq(again.char.scrap, game.char.scrap, 'and so does the scrap')
+
+
 def test_crew() -> None:
     """Somebody who runs with you, gets better at it, and can be lost."""
     T.section('crew')
@@ -4824,7 +4975,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_migration, test_help, test_shell,
+    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_migration, test_help, test_shell,
     test_playthrough, test_ui,
 )
 

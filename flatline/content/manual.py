@@ -510,10 +510,45 @@ TOPICS: tuple[Topic, ...] = (
         'A deck that is good at everything does not exist at any price.\n\n'
         '[warn]The decision:[/] do legwork first. Knowing what is in there is '
         'what turns the loadout from a guess into a choice.',
-        see=('programs', 'contracts'),
+        see=('bench', 'programs', 'contracts'),
         commands=('deck', 'load', 'unload', 'buy', 'repair'),
         covers=('hardware',),
         terms=('rig', 'computer',),
+        group='character'),
+    Topic(
+        'bench', 'Salvage and bench work',
+        'Changing a component you own, in a direction nobody sells.',
+        'There is no crafting in this city and there is a bench. The '
+        'difference matters: nothing here produces an item, because a system '
+        'that made catalogue goods out of materials would be a discount on '
+        'the market with extra steps, and every price in the shop would mean '
+        'less. What a bench does is change something you already own.\n\n'
+        '[accent]Scrap[/] comes from what you were throwing away anyway. '
+        'Fitting a component puts the old one in the bag, and over a campaign '
+        'the bag fills with things nobody will buy at a price worth the walk. '
+        '[fg]salvage[/] at a workshop turns any of it into scrap, badly, on '
+        'purpose. A destroyed component counts, and is often worth more in '
+        'pieces than the repair costs.\n\n'
+        '[accent]Bench work[/] spends the scrap. [fg]mod[/] lists what can be '
+        'done to each thing in your deck, and [warn]every one of them is a '
+        'trade[/]: one axis up, another down, on that specific component, '
+        'permanently. Airflow bought with noise. Quiet bought with heat. A '
+        'stripped chassis that is faster and will never be cheap to repair '
+        'again. Nothing here comes out ahead, and the build fails if anything '
+        'does.\n\n'
+        'Two things carry no more than two pieces of work each, so the second '
+        'choice is made against the first rather than in addition to it. And '
+        'the work is done to the metal rather than to you: sell the '
+        'component and the tuning goes with it.\n\n'
+        '[warn]The decision:[/] the shop sells you a better component. The '
+        'bench sells you a stranger one. A deck nobody else could have bought '
+        'is worth having precisely because every part of it is worse at '
+        'something, and you chose which.',
+        see=('deck', 'programs', 'money', 'triangle'),
+        commands=('salvage', 'mod', 'repair', 'deck'),
+        covers=('mods',),
+        terms=('upgrade', 'modding', 'workbench', 'recycle',
+               'customise a deck', 'make things'),
         group='character'),
     Topic(
         'programs', 'Programs',

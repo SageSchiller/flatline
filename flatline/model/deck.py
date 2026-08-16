@@ -15,7 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from ..content import effects as fx
-from ..content import hardware, programs
+from ..content import hardware, mods as mod_content, programs
 
 
 @dataclass(slots=True)
@@ -28,6 +28,10 @@ class Deck:
     #: slot -> damage taken, 0 to 3. At 3 the component is destroyed and
     #: contributes nothing until repaired.
     damage: dict[str, int] = field(default_factory=dict)
+    #: component key -> bench work done to that specific unit. Keyed by the
+    #: component rather than by the slot, because the work was done to the
+    #: metal: sell it and the tuning goes with it. See `content/mods.py`.
+    mods: dict[str, list[str]] = field(default_factory=dict)
 
     # -- construction ------------------------------------------------------
 
@@ -71,13 +75,18 @@ class Deck:
         parts: list[dict] = []
         for slot, comp in self.components():
             scale = (3 - self.damage.get(slot, 0)) / 3
+            worked = mod_content.effects(self.mods.get(comp.key, ()))
             if scale >= 1.0:
                 parts.append(comp.effects)
                 parts.append(comp.penalty)
+                parts.append(worked)
                 continue
             parts.append(_scaled(comp.effects, scale))
-            # Penalties do not degrade. A cracked wide bank still draws power.
+            # Penalties do not degrade. A cracked wide bank still draws power,
+            # and neither does bench work: what somebody cut off it is still
+            # off it.
             parts.append(comp.penalty)
+            parts.append(worked)
         # Programs contribute their passive effects only while loaded.
         for key in self.loaded:
             prog = programs.BY_KEY.get(key)
@@ -192,13 +201,18 @@ class Deck:
 
     def to_dict(self) -> dict:
         return {'parts': dict(self.parts), 'loaded': list(self.loaded),
-                'damage': {k: v for k, v in self.damage.items() if v}}
+                'damage': {k: v for k, v in self.damage.items() if v},
+                'mods': {k: list(v) for k, v in self.mods.items() if v}}
 
     @classmethod
     def from_dict(cls, d: dict) -> Deck:
         return cls(parts=dict(d.get('parts') or {}),
                    loaded=list(d.get('loaded') or []),
-                   damage={k: int(v) for k, v in (d.get('damage') or {}).items()})
+                   damage={k: int(v) for k, v in (d.get('damage') or {}).items()},
+                   mods={k: [m for m in (v or ())
+                             if m in mod_content.BY_KEY]
+                         for k, v in (d.get('mods') or {}).items()
+                         if k in hardware.BY_KEY})
 
 
 def _scaled(effects: dict, scale: float) -> dict:

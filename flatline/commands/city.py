@@ -2400,6 +2400,207 @@ def cmd_repair(sess, args) -> None:
 
 
 # --------------------------------------------------------------------------
+# the bench
+# --------------------------------------------------------------------------
+#
+# Not a crafting system. Nothing here produces an item, because a system that
+# produced catalogue items for materials would be a discount on the market
+# with extra steps and would make every price in the shop mean less. What it
+# does is change a component you already own, permanently, in a direction
+# nobody stocks, and charge for it in an axis you were relying on.
+
+
+def _spare(game) -> list[tuple[str, str, int]]:
+    """Everything you could break down: (key, kind, scrap it would give).
+
+    The fitted deck and installed chrome are excluded. So is anything in the
+    safehouse, which is somewhere else by definition.
+    """
+    from ..content import mods as mod_content
+    out: list[tuple[str, str, int]] = []
+    for key in game.char.library:
+        if key in programs.BY_KEY:
+            item = programs.BY_KEY[key]
+            out.append((key, 'program', mod_content.salvage_value(item.price)))
+        elif key in hardware.BY_KEY:
+            item = hardware.BY_KEY[key]
+            out.append((key, 'component',
+                        mod_content.salvage_value(item.price)))
+        elif key in cyberware.BY_KEY:
+            item = cyberware.BY_KEY[key]
+            out.append((key, 'ware', mod_content.salvage_value(item.price)))
+    # A destroyed component in the deck is still metal, and is otherwise a
+    # repair bill you may not want to pay.
+    for slot, key in game.char.deck.parts.items():
+        if game.char.deck.damage.get(slot, 0) >= 3 and key in hardware.BY_KEY:
+            out.append((key, 'wreck', mod_content.salvage_value(
+                hardware.BY_KEY[key].price, broken=True)))
+    return out
+
+
+@command('salvage', 'Break something down for parts.',
+         contexts=('city',), group='prep', usage='salvage [thing]',
+         detail='Needs a workshop. Turns anything spare into scrap, which is '
+                'what bench work is paid for besides money. The rate is bad '
+                'on purpose: this is a use for things nobody will buy at a '
+                'price worth the walk, not a way to turn money into a '
+                'different currency. A destroyed component counts, and is '
+                'often worth more in pieces than the repair costs.')
+def cmd_salvage(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    from ..content import mods as mod_content
+    if 'workshop' not in game.city.district.services:
+        shops = ', '.join(d.name for d in districts.with_service('workshop'))
+        raise CommandError(f'a bench is a workshop thing. Try: {shops}')
+    spare = _spare(game)
+
+    if not len(args):
+        c.header('The bench', f'{game.char.scrap} scrap')
+        if not spare:
+            c.say(f'[dim]{mod_content.NOTHING_TO_SALVAGE}[/]')
+            return
+        c.table(('thing', 'what it is', 'scrap'),
+                [(_thing_name(k), kind, str(v)) for k, kind, v in spare],
+                roles=('accent', 'dim', 'credit'))
+        c.blank()
+        c.say('[dim]`salvage <thing>`. It does not come back. `mod` for what '
+              'the scrap is for.[/]')
+        return
+
+    query = args.rest().lower()
+    match = next(((k, kind, v) for k, kind, v in spare
+                  if query in _thing_name(k).lower() or query == k), None)
+    if match is None:
+        raise CommandError(f'nothing spare like {query!r}. The fitted deck '
+                           f'and what is installed in you do not count.')
+    key, kind, value = match
+    if kind == 'wreck':
+        slot = hardware.BY_KEY[key].slot
+        game.char.deck.parts.pop(slot, None)
+        game.char.deck.damage.pop(slot, None)
+    else:
+        game.char.library.remove(key)
+    game.char.deck.mods.pop(key, None)
+    game.char.scrap += value
+    c.ok(f'{_thing_name(key)} comes apart. [credit]+{value} scrap[/], '
+         f'[dim]{game.char.scrap} in the bag.[/]')
+    sess.autosave()
+
+
+@command('mod', 'Bench work on a component you own.',
+         contexts=('city',), group='prep', usage='mod [name] [--confirm]',
+         detail='Needs a workshop. Every modification trades one axis for '
+                'another on a specific component, permanently, and nothing '
+                'here comes out ahead. The work is done to the metal, so '
+                'selling the component sells the work with it, and no '
+                'component carries more than two.')
+def cmd_mod(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    from ..content import mods as mod_content
+    char = game.char
+    if 'workshop' not in game.city.district.services:
+        shops = ', '.join(d.name for d in districts.with_service('workshop'))
+        raise CommandError(f'bench work needs a workshop. Try: {shops}')
+
+    if not len(args):
+        c.header('Bench work', f'{char.scrap} scrap, {char.credits:,}c')
+        for slot, comp in char.deck.components(include_broken=True):
+            done = char.deck.mods.get(comp.key, [])
+            head = f'  [accent]{comp.name}[/] [dim]{slot}[/]'
+            if done:
+                head += ('  [ok]'
+                         + ', '.join(mod_content.BY_KEY[m].name
+                                     for m in done) + '[/]')
+            c.raw(head)
+            room = mod_content.MAX_PER_COMPONENT - len(done)
+            if room <= 0:
+                c.say('[dim]There is nothing left of it to change.[/]',
+                      indent='    ', subsequent='    ')
+                continue
+            for mod in mod_content.for_slot(slot):
+                if mod.key in done:
+                    continue
+                c.say(f'[fg]{mod.key}[/] [dim]{mod.name}: '
+                      f'{_effect_line(mod.gives)} [/][dim]for[/] '
+                      f'{_effect_line(mod.takes)}[dim], {mod.scrap} scrap and '
+                      f'{mod.price:,}c[/]',
+                      indent='    ', subsequent='      ')
+        c.blank()
+        c.say(f'[dim]`mod <name>`. Two per component, and none of it comes '
+              f'off.[/]')
+        return
+
+    words = [w for w in args.rest().split() if w != '--confirm']
+    mod = mod_content.BY_KEY.get(words[0].lower()) if words else None
+    if mod is None:
+        raise CommandError('no bench work called that: '
+                           + ', '.join(mod_content.MOD_KEYS))
+    asked = words[1].lower() if len(words) > 1 else ''
+
+    # Which component. One piece of work here fits every slot, so picking the
+    # first one with something in it silently stripped the chassis off a CPU
+    # when the player meant the cooling loop. Ambiguity is asked about.
+    fits = [s for s in mod.slots if char.deck.component(s) is not None]
+    if not fits:
+        raise CommandError(f'{mod.name} is done to a '
+                           f'{" or ".join(mod.slots)}, and you have nothing '
+                           f'in there.')
+    if asked:
+        if asked not in fits:
+            raise CommandError(f'{mod.name} goes on a '
+                               f'{" or ".join(fits)}, not a {asked!r}.')
+        fits = [asked]
+    room = [s for s in fits
+            if mod.key not in char.deck.mods.get(char.deck.parts[s], [])
+            and len(char.deck.mods.get(char.deck.parts[s], []))
+            < mod_content.MAX_PER_COMPONENT]
+    if not room:
+        full = ', '.join(char.deck.component(s).name for s in fits)
+        raise CommandError(f'{full} has already had that done, or carries '
+                           f'{mod_content.MAX_PER_COMPONENT} pieces of work '
+                           f'and that is what is left of it.')
+    if len(room) > 1:
+        raise CommandError(
+            f'{mod.name} fits your '
+            + ', '.join(f'{s} ({char.deck.component(s).name})' for s in room)
+            + f'. `mod {mod.key} <slot>`.')
+    slot = room[0]
+    comp = char.deck.component(slot)
+    done = list(char.deck.mods.get(comp.key, []))
+    if char.scrap < mod.scrap:
+        raise CommandError(f'{mod.name} wants {mod.scrap} scrap and you have '
+                           f'{char.scrap}. `salvage` something.')
+    if char.credits < mod.price:
+        raise CommandError(f'that is {mod.price:,}c and you have '
+                           f'{char.credits:,}c')
+
+    if not args.has('confirm'):
+        c.header(mod.name, comp.name)
+        c.say(f'[dim]{mod.blurb}[/]')
+        c.blank()
+        c.kv([('you get', _effect_line(mod.gives)),
+              ('it costs', _effect_line(mod.takes)),
+              ('and', f'{mod.scrap} scrap, [credit]{mod.price:,}c[/], '
+                      f'{mod_content.BENCH_SHIFTS} shift')])
+        c.blank()
+        c.say(f'[warn]It does not come off, and it stays with the component '
+              f'if you sell it.[/] [dim]`mod {mod.key} --confirm`.[/]')
+        return
+
+    char.scrap -= mod.scrap
+    char.credits -= mod.price
+    char.deck.mods.setdefault(comp.key, []).append(mod.key)
+    c.blank()
+    c.rule(mod.name)
+    c.say(mod.bench)
+    c.blank()
+    c.ok(f'{comp.name} is not what it was.')
+    c.say(f'[dim]{_effect_line(mod_content.effects(char.deck.mods[comp.key]))}'
+          f'[/]')
+    _advance(sess, mod_content.BENCH_SHIFTS)
+
+
+# --------------------------------------------------------------------------
 # somewhere of your own
 # --------------------------------------------------------------------------
 

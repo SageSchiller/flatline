@@ -990,6 +990,42 @@ feel the investment. The smaller cut is there so keeping them is correct. The
 retainer is there so it is a decision. And letting somebody go costs more the
 longer they were there, because it should.
 
+### D47: A bench, which is not a crafting system
+
+Asked for as crafting, built as the thing crafting is usually a worse version
+of. The obvious system spends materials and returns a catalogue item, which is
+a discount on the market with extra steps: it makes every price in the shop
+mean slightly less, and the interesting decision it produces is none.
+
+**Nothing here produces an item.** Everything here changes one you already
+own, permanently, in a direction nobody stocks. One axis up, one axis down, on
+that specific component. `validate.py` weighs both sides and rejects anything
+that comes out ahead, which is the drug rule applied to metal and for the same
+reason: a change that was simply better is an upgrade you do to everything
+once.
+
+**It lives on deck components rather than on programs**, and that is a
+representation decision as much as a design one. A component sits in exactly
+one slot and there is exactly one of it, so "your cooling loop" is unambiguous
+in a way "your Crowbar" is not when you own two. Doing this to programs would
+have needed per-item identity threaded through every lookup in the game, to
+produce a worse version of the same choice.
+
+The work is keyed to the component rather than to the slot, because it was
+done to the metal: sell the unit and the tuning goes with it.
+
+**Scrap is a stock the player has been generating for hours without
+noticing.** Fitting a component puts the old one in the bag, and over a
+campaign the bag fills with things nobody will buy at a price worth the walk.
+The rate is deliberately poor, and `validate.py` checks that no single junk
+program pays for a modification, so this is a use for rubbish rather than a
+second currency.
+
+**What it turned up.** One modification fits every slot, and the slot-picking
+logic took the first one with something in it, so `mod stripped` silently took
+the chassis off a CPU when the cooling loop was full. Ambiguity is now asked
+about rather than resolved.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
