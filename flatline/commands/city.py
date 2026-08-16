@@ -19,6 +19,7 @@ from ..content import skills as skill_content
 from ..content import traits as trait_content
 from ..game import Game
 from ..model.character import Character
+from ..model import identity
 from ..model.identity import ALIAS_COST, ALIAS_SHIFTS
 from ..rng import random_seed
 from .. import ui
@@ -258,7 +259,8 @@ def cmd_char(sess, args) -> None:
     c.kv([('Bandwidth', f'{char.bandwidth_used}/{char.bandwidth}'),
           ('Focus', str(char.focus)),
           ('Tempo', str(char.tempo)),
-          ('Composure', str(char.composure))])
+          ('Composure', str(char.composure)),
+          ('Cover', str(char.cover))])
 
     if char.points or char.xp:
         c.blank()
@@ -643,7 +645,8 @@ def cmd_market(sess, args) -> None:
         price, _ = market_mod.quote(listing, game.city.where, game.alias,
                                     game.char.dissonance,
                                     game.char.mult('price_mult'),
-                                    game.city.phase)
+                                    game.city.phase,
+                                    game.char.attr('guile'))
         detail = _listing_detail(listing, item)
         rows.append((item.name, listing.kind, detail, f'{price:,}c'))
     c.table(('item', 'kind', 'what it does', 'price'), rows,
@@ -679,7 +682,8 @@ def cmd_buy(sess, args) -> None:
     price, terms = market_mod.quote(listing, game.city.where, game.alias,
                                     game.char.dissonance,
                                     game.char.mult('price_mult'),
-                                    game.city.phase)
+                                    game.city.phase,
+                                    game.char.attr('guile'))
     if args.has('why'):
         c.header(item.name, f'{price:,}c')
         c.kv([('list', f'{listing.price:,}c')]
@@ -1289,6 +1293,16 @@ def cmd_rep(sess, args) -> None:
     c.blank()
     c.say('[dim]Posture is how hard their networks generate. It rises when '
           'you succeed against them and falls slowly.[/]')
+    cover = game.char.cover
+    if cover:
+        c.say(f'[dim]Heat cools on its own, at a rate each faction sets for '
+              f'itself. Your Cover of {cover} makes it cool '
+              f'{cover / identity.COVER_DIVISOR * 100:.0f}% faster, because a '
+              f'story that holds together is a file that stops growing.[/]')
+    else:
+        c.say('[dim]Heat cools on its own, at a rate each faction sets for '
+              'itself. Guile would make it cool faster. You have none, so it '
+              'cools at exactly the speed they are willing to forget.[/]')
 
 
 # --------------------------------------------------------------------------
@@ -1303,6 +1317,11 @@ LEGWORK = {
     # Only available once you are far enough gone to do it, per the drift arc.
     'resonance': (0, 'Sit near it and let the shape arrive.', 'ice'),
 }
+
+#: Points of legwork quality per point of Guile, on the four kinds of legwork
+#: that are a conversation. Presence decides what they see when you walk up;
+#: this decides what happens after you open your mouth.
+LEGWORK_PER_GUILE = 0.5
 
 #: Legwork gated on how far into the drift you are. `floor` needs at least
 #: that much Dissonance; `ceiling` stops working at or above it.
@@ -1375,6 +1394,7 @@ def cmd_legwork(sess, args) -> None:
         # tell you depends on who they think they are talking to, and on
         # whether there is anybody about to ask.
         bonus += appearance.social_bonus(game.char.presence)
+        bonus += int(game.char.attr('guile') * LEGWORK_PER_GUILE)
         bonus += shifts.phase(game.city.phase).legwork
         c.blank()
         c.say(f'[accent2]{drift.RESONANCE_TEXT}[/]')
@@ -2078,7 +2098,8 @@ def cmd_clinic(sess, args) -> None:
             price, _ = market_mod.quote(listing, game.city.where, game.alias,
                                         char.dissonance,
                                         char.mult('price_mult'),
-                                        game.city.phase)
+                                        game.city.phase,
+                                        char.attr('guile'))
             rows.append((ware.name, ware.maker, ware.location,
                          f'{ware.bandwidth}bw {ware.dissonance}dis',
                          f'{price:,}c'))
@@ -2100,7 +2121,8 @@ def cmd_clinic(sess, args) -> None:
             price, _ = market_mod.quote(listing, game.city.where, game.alias,
                                         char.dissonance,
                                         char.mult('price_mult'),
-                                        game.city.phase)
+                                        game.city.phase,
+                                        char.attr('guile'))
             rows.append((ware.name, ware.maker, ware.location,
                          f'{ware.bandwidth}bw {ware.dissonance}dis',
                          f'{price:,}c'))

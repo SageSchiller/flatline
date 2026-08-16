@@ -2876,6 +2876,164 @@ def check_markup(rep: Report) -> None:
 # --------------------------------------------------------------------------
 
 
+def check_heat(rep: Report) -> None:
+    """Heat must actually decay at the twelve rates the factions declare.
+
+    This check exists because it did not. `decay_heat` rounded to an integer
+    every shift, which quietly collapsed twelve declared rates into four
+    behaviours and made Carrion and Sixes heat permanent, because 0.4 and 0.5
+    both round away to nothing. Nobody noticed for the life of the project:
+    the number on the screen was an integer either way, and "they hold a
+    grudge" is exactly what you would expect a gang to do.
+
+    The lesson generalises past heat. A rate declared as a float and applied
+    to a value stored as an int is not a slow effect, it is no effect, and it
+    looks identical to a slow one from outside.
+    """
+    from flatline.model import identity as ident
+
+    def shifts_to_clear(key: str, cover: int = 0) -> int:
+        """Drive the real decay, not a copy of it.
+
+        A check that reimplements the arithmetic it is checking will agree
+        with itself forever. This one adds heat through the same method the
+        game uses and cools it with the same method the city calls every
+        shift, so a rounding step reintroduced anywhere in that path shows up
+        here as a faction that stops forgetting.
+        """
+        alias = ident.Alias(name='probe')
+        alias.add_heat(key, 90)
+        for n in range(1, 2001):
+            alias.decay_heat(cover=cover)
+            if alias.attention(key) <= 0:
+                return n
+        return 2001
+
+    seen: dict[float, str] = {}
+    times: dict[str, int] = {}
+    for f in factions.FACTIONS:
+        where = f'factions/{f.key}'
+        rep.check(f.heat_decay > 0, where,
+                  f'heat_decay is {f.heat_decay}: heat would never cool')
+        n = shifts_to_clear(f.key)
+        times[f.key] = n
+        rep.check(n <= 400, where,
+                  f'90 heat takes {n} shifts to cool at {f.heat_decay}/shift, '
+                  f'which is longer than a campaign: this faction never '
+                  f'forgets anything')
+        # Two factions with different declared rates that behave identically
+        # is the signature of the rounding bug, in whatever form it comes back.
+        if f.heat_decay in seen:
+            rep.check(times[seen[f.heat_decay]] == n, where,
+                      f'same decay as {seen[f.heat_decay]} but a different '
+                      f'cooling time')
+        else:
+            for rate, other in seen.items():
+                if abs(rate - f.heat_decay) > 1e-9 and times[other] == n:
+                    rep.error(where,
+                              f'decays at {f.heat_decay} and {other} decays at '
+                              f'{rate}, but both take {n} shifts: the rates '
+                              f'are being rounded away somewhere')
+            seen[f.heat_decay] = f.key
+
+    # Cover has to be worth having at the top of the range and survive being
+    # zero at the bottom, or it is a stat the sheet prints and nothing reads.
+    slow = shifts_to_clear(_DECAY_PROBE, cover=0)
+    fast = shifts_to_clear(_DECAY_PROBE,
+                           cover=attr_content.cover(attr_content.ATTR_MAX))
+    rep.check(fast < slow, 'attributes/cover',
+              f'maximum Cover changes nothing: {fast} shifts either way')
+    rep.check(slow - fast >= 5, 'attributes/cover',
+              f'maximum Cover saves {slow - fast} shifts out of {slow}, which '
+              f'no player will ever feel')
+    rep.check(attr_content.cover(attr_content.ATTR_MIN) >= 0, 'attributes/cover',
+              'cover goes negative at the bottom of the range')
+
+
+#: A faction to measure Cover against. The middle of the declared range, so
+#: the measurement is about Cover rather than about one faction's temper.
+_DECAY_PROBE = sorted(factions.FACTIONS,
+                      key=lambda f: f.heat_decay)[len(factions.FACTIONS) // 2].key
+
+
+def check_guile(rep: Report) -> None:
+    """Guile has to be read by the city, not just by the run.
+
+    Guile was the thinnest attribute in the game for a long time in a way that
+    was invisible from the content: every piece of it declared a use, and the
+    uses were all inside a run. The city priced you by reputation, drift,
+    faction attention and the hour, and never once asked how well you asked.
+
+    So this check is source-level and blunt: the two city sums that should
+    read Guile must mention it, and the market's quote must be handed a real
+    value at every call site rather than defaulting to zero, which is what a
+    keyword argument with a default quietly does to four call sites out of
+    five.
+    """
+    import ast
+    import pathlib
+
+    root = pathlib.Path('flatline')
+
+    market_src = (root / 'world' / 'market.py').read_text()
+    rep.check('guile' in market_src, 'market',
+              'quote() does not read Guile: prices in this city do not care '
+              'who is asking')
+
+    tree = ast.parse(market_src)
+    quote = next((n for n in ast.walk(tree)
+                  if isinstance(n, ast.FunctionDef) and n.name == 'quote'), None)
+    if quote is None:
+        rep.error('market', 'no quote() to check')
+    else:
+        names = [a.arg for a in quote.args.args]
+        rep.check('guile' in names, 'market',
+                  'quote() takes no guile argument')
+
+    # Every caller must pass it. A default of 0 means forgetting one is silent.
+    for path in sorted(root.rglob('*.py')):
+        src = path.read_text()
+        if 'quote(' not in src or path.name == 'market.py':
+            continue
+        for node in ast.walk(ast.parse(src)):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            if not (isinstance(func, ast.Attribute) and func.attr == 'quote'):
+                continue
+            # `shlex.quote` is not this quote.
+            owner = getattr(func.value, 'id', '')
+            if 'market' not in owner:
+                continue
+            passed = len(node.args) + len(node.keywords)
+            rep.check(passed >= 7, f'{path.name}:{node.lineno}',
+                      f'quote() called with {passed} arguments: it is not '
+                      f'being told the buyer\'s Guile, so this price ignores '
+                      f'it')
+
+    legwork_src = (root / 'commands' / 'city.py').read_text()
+    rep.check('LEGWORK_PER_GUILE' in legwork_src, 'legwork',
+              'legwork quality does not read Guile: what you are told depends '
+              'on your face and the hour but not on how you ask')
+
+    # No dead points. Every value the attribute range allows has to buy
+    # something, or the sheet is selling a point that does nothing: worse than
+    # a weak attribute, because the character screen still charges for it and
+    # the manual still describes it as an improvement.
+    from flatline.world import market as market_mod
+    lo, hi = attr_content.ATTR_MIN, attr_content.ATTR_MAX
+    ladders = {
+        'Cover': lambda g: attr_content.cover(g),
+        'market haggle': lambda g: min(market_mod.HAGGLE_CAP,
+                                       g * market_mod.HAGGLE_PER_GUILE),
+    }
+    for label, f in ladders.items():
+        for g in range(lo, hi):
+            rep.check(f(g + 1) > f(g), f'guile/{label}',
+                      f'{label} is the same at Guile {g} and {g + 1}: that '
+                      f'point of the attribute buys nothing here')
+
+
 def check_balance(rep: Report) -> None:
     """Cheap invariants that catch a decimal point in the wrong place."""
     for w in cyberware.WARE:
@@ -2913,6 +3071,7 @@ CHECKS = (
     check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_offers, check_legacy, check_bonds, check_safehouses, check_crew, check_mods, check_commands,
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_palette_separation, check_markup, check_balance,
+    check_heat, check_guile,
 )
 
 

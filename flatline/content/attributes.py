@@ -49,8 +49,10 @@ ATTRIBUTES: tuple[Attribute, ...] = (
         'You fold at exactly the moment folding is fatal.'),
     Attribute(
         'guile', 'Guile', 'GUI',
-        'Pretexting, forged credentials, passing as somebody with a badge.',
-        'Every door has to be broken, because none of them will open for you.'),
+        'Pretexting, forged credentials, passing as somebody with a badge, '
+        'what you get charged, and how fast your name cools.',
+        'Every door has to be broken, every price is the asking price, and '
+        'nobody ever forgets you.'),
     Attribute(
         'grit', 'Grit', 'GRT',
         'Stamina across a long run, recovery, absorbing damage to deck and body.',
@@ -88,6 +90,25 @@ def tempo(reflex: int) -> int:
     action per tick outruns the ICE tell system, and reading tells is supposed
     to be the ceiling of the combat layer rather than something you skip."""
     return min(3, 1 + reflex // 4)
+
+
+def cover(guile: int) -> int:
+    """How well the story about you holds together, and for how long.
+
+    Guile was the only attribute driving nothing. The other four each put a
+    number on the sheet that the player spends or leans on: Grit gives
+    Bandwidth and Integrity, Logic gives Focus, Reflex gives Tempo, Nerve
+    gives Composure. Guile gave a modifier to two verbs and nothing else, so
+    the sheet had four attributes that meant something and one that was an
+    opinion.
+
+    This is what it means. Heat is a story a faction is assembling about
+    somebody, and Cover is how fast that story falls apart while they are not
+    actively adding to it: not being missed, being confused with somebody
+    else, having three plausible other people in the frame. It is the
+    attribute of staying in business.
+    """
+    return guile * 2
 
 
 def composure(nerve: int, dissonance: int) -> int:

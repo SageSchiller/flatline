@@ -4373,6 +4373,159 @@ def test_city_map() -> None:
     T.eq(ui.tree_leads([]), [], 'no rows pad to no rows')
 
 
+def test_cover() -> None:
+    """Guile's derived stat, and the two city sums that now read Guile.
+
+    Guile was the thinnest attribute in the game: every use of it was inside a
+    run, so a character built to talk their way through the city had bought
+    nothing the city could see. This covers the fix, and the much older bug it
+    turned up on the way.
+    """
+    T.section('cover')
+    from flatline.model import identity as ident
+    from flatline.world import market as market_mod
+    from flatline.content import dissonance as drift
+
+    # --- the stat -------------------------------------------------------
+    char = Character.from_origin('protege', 'face')
+    T.eq(char.cover, attr_content.cover(char.attr('guile')),
+         'Cover is what the attribute table says it is')
+    before = char.cover
+    char.base_attrs['guile'] += 1
+    T.ok(char.cover > before, 'and it moves when Guile does')
+
+    _, sheet = play(['char'], game=Game.new(char, seed=9))
+    T.ok('Cover' in sheet, 'the sheet prints it')
+
+    # --- heat cools, and the rate is the one the faction declared -------
+    # This is the bug this whole check exists for. `decay_heat` rounded to an
+    # integer every shift, so the twelve declared rates collapsed into four
+    # behaviours and the two slowest, Carrion and Sixes, rounded away to
+    # nothing: their heat was permanent for the life of the project and it
+    # looked exactly like a gang holding a grudge.
+    times = {}
+    for fac in factions.FACTIONS:
+        alias = ident.Alias(name='probe')
+        alias.add_heat(fac.key, 90)
+        n = 0
+        while alias.attention(fac.key) > 0 and n < 2000:
+            alias.decay_heat()
+            n += 1
+        times[fac.key] = n
+        T.ok(n < 2000, f'{fac.key} heat cools at all')
+    rates = {f.key: f.heat_decay for f in factions.FACTIONS}
+    for a in times:
+        for b in times:
+            if a < b and abs(rates[a] - rates[b]) > 1e-9:
+                T.ok(times[a] != times[b],
+                     f'{a} at {rates[a]} and {b} at {rates[b]} cool differently')
+
+    # Fractional heat has to survive a save. Storing it as a float and writing
+    # it back as an int would truncate a little of it on every autosave, which
+    # is the same bug wearing a different hat.
+    alias = ident.Alias(name='probe')
+    alias.add_heat('carrion', 10)
+    alias.decay_heat()
+    hot = alias.raw_heat('carrion')
+    T.ok(hot != int(hot), 'a cooled name carries a fraction')
+    T.eq(ident.Alias.from_dict(alias.to_dict()).raw_heat('carrion'), hot,
+         'and the fraction survives a save')
+
+    # --- Cover is worth having ------------------------------------------
+    spans = []
+    for origin in ('chromed', 'gutter', 'protege'):
+        game = Game.new(Character.from_origin(origin, 'x'), seed=5)
+        game.alias.add_heat('kagawa', 90)
+        n = 0
+        while game.alias.attention('kagawa') > 0 and n < 500:
+            game.city.advance(game.rng, game.alias, 1, char=game.char)
+            n += 1
+        spans.append((game.char.attr('guile'), n))
+    spans.sort()
+    T.ok(spans[0][1] > spans[-1][1],
+         'more Guile cools a name faster through the real city loop')
+    T.ok(spans[0][1] - spans[-1][1] >= 5,
+         'and by enough shifts that a player would notice')
+
+    # The screen still shows whole numbers. Float storage is an implementation
+    # detail and D14 says the player sees the sum, not the arithmetic.
+    game = Game.new(Character.from_origin('gutter', 'y'), seed=5)
+    game.alias.add_heat('kagawa', 12)
+    game.city.advance(game.rng, game.alias, 1, char=game.char)
+    _, rep_out = play(['rep'], game=game)
+    T.ok(isinstance(game.alias.attention('kagawa'), int),
+         'attention reads as a whole number')
+    T.ok('Cover' in rep_out, 'and `rep` says what Cover is doing to it')
+
+    # --- Guile in the price ---------------------------------------------
+    game = Game.new(Character.from_origin('gutter', 'z'), seed=4242)
+    listing = game.city.listings()[0]
+    prices = []
+    for guile in (1, 3, 6):
+        price, terms = market_mod.quote(listing, game.city.where, game.alias,
+                                        0, 1.0, 'morning', guile)
+        prices.append(price)
+        named = [label for label, _ in terms]
+        T.ok(any('ask' in label for label in named),
+             f'the quote at Guile {guile} names the haggle in its terms')
+    T.ok(prices[0] > prices[1] > prices[2],
+         'and a better talker pays less for the same thing')
+    flat, _ = market_mod.quote(listing, game.city.where, game.alias, 0, 1.0,
+                               'morning', 0)
+    T.ok(flat >= prices[0], 'no Guile is no discount')
+
+    # The shop has to be quoting the same number it charges. A default of zero
+    # on the new argument would have left four of the five call sites pricing
+    # goods as though nobody in this city could talk.
+    game = Game.new(Character.from_origin('protege', 'w'), seed=4242)
+    game.char.credits = 999_999
+    _, shop = play(['shop'], game=game)
+    listing = game.city.listings()[0]
+    quoted, _ = market_mod.quote(listing, game.city.where, game.alias,
+                                 game.char.dissonance,
+                                 game.char.mult('price_mult'),
+                                 game.city.phase, game.char.attr('guile'))
+    T.ok(f'{quoted:,}' in shop,
+         'the shelf price is the price a face is quoted')
+    purse = game.char.credits
+    play([f'buy {listing.key}'], game=game)
+    T.eq(purse - game.char.credits, quoted,
+         'and buying it takes exactly that much')
+
+    # --- Guile in the legwork -------------------------------------------
+    # `tap` lists the assets worth taking, three plus your bonus, so a better
+    # talker comes back from the same network with a longer list. Two copies
+    # of one character rather than two origins, so the only thing that differs
+    # between the runs is the attribute under test.
+    counts = []
+    for guile in (1, 6):
+        char = Character.from_origin('gutter', 'q')
+        char.base_attrs['guile'] = guile
+        char.credits = 50_000
+        game = Game.new(char, seed=4242)
+        job = game.city.board[0]
+        _, out = play([f'take {job.cid}', 'legwork tap'], game=game)
+        T.ok('Worth taking' in out, f'the tap lands at Guile {guile}')
+        counts.append(out.count(';'))
+    T.ok(counts[1] > counts[0],
+         'and the better talker is told about more of the same network')
+
+    # Resonance is the exception and has to stay one: it is not a conversation,
+    # it is sitting near the thing and listening, so Guile buys nothing.
+    reso = []
+    for guile in (1, 6):
+        char = Character.from_origin('gutter', 'r')
+        char.base_attrs['guile'] = guile
+        char.dissonance = drift.RESONANCE_BAND
+        char.credits = 50_000
+        game = Game.new(char, seed=4242)
+        job = game.city.board[0]
+        _, out = play([f'take {job.cid}', 'legwork resonance'], game=game)
+        reso.append(out)
+    T.eq(reso[0].count(';'), reso[1].count(';'),
+         'listening to a network is not a conversation, so Guile buys nothing')
+
+
 def test_topology() -> None:
     T.section('topology')
     from flatline.run import network as net_mod
@@ -4975,7 +5128,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_migration, test_help, test_shell,
+    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_migration, test_help, test_shell,
     test_playthrough, test_ui,
 )
 

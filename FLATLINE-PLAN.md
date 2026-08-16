@@ -1026,6 +1026,50 @@ logic took the first one with something in it, so `mod stripped` silently took
 the chassis off a CPU when the cooling loop was full. Ambiguity is now asked
 about rather than resolved.
 
+### D48: Guile buys something out here
+
+Measured rather than guessed. Every attribute had a derived stat except Guile:
+Grit had two, Logic had Focus, Reflex had Tempo, Nerve had Composure, and Guile
+had four skill checks that all happened inside a run. A player who put nine
+points into it had bought a different way of opening doors and nothing else.
+The city could not see it at all.
+
+**Cover is the derived stat, and it is about time rather than about doors.**
+Guile does not stop heat arriving, because talking your way in is not the same
+as not being noticed. It decides how fast heat leaves. Over one job that is
+nothing; over a campaign it is the difference between a name you can keep and
+a name you have to burn, which is the most expensive thing in the game.
+
+**And the two city sums that should always have read it now do.** A price
+multiplied reputation, drift, faction attention and the hour, and never asked
+how well the buyer could ask. Legwork read your face and the time of day but
+not your manner, except for resonance, which is sitting near a network
+listening and is deliberately the one kind that Guile buys nothing in.
+
+**The find was much older than the feature.** Cover changed nothing at any
+value, which was not a bug in Cover. `decay_heat` rounded heat to an integer
+every shift, so a faction shedding 0.4 a shift shed `round(89.6) = 90` and
+never moved. The twelve declared decay rates collapsed into four behaviours,
+and the two slowest, Carrion and Sixes, were **permanent for the life of the
+project**. Nothing looked wrong from outside: the number on screen was an
+integer either way, and a gang that never forgets is exactly what a gang
+would do.
+
+A rate declared as a float and applied to a value stored as an int is not a
+slow effect. It is no effect, and from outside it is indistinguishable from a
+slow one. That generalises well past heat.
+
+Three standing checks came out of it. `check_heat` drives the real decay path
+rather than a copy of the arithmetic, and fails if two factions with different
+declared rates cool in the same number of shifts. `check_guile` is source
+level: `quote()` must take a Guile argument and every one of its five call
+sites must pass one, because a keyword argument with a default of zero is how
+four call sites out of five quietly stop reading a stat. And a **dead-points**
+check, which is the general form of a mistake made while writing this: the
+haggle discount was capped at a flat 18%, which made Guile 7, 8 and 9 points
+the character sheet sells and nothing reads. Every value in the attribute range
+must now buy something.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -1047,7 +1091,7 @@ Five, each 1 to 10, starting spread around 3 to 5. They are deliberately few, be
 | **Logic** | Exploit construction, cryptanalysis, understanding what you are looking at | You cannot break what you do not understand |
 | **Reflex** | Actions per tick, evasion, reacting to ICE that has already noticed you | Everything happens to you before you happen to it |
 | **Nerve** | Resisting black ICE, holding function under trace pressure, not panicking | You fold at exactly the moment folding is fatal |
-| **Guile** | Social engineering, forging credentials, passing as someone with a badge | Every door needs to be broken because none of them will open for you |
+| **Guile** | Social engineering, forging credentials, passing as someone with a badge, what you are charged, what strangers tell you | Every door needs to be broken, every price is the asking price, and your name never cools |
 | **Grit** | Stamina across a long run, recovery, absorbing damage to deck and body | You are fine right up until you are not, and then the run is over |
 
 **Derived:**
@@ -1056,6 +1100,8 @@ Five, each 1 to 10, starting spread around 3 to 5. They are deliberately few, be
 - **Integrity** = 10 + (2 x Grit). Damage you can take before the run ends badly.
 - **Focus** = 3 + floor(Logic / 2). A per-run resource spent on precision actions: retries, forced successes, careful work that reduces residue.
 - **Tempo** = 1 + floor(Reflex / 4). Actions per tick during real-time ICE engagement.
+- **Composure** = Nerve, less what the drift has taken. Resistance to black ICE and panic.
+- **Cover** = 2 x Guile. How fast heat cools, on every faction at once. See D48.
 
 #### Skills
 
@@ -1736,3 +1782,37 @@ syntax and the parser ate it; and `rice --preview` could never fire because
 the no-argument branch was tested first and a bare flag has no positionals.
 
 `validate.py` clean, `test.py` green at **7476 checks**. Both soaks clean.
+
+### 2026-08-15 (b): Guile buys something out here
+
+**D48.** The thinnest attribute in the game, found by measuring rather than by
+guessing: Guile was the only one with no derived stat, and every use of it was
+inside a run. Cover is the derived stat, prices and legwork are the two city
+sums that now read it, and resonance stays the one kind of legwork it buys
+nothing in because listening to a network is not a conversation.
+
+**The find was ten months older than the feature.** Cover changed nothing at
+any value, because `decay_heat` rounded heat to an integer every shift. A
+faction shedding 0.4 a shift shed `round(89.6) = 90` and never moved. Twelve
+declared rates collapsed into four behaviours, and Carrion and Sixes heat had
+been permanent since the day heat was written. It looked exactly like a gang
+holding a grudge, which is why nobody caught it.
+
+Heat is stored as a float now and rounded only where it is printed, so the
+sheet still shows whole numbers and D14 is unbothered. `from_dict` nearly
+undid the whole thing by coercing back to `int` on load, which would have
+truncated a little of it on every autosave.
+
+Three checks, one of them general: `check_heat` drives the real decay rather
+than a copy of it and fails when two different declared rates cool in the same
+number of shifts; `check_guile` requires all five `quote()` call sites to pass
+a Guile, since a defaulted keyword argument is how a stat stops being read;
+and a **dead-points** check caught the flat 18% haggle cap I had just written,
+which made Guile 7, 8 and 9 points the sheet sells and nothing reads.
+
+`soak7.py` is the campaign-shaped version: 30 long games, every faction
+forgets, every campaign cooled, Guile 1 to 6 is 19% faster. It reports the
+original bug as "carrion never forgets".
+
+`validate.py` clean, `test.py` green at **12,849 checks**. All seven soaks
+clean.

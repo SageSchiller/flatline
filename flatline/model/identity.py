@@ -30,6 +30,12 @@ ALIAS_SHIFTS = 2
 #: is correct, because a new name starts at zero reputation too.
 BURN_THRESHOLD = 85
 
+#: Cover per point of extra heat decay, as a divisor. Twelve Cover, which is
+#: Guile 6, buys about a thirty percent faster cooling: comparable to the
+#: Ghost origin's whole passive, which is the right size for maxing an
+#: attribute and is deliberately not larger.
+COVER_DIVISOR = 40
+
 
 @dataclass(slots=True)
 class Alias:
@@ -48,8 +54,20 @@ class Alias:
     def reputation(self, faction: str) -> int:
         return int(self.rep.get(faction, 0))
 
+    def raw_heat(self, faction: str) -> float:
+        """Heat as it is actually carried, before it is rounded for display.
+
+        Heat used to be stored rounded to whole numbers, and one shift of
+        decay was `round(heat - rate)`. That quantised twelve declared decay
+        rates into four behaviours, and made the two slowest *permanent*: at
+        0.4 a shift, `round(h - 0.4)` is `h`, so Carrion never forgot anybody
+        and neither did the Sixes, for the entire life of the project.
+        """
+        return float(self.heat.get(faction, 0.0))
+
     def attention(self, faction: str) -> int:
-        return int(self.heat.get(faction, 0))
+        """Heat as anybody sees it. Rounded, and rounded only here."""
+        return int(round(self.raw_heat(faction)))
 
     def adjust_rep(self, faction: str, delta: float) -> int:
         """Change standing, and propagate to allies and rivals.
@@ -80,23 +98,31 @@ class Alias:
     def add_heat(self, faction: str, delta: float) -> int:
         if faction not in factions.BY_KEY:
             return 0
-        value = max(0, min(100, int(round(self.attention(faction) + delta))))
+        value = max(0.0, min(100.0, self.raw_heat(faction) + delta))
         self.heat[faction] = value
-        return value
+        return int(round(value))
 
-    def decay_heat(self, rate: float = 1.0) -> None:
+    def decay_heat(self, rate: float = 1.0, cover: int = 0) -> None:
         """One shift of forgetting. Corps forget faster than gangs.
 
         `rate` scales it, which is how the Legally Dead origin's passive
         becomes real: there is nothing to attach the heat to.
+
+        `cover` is the character's Guile, derived. Heat is a story somebody is
+        assembling about you, and Cover is how fast it falls apart while they
+        are not actively adding to it: three plausible other people in the
+        frame, a description that fits half the district, somebody who is
+        simply not missed. Calibrated against the Ghost's passive, which is
+        the anchor for what an origin-sized advantage is worth here.
         """
+        rate *= 1.0 + max(0, cover) / COVER_DIVISOR
         for key in list(self.heat):
             fac = factions.BY_KEY.get(key)
             if not fac:
                 continue
-            self.heat[key] = max(
-                0, int(round(self.heat[key] - fac.heat_decay * rate)))
-            if not self.heat[key]:
+            self.heat[key] = max(0.0, self.raw_heat(key)
+                                 - fac.heat_decay * rate)
+            if self.heat[key] <= 0.0:
                 del self.heat[key]
 
     # ------------------------------------------------------------------
@@ -106,7 +132,7 @@ class Alias:
         if not self.heat:
             return ('', 0)
         key = max(self.heat, key=lambda k: self.heat[k])
-        return (key, self.heat[key])
+        return (key, int(round(self.heat[key])))
 
     @property
     def spent(self) -> bool:
@@ -131,7 +157,7 @@ class Alias:
         return cls(name=d.get('name', 'nobody'),
                    established=int(d.get('established', 0)),
                    rep={k: int(v) for k, v in (d.get('rep') or {}).items()},
-                   heat={k: int(v) for k, v in (d.get('heat') or {}).items()},
+                   heat={k: float(v) for k, v in (d.get('heat') or {}).items()},
                    burned=bool(d.get('burned', False)),
                    runs=int(d.get('runs', 0)))
 

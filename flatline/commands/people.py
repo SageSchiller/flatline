@@ -368,7 +368,8 @@ def _deal_goods(sess, npc) -> None:
         price, _ = market_mod.quote(listing, game.city.where, game.alias,
                                     game.char.dissonance,
                                     game.char.mult('price_mult'),
-                                    game.city.phase)
+                                    game.city.phase,
+                                    game.char.attr('guile'))
         rows.append((item.name, listing.kind,
                      _listing_detail(listing, item), f'{price:,}c'))
     c.blank()

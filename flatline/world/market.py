@@ -15,13 +15,24 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from ..content import cyberware, dissonance, districts, drugs, factions
+from ..content import attributes, cyberware, dissonance, districts, drugs, factions
 from ..content import hardware, programs
 from ..content import shifts
 from ..rng import Stream
 
 #: Shifts between stock rotations.
 REFRESH = 6
+
+#: Discount per point of Guile. Small per point and worth having at the top:
+#: a face pays about a quarter less for everything in this city, forever,
+#: which is the sort of number that only shows up over a campaign.
+HAGGLE_PER_GUILE = 0.03
+
+#: The ceiling, derived from the attribute range rather than picked. A flat
+#: cap below what the top of the range produces turns the last points of an
+#: attribute into points you are allowed to buy and that do nothing, which is
+#: worse than a weak attribute because the sheet still charges you for them.
+HAGGLE_CAP = HAGGLE_PER_GUILE * attributes.ATTR_MAX
 
 #: Categories a market always carries at least one of, at the cheapest tier it
 #: stocks. Rotation is a reason to travel and a reason to hurry, which is what
@@ -162,7 +173,8 @@ def restock(rng: Stream, district_key: str, shift: int) -> list[Listing]:
 
 def quote(listing: Listing, district_key: str, alias, drift: int,
           price_mult: float = 1.0,
-          phase: str = 'morning') -> tuple[int, list[tuple[str, float]]]:
+          phase: str = 'morning',
+          guile: int = 0) -> tuple[int, list[tuple[str, float]]]:
     """What this costs *you*, itemised.
 
     Returns the final price and the list of multipliers that produced it, so
@@ -183,6 +195,15 @@ def quote(listing: Listing, district_key: str, alias, drift: int,
         mult = 1.0 - (rep / 100.0) * 0.22
         terms.append((f'{factions.BY_KEY[district.controller].short} standing', mult))
         total *= mult
+
+    # Talking somebody down. The most obvious thing in the world, and this
+    # sum multiplied reputation, drift, faction attention and the time of day
+    # without ever once asking how good the buyer was at asking.
+    if guile > 0:
+        mult = 1.0 - min(HAGGLE_CAP, guile * HAGGLE_PER_GUILE)
+        if mult < 1.0:
+            terms.append(('how you ask', mult))
+            total *= mult
 
     band = cyberware.band(drift)[0]
     if band >= 50:

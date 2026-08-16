@@ -254,6 +254,18 @@ class Character:
                 + self.bonus('composure'))
 
     @property
+    def cover(self) -> int:
+        """How well the story about you holds together.
+
+        Guile's derived stat, and the reason it exists: every other attribute
+        bought something the city could see, and Guile bought four checks
+        inside a run. This is what it buys out here. Cover does not stop heat
+        arriving. It decides how fast heat leaves, which over a campaign is
+        the difference between a name you can keep and a name you have to burn.
+        """
+        return max(0, attrs.cover(self.attr('guile')) + self.bonus('cover'))
+
+    @property
     def dissonance_band(self) -> tuple[int, str, str]:
         return cyberware.band(self.dissonance)
 

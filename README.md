@@ -77,14 +77,17 @@ expensive to catch by playing.
 `validate.py` is unusually opinionated. As well as checking that every
 reference resolves, it enforces design rules: every implant must have an honest
 mechanical drawback, every attribute must govern at least two skills, a
-collection on a debt must outpace its interest, and any content declaring an
-ability the engine never reads is a build failure. **That last one is the
+collection on a debt must outpace its interest, no point inside an attribute's
+range may be a point you can buy that does nothing, and any content declaring
+an ability the engine never reads is a build failure. **That last one is the
 recurring bug class in this project**: a passive, an ICE rider or a technique
-flag that validates, ships, and does nothing.
+flag that validates, ships, and does nothing. Its worst form is a rate that is
+declared as a float and applied to a value stored as an int, which is not a
+slow effect but no effect, and looks identical to a slow one from outside.
 
 ## The design
 
-`FLATLINE-PLAN.md` is the long version: thirty-two numbered locked decisions,
+`FLATLINE-PLAN.md` is the long version: forty-eight numbered locked decisions,
 the systems design, and a session log. **Read it first** before changing
 anything structural.
 

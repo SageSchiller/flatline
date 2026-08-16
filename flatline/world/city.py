@@ -170,7 +170,8 @@ class City:
             self.shift += 1
             alias.decay_heat(
                 1.4 if (char is not None and 'no_history' in char.riders())
-                else 1.0)
+                else 1.0,
+                cover=char.cover if char is not None else 0)
             self._decay_posture()
             told.extend(self._apply_pending(alias))
             told.extend(self._expire(alias))
