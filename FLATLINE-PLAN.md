@@ -967,6 +967,29 @@ floor of faction attention the raid chance is exactly zero, and no amount of
 money buys a substitute. Two visits burns the place, because the second one is
 somebody establishing that they know where you live.
 
+### D46: A crew is a thing that can be lost
+
+`hire` buys one runner for one job and then forgets them. That is a
+transaction, and a transaction cannot be lost.
+
+`crew` puts somebody on a retainer. They come in on every run without being
+asked, take a smaller cut than a hire, and get better at working with *you*
+specifically, up to a cap, which is a real thing and does not transfer.
+Signing somebody is a harder ask than hiring them and costs more up front,
+and `validate.py` enforces both directions so that a crew can never be
+simply a cheaper hire.
+
+**The whole system exists for the moment they do not come out.** A hire dying
+costs a fee and a paragraph. Somebody who has been standing next to you for
+thirty runs costs the thirty runs, so what gets printed scales on how long it
+had been: three scenes, and the last one is about carrying somebody's opinions
+around for a year without noticing whose they were.
+
+Everything else is in service of that. The skill they earn is there so you
+feel the investment. The smaller cut is there so keeping them is correct. The
+retainer is there so it is a decision. And letting somebody go costs more the
+longer they were there, because it should.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.

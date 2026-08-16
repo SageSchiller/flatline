@@ -388,3 +388,96 @@ PARTNER_ACTS = (
 #: the heat a partner takes off. Small per event and relentless.
 NEMESIS_HEAT = 6
 PARTNER_HEAT = 8
+
+
+# --------------------------------------------------------------------------
+# a crew
+# --------------------------------------------------------------------------
+#
+# `hire` buys one runner for one job and then forgets them. That is a
+# transaction, and a transaction cannot be lost. Somebody who comes back, gets
+# better at working specifically with you, and is standing next to you on the
+# thirtieth run is a different kind of thing entirely, and the whole reason to
+# build it is what happens when they do not come out.
+
+#: Disposition needed before somebody will sign on permanently. Well above the
+#: hire floor: taking a job with you and working with you are different asks,
+#: and only one of them means they have decided you are worth it.
+CREW_AT = 30
+
+#: What a retainer costs, per point of their skill, and what they take of
+#: every haul. Cheaper per run than hiring and much more expensive to start,
+#: which is what makes it a commitment rather than a discount.
+CREW_RETAINER = 1400
+CREW_CUT = 0.18
+
+#: Runs together per point of effective skill they gain, and the cap. They get
+#: better at working with *you* specifically, which is a real thing and is not
+#: the same as getting better.
+CREW_RUNS_PER_STEP = 5
+CREW_MAX_STEPS = 3
+
+#: What they say when they sign on, by style.
+CREW_JOINED = {
+    'loud': '"Right. I am not doing the thing where we pretend this is job '
+            'by job." {name} shakes your hand far too hard and appears to '
+            'consider the matter closed and possibly always to have been.',
+    'quiet': '{name} does not say yes. {name} turns up the next time you go '
+             'in, and the time after that, and about a fortnight later you '
+             'realise nobody ever actually agreed to anything.',
+    'social': '"Let us be clear about what this is." {name} is clear about '
+              'what this is for eleven minutes, and every word of it is '
+              'accurate, and none of it is what they mean.',
+    'careful': '{name} asks four questions. They are the four questions you '
+               'would have asked, in the order you would have asked them, '
+               'and the last one is about what happens if one of you stops '
+               'being able to do this.',
+    'chrome': '{name} agrees in about a tenth of a second and then sits with '
+              'it for a while, which is the longest you have seen them take '
+              'over anything.',
+}
+
+#: And when you end it. Nobody takes this well; they take it differently.
+CREW_RELEASED = {
+    'loud': '{name} says it is fine about six times, at volume, to people who '
+            'did not ask.',
+    'quiet': '{name} nods, and is gone before you have finished, and you '
+             'find out later that they had worked it out a week ago.',
+    'social': '{name} is gracious, warm, and completely finished with you, '
+              'and manages all three in the same sentence.',
+    'careful': '{name} agrees that it was the correct decision, and gives '
+               'two reasons you had not thought of, and you feel worse rather '
+               'than better.',
+    'chrome': '{name} says thank you, which nobody has ever heard them say, '
+              'and it is not clear to either of you why.',
+}
+
+#: What losing one is, by how long they had been with you. This is the entire
+#: point of the system: a hire dying is a line of news.
+CREW_LOST = (
+    (0, '{name} does not come out. You had been working together for {runs} '
+        'runs, which is not long, and it turns out to be long enough that '
+        'you keep turning to say something to somebody who is not there.'),
+    (8, 'You had {runs} runs with {name}. Long enough to have a way of doing '
+        'things. Long enough that half of what you know about working with '
+        'anybody, you learned from doing it with them.\n\n'
+        'The Ninth puts a plate on a railing for people like this. Somebody '
+        'will do it without asking you, and you will find it by accident, and '
+        'that will be considerably worse than being invited.'),
+    (20, '{runs} runs. There is no version of this you have a way of holding. '
+         '{name} had opinions about how you work that you have been carrying '
+         'around for a year without noticing whose they were, and you are '
+         'going to keep having them, in their voice, for the rest of it.\n\n'
+         'Nobody in this city is going to say a word about it to you. That is '
+         'not coldness. It is that there is nothing to say and everybody here '
+         'has already found that out.'),
+)
+
+
+def crew_loss(runs: int) -> str:
+    """The right words for losing somebody, by how long they were there."""
+    out = CREW_LOST[0][1]
+    for after, text in CREW_LOST:
+        if runs >= after:
+            out = text
+    return out

@@ -126,6 +126,23 @@ def cmd_jack_in(sess, args) -> None:
                 'panic': (game.rng('rivals').pick(data.panic)
                           if data.panic else ''),
             }
+    # Somebody on a retainer is in on every run without being asked, which is
+    # the whole difference between a crew and a hire.
+    crew = game.city.crew
+    if crew and not game.city.hired:
+        who = game.city.rival(crew.get('key', ''))
+        if who is not None and who.alive:
+            from ..world import rivals as rival_world
+            from ..content import rivals as rival_content
+            data = who.data
+            bonus = rival_world.crew_bonus(int(crew.get('runs', 0)))
+            state.ally = {
+                'key': who.key, 'name': data.name, 'node': net.entry,
+                'integrity': 12 + (data.skill + bonus) * 2,
+                'state': 'with you', 'skill': data.skill + bonus,
+                'style': data.style, 'cut': rival_content.CREW_CUT,
+                'crew': True,
+            }
     # A hired runner comes in with you and takes their cut on the way out.
     if game.city.hired:
         who = game.city.rival(game.city.hired)
@@ -405,12 +422,28 @@ def _resolve(sess) -> None:
                       f'are not blaming you out loud.[/]')
 
     game.city.hired = ''
+    if ally and ally.get('crew') and game.city.crew:
+        game.city.crew['runs'] = int(game.city.crew.get('runs', 0)) + 1
     if ally:
         who = game.city.rival(ally['key'])
         if who is not None:
             if ally['state'] == 'dead':
                 who.alive = False
                 who.died = game.city.shift
+                if ally.get('crew') and game.city.crew:
+                    # Not a line of news. This is the reason the crew system
+                    # exists: a hire dying costs a fee and a paragraph, and
+                    # somebody who had been standing next to you for thirty
+                    # runs costs the thirty runs.
+                    from ..content import rivals as rival_content
+                    runs = int(game.city.crew.get('runs', 0))
+                    game.city.crew = {}
+                    c.blank()
+                    c.rule('gone', role='err')
+                    for para in rival_content.crew_loss(runs).format(
+                            name=ally['name'], runs=runs).split('\n\n'):
+                        c.say(f'[err]{para}[/]')
+                        c.blank()
                 c.blank()
                 c.say(f'[err]You are going to have to tell somebody about '
                       f'{ally["name"]}.[/]')

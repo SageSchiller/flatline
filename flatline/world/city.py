@@ -86,6 +86,12 @@ class City:
     accepted: str = ''
     #: A rival paid to run alongside you on the next job.
     hired: str = ''
+    #: Somebody who runs with you permanently: `{key, runs}`. See the crew
+    #: section of `content/rivals.py`. A hire is a transaction and cannot be
+    #: lost; somebody standing next to you on the thirtieth run is a different
+    #: kind of thing, and the reason to build it is what happens when they do
+    #: not come out.
+    crew: dict = field(default_factory=dict)
     #: Districts you have set foot in. Read by the Courier's passive, and a
     #: reasonable thing for a city to remember about somebody in any case.
     visited: set = field(default_factory=set)
@@ -679,6 +685,7 @@ class City:
             'visited': sorted(self.visited),
             'counters': sorted(self.counters),
             'safehouse': dict(self.safehouse),
+            'crew': dict(self.crew),
             'tables': dict(self.tables),
             'next_cid': self.next_cid,
             'stock': {k: [l.to_dict() for l in v] for k, v in self.stock.items()},
@@ -702,6 +709,7 @@ class City:
             visited=set(d.get('visited') or ()),
             counters=set(d.get('counters') or ()),
             safehouse=dict(d.get('safehouse') or {}),
+            crew=dict(d.get('crew') or {}),
             tables={k: int(v) for k, v in (d.get('tables') or {}).items()},
             next_cid=int(d.get('next_cid', 1)),
             stock={k: [Listing.from_dict(l) for l in v]

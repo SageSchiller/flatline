@@ -710,14 +710,24 @@ TOPICS: tuple[Topic, ...] = (
         'off[/]: a bond that reversed because you did somebody a favour on a '
         'Tuesday would be a mood, and the point of thirty runs with the same '
         'person is that it lasts.\n\n'
+        '[accent2]And one of them can stop being somebody you rent.[/] '
+        '[fg]hire[/] buys a runner for one job, which is a transaction and '
+        'cannot be lost. [fg]crew[/] puts somebody on a retainer: they come '
+        'in on every run without being asked, take a smaller cut than a hire '
+        'does, and get better at working with [ul]you[/] specifically, up to '
+        'a point. They have to like you well enough first, which is a higher '
+        'bar than taking a job.\n\n'
+        'They can also die, and that is the reason the whole thing exists. A '
+        'hire dying costs a fee and a paragraph. Somebody who has been '
+        'standing next to you for thirty runs costs the thirty runs.\n\n'
         '[warn]The decision:[/] every one of them is worth being on good '
         'terms with and you cannot afford all seven, because the work you '
         'take is work somebody else wanted. Choosing who to disappoint is the '
         'whole of it, and it is much easier before anybody has decided.',
         see=('contracts', 'people', 'heat', 'factions'),
-        commands=('who', 'hire', 'ask', 'betray'),
+        commands=('who', 'hire', 'crew', 'ask', 'betray'),
         covers=('rivals',),
-        terms=('competition', 'other runners', 'enemy', 'friend', 'crew'),
+        terms=('competition', 'other runners', 'enemy', 'friend', 'team'),
         group='city'),
     Topic(
         'people', 'The people in this city',

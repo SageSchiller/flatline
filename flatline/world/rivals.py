@@ -340,6 +340,32 @@ def can_hire(rival: Rival) -> tuple[bool, str]:
     return True, ''
 
 
+def can_crew(rival: Rival) -> tuple[bool, str]:
+    """Whether somebody will sign on permanently rather than job by job."""
+    if not rival.alive:
+        return False, f'{rival.name} is dead.'
+    if rival.disposition < rival_content.CREW_AT:
+        return False, (f'{rival.name} will take a job with you. Working with '
+                       f'you is a different question and the answer is not '
+                       f'yet.')
+    return True, ''
+
+
+def crew_retainer(rival: Rival) -> int:
+    """What signing somebody costs up front."""
+    return max(1000, rival.data.skill * rival_content.CREW_RETAINER)
+
+
+def crew_bonus(runs: int) -> int:
+    """Effective skill somebody has gained from working with *you*.
+
+    Capped, and it is not the same as getting better: it is knowing how the
+    other one moves, which is a real thing and does not transfer.
+    """
+    return min(rival_content.CREW_MAX_STEPS,
+               runs // rival_content.CREW_RUNS_PER_STEP)
+
+
 def bounty_buyers(rival: Rival) -> list[tuple[str, int]]:
     """Who would pay for this name, and roughly what for.
 

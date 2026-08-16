@@ -1828,6 +1828,135 @@ def _grant_favour(sess, rival, kind: str) -> None:
         return
 
 
+@command('crew', 'Somebody who runs with you, not somebody you rent.',
+         contexts=('city',), group='prep',
+         usage='crew [take <name>|drop]',
+         detail='A hire is one job and cannot be lost. Somebody on a retainer '
+                'comes in on every run, gets better at working specifically '
+                'with you, takes a smaller cut than a hire does, and is '
+                'standing next to you on the thirtieth run. They have to have '
+                'decided you are worth it first, and they can die, and that '
+                'is the entire reason this exists.')
+def cmd_crew(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    verb = (args.get(0) or '').lower()
+    crew = game.city.crew
+    current = game.city.rival(crew.get('key', '')) if crew else None
+
+    if verb in ('take', 'sign', 'hire'):
+        _crew_take(sess, args)
+        return
+    if verb in ('drop', 'release', 'let'):
+        _crew_drop(sess)
+        return
+
+    if current is not None and current.alive:
+        runs = int(crew.get('runs', 0))
+        bonus = rival_world.crew_bonus(runs)
+        style, detail = rival_content.ALLY_SPECIALTY[current.data.style]
+        c.header(current.name, 'yours')
+        c.say(f'[dim]{current.data.manner}[/]')
+        c.blank()
+        c.kv([('style', f'{current.data.style}, {style}'),
+              ('what that means', detail),
+              ('runs together', str(runs)),
+              ('skill', f'{current.data.skill}'
+                        + (f' [ok]+{bonus} from working with you[/]'
+                           if bonus else
+                           f' [dim](+1 every '
+                           f'{rival_content.CREW_RUNS_PER_STEP})[/]')),
+              ('their cut', f'{int(rival_content.CREW_CUT * 100)}% of the '
+                            f'haul'),
+              ('how they feel', f'{current.disposition:+d} {current.band}')])
+        c.blank()
+        c.say('[dim]They come in on every run. `crew drop` to end it, which '
+              'nobody takes well.[/]')
+        return
+
+    c.header('A crew', f'{game.char.credits:,}c')
+    c.say('[dim]Somebody who works with you rather than for you, once. They '
+          'have to have decided you are worth it.[/]')
+    c.blank()
+    rows = []
+    for rival in game.city.rivals:
+        ok, _ = rival_world.can_crew(rival)
+        rows.append((rival.data.handle, rival.data.style,
+                     f'{rival.disposition:+d} {rival.band}',
+                     f'{rival_world.crew_retainer(rival):,}c' if ok
+                     else '[err]not yet[/]'))
+    c.table(('who', 'style', 'how they feel', 'retainer'), rows,
+            roles=('accent', 'dim', 'dim', 'credit'))
+    c.blank()
+    c.say(f'[dim]They need {rival_content.CREW_AT:+d} disposition or better. '
+          f'Work with them, cover them on an escort, and do not take jobs out '
+          f'from under them. `crew take <name>`.[/]')
+
+
+def _crew_take(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    if game.city.crew:
+        raise CommandError('you already have somebody. `crew drop` first, '
+                           'and think about it.')
+    query = args.rest(1).replace('--confirm', '').strip().lower()
+    if not query:
+        raise CommandError('take who on?')
+    rival = next((r for r in game.city.rivals
+                  if query in r.name.lower() or query == r.key
+                  or query == r.data.handle.lower()), None)
+    if rival is None:
+        raise CommandError(f'nobody called {query!r}')
+    ok, why = rival_world.can_crew(rival)
+    if not ok:
+        raise CommandError(why)
+    price = rival_world.crew_retainer(rival)
+    if not args.has('confirm'):
+        c.header(rival.name, f'{price:,}c retainer')
+        c.say(f'[dim]{rival.data.manner}[/]')
+        c.blank()
+        c.kv([('their cut', f'{int(rival_content.CREW_CUT * 100)}% of every '
+                            f'haul, against {int(rival_world.HIRE_CUT * 100)}%'
+                            f' for a hire'),
+              ('they get better', f'+1 skill every '
+                                  f'{rival_content.CREW_RUNS_PER_STEP} runs '
+                                  f'together, to +'
+                                  f'{rival_content.CREW_MAX_STEPS}'),
+              ('they can die', 'yes, and it is permanent')])
+        c.blank()
+        c.say(f'[dim]`crew take {rival.data.handle.lower()} --confirm`.[/]')
+        return
+    if game.char.credits < price:
+        raise CommandError(f'that is {price:,}c and you have '
+                           f'{game.char.credits:,}c')
+    game.char.credits -= price
+    game.city.crew = {'key': rival.key, 'runs': 0}
+    game.city.hired = ''
+    line = rival_content.CREW_JOINED.get(rival.data.style, '{name} agrees.')
+    c.blank()
+    c.rule(rival.name, role='accent2')
+    c.say(line.format(name=rival.name))
+    c.blank()
+    c.ok(f'{price:,}c. [dim]They are in on every run from here.[/]')
+    sess.autosave()
+
+
+def _crew_drop(sess) -> None:
+    game, c = sess.require_game(), sess.console
+    crew = game.city.crew
+    rival = game.city.rival(crew.get('key', '')) if crew else None
+    if rival is None:
+        raise CommandError('there is nobody to let go.')
+    runs = int(crew.get('runs', 0))
+    game.city.crew = {}
+    rival.adjust_disposition(-12 - min(20, runs))
+    line = rival_content.CREW_RELEASED.get(rival.data.style,
+                                           '{name} takes it.')
+    c.blank()
+    c.say(line.format(name=rival.name))
+    c.say(f'[dim]{runs} run{"s" if runs != 1 else ""} together. '
+          f'{rival.disposition:+d} with them now.[/]')
+    sess.autosave()
+
+
 @command('betray', 'Sell a runner\'s name to somebody who wants it.',
          contexts=('city',), group='prep', usage='betray <name> [buyer] [--confirm]',
          aliases=('sellout',),

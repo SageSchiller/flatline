@@ -1615,6 +1615,62 @@ def check_games(rep: Report) -> None:
               'the floor below which a table refuses you is not a probability')
 
 
+def check_crew(rep: Report) -> None:
+    """A crew rather than a hire, per D46. See `content/rivals.py`."""
+    from flatline.content import rivals as rival_content
+    from flatline.world import rivals as rival_mod
+
+    styles = {r.style for r in rival_content.RIVALS}
+    for label, table in (('joined', rival_content.CREW_JOINED),
+                         ('released', rival_content.CREW_RELEASED)):
+        missing = styles - set(table)
+        rep.check(not missing, 'crew',
+                  f'{label} has nothing for {sorted(missing)}')
+        for style, line in table.items():
+            where = f'crew/{label}/{style}'
+            rep.check('{name}' in line, where, 'names nobody')
+            rep.check(len(line) > 60, where, 'is too short to be a moment')
+
+    # Signing somebody has to be a harder ask than hiring them, or a crew is
+    # simply a cheaper hire and nobody would ever do the other one.
+    rep.check(rival_content.CREW_AT > rival_mod.HIRE_FLOOR, 'crew',
+              'a crew is easier to get than a hire')
+    rep.check(rival_content.CREW_CUT < rival_mod.HIRE_CUT, 'crew',
+              'a permanent crew takes more of the haul than a one-run hire')
+    for rival in rival_mod.seed_pool():
+        rep.check(rival_mod.crew_retainer(rival)
+                  > rival_mod.hire_price(rival), f'crew/{rival.key}',
+                  'a retainer is cheaper than a single job')
+        ok, _ = rival_mod.can_crew(rival)
+        rep.check(not ok, f'crew/{rival.key}',
+                  'will sign on before you have done anything')
+
+    # They get better, up to a cap, and it takes real time.
+    rep.check(rival_mod.crew_bonus(0) == 0, 'crew',
+              'somebody is better at working with you before they have')
+    rep.check(rival_mod.crew_bonus(10_000)
+              == rival_content.CREW_MAX_STEPS, 'crew',
+              'the skill they gain is uncapped')
+    rep.check(rival_content.CREW_RUNS_PER_STEP >= 3, 'crew',
+              'they learn how you move in a couple of runs')
+
+    # Losing somebody has to say something different depending on how long
+    # they were there. That is the entire reason this exists.
+    thresholds = [after for after, _ in rival_content.CREW_LOST]
+    rep.check(thresholds == sorted(thresholds), 'crew',
+              'the loss scenes are out of order')
+    rep.check(thresholds[0] == 0, 'crew',
+              'losing somebody early has nothing to say')
+    seen = {rival_content.crew_loss(n) for n in (0, 5, 12, 25, 99)}
+    rep.check(len(seen) == len(rival_content.CREW_LOST), 'crew',
+              'not every loss scene is reachable')
+    for after, text in rival_content.CREW_LOST:
+        where = f'crew/lost/{after}'
+        rep.check('{name}' in text and '{runs}' in text, where,
+                  'does not name who or how long')
+        rep.check(len(text) > 120, where, 'is too short for what it is')
+
+
 def check_safehouses(rep: Report) -> None:
     """Somewhere of your own, per D45. See `content/safehouses.py`."""
     from flatline.content import safehouses
@@ -2778,7 +2834,7 @@ CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
     check_icons, check_dissonance, check_cyberspace, check_rivals, check_debt,
     check_origins, check_appearance, check_events, check_rice, check_shifts, check_district_mood, check_dead_fields, check_skills, check_factions, check_districts,
-    check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_offers, check_legacy, check_bonds, check_safehouses, check_commands,
+    check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_offers, check_legacy, check_bonds, check_safehouses, check_crew, check_commands,
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_palette_separation, check_markup, check_balance,
 )

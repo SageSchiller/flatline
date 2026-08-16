@@ -3131,6 +3131,118 @@ def test_anim() -> None:
 
 
 
+def test_crew() -> None:
+    """Somebody who runs with you, gets better at it, and can be lost."""
+    T.section('crew')
+    from flatline.content import rivals as rival_content
+    from flatline.world import rivals as rival_mod
+
+    def willing(key='moth', disposition=55):
+        game = Game.new(Character.from_origin('gutter', 'boss'), seed=4242)
+        game.char.credits = 90000
+        game.city.rival(key).disposition = disposition
+        return game
+
+    # They have to have decided about you first, and that is a harder ask
+    # than taking one job.
+    game = willing(disposition=0)
+    sess, out = play(['crew take moth --confirm'], game=game)
+    T.ok(not game.city.crew, 'somebody neutral does not sign on')
+    T.ok('different question' in out, 'and says what the difference is')
+
+    game = willing()
+    sess, out = play(['crew take moth --confirm'], game=game)
+    T.eq(game.city.crew.get('key'), 'moth', 'somebody who likes you does')
+    T.ok(game.char.credits < 90000, 'and it costs a retainer')
+    sess, out = play(['crew take vesper --confirm'], game=game)
+    T.eq(game.city.crew.get('key'), 'moth', 'and you get one of them')
+
+    # They come in on every run without being asked, which is the whole
+    # difference between this and a hire.
+    contract = game.city.board[0]
+    game.city.accepted = contract.cid
+    contract.taken = True
+    game.city.where = contract.district
+    sess = Session(console=quiet_console(), slot='crewtest')
+    sess.game = game
+    sess.console.start_capture()
+    sess.execute('jack in --force')
+    sess.console.end_capture()
+    T.ok(sess.run is not None and sess.run.ally is not None,
+         'the crew is in the network without being hired')
+    T.ok(sess.run.ally.get('crew'), 'and knows it is a crew rather than a hire')
+    T.eq(sess.run.ally['cut'], rival_content.CREW_CUT,
+         'and takes the smaller cut')
+
+    # Runs together accumulate and buy them skill, up to a cap.
+    T.eq(rival_mod.crew_bonus(0), 0, 'nobody starts better for knowing you')
+    T.ok(rival_mod.crew_bonus(rival_content.CREW_RUNS_PER_STEP) > 0,
+         'and enough runs together is worth something')
+    T.eq(rival_mod.crew_bonus(9999), rival_content.CREW_MAX_STEPS,
+         'and it is capped')
+
+    game = willing()
+    play(['crew take moth --confirm'], game=game)
+    game.city.crew['runs'] = rival_content.CREW_RUNS_PER_STEP * 2
+    sess, out = play(['crew'], game=game)
+    T.ok('from working with you' in out,
+         'and the sheet says where the skill came from')
+
+    # Letting somebody go costs, and costs more the longer they were there.
+    short = willing()
+    play(['crew take moth --confirm'], game=short)
+    short.city.crew['runs'] = 1
+    play(['crew drop'], game=short)
+    long = willing()
+    play(['crew take moth --confirm'], game=long)
+    long.city.crew['runs'] = 30
+    play(['crew drop'], game=long)
+    T.ok(long.city.rival('moth').disposition
+         < short.city.rival('moth').disposition,
+         'dropping somebody hurts more the longer they were with you')
+    T.ok(not long.city.crew, 'and they are gone')
+
+    # And losing them says something different by how long it was, which is
+    # the entire reason this exists rather than a longer hire.
+    scenes = {rival_content.crew_loss(n) for n in (0, 10, 30)}
+    T.eq(len(scenes), 3, 'losing somebody scales with the time together')
+    for runs in (2, 12, 30):
+        game = willing()
+        play(['crew take moth --confirm'], game=game)
+        game.city.crew['runs'] = runs
+        contract = game.city.board[0]
+        game.city.accepted = contract.cid
+        contract.taken = True
+        sess = Session(console=quiet_console(), slot='crewtest')
+        sess.game = game
+        sess.run = RunState.begin(
+            net_mod.generate(Rng(1).fork('network', contract.cid),
+                             contract.target, int(contract.posture),
+                             contract.objective),
+            game.char, Rng(1)('combat'), sess.console,
+            contract=contract.to_dict())
+        sess.run.ally = {'key': 'moth', 'name': 'Moth',
+                         'node': sess.run.net.entry, 'integrity': 0,
+                         'state': 'dead', 'skill': 4, 'style': 'loud',
+                         'cut': rival_content.CREW_CUT, 'crew': True}
+        sess.run.finish('burned')
+        sess.console.start_capture()
+        from flatline.commands.run import _resolve
+        _resolve(sess)
+        said = ui.plain(sess.console.end_capture())
+        T.ok('Moth' in said, f'losing them after {runs} runs says their name')
+        T.ok(str(runs + 1) in said, 'and how long it had been')
+        T.ok(not game.city.crew, 'and they are not still on the books')
+        T.ok(not game.city.rival('moth').alive, 'and they are dead')
+
+    # It survives a save.
+    game = willing()
+    play(['crew take moth --confirm'], game=game)
+    game.city.crew['runs'] = 7
+    again = Game.from_dict(game.to_dict())
+    T.eq(again.city.crew, game.city.crew, 'the crew survives a save')
+
+
 def test_safehouse() -> None:
     """Somewhere of your own, and the thing that makes heat physical."""
     T.section('safehouse')
@@ -4712,7 +4824,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_migration, test_help, test_shell,
+    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_migration, test_help, test_shell,
     test_playthrough, test_ui,
 )
 
