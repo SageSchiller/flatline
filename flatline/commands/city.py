@@ -12,7 +12,7 @@ from ..content import attributes as attr_content
 from ..content import cyberware, dissonance as drift, districts
 from ..content import drugs as drug_content
 from ..content import effects as fx, factions, games
-from ..content import hardware, icons, lenders, origins, programs
+from ..content import hardware, icons, lenders, offers, origins, programs
 from ..content import rivals as rival_content
 from ..content import shifts
 from ..content import skills as skill_content
@@ -700,6 +700,14 @@ def _show_contract(sess, contract) -> None:
     from ..world.contracts import OBJECTIVE_BLURB, OBJECTIVE_PROGRAM
     c.header(contract.title, contract.cid)
     c.say(contract.blurb)
+    if contract.from_npc:
+        from ..content import npcs as npc_content
+        who = npc_content.BY_KEY.get(contract.from_npc)
+        if who is not None:
+            c.blank()
+            c.say(f'[accent2]{who.name} is holding this one for you.[/] '
+                  f'[dim]Personal work. It pays better and somebody '
+                  f'specific is waiting for it.[/]')
     c.blank()
     c.kv([
         ('patron', f'[info]{contract.patron_data.name}[/]'),
@@ -708,7 +716,8 @@ def _show_contract(sess, contract) -> None:
                       f'{OBJECTIVE_BLURB[contract.objective]}[/]'),
         ('pay', f'[credit]{contract.pay:,}c[/]'),
         ('district', districts.BY_KEY[contract.district].name
-         + (f' [dim]({game.city.shifts_to(contract.district)} shifts '
+         + (f' [dim]({game.city.shifts_to(contract.district)} shift'
+            f'{"s" if game.city.shifts_to(contract.district) != 1 else ""} '
             f'from here)[/]'
             if contract.district != game.city.where
             else ' [dim](you are here)[/]')),
@@ -821,6 +830,13 @@ def cmd_take(sess, args) -> None:
     game.city.accepted = contract.cid
     c.ok(f'Taken: [accent]{contract.title}[/] against '
          f'{contract.target_data.short}, {contract.pay:,}c.')
+    if contract.from_npc:
+        from ..content import npcs as npc_content, offers
+        work = offers.BY_NPC_WORK.get(contract.from_npc)
+        who = npc_content.BY_KEY.get(contract.from_npc)
+        if work is not None and who is not None:
+            c.blank()
+            c.say(f'[accent]{who.name}:[/] {work.closing}')
     from ..world import rivals as rival_world
     for line in rival_world.on_player_took(game.rng('rivals'),
                                            game.city.rivals, contract):
@@ -846,6 +862,24 @@ def cmd_drop(sess, args) -> None:
     contract.taken = False
     game.alias.adjust_rep(contract.patron, -4)
     c.warn(f'Dropped {contract.title}. {contract.patron_data.short} noticed.')
+    # A board posting is a market and does not care. A job somebody was
+    # holding for you is a person, and dropping it is the one thing a posting
+    # cannot charge you for.
+    if contract.from_npc:
+        from ..content import npcs as npc_content, offers
+        work = offers.BY_NPC_WORK.get(contract.from_npc)
+        who = npc_content.BY_KEY.get(contract.from_npc)
+        if work is not None and who is not None:
+            # Clamped, because the limit is how far they will let you get
+            # and not how far you can be pushed. Past it they are already
+            # refusing you; going to four changes nothing except making the
+            # screen that says "as deep as they will let you get" a lie.
+            game.story.owed[who.key] = min(
+                offers.OWED_LIMIT, game.story.owed.get(who.key, 0) + 1)
+            game.city.board = [x for x in game.city.board
+                               if x.cid != contract.cid]
+            c.blank()
+            c.say(f'[err]{work.dropped}[/]')
 
 
 # --------------------------------------------------------------------------

@@ -3131,6 +3131,184 @@ def test_anim() -> None:
 
 
 
+def test_offers() -> None:
+    """Work, goods and favours: the three things a person does for you."""
+    T.section('offers')
+    from flatline.content import npcs as npc_content, offers
+
+    def met(seed=4242, runs=6, origin='gutter'):
+        game = Game.new(Character.from_origin(origin, 'dealer'), seed=seed)
+        game.char.runs = runs
+        game.char.credits = 80000
+        for npc in npc_content.NPCS:
+            game.story.meet(npc.key)
+        return game
+
+    # Everything declared is served, and nothing is served that is not
+    # declared. This is the whole point: `offers` was a label for years.
+    for npc in npc_content.NPCS:
+        if 'work' in npc.offers:
+            T.ok(npc.key in offers.BY_NPC_WORK,
+                 f'{npc.key} declares work and has some')
+        if 'goods' in npc.offers:
+            T.ok(npc.key in offers.BY_NPC_STOCK,
+                 f'{npc.key} declares goods and has some')
+        if 'favour' in npc.offers:
+            T.ok(offers.favours_for(npc.key),
+                 f'{npc.key} declares favours and has some')
+
+    # -- work -------------------------------------------------------------
+    game = met()
+    sess, out = play(['deal mara work'], game=game)
+    theirs = [x for x in game.city.board if x.from_npc == 'mara']
+    T.eq(len(theirs), 1, 'asking for work produces exactly one job')
+    job = theirs[0]
+    T.ok(job.pay > 0, 'and it pays')
+    T.ok('holding this one for you' in out or 'c0' in out,
+         'and the sheet says whose it is')
+
+    # Asking again does not print money.
+    sess, _ = play(['deal mara work'], game=game)
+    T.eq(len([x for x in game.city.board if x.from_npc == 'mara']), 1,
+         'asking twice does not produce a second job')
+
+    # It pays better than the board and is held longer.
+    work = offers.BY_NPC_WORK['mara']
+    T.ok(work.pay > 1.0, 'personal work pays over the board rate')
+    T.ok(job.expires - job.posted
+         > max(e for e in contract_lifetime()), 'and is held longer')
+
+    # Dropping it costs you with them, specifically, which a posting cannot do.
+    sess, out = play([f'take {job.cid}', 'drop'], game=game)
+    T.eq(game.story.owed.get('mara'), 1, 'dropping their job costs a favour')
+
+    # And it cannot push you past the ceiling, which is how far they will let
+    # you get rather than how far you can be shoved.
+    deep = met()
+    deep.story.owed['mara'] = offers.OWED_LIMIT
+    play(['deal mara work'], game=deep)
+    theirs = [x for x in deep.city.board if x.from_npc == 'mara']
+    if theirs:
+        play([f'take {theirs[0].cid}', 'drop'], game=deep)
+        T.eq(deep.story.owed['mara'], offers.OWED_LIMIT,
+             'a drop at the ceiling leaves you at the ceiling')
+    T.ok(not [x for x in game.city.board if x.from_npc == 'mara'],
+         'and the job goes with them')
+
+    # -- favours ----------------------------------------------------------
+    game = met()
+    game.alias.add_heat('sixes', 80)
+    before = game.alias.attention('sixes')
+    sess, out = play(['deal mara favour quiet'], game=game)
+    T.ok(game.alias.attention('sixes') < before, 'a favour does the thing')
+    T.eq(game.story.owed.get('mara'), 1, 'and goes on the tab')
+
+    # Every favour either happens or explains itself, and none of them
+    # silently does nothing.
+    for fav in offers.FAVOURS:
+        fresh = met()
+        fresh.alias.add_heat('sixes', 90)
+        fresh.char.dissonance = 60
+        fresh.char.credits = 90000
+        fresh.debt.amount = 5000
+        fresh.debt.lender = 'sixes'
+        if fresh.city.board:
+            fresh.city.accepted = fresh.city.board[0].cid
+            fresh.city.board[0].taken = True
+        from flatline.content import drugs
+        fresh.char.chem = drugs.dose(drugs.blank(), 'kick')
+        _, said = play([f'deal {fav.npc} favour {fav.key}'], game=fresh)
+        T.ok(ui.plain(said).strip(), f'{fav.npc}/{fav.key} says something')
+        T.ok(fresh.story.owed.get(fav.npc, 0) == 1
+             or 'will not' in said or '✗' in said,
+             f'{fav.npc}/{fav.key} either happened or refused, not neither')
+
+    # The tab has a ceiling, and it is expressed in their own words.
+    game = met()
+    game.story.owed['mara'] = offers.OWED_LIMIT
+    game.alias.add_heat('sixes', 80)
+    heat_before = game.alias.attention('sixes')
+    sess, out = play(['deal mara favour quiet'], game=game)
+    T.eq(game.alias.attention('sixes'), heat_before,
+         'past the ceiling a favour does not happen')
+    T.eq(game.story.owed['mara'], offers.OWED_LIMIT,
+         'and does not go further onto the tab')
+
+    # Finishing their work takes one back off.
+    game = met()
+    game.story.owed['mara'] = 2
+    sess, _ = play(['deal mara work'], game=game)
+    job = next(x for x in game.city.board if x.from_npc == 'mara')
+    game.city.accepted = job.cid
+    job.taken = True
+    from flatline.commands.run import _resolve
+    sess2 = Session(console=quiet_console(), slot='t')
+    sess2.game = game
+    sess2.run = RunState.begin(
+        net_mod.generate(Rng(1).fork('network', job.cid), job.target,
+                         int(job.posture), job.objective),
+        game.char, Rng(1)('combat'), sess2.console, contract=job.to_dict())
+    sess2.run.done[job.objective] = sess2.run.net.objective_node
+    sess2.run.haul.append(sess2.run.net.objective_asset)
+    sess2.run.observed_enough = True
+    if sess2.run.escort is not None:
+        sess2.run.escort.update({'done': True, 'state': 'out'})
+    sess2.run.finish('clean')
+    sess2.console.start_capture()
+    _resolve(sess2)
+    sess2.console.end_capture()
+    T.ok(game.story.owed.get('mara', 0) < 2,
+         'finishing their job takes one off the tab')
+
+    # -- goods ------------------------------------------------------------
+    for stock in offers.STOCK:
+        npc = npc_content.BY_KEY[stock.npc]
+        game = met()
+        if npc.where:
+            game.city.where = npc.where
+            game.city.visited.add(npc.where)
+        _, said = play([f'deal {stock.npc} goods'], game=game)
+        listed = {l.key for l in game.city.listings()}
+        for key in stock.goods:
+            T.ok(key in listed,
+                 f'{stock.npc} puts {key} on the local shelf')
+        T.ok(ui.plain(said).strip(), f'{stock.npc} says something about it')
+        # And it does not rotate off *without being asked again*, which is
+        # the whole difference between a person's cabinet and a market, and
+        # which was not true until a soak said so: `refresh_stock` rebuilds
+        # every shelf from scratch.
+        T.ok(stock.npc in game.city.counters,
+             f'dealing with {stock.npc} opens their counter for good')
+        game.city.refresh_stock(game.rng)
+        listed = {l.key for l in game.city.listings()}
+        for key in stock.goods:
+            T.ok(key in listed,
+                 f'{stock.npc} still has {key} after a rotation')
+
+    # Somebody's stock is only theirs where they are.
+    game = met()
+    game.city.where = 'marrow'
+    _, said = play(['deal quartermaster goods'], game=game)
+    T.ok('Freeport' in said, 'you cannot buy off somebody who is elsewhere')
+
+    # All of it survives a save.
+    game = met()
+    game.story.owed['mara'] = 2
+    game.story.asked['mara'] = 4
+    sess, _ = play(['deal mara work'], game=game)
+    again = Game.from_dict(game.to_dict())
+    T.eq(again.story.owed, game.story.owed, 'the tab survives a save')
+    T.eq(again.story.asked, game.story.asked, 'and so does when you asked')
+    T.eq([x.from_npc for x in again.city.board],
+         [x.from_npc for x in game.city.board],
+         'and so does whose job is whose')
+
+
+def contract_lifetime():
+    from flatline.world.contracts import LIFETIME
+    return LIFETIME
+
+
 def test_vices() -> None:
     """Drugs, borrowing, and the two games. The three ways to spend later."""
     T.section('vices')
@@ -4182,7 +4360,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_migration, test_help, test_shell,
+    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_migration, test_help, test_shell,
     test_playthrough, test_ui,
 )
 

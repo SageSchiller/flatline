@@ -34,6 +34,14 @@ class Story:
     pending: list = field(default_factory=list)
     #: NPC keys met, which is also mirrored into flags as `met:<key>`.
     met: set = field(default_factory=set)
+    #: NPC key -> favours you have asked for and not yet worked off. The one
+    #: number that makes work and favours the same relationship instead of two
+    #: features: asking costs one, finishing a job they handed you clears one,
+    #: and past `offers.OWED_LIMIT` they stop taking your calls.
+    owed: dict = field(default_factory=dict)
+    #: NPC key -> the shift you last got a job out of them, so a person is a
+    #: relationship rather than a vending machine for contracts.
+    asked: dict = field(default_factory=dict)
 
     # ------------------------------------------------------------------
 
@@ -157,7 +165,9 @@ class Story:
         return {'flags': sorted(self.flags),
                 'reached': {k: list(v) for k, v in self.reached.items()},
                 'pending': list(self.pending),
-                'met': sorted(self.met)}
+                'met': sorted(self.met),
+                'owed': {k: v for k, v in self.owed.items() if v},
+                'asked': dict(self.asked)}
 
     @classmethod
     def from_dict(cls, d: dict) -> Story:
@@ -165,7 +175,9 @@ class Story:
                    reached={k: list(v)
                             for k, v in (d.get('reached') or {}).items()},
                    pending=list(d.get('pending') or []),
-                   met=set(d.get('met') or ()))
+                   met=set(d.get('met') or ()),
+                   owed={k: int(v) for k, v in (d.get('owed') or {}).items()},
+                   asked={k: int(v) for k, v in (d.get('asked') or {}).items()})
 
 
 # --------------------------------------------------------------------------

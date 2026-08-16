@@ -336,6 +336,22 @@ def _resolve(sess) -> None:
             game.city.board = [x for x in game.city.board
                                if x.cid != contract.cid]
             game.city.accepted = ''
+            # Work somebody handed you personally comes off the tab when you
+            # finish it. That is the whole loop: they trust you with a job,
+            # the job buys favours, and the favours were what you wanted.
+            if contract.from_npc:
+                from ..content import npcs as npc_content
+                who = npc_content.BY_KEY.get(contract.from_npc)
+                owed = game.story.owed.get(contract.from_npc, 0)
+                if who is not None:
+                    if owed:
+                        game.story.owed[contract.from_npc] = owed - 1
+                        c.say(f'[ok]{who.name} has one fewer reason to say '
+                              f'no to you.[/]')
+                    else:
+                        game.story.flags.add(f'delivered:{contract.from_npc}')
+                        c.say(f'[ok]{who.name} will remember that you did '
+                              f'this one properly.[/]')
 
     # Selling the haul is a city action, but crediting it here keeps the run
     # readable: what you carried out is worth what it is worth.

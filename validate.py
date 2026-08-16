@@ -1615,6 +1615,102 @@ def check_games(rep: Report) -> None:
               'the floor below which a table refuses you is not a probability')
 
 
+def check_offers(rep: Report) -> None:
+    """What people do for you, per D42. See `content/offers.py`.
+
+    The rule with teeth is the first one: an offer may only exist for somebody
+    who declares it. `Npc.offers` was a label attached to nothing for the whole
+    life of the cast, and the way that stops happening again is for the label
+    and the implementation to be unable to disagree.
+    """
+    from flatline.content import cyberware as cw, drugs, hardware as hw
+    from flatline.content import npcs, offers
+
+    catalogues = (('program', programs.BY_KEY), ('ware', cw.BY_KEY),
+                  ('component', hw.BY_KEY), ('drug', drugs.BY_KEY))
+
+    for work in offers.WORK:
+        where = f'offers/work/{work.npc}'
+        npc = npcs.BY_KEY.get(work.npc)
+        rep.check(npc is not None, where, 'is nobody')
+        if npc is not None:
+            rep.check('work' in npc.offers, where,
+                      f'{npc.name} hands out work and does not declare it')
+        rep.check(work.patron in factions.BY_KEY, where,
+                  f'fronting for {work.patron!r}, which is not a faction')
+        for target in work.targets:
+            rep.check(target in factions.BY_KEY, where,
+                      f'wants {target!r} hit, which is not a faction')
+            rep.check(target != work.patron, where,
+                      'wants their own patron hit')
+        rep.check(work.pay > 1.0, where,
+                  'pays no better than the board, so there is no reason to '
+                  'have a relationship with anybody')
+        rep.check(work.patience > 0, where, 'holds it no longer than a posting')
+        for text in ('pitch', 'closing', 'dropped'):
+            rep.check(bool(getattr(work, text)), where, f'has no {text}')
+
+    for stock in offers.STOCK:
+        where = f'offers/stock/{stock.npc}'
+        npc = npcs.BY_KEY.get(stock.npc)
+        rep.check(npc is not None, where, 'is nobody')
+        if npc is not None:
+            rep.check('goods' in npc.offers, where,
+                      f'{npc.name} sells things and does not declare it')
+        rep.check(bool(stock.goods), where, 'sells nothing')
+        for key in stock.goods:
+            found = [kind for kind, table in catalogues if key in table]
+            rep.check(len(found) == 1, where,
+                      f'sells {key!r}, which is in {found or "no catalogue"}')
+        rep.check(0.5 <= stock.markup <= 1.5, where,
+                  f'markup {stock.markup} is charity or robbery')
+        rep.check(bool(stock.pitch) and bool(stock.first), where,
+                  'has nothing to say about their own stock')
+
+    for fav in offers.FAVOURS:
+        where = f'offers/favour/{fav.npc}.{fav.key}'
+        npc = npcs.BY_KEY.get(fav.npc)
+        rep.check(npc is not None, where, 'is nobody')
+        if npc is not None:
+            rep.check('favour' in npc.offers, where,
+                      f'{npc.name} does favours and does not declare it')
+        rep.check(fav.effect in offers.EFFECTS, where,
+                  f'does {fav.effect!r}, which is not a declared effect')
+        # And the other direction, which is the one that actually catches
+        # things: an effect nothing implements would be a favour that prints
+        # its own prose and changes nothing.
+        rep.check(f"fav.effect == '{fav.effect}'" in _engine_source(), where,
+                  f'effect {fav.effect!r} is implemented by nothing')
+        rep.check(fav.amount > 0, where, 'gives nothing')
+        rep.check(bool(fav.text) and bool(fav.refusal), where,
+                  'has no words for doing it or for declining')
+        rep.check(fav.blurb == fav.blurb.strip()
+                  and fav.blurb.endswith('.'), where,
+                  'blurb is not a sentence')
+
+    # Every declared offer has to be served by something, which is the whole
+    # point of this file existing.
+    served = {'work': {w.npc for w in offers.WORK},
+              'goods': {s.npc for s in offers.STOCK},
+              'favour': {f.npc for f in offers.FAVOURS}}
+    for npc in npcs.NPCS:
+        for kind in ('work', 'goods', 'favour'):
+            if kind in npc.offers:
+                rep.check(npc.key in served[kind], f'npcs/{npc.key}',
+                          f'declares {kind!r} and nothing serves it')
+        if 'intel' in npc.offers:
+            rep.check(bool(npc.topics), f'npcs/{npc.key}',
+                      'declares intel and has no topics')
+        if 'nothing' in npc.offers:
+            rep.check(len(npc.offers) == 1, f'npcs/{npc.key}',
+                      'offers nothing, and also some things')
+
+    rep.check(offers.OWED_LIMIT >= 2, 'offers',
+              'the favour ceiling is so low the tab is a coin flip')
+    rep.check(offers.WORK_EVERY > 0, 'offers',
+              'people hand out work every shift, which is a board with a face')
+
+
 def check_lenders(rep: Report) -> None:
     """Who lends, per D40. See `content/lenders.py`."""
     from flatline.content import lenders, npcs
@@ -2487,7 +2583,7 @@ CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
     check_icons, check_dissonance, check_cyberspace, check_rivals, check_debt,
     check_origins, check_appearance, check_events, check_rice, check_shifts, check_district_mood, check_dead_fields, check_skills, check_factions, check_districts,
-    check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_commands,
+    check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_offers, check_commands,
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_palette_separation, check_markup, check_balance,
 )

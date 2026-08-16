@@ -98,6 +98,10 @@ class Contract:
     intel: dict = field(default_factory=dict)
     #: Set once accepted. An accepted contract leaves the board.
     taken: bool = False
+    #: The person who handed you this, if it did not come off the board.
+    #: Personal work pays better and costs something a posting cannot charge,
+    #: which is that somebody specific is waiting for it.
+    from_npc: str = ''
     size_mod: float = 1.0
 
     @property
@@ -118,7 +122,7 @@ class Contract:
             'expires': self.expires, 'posture': self.posture,
             'title': self.title, 'blurb': self.blurb, 'district': self.district,
             'intel': dict(self.intel), 'taken': self.taken,
-            'size_mod': self.size_mod,
+            'from_npc': self.from_npc, 'size_mod': self.size_mod,
         }
 
     @classmethod
@@ -130,6 +134,7 @@ class Contract:
             posture=int(d['posture']), title=d['title'], blurb=d['blurb'],
             district=d.get('district', districts.START),
             intel=dict(d.get('intel') or {}), taken=bool(d.get('taken')),
+            from_npc=d.get('from_npc', ''),
             size_mod=float(d.get('size_mod', 1.0)),
         )
 
@@ -164,10 +169,11 @@ def generate_board(rng: Stream, shift: int, alias, posture: dict,
     patrons = _weighted_patrons(alias)
     for _ in range(count):
         patron = rng.weighted(patrons)
-        target = _pick_target(rng, patron, alias)
+        target = pick_target(rng, patron, alias)
         if target is None:
             continue
-        contract = _make(rng, cid, patron, target, shift, alias, posture, used)
+        contract = make_one(rng, cid, patron, target, shift, alias,
+                            posture, used)
         used.add(contract.title)
         out.append(contract)
         cid += 1
@@ -191,7 +197,7 @@ def _weighted_patrons(alias) -> dict[str, float]:
     return weights
 
 
-def _pick_target(rng: Stream, patron: str, alias) -> str | None:
+def pick_target(rng: Stream, patron: str, alias) -> str | None:
     """Who the patron wants hit. Driven by the relations table."""
     weights: dict[str, float] = {}
     for key in factions.FACTION_KEYS:
@@ -212,7 +218,7 @@ def _pick_target(rng: Stream, patron: str, alias) -> str | None:
     return rng.weighted(weights)
 
 
-def _make(rng: Stream, cid: int, patron: str, target: str, shift: int,
+def make_one(rng: Stream, cid: int, patron: str, target: str, shift: int,
           alias, posture: dict, used: set | None = None) -> Contract:
     pfac, tfac = factions.BY_KEY[patron], factions.BY_KEY[target]
     objective = rng.weighted({o: (2.5 if o in pfac.wants else 0.7)

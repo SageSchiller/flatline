@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from ..content import factions
 from ..content import npcs as npc_content
+from ..content import offers
 from ..content import threads as thread_content
 from ..content import appearance
 from ..content import districts
@@ -174,6 +175,319 @@ def cmd_who_is(sess, args) -> None:
         where = f'anywhere with a {npc.at}'
     c.blank()
     c.kv([('found', where), ('offers', ', '.join(npc.offers))])
+    live = [o for o in npc.offers if o != 'nothing']
+    if live:
+        c.blank()
+        bits = []
+        if [o for o in live if o != 'intel']:
+            bits.append(f'`deal {npc.key}` for the business')
+        if 'intel' in live and npc.topics:
+            bits.append(f'`ask {npc.key} <topic>` for what they know')
+        c.say('[dim]' + ', and '.join(bits) + '.[/]')
+
+
+# --------------------------------------------------------------------------
+# business
+# --------------------------------------------------------------------------
+#
+# `Npc.offers` declared work, goods and favours for the whole life of the cast
+# and `who is` printed the list, and none of the three did anything. This is
+# where they became real. See `content/offers.py` for why they are one system
+# and not three.
+
+
+def _owed(game, key: str) -> int:
+    return int(game.story.owed.get(key, 0))
+
+
+def _standing(game, npc) -> str:
+    """Where you are with somebody, in a phrase rather than a number."""
+    owed = _owed(game, npc.key)
+    if owed <= 0:
+        return 'square'
+    if owed >= offers.OWED_LIMIT:
+        return 'as deep as they will let you get'
+    return f'{owed} favour{"s" if owed != 1 else ""} down'
+
+
+@command('deal', 'Do business with somebody you have met.',
+         group='city', contexts=('city',), usage='deal [name] [work|goods|favour]',
+         detail='The three things a person will do for you that a shop will '
+                'not. `who is <name>` lists which of them they offer. Work is '
+                'a contract that never reaches the board and pays better for '
+                'it. Goods are what they keep under their own counter, which '
+                'does not rotate with the market. A favour is them spending '
+                'their own standing on your problem, and it goes on a tab: '
+                'finishing work they gave you is how it comes off again.')
+def cmd_deal(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    if not len(args):
+        _deal_index(sess)
+        return
+    npc = _find(sess, args[0])
+    kind = (args.get(1) or '').lower()
+    if not kind:
+        _deal_person(sess, npc)
+        return
+    if kind.startswith('w'):
+        _deal_work(sess, npc, args)
+    elif kind.startswith('g'):
+        _deal_goods(sess, npc)
+    elif kind.startswith('f'):
+        _deal_favour(sess, npc, args)
+    else:
+        raise CommandError(f'{npc.name} deals in work, goods and favours, '
+                           f'not {kind!r}')
+
+
+def _deal_index(sess) -> None:
+    """Who in this district will do business, and what kind."""
+    game, c = sess.require_game(), sess.console
+    here = [n for n in npc_content.NPCS
+            if n.key in game.story.met
+            and (not n.where or n.where == game.city.where)
+            and (not n.at or n.at in game.city.district.services)
+            and [o for o in n.offers if o != 'nothing']]
+    c.header('Business', game.city.district.name)
+    if not here:
+        c.say('[dim]Nobody you know is doing business in '
+              f'{game.city.district.name}. `look` to find people, and '
+              '`who is <name>` for what somebody offers.[/]')
+        return
+    for npc in here:
+        trades = ', '.join(o for o in npc.offers if o != 'nothing')
+        c.raw(f'  [accent]{npc.key:<14}[/] [fg]{npc.name:<24}[/] '
+              f'[dim]{trades}[/]')
+    c.blank()
+    c.say('[dim]`deal <name>` for the detail.[/]')
+
+
+def _deal_person(sess, npc) -> None:
+    game, c = sess.require_game(), sess.console
+    c.header(npc.name, npc.epithet)
+    c.kv([('offers', ', '.join(o for o in npc.offers if o != 'nothing')
+                     or 'nothing'),
+          ('between you', _standing(game, npc))])
+    live = [o for o in npc.offers if o != 'nothing']
+    c.blank()
+    if 'work' in live:
+        work = offers.BY_NPC_WORK.get(npc.key)
+        ready, why = _work_ready(game, npc)
+        c.say(f'[fg]deal {npc.key} work[/] [dim]'
+              + ('a job they are holding for you' if ready else why) + '[/]')
+    if 'goods' in live:
+        c.say(f'[fg]deal {npc.key} goods[/] [dim]what is under their own '
+              f'counter[/]')
+    if 'intel' in live and npc.topics:
+        c.say(f'[fg]ask {npc.key} <topic>[/] [dim]'
+              + ', '.join(sorted(npc.topics)) + '[/]')
+    if 'favour' in live:
+        for fav in offers.favours_for(npc.key):
+            c.say(f'[fg]deal {npc.key} favour {fav.key}[/] [dim]{fav.blurb}[/]')
+
+
+def _work_ready(game, npc) -> tuple[bool, str]:
+    """Whether they have something for you, and why not if they do not."""
+    work = offers.BY_NPC_WORK.get(npc.key)
+    if work is None:
+        return False, 'they do not hand out work'
+    if game.city.accepted:
+        return False, 'you are already carrying something'
+    for rule in work.requires:
+        if not game.story.satisfied(rule, game):
+            return False, 'they do not know you well enough yet'
+    since = game.city.shift - int(game.story.asked.get(npc.key, -99))
+    if since < offers.WORK_EVERY:
+        return False, (f'nothing new for {offers.WORK_EVERY - since} more '
+                       f'shifts')
+    if _owed(game, npc.key) >= offers.OWED_LIMIT:
+        return False, 'you are too far into them already'
+    return True, ''
+
+
+def _deal_work(sess, npc, args) -> None:
+    game, c = sess.require_game(), sess.console
+    work = offers.BY_NPC_WORK.get(npc.key)
+    if work is None:
+        raise CommandError(f'{npc.name} does not hand out work.')
+    ready, why = _work_ready(game, npc)
+    if not ready:
+        raise CommandError(f'{npc.name}: {why}.')
+
+    existing = next((x for x in game.city.board if x.from_npc == npc.key),
+                    None)
+    if existing is None:
+        existing = game.city.offer_work(game.rng, game.alias, work)
+        game.story.asked[npc.key] = game.city.shift
+    c.blank()
+    c.rule(npc.name)
+    c.say(work.pitch)
+    c.blank()
+    from .city import _show_contract
+    _show_contract(sess, existing)
+    c.blank()
+    c.say(f'[dim]It is on the board as [fg]{existing.cid}[/][dim], held for '
+          f'{work.patience} shifts longer than a posting. `take '
+          f'{existing.cid}` to agree to it.[/]')
+    sess.autosave()
+
+
+def _deal_goods(sess, npc) -> None:
+    game, c = sess.require_game(), sess.console
+    stock = offers.BY_NPC_STOCK.get(npc.key)
+    if stock is None:
+        raise CommandError(f'{npc.name} does not sell anything.')
+    if npc.where and npc.where != game.city.where:
+        raise CommandError(f'{npc.name} keeps their stock in '
+                           f'{districts.BY_KEY[npc.where].name}.')
+    game.city.open_counter(stock)
+    c.header(npc.name, 'what they keep back')
+    c.say(f'[dim]{stock.pitch}[/]')
+    # First time you deal with *them*, rather than the first time a line of
+    # stock is new. Ozymandias sells one thing that the Ninth's market also
+    # carries, so his entire character never printed.
+    flag = f'counter:{npc.key}'
+    if flag not in game.story.flags:
+        game.story.flags.add(flag)
+        c.blank()
+        c.say(stock.first)
+
+    # Theirs, specifically. The goods join the district's shelf so that `buy`
+    # and `market` work on them unchanged, and that also means the market
+    # screen mixes them into thirty other lines with nothing saying which four
+    # are the ones this person got out for you.
+    from ..world import market as market_mod
+    from .city import _item, _listing_detail
+    rows = []
+    for listing in game.city.listings():
+        if listing.key not in stock.goods:
+            continue
+        item = _item(listing)
+        if item is None:
+            continue
+        price, _ = market_mod.quote(listing, game.city.where, game.alias,
+                                    game.char.dissonance,
+                                    game.char.mult('price_mult'),
+                                    game.city.phase)
+        rows.append((item.name, listing.kind,
+                     _listing_detail(listing, item), f'{price:,}c'))
+    c.blank()
+    if rows:
+        c.table(('item', 'kind', 'what it does', 'price'), rows,
+                roles=('accent', 'dim', 'dim', 'credit'))
+        c.blank()
+        c.say('[dim]`buy <name>` as anywhere else. It is on the local shelf '
+              'now and it does not rotate off it.[/]')
+    else:
+        c.say('[dim]The shelf is empty. They are not apologetic about it.[/]')
+    sess.autosave()
+
+
+def _deal_favour(sess, npc, args) -> None:
+    game, c = sess.require_game(), sess.console
+    available = offers.favours_for(npc.key)
+    if not available:
+        raise CommandError(f'{npc.name} is not somebody you ask for things.')
+    want = (args.get(2) or '').lower()
+    if not want:
+        c.header(npc.name, _standing(game, npc))
+        for fav in available:
+            c.raw(f'  [accent]{fav.key:<10}[/] [dim]{fav.blurb}[/]')
+        c.blank()
+        c.say(f'[dim]`deal {npc.key} favour <name>`. Each one puts you a '
+              f'favour down, and finishing work they gave you is how it '
+              f'comes off.[/]')
+        return
+    fav = next((f for f in available if f.key.startswith(want)), None)
+    if fav is None:
+        raise CommandError(f'{npc.name} does: '
+                           + ', '.join(f.key for f in available))
+    if _owed(game, npc.key) >= offers.OWED_LIMIT:
+        c.blank()
+        c.say(f'[err]{fav.refusal}[/]')
+        return
+    for rule in fav.requires:
+        if not game.story.satisfied(rule, game):
+            raise CommandError(f'{npc.name} will not, and does not explain '
+                               f'why, which is its own answer.')
+
+    done, note = _do_favour(sess, fav)
+    if not done:
+        raise CommandError(note)
+    game.story.owed[npc.key] = _owed(game, npc.key) + 1
+    c.blank()
+    c.rule(fav.name, role='accent2')
+    for para in fav.text.split('\n\n'):
+        c.say(para)
+        c.blank()
+    c.say(f'[dim]{note}[/]')
+    c.say(f'[dim]You are {_standing(game, npc)} with {npc.name}.[/]')
+    sess.autosave()
+
+
+def _do_favour(sess, fav) -> tuple[bool, str]:
+    """Apply one favour. Returns (happened, what to say about it).
+
+    Every effect key here is in `offers.EFFECTS` and `validate.py` checks the
+    other direction, so a favour cannot promise something nothing implements,
+    which is the exact failure this whole feature exists to correct.
+    """
+    game = sess.game
+    if fav.effect == 'heat':
+        hot, heat = game.alias.hottest
+        if not hot:
+            return False, 'nobody is looking for you. Save it.'
+        shed = min(fav.amount, heat)
+        game.alias.add_heat(hot, -shed)
+        return True, (f'{factions.BY_KEY[hot].short} attention down '
+                      f'{int(shed)}.')
+    if fav.effect == 'hold':
+        contract = game.city.current
+        if contract is None:
+            return False, 'you are not carrying anything to hold.'
+        contract.expires += fav.amount
+        return True, (f'{contract.title} now runs to shift '
+                      f'{contract.expires}.')
+    if fav.effect == 'intel':
+        contract = game.city.current
+        if contract is None:
+            return False, 'there is no job to read.'
+        # The same network the run will generate, read the same way legwork
+        # reads it, so a favour cannot know something a shift of asking
+        # around could not have found out.
+        from ..run import network as net_mod
+        from .city import _legwork_result
+        net = net_mod.generate(game.rng.fork('network', contract.cid),
+                               contract.target, int(contract.posture),
+                               contract.objective, contract.size_mod)
+        for gives in ('topology', 'ice', 'assets'):
+            contract.intel[gives] = _legwork_result(net, gives, 1, game)
+        return True, 'Everything they can see about it is yours.'
+    if fav.effect == 'detox':
+        from ..content import drugs
+        state = drugs.normalise(game.char.chem)
+        if not state['habit']:
+            return False, 'there is nothing on you to take off.'
+        worst = max(state['habit'], key=lambda k: state['habit'][k])
+        state['habit'][worst] = max(0, state['habit'][worst] - fav.amount)
+        if not state['habit'][worst]:
+            del state['habit'][worst]
+        game.char.chem = state
+        return True, f'{drugs.BY_KEY[worst].name} has less of you than it did.'
+    if fav.effect == 'debt':
+        if not game.debt.owed:
+            return False, 'you do not owe anybody anything.'
+        game.debt.pay(fav.amount)
+        return True, f'{game.debt.amount:,}c outstanding.'
+    if fav.effect == 'ground':
+        floor = game.char.chrome_dissonance
+        if game.char.dissonance <= floor:
+            return False, ('there is nothing to walk back that is not '
+                           'hardware.')
+        before = game.char.dissonance
+        game.char.dissonance = max(floor, before - fav.amount)
+        return True, (f'Dissonance {before} to {game.char.dissonance}.')
+    return False, 'nothing happens, which should be impossible.'
 
 
 @command('journal', 'What you have got yourself into.',

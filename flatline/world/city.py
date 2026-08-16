@@ -84,6 +84,12 @@ class City:
     #: Districts you have set foot in. Read by the Courier's passive, and a
     #: reasonable thing for a city to remember about somebody in any case.
     visited: set = field(default_factory=set)
+    #: NPC keys whose private counter you have opened. Re-applied after every
+    #: restock: a person's cabinet not rotating is the one promise it makes
+    #: that a market does not, and `refresh_stock` rebuilds the shelves from
+    #: scratch, so without this the promise was false the first time six
+    #: shifts went by.
+    counters: set = field(default_factory=set)
     #: venue key -> credits taken off that table, ever. The card game reads it
     #: and gets harder; it is the city remembering a specific room rather than
     #: a faction, which is the right grain for somebody who has been winning
@@ -328,6 +334,15 @@ class City:
         self.stock = {d.key: market_mod.restock(stream, d.key, self.shift)
                       for d in districts.DISTRICTS}
         self.stock_shift = self.shift
+        # And then put back what people keep under their own counters, which
+        # is not stock and does not turn over.
+        from ..content import npcs as npc_content, offers
+        for key in sorted(self.counters):
+            stock = offers.BY_NPC_STOCK.get(key)
+            npc = npc_content.BY_KEY.get(key)
+            if stock is None or npc is None:
+                continue
+            self._shelve(stock, npc.where or self.where)
 
     def listings(self, kind: str | None = None,
                  deep: bool | None = None) -> list[Listing]:
@@ -339,6 +354,64 @@ class City:
                 if (kind is None or l.kind == kind)
                 and (deep is None or bool(l.deep) is deep)
                 and l.stock > 0]
+
+    # -- what people keep back -----------------------------------------
+
+    def offer_work(self, rng: Rng, alias: Alias, work) -> Contract:
+        """A contract from a person, generated like any other and then bent.
+
+        Deliberately routed through the same generator: personal work has to
+        be able to be any shape of job, against any target that makes sense
+        for whoever is fronting it, or it becomes a second and much thinner
+        contract system that happens to have a name attached.
+        """
+        stream = rng('contracts')
+        target = (stream.pick(work.targets) if work.targets
+                  else contract_mod.pick_target(stream, work.patron, alias))
+        if target is None:
+            target = stream.pick([k for k in factions.FACTION_KEYS
+                                  if k != work.patron])
+        contract = contract_mod.make_one(
+            stream, self.next_cid, work.patron, target, self.shift, alias,
+            self.posture, {c.title for c in self.board})
+        contract.pay = int(contract.pay * work.pay)
+        contract.expires += work.patience
+        contract.from_npc = work.npc
+        self.next_cid += 1
+        self.board.append(contract)
+        return contract
+
+    def open_counter(self, stock) -> bool:
+        """Put somebody's private stock on the local shelf. True if it is new.
+
+        Added to the district's listings rather than kept in a second
+        inventory, so `buy` and `market` work on it unchanged, and recorded in
+        `counters` so that `refresh_stock` puts it back: the market turning
+        over is a reason to travel and a reason to hurry, and a person's own
+        cabinet is the opposite thing.
+        """
+        self.counters.add(stock.npc)
+        return self._shelve(stock, self.where)
+
+    def _shelve(self, stock, where: str) -> bool:
+        from ..content import cyberware, drugs, hardware, programs
+        here = self.stock.setdefault(where, [])
+        have = {(l.kind, l.key) for l in here}
+        added = False
+        tables = (('program', programs.BY_KEY), ('ware', cyberware.BY_KEY),
+                  ('component', hardware.BY_KEY), ('drug', drugs.BY_KEY))
+        for key in stock.goods:
+            for kind, table in tables:
+                item = table.get(key)
+                if item is None or (kind, key) in have:
+                    continue
+                here.append(Listing(
+                    kind=kind, key=key,
+                    price=max(1, int(round(item.price * stock.markup))),
+                    stock=1))
+                added = True
+                break
+        return added
 
     # -- travel --------------------------------------------------------
 
@@ -502,6 +575,7 @@ class City:
             'board': [c.to_dict() for c in self.board],
             'accepted': self.accepted, 'hired': self.hired,
             'visited': sorted(self.visited),
+            'counters': sorted(self.counters),
             'tables': dict(self.tables),
             'next_cid': self.next_cid,
             'stock': {k: [l.to_dict() for l in v] for k, v in self.stock.items()},
@@ -523,6 +597,7 @@ class City:
             accepted=d.get('accepted', ''),
             hired=d.get('hired', ''),
             visited=set(d.get('visited') or ()),
+            counters=set(d.get('counters') or ()),
             tables={k: int(v) for k, v in (d.get('tables') or {}).items()},
             next_cid=int(d.get('next_cid', 1)),
             stock={k: [Listing.from_dict(l) for l in v]

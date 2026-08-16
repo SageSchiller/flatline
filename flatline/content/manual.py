@@ -717,26 +717,44 @@ TOPICS: tuple[Topic, ...] = (
         group='city'),
     Topic(
         'people', 'The people in this city',
-        'Who to find, how to find them, and why they are worth it.',
-        'The city has people in it who are not competing with you. '
-        '[fg]look[/] is how you find them: who you run into depends on where '
-        'you are, what you can get into there, and in some cases on what you '
-        'have already done.\n\n'
+        'Who to find, how to find them, and what they will do for you.',
+        'The city has people in it who are not competing with you. [fg]look[/] '
+        'is how you find them: who you run into depends on where you are, what '
+        'you can get into there, and in some cases on what you have already '
+        'done.\n\n'
         'They are not shops with faces on. Every one of them wants something, '
-        'and it is not always your money. Some of them are trying to help '
-        'you, some are lying about who they work for, one is a vending '
-        'machine with opinions about a war in 2041, and one of them is dying '
-        'and has decided not to ask you about it.\n\n'
+        'and it is not always your money. Some are trying to help you, some '
+        'are lying about who they work for, one is a vending machine with '
+        'opinions about a war in 2041, and one of them is dying and has '
+        'decided not to ask you about it.\n\n'
         '[fg]talk[/] gets you a line. [fg]ask <name> <topic>[/] gets you what '
         'they think about something specific, and some of those answers open '
-        'things.\n\n'
-        '[warn]The decision:[/] talking costs you nothing and no shift, so '
-        'the only reason not to is that you do not know they are there. Walk '
-        'into districts you have no job in.',
-        see=('threads', 'rivals', 'city'),
-        commands=('look', 'talk', 'ask', 'who is'),
-        covers=('npcs',),
-        terms=('npc', 'conversation',),
+        'things. [fg]who is <name>[/] lists what somebody deals in, and '
+        '[fg]deal <name>[/] is how you do it.\n\n'
+        '[accent2]Work, goods and a favour are one relationship, not three '
+        'features.[/]\n\n'
+        '  [accent]work[/]    a contract that never reaches the board. It '
+        'pays better, because they know you, and they hold it longer than a '
+        'posting.\n'
+        '  [accent]goods[/]   what they keep under their own counter. It does '
+        'not rotate with the market, and it is the only supply of several '
+        'things in this city.\n'
+        '  [accent]favour[/]  them spending their own standing on your '
+        'problem: heat gone, a job held open, a network read, some of the '
+        'drift walked back.\n\n'
+        'What ties them together is the tab. Every favour puts you one deeper '
+        'with that person, and [warn]finishing work they handed you is how it '
+        'comes off again[/]. Get too far down and they stop helping, in their '
+        'own words, which are not always unkind. Drop a job somebody was '
+        'holding for you and you go a favour further down rather than level.\n\n'
+        '[warn]The decision:[/] talking costs nothing and no shift, so the '
+        'only reason not to is not knowing they are there. Walk into districts '
+        'you have no job in. And take the work before you need the favour, '
+        'because the order those two happen in is the whole system.',
+        see=('threads', 'rivals', 'city', 'contracts'),
+        commands=('look', 'talk', 'ask', 'who is', 'deal'),
+        covers=('npcs', 'offers'),
+        terms=('npc', 'conversation', 'friends', 'contacts', 'relationships'),
         group='city'),
     Topic(
         'threads', 'Storylines',
