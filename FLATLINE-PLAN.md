@@ -910,6 +910,34 @@ with a living rival's name is skipped, because `Vesper Okonkwo` runs in this
 city and a player who names a character Vesper would otherwise get ghost
 stories about somebody currently taking work off their board.
 
+### D44: The other runners decide about you
+
+Seven named people took work off the board for the whole life of this project
+and the entire relationship was one number between -100 and 100. The bands
+named it, `who` printed it, and nothing ever came of it: somebody at -80
+competed with you in exactly the way somebody at zero did, and so did somebody
+at +80.
+
+**A bond is that number becoming a person.** Past either pole, and after
+enough jobs, it latches, announces itself once in that runner's own register,
+and changes what they do on the shift boundary for the rest of the campaign. A
+nemesis talks about you to people who were not going to think of you, and your
+name starts arriving before you do. A partner leaves things where you will
+find them.
+
+Two gates rather than one, deliberately. Disposition alone would let a single
+betrayal on your fourth shift produce a lifelong enemy, and the whole point of
+an arc is that it takes a campaign to earn.
+
+**It latches.** A bond that came off because you did somebody a favour on a
+Tuesday is a mood, and what makes thirty runs with the same person worth
+having is that it does not reverse. That also makes their death land: a rival
+dying is a line of news, and a partner dying is not.
+
+Written per style, so the Hound declaring a feud reads nothing like Ledger
+doing it, and Ledger deciding anything at all is the loudest thing that has
+ever happened to Ledger.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.

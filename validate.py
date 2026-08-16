@@ -1615,6 +1615,65 @@ def check_games(rep: Report) -> None:
               'the floor below which a table refuses you is not a probability')
 
 
+def check_bonds(rep: Report) -> None:
+    """Rival arcs, per D44. See the bottom of `content/rivals.py`.
+
+    Seven named runners took work off the board for the life of this project
+    and the whole relationship was one number nothing ever read. A bond is
+    that number becoming a person, and the checks here are that it can be
+    reached, that it says something when it is, and that both ends exist.
+    """
+    from flatline.content import rivals as rival_content
+    from flatline.world import rivals as rival_mod
+
+    styles = {r.style for r in rival_content.RIVALS}
+    for kind, table in (('nemesis', rival_content.NEMESIS_DECLARED),
+                        ('partner', rival_content.PARTNER_DECLARED)):
+        rep.check(kind in rival_content.BOND_KINDS, 'rivals',
+                  f'{kind!r} is not a declared bond')
+        missing = styles - set(table)
+        rep.check(not missing, 'rivals',
+                  f'{kind} has no declaration for {sorted(missing)}')
+        for style, line in table.items():
+            where = f'rivals/{kind}/{style}'
+            rep.check(style in styles, where, 'is not a style anybody has')
+            rep.check('{name}' in line, where, 'names nobody')
+            rep.check(len(line) > 100, where, 'is too short to be a scene')
+        rep.check(f"'{kind}'" in _engine_source()
+                  or f"'{kind}'" in _world_source(), 'rivals',
+                  f'nothing reads the {kind} bond')
+
+    for label, acts in (('nemesis', rival_content.NEMESIS_ACTS),
+                        ('partner', rival_content.PARTNER_ACTS)):
+        rep.check(len(acts) >= 3, 'rivals',
+                  f'{label} has {len(acts)} things it does, which will repeat')
+        for line in acts:
+            rep.check('{name}' in line, f'rivals/{label}',
+                      f'an act names nobody: {line[:40]}...')
+            rep.check(line.rstrip().endswith('.'), f'rivals/{label}',
+                      'an act is not a sentence')
+
+    # Both poles have to be reachable from where people start, and neither by
+    # accident: an arc you cross on your fourth shift is a mood.
+    bands = [low for low, _ in rival_content.DISPOSITION_BANDS]
+    rep.check(rival_content.NEMESIS_AT in bands
+              or rival_content.NEMESIS_AT <= min(bands) + 40, 'rivals',
+              'the nemesis threshold does not line up with any band')
+    rep.check(rival_content.NEMESIS_AT < 0 < rival_content.PARTNER_AT,
+              'rivals', 'the two poles are not on opposite sides of neutral')
+    rep.check(rival_content.BOND_AFTER_JOBS >= 2, 'rivals',
+              'a bond forms before anybody has done anything')
+    for rival in rival_content.RIVALS:
+        rep.check(rival_content.NEMESIS_AT < rival.disposition
+                  < rival_content.PARTNER_AT, f'rivals/{rival.key}',
+                  f'starts at {rival.disposition}, which is already a bond')
+    rep.check(0 < rival_content.BOND_CHANCE < 0.5, 'rivals',
+              'a bond acts every shift, which is weather rather than a person')
+    rep.check(rival_content.NEMESIS_HEAT > 0
+              and rival_content.PARTNER_HEAT > 0, 'rivals',
+              'a bond changes nothing')
+
+
 def check_legacy(rep: Report) -> None:
     """Getting out, and what is left of you, per D43.
 
@@ -2666,7 +2725,7 @@ CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
     check_icons, check_dissonance, check_cyberspace, check_rivals, check_debt,
     check_origins, check_appearance, check_events, check_rice, check_shifts, check_district_mood, check_dead_fields, check_skills, check_factions, check_districts,
-    check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_offers, check_legacy, check_commands,
+    check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_offers, check_legacy, check_bonds, check_commands,
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_palette_separation, check_markup, check_balance,
 )

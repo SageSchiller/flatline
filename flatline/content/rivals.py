@@ -287,3 +287,104 @@ ALLY_SPECIALTY = {
     'careful': ('sees it coming', 'ICE tells arrive a tick earlier and traps '
                 'are called out before you step on them.'),
 }
+
+
+# --------------------------------------------------------------------------
+# arcs
+# --------------------------------------------------------------------------
+#
+# Seven named runners took work off the board for the whole life of this
+# project and the entire relationship was one number between -100 and 100.
+# The bands above named it, `who` printed the name, and nothing ever came of
+# it: somebody at -80 competed with you in exactly the way somebody at zero
+# did, and so did somebody at +80.
+#
+# **A bond is that number becoming a person.** It latches at either end,
+# announces itself once with a scene, and then changes what that runner does
+# on the shift boundary for the rest of the campaign. Latching rather than
+# tracking the number is deliberate: a nemesis who stopped being one because
+# you did them a favour on a Tuesday is a mood, and what makes thirty runs
+# with somebody worth having is that it does not come off.
+
+#: Where the two ends are, and how much history it takes to get there. Both
+#: gates matter: crossing on disposition alone would let one betrayal on your
+#: fourth shift produce a lifelong enemy, and the arc is supposed to be the
+#: length of a campaign.
+NEMESIS_AT = -60
+PARTNER_AT = 60
+BOND_AFTER_JOBS = 4
+
+#: What a bond does on the shift boundary, per side.
+BOND_KINDS = ('nemesis', 'partner')
+
+#: The scene when somebody crosses. Printed once, ever, per runner, and it is
+#: the whole reason the bond exists rather than being a modifier.
+NEMESIS_DECLARED = {
+    'loud': '{name} has started saying your name in rooms you are not in, '
+            'and saying it the way you would name a weather event. It is not '
+            'a threat and it is much worse than one: it is advertising.',
+    'quiet': 'Nothing is said. You simply notice, over about a fortnight, '
+             'that {name} is where you were going to be, slightly before you '
+             'get there, and has been for longer than you noticed.',
+    'social': '{name} is extremely warm about you in public and has stopped '
+              'returning anything in private, and three people who used to '
+              'take your calls now take a beat before they answer.',
+    'careful': '{name} has filed you. Not with anybody: with themselves, in '
+               'the way they file everything, and the difference between '
+               'being filed by them and being hunted by anybody else is that '
+               'the file is accurate.',
+    'chrome': '{name} does not appear to have decided anything about you. '
+              'What has happened is that a decision was made somewhere in '
+              'the stack that runs them now, and they are carrying it out '
+              'with the same evenness they carry out everything.',
+}
+
+PARTNER_DECLARED = {
+    'loud': '{name} tells somebody, loudly, in front of you, that you are '
+            'the only person in this city who has never once let them down. '
+            'It is not true. They have decided it is true, which in this '
+            'business is the same thing and lasts longer.',
+    'quiet': '{name} starts leaving things where you will find them. A route '
+             'that is open. A name that is worth having. Nothing is ever '
+             'said about any of it and nothing ever will be.',
+    'social': '{name} begins introducing you as a colleague, which from them '
+              'is a technical term with a great deal of machinery behind it, '
+              'and the machinery starts moving about a week later.',
+    'careful': '{name} runs the numbers on you one more time, apparently, '
+               'and comes back with a conclusion they are willing to act on. '
+               'From Ledger that is the loudest thing that has ever '
+               'happened.',
+    'chrome': '{name} keeps a channel open to you. It is not a metaphor and '
+              'it is not entirely comfortable, and it means that at three in '
+              'the morning, when something goes wrong, somebody already '
+              'knows.',
+}
+
+#: What each side does on a shift, occasionally. One thing each, kept small:
+#: a bond that fired every shift would be a weather system rather than a
+#: relationship.
+BOND_CHANCE = 0.16
+
+NEMESIS_ACTS = (
+    '{name} has been talking to {faction} about you. Nothing actionable. '
+    'Just enough that your name arrives before you do.',
+    'A posting you were reading yesterday is gone, and the patron will not '
+    'say to whom, and you do not have to ask, because it was {name}.',
+    'Somebody describes you accurately to somebody else in a bar in the '
+    'Ninth, and the description came from {name}, and it is not unkind, '
+    'which is the part that will cost you.',
+)
+
+PARTNER_ACTS = (
+    '{name} sends over something they did not have to. It is not much. It is '
+    'the kind of not much that took them a shift to get.',
+    'A door somebody was going to close stays open, and nobody explains why, '
+    'and {name} is not answering their handset this evening.',
+    '{name} puts your name to a patron who was not going to think of it. '
+    'They mention it in passing, the way you mention weather.',
+)
+
+#: The heat a nemesis quietly adds to whoever you last worked against, and
+#: the heat a partner takes off. Small per event and relentless.
+NEMESIS_HEAT = 6
+PARTNER_HEAT = 8

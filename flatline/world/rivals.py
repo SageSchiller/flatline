@@ -47,6 +47,11 @@ class Rival:
     died: int = -1
     #: One line of what they were last seen doing.
     last: str = ''
+    #: '' | 'nemesis' | 'partner'. Latched: see `content/rivals.py`. A bond
+    #: that came off because you did somebody a favour on a Tuesday is a
+    #: mood, and the point of thirty runs with the same person is that it
+    #: does not come off.
+    bond: str = ''
 
     @property
     def data(self) -> rival_content.RivalType:
@@ -73,6 +78,7 @@ class Rival:
 
     def to_dict(self) -> dict:
         return {'key': self.key, 'disposition': self.disposition,
+                'bond': self.bond,
                 'rep': {k: v for k, v in self.rep.items() if v},
                 'jobs': self.jobs, 'alive': self.alive, 'died': self.died,
                 'last': self.last}
@@ -80,6 +86,7 @@ class Rival:
     @classmethod
     def from_dict(cls, d: dict) -> Rival:
         return cls(key=d['key'], disposition=int(d.get('disposition', 0)),
+                   bond=d.get('bond', ''),
                    rep={k: int(v) for k, v in (d.get('rep') or {}).items()},
                    jobs=int(d.get('jobs', 0)),
                    alive=bool(d.get('alive', True)),
@@ -90,6 +97,72 @@ def seed_pool() -> list[Rival]:
     """The city's runners at the start of a game."""
     return [Rival(key=r.key, disposition=r.disposition, rep=dict(r.standing))
             for r in rival_content.RIVALS]
+
+
+# --------------------------------------------------------------------------
+# arcs
+# --------------------------------------------------------------------------
+
+
+def check_bonds(pool: list[Rival]) -> list[tuple[Rival, str]]:
+    """Anybody who has just crossed into a nemesis or a partner.
+
+    Two gates, not one. Disposition alone would let a single betrayal on your
+    fourth shift produce a lifelong enemy, and the whole point of an arc is
+    that it takes the length of a campaign to get there.
+    """
+    crossed: list[tuple[Rival, str]] = []
+    for rival in pool:
+        if rival.bond or not rival.alive:
+            continue
+        if rival.jobs < rival_content.BOND_AFTER_JOBS:
+            continue
+        if rival.disposition <= rival_content.NEMESIS_AT:
+            rival.bond = 'nemesis'
+        elif rival.disposition >= rival_content.PARTNER_AT:
+            rival.bond = 'partner'
+        else:
+            continue
+        crossed.append((rival, rival.bond))
+    return crossed
+
+
+def bond_turn(rng: Stream, pool: list[Rival], alias) -> list[str]:
+    """What the people who have made up their minds about you do this shift.
+
+    One thing each, occasionally. A bond that fired every shift would be a
+    weather system; what makes this a relationship is that it turns up when
+    you were thinking about something else.
+    """
+    told: list[str] = []
+    for rival in pool:
+        if not rival.alive or rival.bond not in rival_content.BOND_KINDS:
+            continue
+        if not rng.chance(rival_content.BOND_CHANCE):
+            continue
+        hot, _ = alias.hottest
+        if rival.bond == 'nemesis':
+            faction = hot or rng.pick(factions.FACTION_KEYS)
+            if hot:
+                alias.add_heat(hot, rival_content.NEMESIS_HEAT)
+            told.append('[heat]' + rng.pick(
+                rival_content.NEMESIS_ACTS).format(
+                    name=rival.name,
+                    faction=factions.BY_KEY[faction].short) + '[/]')
+        else:
+            if hot:
+                alias.add_heat(hot, -rival_content.PARTNER_HEAT)
+            told.append('[ok]' + rng.pick(
+                rival_content.PARTNER_ACTS).format(name=rival.name) + '[/]')
+    return told
+
+
+def declare(rival: Rival, kind: str) -> str:
+    """The scene when somebody crosses. Once, ever, per runner."""
+    table = (rival_content.NEMESIS_DECLARED if kind == 'nemesis'
+             else rival_content.PARTNER_DECLARED)
+    line = table.get(rival.data.style) or next(iter(table.values()))
+    return line.format(name=rival.name)
 
 
 # --------------------------------------------------------------------------

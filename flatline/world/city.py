@@ -164,7 +164,7 @@ class City:
             self._decay_posture()
             told.extend(self._apply_pending(alias))
             told.extend(self._expire(alias))
-            told.extend(self._rival_turn(rng))
+            told.extend(self._rival_turn(rng, alias))
             told.extend(fallout_mod.bounty_check(alias, self, rng('events')))
             if debt is not None:
                 told.extend(self._debt_turn(rng, alias, debt, char))
@@ -286,7 +286,7 @@ class City:
             told.append(f'[dim]{debt.amount:,}c outstanding.[/]')
         return told
 
-    def _rival_turn(self, rng: Rng) -> list[str]:
+    def _rival_turn(self, rng: Rng, alias: Alias | None = None) -> list[str]:
         """The other runners work. This is why sitting still is not free."""
         if not self.rivals:
             self.rivals = rival_mod.seed_pool()
@@ -297,6 +297,14 @@ class City:
         if taken:
             gone = {c.cid for c in taken}
             self.board = [c for c in self.board if c.cid not in gone]
+        # Anybody who has just made up their mind about you says so, once.
+        for rival, kind in rival_mod.check_bonds(self.rivals):
+            told.append('')
+            told.append(f'[accent2]{rival.name} has decided something about '
+                        f'you.[/]')
+            told.append(rival_mod.declare(rival, kind))
+        if alias is not None:
+            told.extend(rival_mod.bond_turn(rng('rivals'), self.rivals, alias))
         self.news.extend(told)
         del self.news[:-NEWS_KEPT]
         return told

@@ -3131,6 +3131,87 @@ def test_anim() -> None:
 
 
 
+def test_bonds() -> None:
+    """Rival arcs: a nemesis or a partner, latched and acting."""
+    T.section('bonds')
+    from flatline.content import rivals as rival_content
+    from flatline.world import rivals as rival_mod
+
+    def pool_at(disposition, jobs):
+        pool = rival_mod.seed_pool()
+        for r in pool:
+            r.disposition, r.jobs = disposition, jobs
+        return pool
+
+    # Two gates, and both are needed. Disposition alone on your fourth shift
+    # would make a lifelong enemy out of one bad afternoon.
+    pool = pool_at(rival_content.NEMESIS_AT - 10, 0)
+    T.eq(rival_mod.check_bonds(pool), [],
+         'disposition without history forms no bond')
+    pool = pool_at(0, 99)
+    T.eq(rival_mod.check_bonds(pool), [],
+         'history without disposition forms no bond either')
+
+    for want, disposition in (('nemesis', rival_content.NEMESIS_AT - 5),
+                              ('partner', rival_content.PARTNER_AT + 5)):
+        pool = pool_at(disposition, rival_content.BOND_AFTER_JOBS)
+        crossed = rival_mod.check_bonds(pool)
+        T.eq(len(crossed), len(pool), f'everybody eligible becomes a {want}')
+        T.ok(all(kind == want for _, kind in crossed),
+             f'and it is the {want} end')
+        # Once, ever. A declaration that fires twice is not a declaration.
+        T.eq(rival_mod.check_bonds(pool), [], 'and it is announced once')
+        for rival, kind in crossed:
+            scene = rival_mod.declare(rival, kind)
+            T.ok(rival.name in scene, f'{rival.key} is named in their scene')
+            T.ok(len(scene) > 80, 'and the scene is a scene')
+
+    # It latches: doing them a favour afterwards does not undo it.
+    pool = pool_at(rival_content.NEMESIS_AT - 5, rival_content.BOND_AFTER_JOBS)
+    rival_mod.check_bonds(pool)
+    for r in pool:
+        r.adjust_disposition(200)
+    T.ok(all(r.bond == 'nemesis' for r in pool),
+         'a bond does not come off because of a good Tuesday')
+
+    # And it does something on the shift boundary, in both directions.
+    for kind, expect_more in (('nemesis', True), ('partner', False)):
+        game = Game.new(Character.from_origin('gutter', 'b'), seed=99)
+        game.alias.add_heat('kagawa', 60)
+        for r in game.city.rivals:
+            r.bond = kind
+        before = game.alias.attention('kagawa')
+        said = []
+        for _ in range(40):
+            said.extend(game.city.advance(game.rng, game.alias, 1))
+        after = game.alias.attention('kagawa')
+        T.ok(any(r.name in ' '.join(said) for r in game.city.rivals),
+             f'a {kind} turns up in the news')
+        # Heat decays on its own, so the test is the direction against a
+        # world where nobody has decided anything about you.
+        plain = Game.new(Character.from_origin('gutter', 'b'), seed=99)
+        plain.alias.add_heat('kagawa', 60)
+        for _ in range(40):
+            plain.city.advance(plain.rng, plain.alias, 1)
+        if expect_more:
+            T.ok(after >= plain.alias.attention('kagawa'),
+                 'a nemesis leaves you hotter than nobody would')
+        else:
+            T.ok(after <= plain.alias.attention('kagawa'),
+                 'a partner leaves you cooler')
+
+    # It survives a save, which is the difference between an arc and a mood.
+    game = Game.new(Character.from_origin('gutter', 'b'), seed=4242)
+    game.city.rivals[0].bond = 'nemesis'
+    again = Game.from_dict(game.to_dict())
+    T.eq(again.city.rivals[0].bond, 'nemesis', 'a bond survives a save')
+
+    # Nobody starts in one.
+    fresh = Game.new(Character.from_origin('gutter', 'b'), seed=1)
+    T.ok(all(not r.bond for r in fresh.city.rivals),
+         'a new character has decided nothing with anybody')
+
+
 def test_legacy() -> None:
     """Getting out on purpose, and what reaches the next one either way."""
     T.section('legacy')
@@ -4528,7 +4609,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_migration, test_help, test_shell,
+    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_migration, test_help, test_shell,
     test_playthrough, test_ui,
 )
 

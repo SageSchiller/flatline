@@ -1596,7 +1596,9 @@ def cmd_who(sess, args) -> None:
                       f'{rival_content.STYLE_BLURB[data.style]}[/]'),
             ('takes', ', '.join(data.prefers)),
             ('jobs run', str(rival.jobs)),
-            ('thinks of you', f'{rival.disposition:+d} [dim]{rival.band}[/]'),
+            ('thinks of you', f'{rival.disposition:+d} [dim]{rival.band}[/]'
+             + ({'nemesis': '  [err]your nemesis[/]',
+                 'partner': '  [ok]your partner[/]'}.get(rival.bond, ''))),
         ])
         if not rival.alive:
             c.blank()

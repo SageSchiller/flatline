@@ -688,32 +688,36 @@ TOPICS: tuple[Topic, ...] = (
         group='city'),
     Topic(
         'rivals', 'The other runners',
-        'Seven named people who are also working.',
-        'Rivals take contracts off the board while you deliberate, and when '
-        'they succeed the target hardens for everybody. Over twenty shifts you '
-        'learn that Vesper takes the corporate work and Hound takes anything '
-        'violent, and you start reading the board with that in mind.\n\n'
-        '[accent]Disposition[/] is how one feels about you. It falls when you '
-        'take work they wanted and rises when you keep them alive.\n\n'
-        'Three things you can do with them:\n'
-        '  [fg]hire[/]    one runs alongside you. What they are worth is '
-        'entirely their style.\n'
-        '  [fg]ask[/]     a favour, priced in disposition rather than credits.\n'
-        '  [fg]betray[/]  sell a name to somebody who wants it.\n\n'
-        '[warn]The way up is escort work.[/] Nobody starts liking you enough '
-        'for a favour, and disposition only falls on its own. An escort '
-        'contract, run so that they come out alive, is worth more standing '
-        'than anything else in the game.\n\n'
-        '[err]Betrayal is permanent.[/] The person usually does not survive '
-        'being found, every other runner in the city thinks less of you, and '
-        'none of it can be undone.\n\n'
-        '[warn]The decision:[/] disposition is a resource you spend and can '
-        'only earn back slowly. Selling somebody is the largest single payday '
-        'available to you and it closes the whole social layer behind it.',
-        see=('objectives', 'city'),
+        'Seven named people who are also working, and two of them will decide.',
+        'Seven runners work this city and they are not scenery. They take '
+        'contracts off the board while you deliberate, they harden the '
+        'factions they succeed against, and they occasionally die doing it. '
+        'That is why sitting still is not a free way to let heat cool: it is '
+        'a way to let somebody else make the city more expensive.\n\n'
+        'You can [fg]hire[/] one to come in with you for a cut, [fg]ask[/] '
+        'one for a favour, and [fg]betray[/] one, which is the most lucrative '
+        'thing in this game and the most expensive.\n\n'
+        '[accent2]Past enough history, somebody makes up their mind.[/] What '
+        'they think of you has always been a number between -100 and 100. '
+        'Far enough either way, and after enough jobs, it stops being a '
+        'number and becomes a person:\n\n'
+        '  [err]a nemesis[/] talks about you to people who were not going to '
+        'think of you, and your name starts arriving before you do\n'
+        '  [ok]a partner[/] leaves things where you will find them, and a '
+        'door somebody was going to close stays open\n\n'
+        'Each announces itself once, in their own register, and then changes '
+        'what they do for the rest of the campaign. [warn]It does not come '
+        'off[/]: a bond that reversed because you did somebody a favour on a '
+        'Tuesday would be a mood, and the point of thirty runs with the same '
+        'person is that it lasts.\n\n'
+        '[warn]The decision:[/] every one of them is worth being on good '
+        'terms with and you cannot afford all seven, because the work you '
+        'take is work somebody else wanted. Choosing who to disappoint is the '
+        'whole of it, and it is much easier before anybody has decided.',
+        see=('contracts', 'people', 'heat', 'factions'),
         commands=('who', 'hire', 'ask', 'betray'),
         covers=('rivals',),
-        terms=('competition', 'other runners',),
+        terms=('competition', 'other runners', 'enemy', 'friend', 'crew'),
         group='city'),
     Topic(
         'people', 'The people in this city',
