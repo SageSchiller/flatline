@@ -1615,6 +1615,59 @@ def check_games(rep: Report) -> None:
               'the floor below which a table refuses you is not a probability')
 
 
+def check_safehouses(rep: Report) -> None:
+    """Somewhere of your own, per D45. See `content/safehouses.py`."""
+    from flatline.content import safehouses
+
+    for prop in safehouses.PROPERTIES:
+        where = f'safehouses/{prop.key}'
+        district = districts.BY_KEY.get(prop.where)
+        rep.check(district is not None, where,
+                  f'is in {prop.where!r}, which does not exist')
+        if district is not None:
+            # A place to hide in a district with nowhere to hide is a
+            # contradiction the map would notice before the player did.
+            rep.check('safehouse' in district.services, where,
+                      f'{district.name} has no safehouse service')
+        rep.check(prop.price > 0, where, 'is free')
+        rep.check(0 < prop.security < 100, where,
+                  f'security {prop.security} is not a rating')
+        rep.check(bool(prop.blurb) and bool(prop.arrival), where,
+                  'has nothing to say about itself')
+
+    # What you buy is security, so price and security have to move together
+    # or one of the four is simply the right answer.
+    ordered = sorted(safehouses.PROPERTIES, key=lambda p: p.price)
+    ranks = [p.security for p in ordered]
+    rep.check(ranks == sorted(ranks), 'safehouses',
+              f'price and security disagree: {[(p.key, p.price, p.security) for p in ordered]}')
+    rep.check(len(safehouses.PROPERTIES) >= 3, 'safehouses',
+              'too few places for the choice to be one')
+    rep.check(len({p.where for p in safehouses.PROPERTIES})
+              == len(safehouses.PROPERTIES), 'safehouses',
+              'two properties share a district, so one is unreachable')
+
+    # Being unknown has to be free and has to be the best security there is.
+    rep.check(safehouses.raid_chance(0, safehouses.SAFE_BELOW - 1) == 0.0,
+              'safehouses', 'somebody looks even when nobody is interested')
+    rep.check(safehouses.raid_chance(0, 100)
+              > safehouses.raid_chance(90, 100), 'safehouses',
+              'security does not reduce the risk')
+    rep.check(0 < safehouses.raid_chance(0, 100) < 0.5, 'safehouses',
+              'the worst case is either impossible or a certainty')
+    rep.check(safehouses.BURN_AFTER >= 2, 'safehouses',
+              'one visit ends the place, so security buys nothing')
+    rep.check(0 < safehouses.RAID_TAKES <= 1.0, 'safehouses',
+              'a raid takes none of it or more than all of it')
+    rep.check(safehouses.CAPACITY > 0, 'safehouses', 'holds nothing')
+    for label, lines in (('raids', safehouses.RAIDS),):
+        rep.check(len(lines) >= 3, 'safehouses',
+                  f'{label} has {len(lines)} lines and will repeat')
+        for line in lines:
+            rep.check(line.rstrip().endswith('.'), 'safehouses',
+                      'a raid line is not a sentence')
+
+
 def check_bonds(rep: Report) -> None:
     """Rival arcs, per D44. See the bottom of `content/rivals.py`.
 
@@ -2725,7 +2778,7 @@ CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
     check_icons, check_dissonance, check_cyberspace, check_rivals, check_debt,
     check_origins, check_appearance, check_events, check_rice, check_shifts, check_district_mood, check_dead_fields, check_skills, check_factions, check_districts,
-    check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_offers, check_legacy, check_bonds, check_commands,
+    check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_offers, check_legacy, check_bonds, check_safehouses, check_commands,
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_palette_separation, check_markup, check_balance,
 )

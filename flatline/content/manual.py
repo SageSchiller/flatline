@@ -655,7 +655,7 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] a new name costs money, two shifts, and every '
         'relationship you built under the old one. Sometimes that is cheaper '
         'than the bounty. Usually it is not.',
-        see=('triangle', 'factions', 'death'),
+        see=('triangle', 'factions', 'death', 'safehouse'),
         commands=('alias', 'burn', 'rep', 'rest'),
         terms=('wanted', 'police', 'arrest', 'hiding',),
         group='city'),
@@ -934,6 +934,41 @@ TOPICS: tuple[Topic, ...] = (
         commands=('dice', 'cards'),
         covers=('games',),
         terms=('casino', 'betting', 'wager', 'luck'),
+        group='city'),
+    Topic(
+        'safehouse', 'Somewhere of your own',
+        'A place to put things, and a place that can be found.',
+        'You have been resting in safehouses since the first shift and you '
+        'could never have one. [fg]safehouse[/] buys you one, in a district '
+        'that has them, and you get one at a time.\n\n'
+        'It holds things and it holds money. [accent2]Both halves of that are '
+        'the same half[/]: what makes storing anything a decision is that the '
+        'store has an address, and what makes the address matter is that '
+        'enough attention eventually finds it.\n\n'
+        'Money under the boards is the interesting one. Credits on you are '
+        'exposed to a collector, a mugging, and everything else in this city '
+        'that takes cash out of a room. Credits in a floor cavity in the '
+        'Ninth are exposed to exactly one thing, which does not happen often, '
+        'and which takes most of it when it does. Neither is safe. They are '
+        '[ul]differently[/] unsafe.\n\n'
+        '[accent]What you pay for is security, not space.[/] The cheap ones '
+        'hold as much as the expensive ones and are turned over much sooner, '
+        'because the difference between a floor cavity and a bonded container '
+        'is not volume, it is how many people have to be paid before somebody '
+        'looks inside.\n\n'
+        '[warn]Nobody comes looking at all[/] while the faction whose ground '
+        'it is on has no interest in you. Being unknown is the best security '
+        'in this game and it costs nothing, and no amount of money buys a '
+        'substitute for it. Get turned over twice and the place is finished: '
+        'the second visit is somebody establishing that they know where you '
+        'live.\n\n'
+        '[warn]The decision:[/] this is the only thing in the city that makes '
+        'heat physical. Everywhere else, being wanted is a multiplier on a '
+        'roll. Here it is somebody in your room.',
+        see=('heat', 'money', 'city', 'legacy'),
+        commands=('safehouse', 'rest'),
+        covers=('safehouses',),
+        terms=('storage', 'stash', 'hideout', 'home', 'base', 'raid'),
         group='city'),
     Topic(
         'legacy', 'Getting out, and what is left',

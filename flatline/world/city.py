@@ -89,6 +89,10 @@ class City:
     #: Districts you have set foot in. Read by the Courier's passive, and a
     #: reasonable thing for a city to remember about somebody in any case.
     visited: set = field(default_factory=set)
+    #: Somewhere of your own, or empty. `{key, stored: [...], credits: n,
+    #: raids: n}`. See `content/safehouses.py`: it is a place to put things
+    #: and a place that can be found, and those are the same half.
+    safehouse: dict = field(default_factory=dict)
     #: NPC keys whose private counter you have opened. Re-applied after every
     #: restock: a person's cabinet not rotating is the one promise it makes
     #: that a market does not, and `refresh_stock` rebuilds the shelves from
@@ -168,6 +172,8 @@ class City:
             told.extend(fallout_mod.bounty_check(alias, self, rng('events')))
             if debt is not None:
                 told.extend(self._debt_turn(rng, alias, debt, char))
+            if char is not None and alias is not None:
+                told.extend(self._raid_turn(rng, alias, char))
             if char is not None:
                 # Chemistry, one shift of it. Told here rather than by the
                 # command that spent the shift, because a comedown arriving
@@ -181,6 +187,62 @@ class City:
         # Top the board back up rather than replacing it, so a contract the
         # player was saving does not vanish because a shift ticked over.
         told.extend(self.top_up_board(rng, alias, char))
+        return told
+
+    def _raid_turn(self, rng: Rng, alias: Alias, char) -> list[str]:
+        """Whether somebody found the place you keep things.
+
+        This is the only thing in the game that makes heat physical. Attention
+        has always been a multiplier on a danger roll, which is real and
+        entirely abstract; being wanted has never been able to take anything
+        away from you that you could point at.
+        """
+        from ..content import cyberware, drugs, programs, safehouses
+        house = self.safehouse
+        if not house or house.get('burned'):
+            return []
+        prop = safehouses.BY_KEY.get(house.get('key', ''))
+        if prop is None:
+            return []
+        attention = alias.attention(districts.BY_KEY[prop.where].controller)
+        stream = rng('events')
+        if not stream.chance(safehouses.raid_chance(prop.security, attention)):
+            return []
+
+        house['raids'] = int(house.get('raids', 0)) + 1
+        told = [f'[err]{stream.pick(safehouses.RAIDS)}[/]']
+        stored = list(house.get('stored') or [])
+        credits = int(house.get('credits', 0))
+        if not stored and not credits:
+            told.append(f'[dim]{safehouses.EMPTY_RAID}[/]')
+        else:
+            take = max(1, int(len(stored) * safehouses.RAID_TAKES))
+            gone = stream.sample(stored, min(take, len(stored)))
+            for key in gone:
+                stored.remove(key)
+            lost_cash = int(credits * safehouses.RAID_TAKES)
+            house['stored'] = stored
+            house['credits'] = credits - lost_cash
+            names = []
+            for key in gone:
+                for table in (programs.BY_KEY, cyberware.BY_KEY,
+                              drugs.BY_KEY):
+                    if key in table:
+                        names.append(table[key].name)
+                        break
+            if names:
+                told.append(f'[err]Gone: {", ".join(sorted(names))}.[/]')
+            if lost_cash:
+                told.append(f'[err]And {lost_cash:,}c.[/]')
+        if house['raids'] >= safehouses.BURN_AFTER:
+            # "There is nothing left to take" has to be true when it is
+            # printed. Leaving the remainder of the cash in a place nobody can
+            # go back to would strand it somewhere the player can see it and
+            # not reach it, which is worse than losing it.
+            house['burned'] = True
+            house['stored'] = []
+            house['credits'] = 0
+            told.append(f'[err]{safehouses.BURNED}[/]')
         return told
 
     def _ambient(self, rng: Rng) -> list[str]:
@@ -616,6 +678,7 @@ class City:
             'accepted': self.accepted, 'hired': self.hired,
             'visited': sorted(self.visited),
             'counters': sorted(self.counters),
+            'safehouse': dict(self.safehouse),
             'tables': dict(self.tables),
             'next_cid': self.next_cid,
             'stock': {k: [l.to_dict() for l in v] for k, v in self.stock.items()},
@@ -638,6 +701,7 @@ class City:
             hired=d.get('hired', ''),
             visited=set(d.get('visited') or ()),
             counters=set(d.get('counters') or ()),
+            safehouse=dict(d.get('safehouse') or {}),
             tables={k: int(v) for k, v in (d.get('tables') or {}).items()},
             next_cid=int(d.get('next_cid', 1)),
             stock={k: [Listing.from_dict(l) for l in v]

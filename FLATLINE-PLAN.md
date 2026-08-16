@@ -938,6 +938,35 @@ Written per style, so the Hound declaring a feud reads nothing like Ledger
 doing it, and Ledger deciding anything at all is the loudest thing that has
 ever happened to Ledger.
 
+### D45: Heat becomes something somebody can take
+
+You have been resting in safehouses since the first build and could never have
+one. That gap has a specific shape: heat has always been a multiplier on a
+danger roll, which is a real cost and a completely abstract one. Nothing in
+this city could physically take anything away from you for being wanted.
+
+**A safehouse is a place to put things and a place that can be raided, and
+those are the same half.** What makes storing anything a decision is that the
+store has an address, and what makes the address matter is that enough
+attention eventually finds it.
+
+Storing money is the sharp end. Credits on you are exposed to a collector, a
+mugging, and everything else in this city that takes cash out of a room.
+Credits under the boards in the Ninth are exposed to exactly one thing, which
+is rare and takes most of it. Neither is safe; they are *differently* unsafe,
+which is the only kind of choice this project is interested in.
+
+**What you buy is security, not space.** All four hold the same amount. The
+difference between a floor cavity and a bonded container is not volume, it is
+how many people have to be paid before somebody looks inside, and
+`validate.py` checks price and security move together so that none of the four
+is simply the right answer.
+
+**Being unknown is the best security in the game and it is free.** Below a
+floor of faction attention the raid chance is exactly zero, and no amount of
+money buys a substitute. Two visits burns the place, because the second one is
+somebody establishing that they know where you live.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.

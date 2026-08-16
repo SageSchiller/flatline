@@ -2271,6 +2271,228 @@ def cmd_repair(sess, args) -> None:
 
 
 # --------------------------------------------------------------------------
+# somewhere of your own
+# --------------------------------------------------------------------------
+
+
+def _stashable(game) -> dict[str, str]:
+    """Everything you could put in a safehouse, key to what kind it is.
+
+    The loaded deck is deliberately excluded. Storing the program you are
+    carrying and then walking into a network without it is a mistake the game
+    should not be able to help you make silently.
+    """
+    out: dict[str, str] = {}
+    for key in game.char.library:
+        if key in programs.BY_KEY:
+            out[key] = 'program'
+        elif key in cyberware.BY_KEY:
+            out[key] = 'ware'
+    for key in game.char.stash:
+        out[key] = 'drug'
+    return out
+
+
+def _thing_name(key: str) -> str:
+    for table in (programs.BY_KEY, cyberware.BY_KEY, drug_content.BY_KEY):
+        if key in table:
+            return table[key].name
+    return key
+
+
+@command('safehouse', 'Somewhere of your own to keep things.',
+         contexts=('city',), group='city', aliases=('house',),
+         usage='safehouse [buy <key>|stash <thing>|take <thing>|money <n>]',
+         detail='A place to put things and a place that can be found, which '
+                'are the same half. What you pay for is security, not space: '
+                'the cheap ones hold as much and are turned over much sooner. '
+                'Nobody comes looking at all while the faction whose ground '
+                'it is on has no interest in you, so being unknown is the '
+                'best security in this game and it is free.')
+def cmd_safehouse(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    from ..content import safehouses
+    house = game.city.safehouse
+    prop = safehouses.BY_KEY.get(house.get('key', '')) if house else None
+    verb = (args.get(0) or '').lower()
+
+    if verb == 'buy':
+        _safehouse_buy(sess, args)
+        return
+    if prop is None or house.get('burned'):
+        _safehouse_offers(sess)
+        return
+    if verb in ('stash', 'put'):
+        _safehouse_move(sess, args, prop, into=True)
+        return
+    if verb in ('take', 'get'):
+        _safehouse_move(sess, args, prop, into=False)
+        return
+    if verb == 'money':
+        _safehouse_money(sess, args, prop)
+        return
+
+    attention = game.alias.attention(
+        districts.BY_KEY[prop.where].controller)
+    risk = safehouses.raid_chance(prop.security, attention)
+    stored = list(house.get('stored') or [])
+    c.header(prop.name, districts.BY_KEY[prop.where].name)
+    c.say(f'[dim]{prop.blurb}[/]')
+    c.blank()
+    c.kv([
+        ('security', f'{prop.security}/100'),
+        ('their interest in you', f'{int(attention)}'),
+        ('turned over', 'never' if not house.get('raids')
+         else f'{house["raids"]} time'
+              f'{"s" if house["raids"] != 1 else ""}'),
+        ('risk a shift', 'none, nobody is looking' if risk <= 0
+         else f'[warn]{risk * 100:.1f}%[/]'),
+        ('holding', f'{len(stored)}/{safehouses.CAPACITY} things'),
+        ('money in the floor', f'[credit]{int(house.get("credits", 0)):,}c[/]'),
+    ])
+    if stored:
+        c.blank()
+        for key in sorted(stored):
+            c.raw(f'  [fg]{_thing_name(key)}[/]')
+    c.blank()
+    c.say('[dim]`safehouse stash <thing>`, `safehouse take <thing>`, '
+          '`safehouse money <amount>` to put cash in or a negative amount to '
+          'take it out.[/]')
+
+
+def _safehouse_offers(sess) -> None:
+    game, c = sess.require_game(), sess.console
+    from ..content import safehouses
+    burned = game.city.safehouse.get('burned')
+    available = safehouses.here(game.city.where)
+    c.header('Somewhere to keep things',
+             districts.BY_KEY[game.city.where].name)
+    if burned:
+        c.say('[err]The last one is an address in somebody\'s file. You will '
+              'not be going back to it.[/]')
+        c.blank()
+    if not available:
+        somewhere = ', '.join(districts.BY_KEY[p.where].name
+                              for p in safehouses.PROPERTIES)
+        c.say(f'[dim]Nothing here. There is something in {somewhere}.[/]')
+        return
+    for prop in available:
+        c.blank()
+        c.raw(f'[accent]{prop.name}[/]  [credit]{prop.price:,}c[/]  '
+              f'[dim]security {prop.security}[/]')
+        c.say(f'[dim]{prop.blurb}[/]', indent='  ', subsequent='  ')
+    c.blank()
+    c.say(f'[dim]`safehouse buy {available[0].key}`. You get one.[/]')
+
+
+def _safehouse_buy(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    from ..content import safehouses
+    if game.city.safehouse and not game.city.safehouse.get('burned'):
+        raise CommandError('you already have one. Somewhere of your own is '
+                           'somewhere of your own.')
+    key = (args.get(1) or '').lower()
+    prop = safehouses.BY_KEY.get(key)
+    if prop is None:
+        raise CommandError('which one: '
+                           + ', '.join(p.key for p in
+                                       safehouses.here(game.city.where))
+                           or 'nothing is for sale here')
+    if prop.where != game.city.where:
+        raise CommandError(f'{prop.name} is in '
+                           f'{districts.BY_KEY[prop.where].name}.')
+    if game.char.credits < prop.price:
+        raise CommandError(f'{prop.name} is {prop.price:,}c and you have '
+                           f'{game.char.credits:,}c')
+    game.char.credits -= prop.price
+    game.city.safehouse = {'key': prop.key, 'stored': [], 'credits': 0,
+                           'raids': 0}
+    c.blank()
+    c.rule(prop.name)
+    c.say(prop.arrival)
+    c.blank()
+    c.ok(f'{prop.price:,}c. [dim]`safehouse` for what it holds and what the '
+         f'risk is.[/]')
+    _advance(sess, 1)
+
+
+def _safehouse_move(sess, args, prop, into: bool) -> None:
+    game, c = sess.require_game(), sess.console
+    from ..content import safehouses
+    house = game.city.safehouse
+    if prop.where != game.city.where:
+        raise CommandError(f'{prop.name} is in '
+                           f'{districts.BY_KEY[prop.where].name}, and so is '
+                           f'everything in it.')
+    query = args.rest(1).lower()
+    if not query:
+        raise CommandError('stash what?' if into else 'take what?')
+    stored = list(house.get('stored') or [])
+
+    if into:
+        pool = _stashable(game)
+        match = next((k for k in pool
+                      if query in _thing_name(k).lower() or query == k), None)
+        if match is None:
+            raise CommandError(f'you are not carrying anything like '
+                               f'{query!r}. The loaded deck does not count: '
+                               f'take it off first.')
+        if len(stored) >= safehouses.CAPACITY:
+            raise CommandError(f'{prop.name} holds {safehouses.CAPACITY} '
+                               f'things and it is holding them.')
+        kind = pool[match]
+        if kind == 'drug':
+            game.char.stash[match] -= 1
+            if game.char.stash[match] <= 0:
+                del game.char.stash[match]
+        else:
+            game.char.library.remove(match)
+        stored.append(match)
+        house['stored'] = stored
+        c.ok(f'{_thing_name(match)} is in the floor.')
+    else:
+        match = next((k for k in stored
+                      if query in _thing_name(k).lower() or query == k), None)
+        if match is None:
+            raise CommandError(f'there is nothing like {query!r} in there.')
+        stored.remove(match)
+        house['stored'] = stored
+        if match in drug_content.BY_KEY:
+            game.char.stash[match] = game.char.stash.get(match, 0) + 1
+        else:
+            game.char.library.append(match)
+        c.ok(f'{_thing_name(match)} is back in the bag.')
+    sess.autosave()
+
+
+def _safehouse_money(sess, args, prop) -> None:
+    game, c = sess.require_game(), sess.console
+    house = game.city.safehouse
+    if prop.where != game.city.where:
+        raise CommandError(f'the money is in '
+                           f'{districts.BY_KEY[prop.where].name}.')
+    amount = args.int_at(1, 0, 'an amount, or a negative one to take it out')
+    held = int(house.get('credits', 0))
+    if amount > 0:
+        if amount > game.char.credits:
+            raise CommandError(f'you have {game.char.credits:,}c')
+        game.char.credits -= amount
+        house['credits'] = held + amount
+        c.ok(f'{amount:,}c under the boards. '
+             f'[dim]{house["credits"]:,}c in there now.[/]')
+    elif amount < 0:
+        out = min(-amount, held)
+        if not out:
+            raise CommandError('there is nothing in there')
+        house['credits'] = held - out
+        game.char.credits += out
+        c.ok(f'{out:,}c out. [dim]{house["credits"]:,}c left in there.[/]')
+    else:
+        raise CommandError('how much?')
+    sess.autosave()
+
+
+# --------------------------------------------------------------------------
 # games of chance, and one of skill
 # --------------------------------------------------------------------------
 

@@ -3131,6 +3131,109 @@ def test_anim() -> None:
 
 
 
+def test_safehouse() -> None:
+    """Somewhere of your own, and the thing that makes heat physical."""
+    T.section('safehouse')
+    from flatline.content import safehouses
+
+    def owner(key='cavity', credits=40000):
+        game = Game.new(Character.from_origin('gutter', 'keeper'), seed=4242)
+        game.char.credits = credits
+        prop = safehouses.BY_KEY[key]
+        game.city.where = prop.where
+        game.city.visited.add(prop.where)
+        return game, prop
+
+    # You buy one, in the district it is in, and you get one.
+    game, prop = owner()
+    sess, out = play([f'safehouse buy {prop.key}'], game=game)
+    T.eq(game.city.safehouse.get('key'), prop.key, 'buying one gets you one')
+    T.ok(game.char.credits < 40000, 'and it costs')
+    sess, out = play(['safehouse buy noodle'], game=game)
+    T.ok('already have one' in out, 'and you only get one')
+
+    # Elsewhere is elsewhere: the place and everything in it stays put.
+    game.city.where = 'vertical'
+    sess, out = play(['safehouse stash crowbar'], game=game)
+    T.ok('Ninth' in out, 'you cannot reach into it from another district')
+    game.city.where = prop.where
+
+    # Things go in and come back out. Not a crowbar: the gutter ships with
+    # two of them, so removing one would leave one and prove nothing.
+    game.char.library.append('lattice')
+    sess, _ = play(['safehouse stash lattice'], game=game)
+    T.ok('lattice' in (game.city.safehouse.get('stored') or []),
+         'a thing goes in')
+    T.ok('lattice' not in game.char.library, 'and is not also on you')
+    sess, _ = play(['safehouse take lattice'], game=game)
+    T.ok('lattice' in game.char.library, 'and comes back out')
+
+    # The loaded deck is excluded, because storing the program you are
+    # carrying and then walking into a network is a mistake the game should
+    # not help with silently.
+    loaded = list(game.char.deck.loaded)
+    if loaded:
+        sess, out = play([f'safehouse stash {loaded[0]}'], game=game)
+        T.ok(loaded[0] in game.char.deck.loaded,
+             'the loaded deck cannot be stashed by accident')
+
+    # Money goes both ways and never conjures any.
+    before = game.char.credits
+    sess, _ = play(['safehouse money 5000'], game=game)
+    T.eq(game.char.credits, before - 5000, 'money goes in')
+    T.eq(game.city.safehouse['credits'], 5000, 'and is in there')
+    sess, _ = play(['safehouse money -2000'], game=game)
+    T.eq(game.char.credits, before - 3000, 'and comes back out')
+    sess, _ = play(['safehouse money -99999'], game=game)
+    T.eq(game.city.safehouse['credits'], 0, 'taking more than is there empties it')
+    T.eq(game.char.credits, before, 'and returns exactly what went in')
+
+    # -- the raid ---------------------------------------------------------
+    # Nobody looks while nobody is interested. This is the promise that makes
+    # being unknown the best security in the game.
+    game, prop = owner()
+    play([f'safehouse buy {prop.key}'], game=game)
+    game.char.library.append('crowbar')
+    play(['safehouse stash crowbar', 'safehouse money 8000'], game=game)
+    for _ in range(80):
+        game.city.advance(game.rng, game.alias, 1, char=game.char)
+    T.eq(game.city.safehouse.get('raids', 0), 0,
+         'eighty quiet shifts and nobody came')
+    T.eq(game.city.safehouse['credits'], 8000, 'and the money is still there')
+
+    # Wanted enough, and somebody does.
+    game, prop = owner()
+    play([f'safehouse buy {prop.key}'], game=game)
+    for key in ('crowbar', 'sable', 'blink'):
+        game.char.library.append(key)
+        play([f'safehouse stash {key}'], game=game)
+    play(['safehouse money 10000'], game=game)
+    game.alias.add_heat(districts.BY_KEY[prop.where].controller, 100)
+    for _ in range(200):
+        game.alias.add_heat(districts.BY_KEY[prop.where].controller, 4)
+        game.city.advance(game.rng, game.alias, 1, char=game.char)
+        if game.city.safehouse.get('burned'):
+            break
+    house = game.city.safehouse
+    T.ok(house.get('raids', 0) > 0, 'enough attention finds the place')
+    T.ok(house.get('burned'), 'and enough of it ends the place')
+    T.eq(house['credits'], 0, 'a burned place holds nothing')
+    T.eq(house['stored'], [], 'and nothing is stranded in it')
+
+    # Which is checkable directly, too: the curve does what it says.
+    T.eq(safehouses.raid_chance(50, safehouses.SAFE_BELOW - 1), 0.0,
+         'below the floor of interest nobody looks')
+    T.ok(safehouses.raid_chance(20, 100) > safehouses.raid_chance(70, 100),
+         'security is what you are buying')
+    T.ok(safehouses.raid_chance(20, 100) > safehouses.raid_chance(20, 50),
+         'and being wanted is what you are buying it against')
+
+    # It survives a save.
+    again = Game.from_dict(game.to_dict())
+    T.eq(again.city.safehouse, game.city.safehouse,
+         'the place and its contents survive a save')
+
+
 def test_bonds() -> None:
     """Rival arcs: a nemesis or a partner, latched and acting."""
     T.section('bonds')
@@ -4609,7 +4712,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_migration, test_help, test_shell,
+    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_migration, test_help, test_shell,
     test_playthrough, test_ui,
 )
 
