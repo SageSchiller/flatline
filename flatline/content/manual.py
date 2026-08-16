@@ -797,7 +797,7 @@ TOPICS: tuple[Topic, ...] = (
         'what doing only the job pays. It also means touching every node, '
         'which is trace, noise, and residue you did not have to spend. That '
         'temptation is the game asking you a question every single run.',
-        see=('triangle', 'contracts', 'deck', 'vices'),
+        see=('triangle', 'contracts', 'deck', 'vices', 'legacy'),
         commands=('market', 'buy', 'sell', 'debt'),
         terms=('economy', 'income', 'earning', 'broke', 'poor',),
         group='city'),
@@ -932,6 +932,51 @@ TOPICS: tuple[Topic, ...] = (
         terms=('casino', 'betting', 'wager', 'luck'),
         group='city'),
     Topic(
+        'legacy', 'Getting out, and what is left',
+        'The two endings, and the one thing each of them leaves behind.',
+        'This game has been called Flatline since the first day and the '
+        'flatline ended into a scoreboard. It remembers factions, districts, '
+        'postures and the evidence you left on a node three weeks ago, and it '
+        'forgot [ul]you[/] the moment you stopped breathing. There were also '
+        'only two exits, and one of them was closing the terminal.\n\n'
+        '[accent2]There is a door.[/] [fg]retire[/] wants four things, and '
+        'every one of them is something the city has spent your whole career '
+        'making harder:\n\n'
+        '  nothing owed to anybody\n'
+        '  nothing in you that you need\n'
+        '  nobody paying for your name\n'
+        '  enough put away, which is a lot\n\n'
+        'None is hard on its own. All four at once is the campaign. Type '
+        '[fg]retire[/] any time to see how far off you are.\n\n'
+        'Dissonance does not gate it. Somebody four fifths machine can walk '
+        'out of this business, and what they walk out into is a different '
+        'ending, which is a better answer than a refusal. There are four, and '
+        'the drift you carry decides which one you get.\n\n'
+        '[accent2]Whichever way you go, you leave exactly one thing[/], and '
+        'it reaches whoever you make next. A retirement leaves what somebody '
+        'chose to leave: a share of the stake, or a name that still opens one '
+        'door. A flatline leaves what could not be stopped from being taken '
+        'and what could not be forgiven: a piece of you on a shelf in the '
+        'Shambles, a program still in circulation with your handle in the '
+        'header, or [warn]a debt somebody fully expects the next person to '
+        'honour[/].\n\n'
+        'You do not choose which. An inheritance you picked would be a '
+        'difficulty setting with prose on it; one that turns up on your '
+        'second day is the city having an opinion about how you went. And '
+        'afterwards it talks about you, occasionally, to somebody who never '
+        'met you and is standing where you used to stand.\n\n'
+        '[warn]The decision:[/] the door has been open since your first '
+        'shift. Every loan, every habit and every bounty is a thing you put '
+        'between yourself and it, usually for a good reason at the time. '
+        'Knowing when to stop taking those reasons is the only long game this '
+        'city has.',
+        see=('death', 'vices', 'chrome', 'money'),
+        commands=('retire', 'career'),
+        covers=('legacy',),
+        terms=('quit the game', 'successor', 'endgame', 'winning',
+               'estate', 'bequest', 'heir'),
+        group='city'),
+    Topic(
         'death', 'How it goes wrong',
         'The failure ladder, and the one rung that is final.',
         'Failing is not losing. In order of how much it hurts:\n\n'
@@ -953,7 +998,7 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] because failure is survivable, the correct '
         'play is often to attempt things you will probably lose. A burned run '
         'costs a night. Not trying costs the campaign.',
-        see=('ice', 'heat', 'triangle'),
+        see=('ice', 'heat', 'triangle', 'legacy'),
         commands=('status', 'jack out'),
         terms=('dying', 'killed', 'permadeath',),
         group='city'),

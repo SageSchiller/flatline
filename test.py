@@ -3131,6 +3131,174 @@ def test_anim() -> None:
 
 
 
+def test_legacy() -> None:
+    """Getting out on purpose, and what reaches the next one either way."""
+    T.section('legacy')
+    from flatline.content import drugs, legacy
+    from flatline import save as save_mod
+
+    def ready(**over):
+        game = Game.new(Character.from_origin('gutter', 'Vesper'), seed=4242)
+        game.char.credits = legacy.STAKE + 5000
+        game.char.runs = 20
+        game.earned = 120000
+        for key, value in over.items():
+            setattr(game.char, key, value)
+        return game
+
+    # -- the gates ---------------------------------------------------------
+    # Each one, alone, is enough to stop you, and says which one it is.
+    blockers = {
+        'stake': lambda g: setattr(g.char, 'credits', 100),
+        'debt': lambda g: (setattr(g.debt, 'amount', 4000),
+                           setattr(g.debt, 'lender', 'sixes')),
+        'clean': lambda g: setattr(
+            g.char, 'chem',
+            {'up': {}, 'down': {}, 'habit': {'kick': drugs.WITHDRAWAL_AT},
+             'dry': {}}),
+        'quiet': lambda g: g.city.bounties.update({'sixes': 5000}),
+    }
+    for key, block in blockers.items():
+        game = ready()
+        block(game)
+        sess, out = play(['retire --confirm'], game=game)
+        T.ok(game.over != 'retired', f'{key} alone stops a retirement')
+        want = next(w for k, w, _ in legacy.GATES if k == key)
+        T.ok(want in out, f'and the sheet says it was {key}')
+
+    # All four, and it happens.
+    game = ready()
+    sess, out = play(['retire --confirm'], game=game)
+    T.eq(game.over, 'retired', 'all four gates clear retires the character')
+    T.ok('handle' in out and 'Vesper' in out, 'and it reports who left')
+
+    # With nothing to do it is a progress sheet, which is how anybody finds
+    # out this is a goal at all.
+    game = ready()
+    game.char.credits = 10
+    sess, out = play(['retire'], game=game)
+    T.ok(game.over != 'retired', 'the bare form does not retire you')
+    for _, want, _ in legacy.GATES:
+        T.ok(want in out, f'the sheet lists {want!r}')
+
+    # -- endings -----------------------------------------------------------
+    # Drift never refuses one, at any value, including silly ones.
+    seen = set()
+    for level in range(0, 130, 3):
+        title, text = legacy.ending(level)
+        T.ok(bool(title and text), f'drift {level} has an ending')
+        seen.add(title)
+    T.eq(len(seen), len(legacy.ENDINGS),
+         'every ending is reachable by some amount of drift')
+    T.ok(legacy.ending(0)[0] != legacy.ending(99)[0],
+         'and a machine does not get the same ending as a person')
+
+    # -- what is left ------------------------------------------------------
+    # A retirement and a flatline leave different kinds of thing.
+    for how in ('retired', 'flatlined'):
+        kinds = {b.key for b in legacy.candidates(how)}
+        T.ok(kinds, f'{how} leaves something')
+        other = {b.key for b in legacy.candidates(
+            'flatlined' if how == 'retired' else 'retired')}
+        T.ok(not (kinds & other), f'{how} leaves its own kinds of thing')
+
+    # Retiring leaves an estate, and only one.
+    save_mod.write_meta(dict(save_mod.META_DEFAULT))
+    game = ready()
+    play(['retire --confirm'], game=game)
+    estate = save_mod.read_meta().get('estate') or {}
+    T.ok(estate.get('bequest'), 'retiring leaves something behind')
+    T.eq(estate.get('handle'), 'Vesper', 'in the name of whoever left it')
+    T.eq(estate.get('how'), 'retired', 'and remembers how they went')
+    T.ok(estate['bequest'] in {b.key for b in legacy.candidates('retired')},
+         'and it is a thing a retirement can leave')
+
+    # The next character claims it, once.
+    sess = Session(console=quiet_console(), slot='legacytest')
+    sess.console.start_capture()
+    sess.execute('new Ash --origin gutter --seed 9')
+    said = sess.console.end_capture()
+    T.ok('Vesper' in said, 'and the next character is told whose it was')
+    T.eq(save_mod.read_meta().get('estate'), {},
+         'and it is claimed exactly once')
+    sess2 = Session(console=quiet_console(), slot='legacytest')
+    sess2.console.start_capture()
+    sess2.execute('new Third --origin gutter --seed 9')
+    again = sess2.console.end_capture()
+    T.ok('Vesper' not in again, 'a third character inherits nothing')
+
+    # Every bequest actually grants something when it lands.
+    for bequest in legacy.BEQUESTS:
+        save_mod.write_meta(dict(save_mod.META_DEFAULT))
+        detail = {'stake': {'amount': 9000},
+                  'name': {'faction': 'sixes'},
+                  'chrome': {'ware': 'corp_neural_shunt'},
+                  'program': {'program': 'crowbar'},
+                  'debt': {'amount': 3000, 'lender': 'carrion'}}[bequest.key]
+        save_mod.leave_estate(bequest.key, 'Halloway', bequest.after, **detail)
+        s = Session(console=quiet_console(), slot='legacytest')
+        s.console.start_capture()
+        s.execute('new Heir --origin gutter --seed 11')
+        s.console.end_capture()
+        char = s.game.char
+        got = {
+            'stake': char.credits > Character.from_origin('gutter', 'x').credits,
+            'name': s.game.alias.reputation('sixes') >= legacy.NAME_STANDING,
+            'chrome': 'corp_neural_shunt' in char.library,
+            'program': 'crowbar' in char.library,
+            'debt': s.game.debt.owed,
+        }[bequest.key]
+        T.ok(got, f'{bequest.key} actually reaches the next character')
+
+    # The Ghost starts with no history, and two of the five bequests are
+    # exactly that. Handing one over would cancel an origin's defining line.
+    for key, detail in (('name', {'faction': 'sixes'}),
+                        ('debt', {'amount': 3000, 'lender': 'carrion'})):
+        save_mod.write_meta(dict(save_mod.META_DEFAULT))
+        save_mod.leave_estate(key, 'Halloway', 'retired' if key == 'name'
+                              else 'flatlined', **detail)
+        s = Session(console=quiet_console(), slot='legacytest')
+        s.console.start_capture()
+        s.execute('new Nobody --origin ghost --seed 11')
+        s.console.end_capture()
+        T.ok(not s.game.debt.owed, f'a Ghost inherits no {key}')
+        T.ok(s.game.alias.reputation('sixes') < legacy.NAME_STANDING,
+             f'a Ghost inherits no {key} standing')
+
+    # A flatline leaves one too. That is the whole point of the feature: the
+    # game is named after this moment and it ended into a scoreboard.
+    save_mod.write_meta(dict(save_mod.META_DEFAULT))
+    game = Game.new(Character.from_origin('gutter', 'Doomed'), seed=8829)
+    game.char.credits = 9000
+    game.debt.amount, game.debt.lender = 6000, 'carrion'
+    sess = Session(console=quiet_console(), slot='legacytest')
+    sess.game = game
+    contract = game.city.board[0]
+    game.city.accepted = contract.cid
+    contract.taken = True
+    sess.run = RunState.begin(
+        net_mod.generate(Rng(2).fork('network', contract.cid), contract.target,
+                         int(contract.posture), contract.objective),
+        game.char, Rng(2)('combat'), sess.console,
+        contract=contract.to_dict())
+    sess.run.finish('flatline')
+    sess.console.start_capture()
+    from flatline.commands.run import _resolve
+    _resolve(sess)
+    sess.console.end_capture()
+    T.eq(game.over, 'flatlined', 'a flatline ends the character')
+    estate = save_mod.read_meta().get('estate') or {}
+    T.ok(estate.get('bequest'), 'and leaves something anyway')
+    T.eq(estate.get('how'), 'flatlined', 'marked as the way it happened')
+
+    # And the city says the name afterwards, to somebody who never met them.
+    T.ok(any(g['handle'] == 'Doomed' for g in save_mod.the_departed()),
+         'the departed are remembered by name')
+    for line in legacy.REMEMBERED:
+        T.ok('{handle}' in line, 'every remembered line names somebody')
+    save_mod.write_meta(dict(save_mod.META_DEFAULT))
+
+
 def test_offers() -> None:
     """Work, goods and favours: the three things a person does for you."""
     T.section('offers')
@@ -4360,7 +4528,7 @@ def test_migration() -> None:
 SUITES = (
     test_determinism, test_saves, test_character, test_checks,
     test_networks, test_run_mechanics, test_city, test_rivals,
-    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_migration, test_help, test_shell,
+    test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_migration, test_help, test_shell,
     test_playthrough, test_ui,
 )
 

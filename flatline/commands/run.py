@@ -312,6 +312,10 @@ def _resolve(sess) -> None:
         # Everything else this character had is gone. The shell is not theirs
         # and never was, and this is the one moment where saying so out loud
         # is the point rather than an interruption.
+        # The game is named after this moment and it has always ended into a
+        # scoreboard. Something of them reaches whoever gets made next.
+        from .core import _bequeath
+        _bequeath(sess, 'flatlined')
         sess.record_progress()
         sess.autosave()
         return

@@ -101,6 +101,7 @@ def cmd_new(sess, args) -> None:
                        f'{char.xp} experience')])
     from .. import save as save_mod
     save_mod.bump_meta(characters_created=1)
+    _inherit(sess)
     sess.record_progress()
 
     c.blank()
@@ -109,6 +110,81 @@ def cmd_new(sess, args) -> None:
           'this is, and `self` to decide what they look like, which is a '
           'real decision here and not a portrait. `board` when you are ready '
           'to work.[/]')
+
+
+def _inherit(sess) -> None:
+    """Take whatever the last character left, if anything is waiting.
+
+    Arrives during creation rather than being offered at it. An inheritance
+    you picked from a list is a difficulty setting with prose attached; one
+    that turns up on your second day is the city having an opinion about
+    somebody who is no longer in it.
+    """
+    from ..content import legacy
+    from .. import save as save_mod
+
+    game, c = sess.game, sess.console
+    estate = save_mod.claim_estate()
+    bequest = legacy.BY_KEY.get(estate.get('bequest', ''))
+    if bequest is None:
+        return
+    handle = estate.get('handle') or 'somebody'
+
+    # The Ghost's whole complication is starting with no history: no name
+    # anybody knows and nothing owed. Two of the five bequests are exactly
+    # those things, and handing one over would be the inheritance quietly
+    # cancelling an origin's defining line.
+    if 'no_history' in game.char.riders() and bequest.key in ('name', 'debt'):
+        c.blank()
+        c.say(f'[dim]There was something waiting, left by {handle}. It was a '
+              f'name, or a number attached to one, and either way it needed '
+              f'somebody the city could find. Nobody came to collect it and '
+              f'nobody will.[/]')
+        return
+
+    told = ''
+    if bequest.key == 'stake':
+        amount = int(estate.get('amount') or 0)
+        game.char.credits += amount
+        told = f'[credit]{amount:,}c[/], from an account that no longer exists.'
+    elif bequest.key == 'name':
+        faction = estate.get('faction') or 'fixers'
+        if faction in factions.BY_KEY:
+            current = game.alias.reputation(faction)
+            if current < legacy.NAME_STANDING:
+                game.alias.adjust_rep(faction, legacy.NAME_STANDING - current)
+            told = (f'{factions.BY_KEY[faction].short} will take your call, '
+                    f'and neither of you will mention why.')
+    elif bequest.key == 'chrome':
+        ware = estate.get('ware')
+        if ware in cyberware.BY_KEY:
+            game.char.library.append(ware)
+            told = (f'{cyberware.BY_KEY[ware].name}, in the bag, not in you. '
+                    f'`install` it at a clinic when you have decided.')
+    elif bequest.key == 'program':
+        key = estate.get('program')
+        if key in programs.BY_KEY:
+            game.char.library.append(key)
+            told = f'{programs.BY_KEY[key].name}, and it still runs.'
+    elif bequest.key == 'debt':
+        amount = int(estate.get('amount') or 0)
+        lender = estate.get('lender') or 'carrion'
+        if amount > 0 and lender in factions.BY_KEY:
+            game.debt = debt_mod.Debt(
+                amount=amount, lender=lender, opened=game.city.shift,
+                note=f'inherited from {handle}')
+            told = (f'[err]{amount:,}c[/] to '
+                    f'{factions.BY_KEY[lender].short}, which was not yours '
+                    f'and is now.')
+    if not told:
+        return
+
+    c.blank()
+    c.rule(f'what {handle} left', role='accent2')
+    for para in bequest.text.split('\n\n'):
+        c.say(para)
+        c.blank()
+    c.say(told)
 
 
 # --------------------------------------------------------------------------

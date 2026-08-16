@@ -1615,6 +1615,89 @@ def check_games(rep: Report) -> None:
               'the floor below which a table refuses you is not a probability')
 
 
+def check_legacy(rep: Report) -> None:
+    """Getting out, and what is left of you, per D43.
+
+    Two rules carry this file. Every gate `retire` names has to be a gate the
+    command implements, and every bequest has to be something the creation
+    path can actually hand over: a legacy that promises a thing nobody grants
+    is this project's oldest failure wearing the game's most emotional scene.
+    """
+    from flatline.content import cyberware as cw, drugs, legacy
+
+    for key, want, missing in legacy.GATES:
+        where = f'legacy/{key}'
+        rep.check(f"'{key}':" in _engine_source(), where,
+                  f'gate {key!r} is checked by nothing')
+        rep.check(bool(want) and want == want.lower().lstrip(), where,
+                  'the gate is not a lowercase phrase')
+        rep.check(bool(missing) and missing.rstrip().endswith('.'), where,
+                  'has no sentence for not having got there')
+    rep.check(len({k for k, _, _ in legacy.GATES}) == len(legacy.GATES),
+              'legacy', 'two gates share a key')
+
+    # The stake has to be a real target: reachable, and not reachable by
+    # accident. Priced against what the board pays.
+    from flatline.world import contracts as contract_mod
+    top = 900 + 75 * 34
+    rep.check(legacy.STAKE > top * 5, 'legacy',
+              f'the stake is {legacy.STAKE:,}c, which is a few good contracts '
+              f'rather than a career')
+    rep.check(legacy.STAKE < top * 40, 'legacy',
+              'the stake is so high that retiring is theoretical')
+
+    # Every drift band has an ending, and the drift never refuses one.
+    bands = [b for b, _, _ in legacy.ENDINGS]
+    rep.check(bands == sorted(bands), 'legacy', 'endings are out of order')
+    rep.check(bands[0] == 0, 'legacy', 'somebody at zero drift has no ending')
+    declared = [b for b, _, _ in cw.DISSONANCE_BANDS]
+    rep.check(bands == declared, 'legacy',
+              f'endings sit on {bands} and the drift bands are {declared}')
+    for band, title, text in legacy.ENDINGS:
+        where = f'legacy/ending/{band}'
+        rep.check(bool(title) and bool(text), where, 'is empty')
+        rep.check(len(text) > 120, where, 'is too short to be an ending')
+    for level in (0, 24, 25, 49, 50, 74, 75, 200):
+        title, text = legacy.ending(level)
+        rep.check(bool(title) and bool(text), 'legacy',
+                  f'drift {level} produces no ending')
+
+    # Bequests. Both halves: a kind of ending must have something to leave,
+    # and everything leavable must be granted by the creation path.
+    for how in ('retired', 'flatlined'):
+        rep.check(bool(legacy.candidates(how)), 'legacy',
+                  f'{how} leaves nothing behind')
+    for bequest in legacy.BEQUESTS:
+        where = f'legacy/{bequest.key}'
+        rep.check(bequest.after in ('retired', 'flatlined'), where,
+                  f'follows {bequest.after!r}, which is not an ending')
+        rep.check(bool(bequest.summary) and bequest.summary.endswith('.'),
+                  where, 'summary is not a sentence')
+        rep.check(len(bequest.text) > 150, where,
+                  'the scene is too short to land')
+        rep.check(f"bequest.key == '{bequest.key}'" in _engine_source()
+                  or f"picked.key == '{bequest.key}'" in _engine_source(),
+                  where, f'nothing grants {bequest.key!r} to the next '
+                         f'character')
+    rep.check(0 < legacy.STAKE_SHARE < 0.5, 'legacy',
+              'a retirement leaves so much that the next character skips the '
+              'early game')
+    rep.check(0 < legacy.DEBT_SHARE <= 1.0, 'legacy',
+              'an inherited debt is not a fraction of the original')
+    rep.check(legacy.NAME_STANDING > 0, 'legacy',
+              'a remembered name is worth nothing')
+
+    # The city has to have words for somebody who is gone, and they have to
+    # be about a handle rather than about a person the player can meet.
+    rep.check(len(legacy.REMEMBERED) >= 4, 'legacy',
+              'too few ways to mention the departed; it will repeat')
+    for line in legacy.REMEMBERED:
+        rep.check('{handle}' in line, 'legacy',
+                  f'a remembered line names nobody: {line[:40]}...')
+        rep.check(line.rstrip().endswith('.'), 'legacy',
+                  'a remembered line is not a sentence')
+
+
 def check_offers(rep: Report) -> None:
     """What people do for you, per D42. See `content/offers.py`.
 
@@ -2583,7 +2666,7 @@ CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
     check_icons, check_dissonance, check_cyberspace, check_rivals, check_debt,
     check_origins, check_appearance, check_events, check_rice, check_shifts, check_district_mood, check_dead_fields, check_skills, check_factions, check_districts,
-    check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_offers, check_commands,
+    check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_offers, check_legacy, check_commands,
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_palette_separation, check_markup, check_balance,
 )

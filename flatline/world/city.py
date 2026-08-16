@@ -40,6 +40,11 @@ RESIDUE_DELAY = 1
 #: How much of the world's news is kept. A scrollback rather than a record.
 NEWS_KEPT = 40
 
+#: How often an ambient beat is about somebody who used to do this instead of
+#: about the city. Low: the departed are a ghost story the city tells
+#: occasionally, and a city that talks about nobody else would be a memorial.
+REMEMBERED_CHANCE = 0.06
+
 
 def _shifts(n: int) -> str:
     """A shift count, in the words the rest of the game uses for time."""
@@ -191,12 +196,39 @@ class City:
         # travelogue nobody asked for.
         if self.ambient:
             return []
-        event = event_content.pick(rng('events'), self.where, self.phase,
+        stream = rng('events')
+        # Occasionally, somebody who used to do this. The city remembering you
+        # is the thesis of the whole project and it forgot every character the
+        # moment they stopped breathing, so this is where a later runner walks
+        # into the last one.
+        remembered = self._remembered(stream)
+        if remembered:
+            return [f'[dim]{remembered}[/]']
+        event = event_content.pick(stream, self.where, self.phase,
                                    self.events_seen)
         if event is None:
             return []
         self.events_seen.add(event.key)
         return [f'[dim]{event.text}[/]']
+
+    def _remembered(self, stream) -> str:
+        """Somebody who is gone, mentioned by somebody who is not."""
+        from .. import save as save_mod
+        from ..content import legacy
+        if not stream.chance(REMEMBERED_CHANCE):
+            return ''
+        # Not somebody a living rival is also called. `Vesper Okonkwo` is a
+        # runner in this city, and a player who names a character Vesper would
+        # otherwise get scenes about the departed that read as being about
+        # somebody currently taking work off their board.
+        living = {r.data.name.lower() for r in self.rivals if r.alive}
+        gone = [g['handle'] for g in save_mod.the_departed()
+                if g.get('handle')
+                and not any(g['handle'].lower() in name for name in living)]
+        if not gone:
+            return ''
+        return stream.pick(legacy.REMEMBERED).format(
+            handle=stream.pick(gone))
 
     def _decay_posture(self) -> None:
         """Posture drifts back toward baseline. Slowly: a robbed corporation

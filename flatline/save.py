@@ -270,7 +270,19 @@ META_DEFAULT = {
     'unlocked': [],
     #: What the shell currently looks like. See `content/rice.py`.
     'shell': {},
+    #: The one thing the last character left, waiting for the next one to be
+    #: made. See `content/legacy.py`. Cleared when it is claimed, so an
+    #: inheritance arrives once and belongs to whoever was next.
+    'estate': {},
+    #: Handles of everybody who has ended here, and how. The city remembering
+    #: you is the game's whole thesis, and it forgot every character the
+    #: moment they stopped breathing; this is what a later runner runs into.
+    'gone': [],
 }
+
+#: How many of the departed the city keeps talking about. A scrollback rather
+#: than a graveyard: forty handles is a list, six is a reputation.
+GONE_KEPT = 6
 
 
 def high_water(**values) -> dict:
@@ -309,6 +321,41 @@ def read_meta() -> dict:
 
 def write_meta(data: dict) -> None:
     _write_atomic(meta_path(), data)
+
+
+def leave_estate(bequest: str, handle: str, how: str, **detail) -> dict:
+    """Record what a character left behind, for whoever is made next.
+
+    One estate at a time on purpose. Two characters in a row going badly
+    should not stack two inheritances onto the third; what is waiting is what
+    the *last* person left, which is also how it works when it happens to
+    people.
+    """
+    meta = read_meta()
+    meta['estate'] = {'bequest': bequest, 'handle': handle, 'how': how,
+                      **detail}
+    gone = [g for g in (meta.get('gone') or []) if g.get('handle') != handle]
+    gone.append({'handle': handle, 'how': how})
+    meta['gone'] = gone[-GONE_KEPT:]
+    write_meta(meta)
+    return meta
+
+
+def claim_estate() -> dict:
+    """Take whatever is waiting, and clear it. Empty when there is nothing."""
+    meta = read_meta()
+    estate = dict(meta.get('estate') or {})
+    if estate:
+        meta['estate'] = {}
+        write_meta(meta)
+    return estate
+
+
+def the_departed() -> list[dict]:
+    """Everybody who has ended here, most recent last."""
+    meta = read_meta()
+    return [g for g in (meta.get('gone') or [])
+            if isinstance(g, dict) and g.get('handle')]
 
 
 def bump_meta(**deltas) -> dict:

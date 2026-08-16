@@ -11,6 +11,7 @@ import pathlib
 
 from .. import save as save_mod
 from ..config import APP_TITLE
+from ..content import factions as fac_content
 from ..content import manual, tutorial
 from ..content import skills as skill_content
 from .. import script as script_mod
@@ -381,6 +382,141 @@ def _help_search(sess, word: str) -> None:
                      in found[:SEARCH_LIMIT]])
         if len(found) > SEARCH_LIMIT:
             c.say(f'[dim]  ...and {len(found) - SEARCH_LIMIT} more.[/]')
+
+
+def fac_short(key: str) -> str:
+    faction = fac_content.BY_KEY.get(key)
+    return faction.short if faction else key or 'somebody'
+
+
+@command('retire', 'Stop. Properly, on purpose, while you still can.',
+         group='session', contexts=('city',), usage='retire [--confirm]',
+         detail='The only exit that is not black ICE or closing the terminal. '
+                'It wants four things, all of them things the city has spent '
+                'your whole career making harder: nothing owed, nothing in '
+                'you that you need, nobody paying for your name, and enough '
+                'put away. With no argument it prints how far off you are, '
+                'which is the only way anybody finds out this is a goal. What '
+                'you leave behind reaches whoever you make next.')
+def cmd_retire(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    char = game.char
+    from ..content import drugs, legacy
+    from .. import save as save_mod
+
+    owed = game.debt.amount if game.debt.owed else 0
+    lender = (fac_short(game.debt.lender) if game.debt.owed else '')
+    habit = drugs.normalise(char.chem)['habit']
+    worst = max(habit.values(), default=0)
+    bounty = max(game.city.bounties.values(), default=0)
+    state = {
+        'stake': char.credits >= legacy.STAKE,
+        'debt': not owed,
+        'clean': worst < drugs.WITHDRAWAL_AT,
+        'quiet': bounty <= 0,
+    }
+    fill = {'credits': char.credits, 'stake': legacy.STAKE, 'owed': owed,
+            'lender': lender or 'anybody'}
+
+    if not args.has('confirm') or not all(state.values()):
+        c.header('Getting out', f'{sum(state.values())} of {len(state)}')
+        for key, want, missing in legacy.GATES:
+            done = state[key]
+            c.raw(f'  [{"ok" if done else "err"}]'
+                  f'{c.caps.g("check") if done else c.caps.g("cross")}[/] '
+                  f'[{"dim" if done else "fg"}]{want}[/]')
+            if not done:
+                c.say(f'[dim]{missing.format(**fill)}[/]', indent='    ',
+                      subsequent='    ')
+        c.blank()
+        if all(state.values()):
+            c.say('[accent2]All four. You can stop.[/] [dim]`retire '
+                  '--confirm`, and it is not reversible, and it is not '
+                  'supposed to be.[/]')
+        else:
+            c.say('[dim]None of these is hard on its own. All four at once is '
+                  'the campaign, which is the point: the door has been there '
+                  'since the first shift.[/]')
+        return
+
+    title, text = legacy.ending(char.dissonance)
+    c.blank()
+    c.rule('out', role='accent2')
+    c.say(legacy.LEAVING)
+    c.blank()
+    c.rule(title, role='accent')
+    for para in text.split('\n\n'):
+        c.say(para)
+        c.blank()
+
+    c.kv([('handle', char.handle),
+          ('runs', str(char.runs)),
+          ('earned', f'[credit]{game.earned:,}c[/]'),
+          ('walked away with', f'[credit]{char.credits:,}c[/]'),
+          ('drift', f'{char.dissonance} ({char.dissonance_band[1]})')])
+
+    game.over = 'retired'
+    _bequeath(sess, 'retired')
+    sess.record_progress()
+    save_mod.bump_meta(retirements=1)
+    sess.autosave()
+    c.blank()
+    c.say('[dim]`new` when you want to be somebody else. Something of this '
+          'one will find them.[/]')
+
+
+def _bequeath(sess, how: str) -> None:
+    """Leave exactly one thing to whoever gets made next.
+
+    Not chosen by the player. An inheritance you picked is a difficulty
+    setting with prose on it; an inheritance that arrives is the city having
+    an opinion about how you went.
+    """
+    from ..content import legacy
+    from .. import save as save_mod
+
+    game, c = sess.game, sess.console
+    char = game.char
+    stream = game.rng('events')
+    options = legacy.candidates(how)
+    # Filtered to the ones this particular character can actually leave. A
+    # chrome bequest from somebody who was never chromed is the game inventing
+    # a life they did not have.
+    viable = []
+    for bequest in options:
+        if bequest.key == 'stake' and char.credits < 1000:
+            continue
+        if bequest.key == 'chrome' and not char.installed:
+            continue
+        if bequest.key == 'program' and not char.library \
+                and not char.deck.loaded:
+            continue
+        if bequest.key == 'debt' and not game.debt.owed:
+            continue
+        viable.append(bequest)
+    if not viable:
+        return
+    picked = stream.pick(viable)
+
+    detail: dict = {}
+    if picked.key == 'stake':
+        detail['amount'] = int(char.credits * legacy.STAKE_SHARE)
+    elif picked.key == 'name':
+        best = max(fac_content.FACTION_KEYS,
+                   key=lambda k: game.alias.reputation(k))
+        detail['faction'] = best
+    elif picked.key == 'chrome':
+        detail['ware'] = stream.pick(char.installed)
+    elif picked.key == 'program':
+        pool = list(char.library) + list(char.deck.loaded)
+        detail['program'] = stream.pick(pool)
+    elif picked.key == 'debt':
+        detail['amount'] = int(game.debt.amount * legacy.DEBT_SHARE)
+        detail['lender'] = game.debt.lender
+
+    save_mod.leave_estate(picked.key, char.handle, how, **detail)
+    c.blank()
+    c.say(f'[dim]{picked.summary}[/]')
 
 
 @command('quit', 'Leave. Saves first unless you say otherwise.',

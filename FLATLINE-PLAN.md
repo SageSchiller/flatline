@@ -862,6 +862,54 @@ market does not was false the first time six shifts passed. And dropping
 somebody's job could push the tab past its own ceiling, which made the screen
 that says "as deep as they will let you get" a lie.
 
+### D43: There is a door, and something goes through it
+
+Two problems, one answer. This game has been called Flatline since the first
+day and the flatline ended into a scoreboard; and the only two exits were
+black ICE and closing the terminal.
+
+**`retire` is the way out you choose.** It wants four things, and every one is
+something the city has spent the whole campaign making harder: nothing owed,
+nothing in you that you need, nobody paying for your name, and enough put
+away. None is hard alone and all four at once is the game. Typed bare it
+prints how far off you are, which is the only way anybody discovers this is a
+goal.
+
+That is the long arc the game did not have. A thirty-run character had money,
+skills, chrome and *more contracts*. Now they have a door, and every loan,
+every point of habit and every bounty is a thing they put between themselves
+and it, usually for a good reason at the time.
+
+**Dissonance does not gate it.** Somebody four fifths machine can leave this
+business, and what they leave into is a different ending. Refusing them would
+be the game saying their arc has no ending when what it has is another one.
+Four endings, keyed to the same bands as the drift.
+
+**Whichever way you go, you leave one thing.** A retirement leaves a share of
+the stake or a name that still opens a door. A flatline leaves what gets taken
+and what cannot be forgiven: chrome back on a Shambles shelf, a program in
+circulation with your handle in the header, or a debt Carrion fully expect the
+next person to honour.
+
+One, and not chosen. An inheritance you picked would be a difficulty setting
+with prose on it; one that arrives on your second day is the city having an
+opinion about how you went. It is claimed exactly once, by whoever is made
+next, during creation rather than at it.
+
+**And afterwards the city says your name.** Occasionally, at about one ambient
+beat in twenty, to somebody who never met you and is standing where you used
+to stand. That is the thesis finally holding: this game remembers factions,
+districts, postures and evidence left on a node three weeks ago, and it forgot
+the player character completely.
+
+Two details worth keeping. The Ghost's complication is starting with no
+history, so a Ghost inherits neither a name nor a debt, and is told that
+something was waiting and that nobody came for it: an inheritance must not
+quietly cancel an origin's defining line. And a departed handle that collides
+with a living rival's name is skipped, because `Vesper Okonkwo` runs in this
+city and a player who names a character Vesper would otherwise get ghost
+stories about somebody currently taking work off their board.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
