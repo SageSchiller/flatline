@@ -4,7 +4,7 @@ tags:
   - project-plan
   - game
 created: 2026-08-12
-updated: 2026-08-13
+updated: 2026-08-18
 ---
 
 # flatline: Build Plan and Progress Log
@@ -12,7 +12,7 @@ updated: 2026-08-13
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-13.** **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **5832 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 24,300 lines.
+> **State as of 2026-08-18** (systems work through 2026-08-15; this is a docs-cleanup refresh). **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **12,932 checks**, all seven soak scripts clean, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 29,900 lines. The last substantial passes were 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug that had silently frozen two factions' heat since heat was written, and **D49** made each character addressable by their own handle (with `characters` / `switch` / `delete`) and stopped `new --force` from destroying the loaded character.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
