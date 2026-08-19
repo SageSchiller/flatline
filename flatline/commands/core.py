@@ -1024,8 +1024,14 @@ def cmd_tutorial(sess, args) -> None:
         c.blank()
         c.rule('tutorial', role='accent2')
         c.say(tutorial.OPENING)
+        before = sess.tutorial_step
         sess.tutorial_advance()
-        if sess.tutorial_step >= 0:
+        # advance() shows whatever step it lands on, so showing here as well
+        # would print the same instruction twice for anybody who already
+        # satisfied a step before asking: the common case, since having a
+        # character at all completes the first one. Only print when there was
+        # nothing to advance past.
+        if sess.tutorial_step == before:
             sess.tutorial_show()
         return
 

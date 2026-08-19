@@ -1502,8 +1502,9 @@ def test_traits_and_spread() -> None:
 
 
 def test_regressions() -> None:
-    """Three bugs found by audit on 2026-08-13. None had a test; all three
-    were reachable in ordinary play."""
+    """Three bugs found by audit on 2026-08-13, and a fourth in the tutorial
+    on 2026-08-18. None had a test; all of them were reachable in ordinary
+    play."""
     T.section('regressions')
 
     def in_run(hardware=4, stealth=4, seed=8829):
@@ -1743,6 +1744,19 @@ def test_regressions() -> None:
          or "effects.get('alert_jump'" in engine,
          'and the strike path reads it')
 
+    # 4. Starting the tutorial with a step already satisfied printed the same
+    #    instruction twice: advance() shows the step it lands on, and the
+    #    caller showed it again. Anybody with a character hit it, because
+    #    having one completes step 1, which is to say almost everybody.
+    _, out = play(['new Testrunner --origin gutter', 'tutorial'])
+    T.eq(out.count('step 2 of'), 1, 'the tutorial shows a step once')
+    T.eq(out.count('Type `char` to read the build.'), 1,
+         'and prints its instruction once')
+
+    # The step it has nothing to advance past must still print, which is the
+    # thing the obvious fix breaks.
+    _, out = play(['tutorial'])
+    T.eq(out.count('step 1 of'), 1, 'a tutorial from nothing shows step 1')
 
 def _source_of(*dirs) -> str:
     import pathlib
