@@ -962,6 +962,120 @@ CONSEQUENCES: tuple[Event, ...] = (
           requires=('package_burned',), weight=CONSEQUENCE_WEIGHT),
 )
 
+
+# -- D58: a fuller city. Two more per district, in the same proportions. ------
+
+MORE_WEATHER: tuple[Event, ...] = (
+    Event('pram_batteries', 'wry',
+          'Somebody is selling batteries out of a pram and doing well, and a '
+          'second pram has appeared at the other end of the stalls, also '
+          'batteries, and the two prams are not speaking, and the Ninth has '
+          'taken sides on the basis of nothing at all.',
+          districts=('ninth',)),
+    Event('tap_cup', 'grim',
+          'There is a cup on the pump-house tap for the next person, and the '
+          'next person has used it and put it back, and so has the one after, '
+          'and nobody has taken it, which in the Ninth is a thing worth '
+          'standing next to for a while.',
+          districts=('ninth',)),
+    Event('transit_handle', 'grim',
+          'Somebody touches the handle scratched by the transit gate on the '
+          'way through, without looking, the way you touch a thing you have '
+          'touched every day for a year, and the person behind them does it '
+          'too, and neither of them knew the runner.',
+          districts=('marrow',)),
+    Event('noodle_special', 'wry',
+          'The noodle bar is doing a special. There is no sign. People know, '
+          'and are coming in from the Ninth for it, and Mara is writing in '
+          'the book at the same speed as always, and the special is the same '
+          'noodles.',
+          districts=('marrow',)),
+    Event('dock_kerb', 'grim',
+          'The contractors on the loading dock kerb have been joined by a '
+          'fifth, who is from a different site and is owed a different '
+          'number of weeks, and has been told he cannot sit with them because '
+          'it is a different dispute, and is sitting slightly apart.',
+          districts=('vertical',)),
+    Event('canteen_clock', 'wry',
+          'The canteen on eleven has put a clock up, very large, facing the '
+          'tables, and taken down the smaller one, and lunch is now eleven '
+          'minutes shorter on average and nobody has been asked to do '
+          'anything.',
+          districts=('vertical',)),
+    Event('edge_smokers', 'wry',
+          'People from the Glasshouse side stand on their side of the line '
+          'where the landscaping stops and smoke, and people from the Green '
+          'side stand on their side and do not, and the line has been '
+          'repainted this week, by the Green.',
+          districts=('green', 'glasshouse')),
+    Event('dispensary_paper', 'grim',
+          'The dispensary queue is holding prescriptions written out '
+          'properly, on paper, with a heading, and a man at the front is '
+          'reading his for the third time because the heading is the only '
+          'part he can follow.',
+          districts=('green',)),
+    Event('bar_drinks', 'wry',
+          'Somebody with bad masking is being bought drinks at the interface '
+          'bar by three people who wanted to know what they were running, and '
+          'has not noticed, and is having a lovely evening.',
+          districts=('glasshouse',), phases=('night',)),
+    Event('bay_policy', 'grim',
+          'A technician in the Sendai loading bay is reading the behaviour '
+          'policy printed on the side of a crate, which is not her job, and '
+          'has got to the line about the reset date, and has stopped reading, '
+          'and has not started signing.',
+          districts=('glasshouse',)),
+    Event('wall_crown', 'absurd',
+          'Somebody has repainted the crown on the highest tide mark, by '
+          'vote, in a slightly different gold, and there is now a motion '
+          'about the gold, and the motion has an amendment about whether '
+          'gold is a colour or a material, and the dockers are taking it '
+          'seriously.{{It will pass. Everything at the gate passes.}}',
+          districts=('freeport',), weight=0.7),
+    Event('print_queue', 'grim',
+          'The print shop queue is people who cannot read the plans and want '
+          'the parts, and the machines are doing cores out of a file that was '
+          'on the noticeboard, and one of the cores has come out wrong and '
+          'somebody has bought it anyway.',
+          districts=('freeport',)),
+    Event('waiting_number', 'wry',
+          'The screen in the Precinct waiting room shows a queue number. It '
+          'has shown the same number since it was installed. Somebody has '
+          'worked out that the number is the number of the form for reporting '
+          'the screen.',
+          districts=('precinct',)),
+    Event('audit_random', 'grim',
+          'A clerk at the Precinct has pulled a file at random for audit and '
+          'it is the wrong kind of random, and the clerk has gone very still, '
+          'and has put it back, and has pulled another one, more carefully.',
+          districts=('precinct',)),
+    Event('yard_bins', 'grim',
+          'The bins behind the Shambles clinics are being emptied by people '
+          'who do not work for the clinics, at the hour they are always '
+          'emptied, and the clinics have the lights off in the back, which is '
+          'the arrangement.',
+          districts=('shambles',), phases=('night',)),
+    Event('night_counter_price', 'grim',
+          'The woman at the night counter tells somebody the price before he '
+          'has said what he came about, and she is right, and he pays, and '
+          'the queue behind him does not look at him, which is the courtesy '
+          'here.',
+          districts=('shambles',), phases=('night',)),
+    Event('roof_standing', 'grim',
+          'Eleven people are standing on the roof of the Terraces where the '
+          'hum stops, not talking, not looking at each other, standing in the '
+          'stopping, and will go back down in a while.',
+          districts=('terraces',)),
+    Event('rota_forty', 'absurd',
+          'The water-point rota on the fourth landing has eleven thousand '
+          'names on it in principle and forty in practice, and the forty have '
+          'held an election among themselves for who keeps the rota, and the '
+          'winner has been keeping it for nineteen years and stood '
+          'unopposed.{{The election is held anyway. It is the Terraces\' '
+          'only one.}}',
+          districts=('terraces',), weight=0.7),
+)
+
 # -- D55: what the district threads leave in the street -----------------------
 
 ARC_CONSEQUENCES: tuple[Event, ...] = (
@@ -1147,7 +1261,8 @@ RUNNER_CONSEQUENCES: tuple[Event, ...] = (
           weight=CONSEQUENCE_WEIGHT),
 )
 
-EVENTS = EVENTS + CONSEQUENCES + ARC_CONSEQUENCES + RUNNER_CONSEQUENCES
+EVENTS = (EVENTS + MORE_WEATHER + CONSEQUENCES + ARC_CONSEQUENCES
+          + RUNNER_CONSEQUENCES)
 
 BY_KEY: dict[str, Event] = {e.key: e for e in EVENTS}
 EVENT_KEYS: tuple[str, ...] = tuple(BY_KEY)

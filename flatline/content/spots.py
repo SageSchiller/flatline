@@ -76,7 +76,8 @@ SPOTS: tuple[Spot, ...] = (
          'do come to be seen not needing to.',
          night='At night the exchange is the people who do not sleep, one to '
                'a terminal, not looking at each other, and the escalator, '
-               'not moving, with its following gone home.'),
+               'not moving, with its following gone home.',
+         who=('keeper',)),
     Spot('steps', 'the Switchboard steps', 'marrow',
          'Three concrete steps outside the noodle bar, where people waiting to '
          'see Mara wait, and where a woman with a document wallet has been '
@@ -125,7 +126,8 @@ SPOTS: tuple[Spot, ...] = (
          'people they have finished with, for a day or two. The aftercare is '
          'genuinely excellent. That is how the rest of it stays quiet: nobody '
          'leaves here able to say that anything went badly, because nothing '
-         'did, afterwards.'),
+         'did, afterwards.',
+         who=('orderly',)),
 
     # -- The Glasshouse -------------------------------------------------------
     Spot('floor', 'the demonstration floor', 'glasshouse',
@@ -135,7 +137,8 @@ SPOTS: tuple[Spot, ...] = (
          'reports that something here has tried to talk to it, politely, '
          'twice.',
          night='At night the demonstrations sit under cloths and the lights '
-               'stay on, and it is the quietest expensive place in the city.'),
+               'stay on, and it is the quietest expensive place in the city.',
+         who=('demonstrator',)),
     Spot('dark_room', 'the dark room', 'glasshouse',
          'A room with the lights off, by arrangement, where somebody sits who '
          'died for ninety seconds on a Sendai table and has not entirely '
@@ -164,7 +167,7 @@ SPOTS: tuple[Spot, ...] = (
          night='At night the cranes keep their lights on and the water does '
                'what water does under them, and the old man has gone, and '
                'the bollard is still warm if you get there soon enough.',
-         who=('pike_sr',)),
+         who=('pike_sr', 'crane')),
     Spot('mess', 'the dockers\' mess', 'freeport',
          'A long room over the water with a bar at one end and a bench record '
          'on the wall with a dead man\'s name still on it, by vote. The losing '
@@ -211,7 +214,8 @@ SPOTS: tuple[Spot, ...] = (
          night='At night the cabinets are lit from inside and the street is '
                'not, and the chrome in them is the brightest thing on Carrion\'s '
                'ground, which is either a display or a warning and is probably '
-               'both.'),
+               'both.',
+         who=('fence',)),
 
     # -- The Terraces ---------------------------------------------------------
     Spot('stairwells', 'the stairwells', 'terraces',
@@ -235,6 +239,109 @@ SPOTS: tuple[Spot, ...] = (
          'optimised, and it meets anyway, fortnightly, on the ninth landing, '
          'with minutes.{{The minutes are read aloud to the stairwell, which '
          'attends.}}'),
+    # -- D58: more ground -------------------------------------------------------
+    Spot('tap', 'the tap', 'ninth',
+         'A standpipe off the pump house with a queue for it that has the '
+         'courtesy of people who have queued here before and will again. The '
+         'water is clean. Nobody asks how, because the answer is the four '
+         'machines and the man in the chair, and everybody knows.',
+         night='At night the queue is shorter and quieter and the tap runs '
+               'the same, and somebody has left a cup on the pipe for the '
+               'next person, which is the constitution here.'),
+    Spot('generator', 'the generator', 'ninth',
+         'Two floors up, on a landing, a man is testing a generator for a '
+         'landlord who is not paying for the diesel, and has been testing it '
+         'since before you got here. It runs. He tests it anyway. Below him '
+         'the stairwell has a line of tape on it from last month.'),
+    Spot('transit', 'the transit gate', 'marrow',
+         'The gate to the interchange, with a handle scratched into the paint '
+         'by it, and a date, and under that a word that has been scratched '
+         'out again by somebody else. People touch the handle going through. '
+         'Nobody will tell you whose it was and two of them know.'),
+    Spot('back_bar', 'the back bar', 'marrow',
+         'The bar behind the noodle bar, reached through the kitchen, where '
+         'the runners who have a safehouse drink with the ones who do not and '
+         'nobody mentions which is which. There is a chair in the corner that '
+         'nobody sits in. Nobody has said why.',
+         night='At night the back bar is the only lit room in Marrow that is '
+               'not the noodle bar, and the chair in the corner is still '
+               'empty, and a new face has just been moved out of it, gently.'),
+    Spot('dock', 'the loading dock', 'vertical',
+         'The one part of the Vertical that is not climate-controlled: a '
+         'dock where things arrive and are logged and go up, and where the '
+         'contractors who are owed four weeks of pay sit on the kerb, which '
+         'is legally different from picketing and much harder to move.'),
+    Spot('canteen', 'the canteen', 'vertical',
+         'Floor eleven, staff only, and the lobby has already told the '
+         'canteen you are not staff. The food is good and subsidised and '
+         'eaten quickly by people who can see the clock. Somebody at a '
+         'corner table has been moved to face the wall.'),
+    Spot('edge', 'the campus edge', 'green',
+         'Where the landscaping stops. There is a line, a real line, where '
+         'the grass somebody signs off becomes the grass nobody does, and '
+         'people from the Glasshouse side stand on their side of it to '
+         'smoke, and people from the Green side do not smoke.'),
+    Spot('dispensary', 'the dispensary', 'green',
+         'A counter with a queue and a window and somebody behind it who '
+         'writes everything out properly, on paper, with a heading. The '
+         'prescriptions are technically prescriptions. The technically is '
+         'doing a great deal of work.'),
+    Spot('interface_bar', 'the interface bar', 'glasshouse',
+         'A bar where the chairs talk to your deck and the drinks are priced '
+         'by what your deck says back. Runners with good masking drink cheap '
+         'here. Runners with bad masking are bought drinks, by people who '
+         'wanted to know what they were running.',
+         night='At night the interface bar is the loudest room in the '
+               'Glasshouse, in a frequency nobody can hear, and your deck '
+               'reports that four things have asked it the time.'),
+    Spot('bay', 'the loading bay', 'glasshouse',
+         'Sendai\'s bay, where the demonstration units arrive in crates with '
+         'the behaviour policy printed on the side, and leave in the same '
+         'crates, reset, and the technician who signs them out has started '
+         'reading the policy, which is not in her job.'),
+    Spot('wall', 'the tide wall', 'freeport',
+         'A wall along the water with the tide marks painted on it by hand, '
+         'one a year, by a vote, and the highest mark is from the year '
+         'before Freeport went independent, and somebody has painted a '
+         'small crown on it, and the crown is also by vote.'),
+    Spot('print', 'the print shop', 'freeport',
+         'Community printed. Three machines in a container doing deck '
+         'components, cheap, out of plans that are on the noticeboard for '
+         'anybody to read, and a queue of people who could not read the '
+         'plans and want the parts anyway, which is most people.'),
+    Spot('lost', 'the lost property office', 'precinct',
+         'Four thousand items behind a counter and one under a cloth. Every '
+         'officer on the shift knows what you mean when you ask about the '
+         'cloth and every one of them changes the subject with the same '
+         'sentence, which is very well designed.'),
+    Spot('waiting', 'the waiting room', 'precinct',
+         'A room for waiting in, lit at the level somebody costed, with '
+         'chairs bolted down and a screen showing the queue number, which '
+         'has not changed, and a poster about the importance of reporting '
+         'faults promptly, covering the fault log.'),
+    Spot('yard', 'the solvent yard', 'shambles',
+         'Behind the clinics, a yard where the solvent is kept in drums and '
+         'the thing the solvent is for is kept in bins, and the bins are '
+         'emptied at night by people who do not work for the clinics and are '
+         'not asked who they work for.'),
+    Spot('night_counter', 'the night counter', 'shambles',
+         'A counter that opens when the clinics close, for the work that '
+         'comes in late, with a woman behind it who can tell from the way you '
+         'stand what you have come about and will tell you the price before '
+         'you say it.',
+         night='At night the night counter is the brightest thing on '
+               'Carrion\'s street, and the queue at it is the people on '
+               'shift, and they watch you the way a butcher watches a queue.'),
+    Spot('roof', 'the roof', 'terraces',
+         'Above the top landing, where the air is. Kagawa\'s farms hum under '
+         'every floor and the roof is the one place the hum stops, and '
+         'people come up here to stand in the stopping, and say nothing to '
+         'each other, and go back down.'),
+    Spot('water_point', 'the water point', 'terraces',
+         'A tap on the fourth landing with a rota beside it, handwritten, '
+         'with eleven thousand people on it in principle and forty in '
+         'practice, and the forty keep the rota, and the rota is the nearest '
+         'thing the Terraces has to a government.'),
 )
 
 BY_KEY: dict[str, Spot] = {s.key: s for s in SPOTS}

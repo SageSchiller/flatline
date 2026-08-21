@@ -24,7 +24,7 @@ from ..model.identity import ALIAS_COST, ALIAS_SHIFTS
 from ..rng import random_seed
 from .. import save as save_mod
 from .. import ui
-from ..shell import CommandError, command
+from ..shell import Args, CommandError, command
 from ..world import debt as debt_mod
 from ..world import fallout
 from ..world import rivals as rival_world
@@ -1130,6 +1130,21 @@ def city_map(sess) -> None:
     c.header('The city',
              f'{len(walked)} of {len(districts.DISTRICTS)} walked')
 
+    # The picture first (D57): the same shape every time, you marked on it.
+    # The tree underneath carries what a picture cannot, which is distance
+    # and what each place has.
+    from .. import citymap
+    c.blank()
+    for line in citymap.draw(game, c.caps, flags=game.story.flags):
+        c.raw(line)
+    c.blank()
+    c.say(citymap.legend(c.caps), indent='  ')
+    # How much city there is. Counted, not claimed.
+    from ..content import npcs as npc_content, spots as spot_content
+    c.say(f'[dim]{len(districts.DISTRICTS)} districts, '
+          f'{len(spot_content.SPOTS)} places to stand in, '
+          f'{len(npc_content.NPCS)} people worth finding.[/]', indent='  ')
+
     # Drawn from the district everybody starts in rather than from wherever
     # you happen to be standing. A tree rooted at you is a compass: it points
     # the right way and it reshuffles every time you move, so it never becomes
@@ -1177,6 +1192,10 @@ def city_map(sess) -> None:
         # across two lines is a command chain somebody has to reassemble
         # before they can use it.
         c.raw(f'  [fg]{city.walk_to(goal)}[/]')
+    c.blank()
+    c.say('[dim]`travel <district>` is one shift to a neighbour. '
+          '`walk <district>` goes the whole way, a shift a step, and stops '
+          'if the street stops you.[/]')
 
 
 def _district_label(sess, key: str, walked: set, goal: str) -> str:
@@ -1296,6 +1315,9 @@ def cmd_travel(sess, args) -> None:
     if now:
         c.blank()
         c.say(now)
+    street = districts.street_line(district.key, game.city.shift)
+    if street:
+        c.say(f'[dim]{street}[/]')
     if free:
         c.info('You know the way. It does not cost you a shift.')
 
@@ -1373,7 +1395,57 @@ def _resolve_incident(sess, faction: str, danger: int) -> None:
     if incident.detail:
         c.blank()
         c.say(incident.detail)
+    # The wire remembers, and `walk` reads it to know to stop (D57).
+    game.city.news.append(f'[err]Picked up in {game.city.district.name}.[/] '
+                          f'{incident.detail}')
     sess.autosave()
+
+
+@command('walk', 'Go the whole way to a district, a shift a step.',
+         contexts=('city',), group='city', usage='walk <district> [--anyway]',
+         blocked='Your body is in a chair in the district you jacked in from, '
+                 'and it is going to stay there until you are back in it.',
+         detail='`travel` is one shift to a neighbour. `walk` is the same '
+                'thing repeated until you arrive: each step costs a shift, '
+                'each step is a street you are walking into, and it stops '
+                'the moment a street stops you, whether that is somebody '
+                'picking you up or a district you would have to `--anyway` '
+                'your way into. `map` shows the walk to anywhere.',
+         complete=lambda sess, prefix: list(districts.DISTRICT_KEYS))
+def cmd_walk(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    want = (args.get(0) or '').lower()
+    if not want:
+        raise CommandError('walk where? `map` for the city.')
+    matches = [k for k in districts.DISTRICT_KEYS if k.startswith(want)]
+    if len(matches) != 1:
+        raise CommandError(f'{want!r} is not a district. `map` for the nine.')
+    target = matches[0]
+    if target == game.city.where:
+        raise CommandError(f'you are in {districts.BY_KEY[target].name}.')
+    route = game.city.route(target)
+    if not route:
+        raise CommandError(f'there is no way to {target} from here.')
+    c.info(f'{len(route)} shift{"s" if len(route) != 1 else ""}: '
+           + ', then '.join(route) + '.')
+    for step in route:
+        before = len(game.city.news)
+        try:
+            cmd_travel(sess, Args([step] + (['--anyway'] if args.has('anyway')
+                                            else [])))
+        except CommandError as e:
+            c.err(str(e))
+            c.say('[dim]The walk stops here.[/]')
+            return
+        if game.city.where != step:
+            return
+        picked = any('Picked up' in line
+                     for line in game.city.news[before:])
+        if picked and step != route[-1]:
+            c.blank()
+            c.say('[dim]The walk stops here. `walk {0}` again when you are '
+                  'ready.[/]'.format(target))
+            return
 
 
 @command('rest', 'Lie low. Heals, cools heat, and passes time.',

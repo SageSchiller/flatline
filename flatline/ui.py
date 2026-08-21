@@ -110,6 +110,9 @@ GLYPHS = {
     'node': ('●', '*'),
     'ellipsis': ('…', '...'),
     'degree': ('°', 'o'),
+    # The two diagonals the drawn city map needs (D57).
+    'diag_dn': ('╲', '\\'),
+    'diag_up': ('╱', '/'),
 }
 
 

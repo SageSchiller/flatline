@@ -600,9 +600,14 @@ class City:
         Every place that tells the player where to go hands them this rather
         than the destination, because `travel <somewhere three districts
         away>` is a command the travel command itself refuses, and being sent
-        to a refusal is worse than being told nothing.
+        to a refusal is worse than being told nothing. One shift is `travel`;
+        more than one is `walk`, which is the same thing repeated and stops
+        when the street stops you (D57).
         """
-        return '; '.join(f'travel {k}' for k in self.route(target))
+        route = self.route(target)
+        if len(route) == 1:
+            return f'travel {route[0]}'
+        return f'walk {target}' if route else ''
 
     def danger(self, alias: Alias, target: str, rng: Rng | None = None,
                flags=None):

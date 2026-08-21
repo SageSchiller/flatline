@@ -4334,12 +4334,13 @@ def test_city_map() -> None:
     game.city.visited.add('shambles')
     ok, why = game.city.can_travel('green')
     T.ok(not ok, 'Aoyama Green is not one shift from the Shambles')
-    T.ok('travel' in why, 'and the refusal hands over the route')
+    T.ok('walk green' in why, 'and the refusal hands over the walk')
     typed = [part.strip() for part in why.split('`')[1].split(';')]
-    T.eq(typed, [f'travel {k}' for k in game.city.route('green')],
-         'the route in the refusal is the route')
+    T.eq(typed, ['walk green'], 'the walk in the refusal is one line')
     sess2, out2 = play(typed, game=game)
     T.eq(game.city.where, 'green', 'and typing it gets you there')
+    T.eq(game.city.shift, len(game.city.route('shambles')),
+         'at a shift a step')
 
     # Walking somewhere fills it in. This is the whole "builds out as you
     # explore" half: the shape never changes, the detail arrives.
@@ -6269,6 +6270,69 @@ def test_arcs() -> None:
     T.ok(any('Hound' in a for a in acts), 'where an unpaid one would not')
     T.eq(len([s for s in thread_content.BY_KEY['runners'].stages]), 14,
          'seven runners, two sides each')
+
+    # D57: the city, drawn, and walked.
+    from flatline import citymap
+    game = Game.new(Character.from_origin('gutter', 'Map'), seed=4242)
+    _, out = play(['map'], game=game)
+    lines = [l for l in out.splitlines() if 'marrow' in l and '@' in l]
+    T.ok(lines, 'the drawing marks you in Marrow')
+    T.ok('you' in out and 'the job' in out, 'and explains its marks')
+    cid = game.city.board[0].cid
+    goal = game.city.board[0].district
+    _, out = play([f'take {cid}', 'map'], game=game)
+    if goal != 'marrow':
+        T.ok(any(goal in l and '!' in l for l in out.splitlines()),
+             'and marks the district the job is in')
+    for glyphs in (GlyphLevel.UNICODE, GlyphLevel.ASCII):
+        caps = Caps(color=ColorLevel.NONE, glyphs=glyphs, width=80,
+                    palette=theme.NEUTRAL)
+        drawn = citymap.draw(game, caps)
+        T.ok(all(ui.width(l) <= 76 for l in drawn),
+             f'the drawing fits ({glyphs.name})')
+    # `walk` goes the whole way and stops when the street stops you.
+    game = Game.new(Character.from_origin('gutter', 'Walk'), seed=4242)
+    game.city.where = 'shambles'
+    route = game.city.route('green')
+    sess, out = play(['walk green'], game=game)
+    T.eq(game.city.where, 'green', '`walk green` arrives')
+    T.eq(game.city.shift, len(route), 'a shift a step')
+    game = Game.new(Character.from_origin('gutter', 'Stop'), seed=4242)
+    game.city.where = 'shambles'
+    game.alias.add_heat('aoyama', 95)
+    game.city.bounties['aoyama'] = 80
+    sess, out = play(['walk green'], game=game)
+    T.ok(game.city.where != 'green', 'the walk does not arrive in Aoyama '
+                                    'Green with Aoyama paying for your name')
+    T.ok('The walk stops here' in out, 'and says so')
+
+    # D58: the city, larger and fuller. The street has people in it, the
+    # new people are at their places, and the map counts it all.
+    game = Game.new(Character.from_origin('gutter', 'Full'), seed=4242)
+    _, out = play(['look'], game=game)
+    T.ok('In the street:' in out, '`look` says who is in the street')
+    first = districts.street_line('marrow', game.city.shift)
+    T.eq(districts.street_line('marrow', game.city.shift), first,
+         'and the street is the same twice in one shift')
+    T.ok(districts.street_line('marrow', game.city.shift + 1) != first,
+         'and different next shift')
+    _, out = play(['travel ninth'], game=game)
+    T.ok('In the street:' in out, 'arrival says who is in the street')
+    _, out = play(['map'], game=game)
+    T.ok('places to stand in' in out and 'people worth finding' in out,
+         'the map counts the city')
+    from flatline.content import npcs as npc_content, spots as spot_content
+    T.ok(len(spot_content.SPOTS) >= 45, f'{len(spot_content.SPOTS)} places')
+    T.ok(len(npc_content.NPCS) >= 22, f'{len(npc_content.NPCS)} people')
+    game = Game.new(Character.from_origin('gutter', 'Keeper'), seed=4242)
+    _, out = play(['visit exchange'], game=game)
+    T.ok('Green Coat' in out, 'the woman in the green coat is at the exchange')
+    game.city.where = 'shambles'
+    game.city.shift = 2
+    _, out = play(['visit cabinets'], game=game)
+    T.ok('Halvard' in out, 'and Halvard is at the cabinets at night')
+    _, out = play(['talk halvard'], game=game)
+    T.ok('"' in out, 'and talks')
 
     # The wire carries scenes, choices and what a run did to the city.
     game = Game.new(Character.from_origin('gutter', 'Wire'), seed=4242)

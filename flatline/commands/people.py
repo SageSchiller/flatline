@@ -46,8 +46,12 @@ def cmd_look(sess, args) -> None:
     c.say(f'[dim]{district.blurb}[/]')
     c.blank()
     # This district at this hour, when somebody wrote it; the city-wide
-    # shift scene otherwise (D53).
+    # shift scene otherwise (D53). Then who is in the street (D58).
     c.say(districts.scene(district.key, game.city.phase) or when.scene)
+    street = districts.street_line(district.key, game.city.shift)
+    if street:
+        c.blank()
+        c.say(f'[dim]{street}[/]')
 
     # What the clock is doing to you, in the two places it is doing it.
     parts = []

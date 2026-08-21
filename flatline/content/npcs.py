@@ -709,6 +709,186 @@ NPCS: tuple[Npc, ...] = (
         },
         requires=('runs:4',),
         hours=('afternoon', 'night')),
+    # -- D58: five more, because seventeen is a cast and twenty-two is a city --
+    Npc('keeper', 'The Woman in the Green Coat', 'who keeps the queue',
+        'marrow', '', 'absurd', ('intel',),
+        'A woman in a green coat is standing beside the queue outside the '
+        'exchange, not in it, with the posture of somebody whose job it is to '
+        'be beside a thing. She looks at you, and then at where you are '
+        'standing relative to the queue, and then at you again.',
+        'Keeps the queue\'s constitution, which is unwritten, and has never '
+        'been inside the exchange, which she regards as a conflict of '
+        'interest. Rules on disputes, cites precedent, and is not in the '
+        'queue.',
+        lines=(
+            '"You are not in the queue. I want to be clear that I have '
+            'noticed, and that it is fine, and that it would not be fine if '
+            'you were in it and pretended not to be."',
+            '"Saving a place is allowed. Saving two is a matter of '
+            'interpretation. Saving three is the Vertical, and we do not do '
+            'that here."',
+            '"I have never been inside. One cannot keep a thing one is part '
+            'of. Ask the Councillor, she will tell you about culverts, and '
+            'she is right."',
+            '"There was a ruling once about a jacket. I think about it more '
+            'than I expected to."',
+            '"The queue moves. People say it does not move. It moves at the '
+            'speed of a thing that has agreed to move, which is slower than '
+            'a thing that is pushed, and lasts longer."',
+        ),
+        topics={
+            'queue': '"Forty people at any hour, eleven of them regulars, one '
+                     'of them the constitution, which is me. It is not '
+                     'written down. Writing it down would be the end of it, '
+                     'like writing down a marriage."',
+            'exchange': '"Inside there are terminals and people who do not '
+                        'look at each other. Outside there is a queue and '
+                        'people who do. I know which I would rather keep."',
+            'marrow': '"Neutral ground. Every queue in this district is '
+                      'neutral ground. That is not an accident; it is the '
+                      'only thing Marrow has ever actually built."',
+        },
+        hours=('morning', 'afternoon')),
+    Npc('demonstrator', 'The Demonstrator', 'who is reading from a card',
+        'glasshouse', 'market', 'absurd', ('intel',),
+        'Somebody in a Sendai jacket is standing beside an interface on a '
+        'cloth, holding a card, and reading from it, to you, because you are '
+        'the nearest person, with an expression that suggests the card and '
+        'the demonstrator have not met before today.',
+        'Reads from a card. Has lost the card twice. Is better without it '
+        'and knows it and is not paid to be better without it.',
+        lines=(
+            '"The neural interface," reading, "represents a step change in." '
+            'A pause. "I am supposed to pause there. It is on the card."',
+            '"I could tell you what it actually does. That is not on the '
+            'card. What is on the card is what it represents."',
+            '"Something on this floor has started talking back. I am not '
+            'supposed to know that. I am reading from the card."',
+            '"Sales are up when I lose the card. I have raised this. They '
+            'have printed me a second card."',
+            '"Your deck is asking mine something. It is polite. I have told '
+            'it I am only the demonstrator."',
+        ),
+        topics={
+            'sendai': '"Nineteen people in a room optimising a number, Old '
+                      'Pike says, and he would know, and the number is not '
+                      'me."',
+            'interface': '"It does what it says on the card, and several '
+                         'things that are not on the card, and the things '
+                         'not on the card are why the crowd is mostly other '
+                         'demonstrators."',
+            'glasshouse': '"Bright all the time, cold on purpose, and the '
+                          'one dark room is the only honest room in it. I go '
+                          'and sit there on breaks. I do not take the card."',
+        },
+        hours=('morning', 'afternoon')),
+    Npc('crane', 'Teku', 'who drives the new crane',
+        'freeport', '', 'warm', ('intel',),
+        'A woman in a harness is eating lunch on the base of the newest '
+        'crane, the one named by a vote, with her back against the name that '
+        'won, and she nods at you the way you nod at somebody who is also at '
+        'work.',
+        'Drives the new crane. Voted for the other name and has never said '
+        'so. Knows every cargo that has come through the gate this year and '
+        'what it really was.',
+        lines=(
+            '"She lifts, she puts down. Everything else in this city is '
+            'somebody arguing about what lifting means."',
+            '"The losing name is on the other side. I painted it. I am not '
+            'saying which way I voted, I am saying I can paint."',
+            '"Pike sits on that bollard most days. He built the thing in the '
+            'Glasshouse that killed my brother. He told me. I still sit with '
+            'him. Work that out and you will understand Freeport."',
+            '"Everything that comes over the wall, I see first. What I do '
+            'with that is mind my own business, loudly."',
+            '"There is a bench record on the mess wall with a dead man\'s '
+            'name. I voted to keep it. I will tell you that one."',
+        ),
+        topics={
+            'cranes': '"Eleven. Each one named, each one by a vote, and the '
+                      'votes are the only elections in this city where the '
+                      'losing side buys. I have been on the losing side '
+                      'twice. I have bought."',
+            'vote': '"Everything at the gate passes eventually. Tides or '
+                    'democracy, the old man says. I say it is that nobody '
+                    'on the docks can stand an argument going on past '
+                    'dark."',
+            'freeport': '"No boss. People say that like it is the point. The '
+                        'point is that when something goes wrong there is '
+                        'nobody to say it was their fault, so we fix it '
+                        'instead. It is not better. It is faster."',
+        },
+        hours=('morning', 'afternoon')),
+    Npc('orderly', 'The Orderly', 'who keeps the door\'s schedule',
+        'green', 'clinic', 'unsettling', ('intel',),
+        'Somebody in Aoyama blue is standing at the aftercare ward\'s door at '
+        'exactly the moment it opens, not going through it, holding a '
+        'schedule, and the schedule has the door on it.',
+        'Keeps the ward\'s schedule, which is the door\'s schedule. Is well. '
+        'Has always been well. Speaks about the patients the way you speak '
+        'about weather that has been arranged.',
+        lines=(
+            '"Everybody here is well. I say that as somebody who checks. I '
+            'check twice a shift, when the door opens, which is when I am '
+            'here."',
+            '"The window was tapped once. I have noted it. Noting it is the '
+            'whole of my response and it is sufficient."',
+            '"Doctor Vance is the best in the city. That is not loyalty. I '
+            'have the statistics and I do not know what they are statistics '
+            'of either."',
+            '"Forty seconds. The door is open for forty seconds, twice. I am '
+            'not telling you that. I am telling you the schedule, which is '
+            'public."',
+            '"I was a patient. Everybody on this ward was a patient. We are '
+            'well. We stayed."',
+        ),
+        topics={
+            'ward': '"Nobody leaves able to say anything went badly. Nothing '
+                    'did. I would know; I was here for it, and then I was '
+                    'here for it on the other side of the desk."',
+            'aftercare': '"Excellent. Genuinely. It is the load-bearing part '
+                         'of the arrangement, the doctor says, and she is '
+                         'right, and I am the part it bears."',
+            'aoyama': '"They fund the clinics that treat what the clinics '
+                      'cause. The doctor says she is aware of how that '
+                      'sounds. I am aware of how it feels, and it feels '
+                      'well."',
+        }),
+    Npc('fence', 'Halvard', 'who sells what came out of somebody',
+        'shambles', 'fence', 'grim', ('intel',),
+        'A man behind a cabinet with serial numbers showing is cleaning a '
+        'piece of chrome with the attention of somebody who knew whose it '
+        'was, and looks up, and does not stop cleaning.',
+        'Sells what came out of somebody recently, serial numbers showing, '
+        'because those are the ones people check. Knows whose every piece '
+        'was and says so, which is not cruelty, it is stock control.',
+        lines=(
+            '"Everything in the cabinet came out of somebody. I tell you '
+            'whose. That is not a sales technique, it is that they would '
+            'have wanted somebody to say."',
+            '"The Surgeon shows the ledger to anybody who asks. I show the '
+            'cabinet. Between us you could write the street, and nobody '
+            'does."',
+            '"Carrion do not own me. Carrion own the street. It is a '
+            'different thing and it costs about the same."',
+            '"That one," a piece at the front, "came out on a Tuesday. I '
+            'remember because he said so. He said, of all days, a Tuesday."',
+            '"You will be in here one day. Not as a customer. I am not being '
+            'unkind. I am doing the stock."',
+        ),
+        topics={
+            'cabinets': '"Serial numbers at the front, because those are the '
+                        'ones people check. The ones at the back have had '
+                        'the numbers taken off, and I keep a book of what '
+                        'they were, and the book is not for sale either."',
+            'carrion': '"A gang, people say. A gang with a clinic and a fence '
+                       'and a ledger is a hospital with a different billing '
+                       'department."',
+            'chrome': '"It is all second-hand. The first hand is the person, '
+                      'and the person is the part nobody wants to pay for, '
+                      'and I do, a little, every time."',
+        },
+        hours=('afternoon', 'night')),
 )
 
 BY_KEY: dict[str, Npc] = {n.key: n for n in NPCS}

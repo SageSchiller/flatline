@@ -338,6 +338,131 @@ SCENES: dict[str, dict[str, str]] = {
 }
 
 
+# --------------------------------------------------------------------------
+# who is in the street (D58)
+# --------------------------------------------------------------------------
+
+#: district -> fragments. `street_line` picks three by the shift, so the
+#: street is different each time you look and the same each time you look
+#: at the same shift, without drawing from any game stream: texture must not
+#: move the world (D35).
+STREET: dict[str, tuple[str, ...]] = {
+    'ninth': (
+        'two of the Sixes on the corner, not doing anything, which is the point '
+        'of them',
+        'a queue for the pump-house tap with a cup left on the pipe',
+        'somebody selling batteries out of a pram',
+        'a child on a junction box eating something fried',
+        'the generator two floors up being tested again',
+        'a van that has not moved in a year with a shop in the back of it',
+        'water coming up the stairwell at the usual rate',
+        'a man carrying a door, for reasons, with great care',
+    ),
+    'marrow': (
+        'four thousand people keeping their voices down',
+        'the queue outside the exchange, under constitution',
+        'somebody on the Switchboard steps who has been there since yesterday',
+        'a fixer you do not know pretending not to know you back',
+        'a courier going the long way round the noodle bar out of respect',
+        'a handset held the way you hold a handset when describing somebody',
+        'the up escalator not moving, with its following',
+        'two people agreeing about a price at the volume of people who know the next table is listening',
+    ),
+    'vertical': (
+        'a lobby that has already decided about you',
+        'people on the walkways who are allowed to be on the walkways',
+        'a courier with a lanyard being walked somewhere by a second lanyard',
+        'contractors on the kerb by the loading dock, legally not picketing',
+        'an auditor apologising to nobody in particular',
+        'a gait being logged',
+        'a cleaner with clearance you do not have',
+        'somebody coming out of a review saying the arithmetic was correct',
+    ),
+    'green': (
+        'sprinklers',
+        'people on breaks sitting on the lawn in the posture the lawn is for',
+        'a patient in a good coat being told something is routine',
+        'the clinic door opening on its schedule',
+        'a path to the sign about the path',
+        'somebody well, leaving, saying so',
+        'a receptionist with a list, not cross',
+        'the aftercare ward glowing at the back like a pilot light',
+    ),
+    'glasshouse': (
+        'a demonstrator reading from a card',
+        'a crowd of other demonstrators',
+        'something trying to talk to your deck, politely',
+        'surfaces reflecting surfaces',
+        'a technician on a cold bench talking to somebody else\'s deck',
+        'Sendai security not looking at you in a way that is logged',
+        'the one dark room, with its door shut by arrangement',
+        'a crate arriving with a behaviour policy printed on the side',
+    ),
+    'freeport': (
+        'the cranes, moving, with names',
+        'an argument about wording at the west gate',
+        'somebody reading the noticeboard aloud to somebody who can read',
+        'dockers settling something by the end of the shift',
+        'an old man on a bollard watching the cranes',
+        'the print shop queue, which cannot read the plans',
+        'the tide doing what the tide does',
+        'the losing side buying',
+    ),
+    'precinct': (
+        'a queue that has not moved',
+        'a form being requested, using the other form',
+        'a sergeant reading the same page',
+        'the surplus counter doing brisk business in last quarter',
+        'somebody against a wall for a check that has stopped being one',
+        'a clerk pulling a closed file at random',
+        'the cloth, behind the counter, not being mentioned',
+        'Nightwatch hitting a target and visibly stopping',
+    ),
+    'shambles': (
+        'the clinic queue, since four',
+        'cabinets with serial numbers showing',
+        'somebody with more hardware than skin watching you the way a butcher watches a queue',
+        'solvent, and under it the thing the solvent is for',
+        'the Blue Surgeon\'s light on, since three',
+        'a crate outside the clinic with something left on it',
+        'bins being emptied by people nobody asks about',
+        'chrome going in, chrome coming out',
+    ),
+    'terraces': (
+        'eleven thousand people on four stairwells',
+        'something growing on every landing',
+        'a man on the ninth landing with opinions about parking',
+        'a child doing homework by vending-machine light',
+        'a rota by the water point with forty names on it',
+        'the farms humming under the floor',
+        'a lift with preferences',
+        'somebody saying good evening without checking who you are',
+    ),
+}
+
+
+def street_line(district: str, shift: int) -> str:
+    """Three things in the street right now, picked by the shift.
+
+    Deterministic and stream-free on purpose: looking twice in one shift
+    shows the same street, and looking never moves the world.
+    """
+    pool = STREET.get(district, ())
+    if len(pool) < 3:
+        return ''
+    n = len(pool)
+    picks = [pool[(shift * 3 + i * 5 + shift // n) % n] for i in range(3)]
+    # Three distinct ones, stepping on if the arithmetic doubled up.
+    seen: list[str] = []
+    for i, item in enumerate(picks):
+        k = 0
+        while item in seen:
+            k += 1
+            item = pool[(shift * 3 + i * 5 + k) % n]
+        seen.append(item)
+    return f'In the street: {seen[0]}, {seen[1]}, and {seen[2]}.'
+
+
 def scene(district: str, phase: str) -> str:
     """What this district is doing at this hour, or '' if nobody wrote it."""
     return SCENES.get(district, {}).get(phase, '')

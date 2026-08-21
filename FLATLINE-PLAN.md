@@ -12,7 +12,7 @@ updated: 2026-08-21
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,387 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. Then **D54** (six lines and four topics per person, in seventeen voices; hours, so the clock is a reason to be somewhere) and **D55** (nine threads rooted in the districts, twenty-two decisions, four postings). Then **D56**: a decision at each rival's bond latch (fourteen scenes, twenty-eight decisions, read by the hire price, the shift boundary, four events and the epilogue), and the wire carrying scenes, decisions and what a run did to the city. **Phase 7** items 1 to 6 are done. **Next, at the author's request: a map and navigation pass, and making the city feel large and full of stuff.** Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
+> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,387 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. Then **D54** (six lines and four topics per person, in seventeen voices; hours, so the clock is a reason to be somewhere) and **D55** (nine threads rooted in the districts, twenty-two decisions, four postings). Then **D56**: a decision at each rival's bond latch (fourteen scenes, twenty-eight decisions, read by the hire price, the shift boundary, four events and the epilogue), and the wire carrying scenes, decisions and what a run did to the city. Then **D57** (the city drawn, `walk`) and **D58** (forty-five places, twenty-two people, the street, a hundred and fifty-four events). **Phase 7** items 1 to 6, 18 and 19 are done; the open ones are 7 to 17, of which the HUD line (8), the tutorial's second half (10) and run conditions (15) are the ones that would move play most. Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
@@ -1428,6 +1428,62 @@ your own words, and what a run did to the city (heat arriving, posture
 moving) is news, so `news` reads as a wire with more than one
 correspondent.
 
+### D57: The city, drawn, and walked
+
+`map` drew a tree: true, dense, rooted at Marrow so it was the same shape
+every time, and still not a picture anybody could hold in their head,
+because a tree has one route into everything and the city has two into
+most things. `citymap.draw` is the other half: nine districts laid out the
+same way every time, the fourteen joins drawn, you marked `@`, the job `!`,
+anywhere somebody wants you `x`, unwalked districts dim. The layout is
+authored, because laying out a graph is a research problem and this one
+has nine nodes that have not moved since the city was drawn; what
+`validate.py` holds is that `MAP_EDGES` equals `districts.GRAPH` exactly,
+so the picture cannot lie about the joins, and that it fits the column on
+both rungs. The ASCII rung's `/` is also the character in `[/]`, which is
+why every connector is dimmed at construction and not by a replace
+afterwards.
+
+**`walk <district>`** is `travel` repeated until you arrive: a shift a
+step, each step a street you are walking into, stopping the moment a
+street stops you, whether that is being picked up or a district you would
+have to `--anyway` your way into. `City.walk_to`, which everything that
+sends you somewhere hands over, now says `walk green` for more than one
+shift and `travel green` for one, so the line the game gives you is one
+line.
+
+### D58: Large, and full of stuff
+
+Asked for the city to feel large and full. The numbers, honestly counted
+and printed under the map: nine districts, forty-five places to stand in,
+twenty-two people worth finding, a hundred and fifty-four things the city
+does when you are not looking.
+
+**Eighteen more places** (the tap with a cup left on it, the generator
+being tested for a landlord who is not paying for the diesel, the transit
+gate with the scratched handle, the back bar with the chair nobody sits
+in, the canteen on eleven, the campus edge where the landscaping stops,
+the interface bar where the chairs talk to your deck, the tide wall with
+the crown on the highest mark, the lost property office with the cloth,
+the solvent yard, the night counter, the roof where the hum stops, the
+water point with forty names on a rota for eleven thousand).
+
+**The street.** `districts.STREET` and `street_line`: eight things per
+district that might be in the street, three of them picked by the shift
+and printed by `look` and on arrival. Deterministic and stream-free on
+purpose, because looking must not move the world (D35): the same street
+twice in one shift, a different one next shift.
+
+**Five more people**, in full (six lines, three topics, hours, a place):
+the woman in the green coat who keeps the queue and has never been inside;
+the demonstrator who is better without the card and not paid to be; Teku,
+who drives the crane named by the vote and painted the losing name on the
+other side; the orderly who keeps the door's schedule and was a patient and
+stayed; Halvard, who sells what came out of somebody and tells you whose.
+
+**Eighteen more weather events**, two a district, and the budget holds at
+52 / 33 / 15.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -1709,8 +1765,16 @@ More districts, factions, chrome, and programs. Content, not systems.
     the payoff of a whole skill and nobody finds it.
 17. Naming things (deck, safehouse); the build label from 13.
 
+**At the author's request, after the above**
+
+18. ~~Map and navigation.~~ Done: D57. The city drawn, `walk`.
+19. ~~The city large and full of stuff.~~ Done: D58. Forty-five places,
+    twenty-two people, the street, a hundred and fifty-four events.
+
 **Not on the list, on purpose**: a pager, numbered menus that replace verbs,
-an alternate screen, a verb that acts for the player.
+an alternate screen, a verb that acts for the player. (`walk` is `travel`
+repeated and stops when the street stops you; it is the player's intention,
+not the game's.)
 
 ---
 
@@ -2427,3 +2491,21 @@ thing. `rival.jobs` is the history.
 
 `validate.py` clean, `test.py` green at **13,673 checks**. 28 threads, 81
 scenes, 100 decisions; 136 events.
+
+### 2026-08-21 (g): drawn, walked, larger, fuller
+
+**D57, D58.** The author's two additions to the list: the map, and scale.
+The map is drawn now, the same shape every time, with you and the job and
+the danger on it, and `validate.py` holds the drawing to the graph so it
+cannot lie. `walk` goes the whole way and stops when the street stops you.
+And the city is larger where it counts: forty-five places, twenty-two
+people, a street with three things in it at every hour, a hundred and
+fifty-four events, all of it counted under the map rather than claimed.
+
+**One thing found.** Dimming the map's connectors with a `replace` after
+drawing broke the ASCII rung, because `/` is the character in `[/]`. Every
+connector is dimmed at construction now. The width check caught it; the
+picture would otherwise have rendered as markup soup for exactly the people
+whose terminals cannot draw the Unicode one.
+
+`validate.py` clean, `test.py` green at **13,757 checks**. 120 commands.

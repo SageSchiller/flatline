@@ -3631,8 +3631,21 @@ def check_city_texture(rep: Report) -> None:
                           f'{who} needs a {npc.at} and {s.district} has none')
     for d in districts.DISTRICTS:
         count = len(spot_content.in_district(d.key))
-        rep.check(2 <= count <= 4, f'districts/{d.key}',
-                  f'{count} places to stand in; wanted two to four')
+        rep.check(3 <= count <= 7, f'districts/{d.key}',
+                  f'{count} places to stand in; wanted three to seven')
+        # D58: the street has something in it, at every hour, and it is the
+        # same thing twice in a shift.
+        pool = districts.STREET.get(d.key, ())
+        rep.check(len(pool) >= 6, f'districts/{d.key}/street',
+                  f'{len(pool)} things in the street; wanted six or more')
+        for shift in range(9):
+            line = districts.street_line(d.key, shift)
+            rep.check(line.startswith('In the street:') and line.endswith('.'),
+                      f'districts/{d.key}/street', 'is not a sentence')
+            rep.check(line == districts.street_line(d.key, shift),
+                      f'districts/{d.key}/street', 'changes between looks')
+            rep.check(len(ui.plain(line)) <= 300, f'districts/{d.key}/street',
+                      'is a paragraph')
         # Finding by name has to work for every name, and must not be
         # ambiguous within a district.
         for s in spot_content.in_district(d.key):
@@ -3642,6 +3655,33 @@ def check_city_texture(rep: Report) -> None:
             found = spot_content.find(d.key, s.name.removeprefix('the '))
             rep.check(found is s, f'spots/{s.key}',
                       'cannot be found without the article')
+
+    # D57: the drawn map claims exactly the joins the city has, and fits.
+    from flatline import citymap
+    from flatline.game import Game
+    from flatline.model.character import Character
+    graph_edges = {frozenset((a, b)) for a, bs in districts.GRAPH.items()
+                   for b in bs}
+    rep.check(citymap.MAP_EDGES == graph_edges, 'citymap',
+              f'the drawing and the city disagree about the joins: '
+              f'{sorted(map(sorted, citymap.MAP_EDGES ^ graph_edges))}')
+    game = Game.new(Character.from_origin('gutter', 'probe'), seed=1)
+    for glyphs in (ui.GlyphLevel.UNICODE, ui.GlyphLevel.ASCII):
+        caps = ui.Caps(color=ui.ColorLevel.NONE, glyphs=glyphs, width=80,
+                       palette=theme.NEUTRAL)
+        lines = citymap.draw(game, caps)
+        plain = [ui.plain(line) for line in lines]
+        rep.check(all(len(line) <= 76 for line in plain), 'citymap',
+                  f'the drawing is wider than the text column ({glyphs.name})')
+        joined = '\n'.join(plain)
+        for key in districts.DISTRICT_KEYS:
+            rep.check(key in joined, 'citymap',
+                      f'{key} is not on the drawing ({glyphs.name})')
+        rep.check(citymap.MARK_HERE in joined, 'citymap',
+                  f'you are not on the drawing ({glyphs.name})')
+        if glyphs is ui.GlyphLevel.ASCII:
+            rep.check(all(ord(ch) < 128 for ch in joined), 'citymap',
+                      'the ASCII rung draws a non-ASCII character')
 
     rep.check(len(fallout.CLOSE_CALLS) >= 4, 'fallout/close',
               'fewer than four ways for the street to let you know')

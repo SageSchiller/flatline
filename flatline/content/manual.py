@@ -659,9 +659,11 @@ TOPICS: tuple[Topic, ...] = (
         'Nine districts, and [accent]travel only goes to a neighbour[/], so '
         'somewhere on the far side of the city costs two or three shifts to '
         'reach and the contract expiring is counting all of them. [fg]map[/] '
-        'draws the whole shape, marks where you are, and says how many shifts '
-        'each district is from here. Anything that sends you somewhere hands '
-        'you the walk as a line you can type.\n\n'
+        'draws the city, marks where you are and where the job is, and says '
+        'how many shifts each district is from here. [fg]walk <district>[/] '
+        'goes the whole way, a shift a step, and stops if the street stops '
+        'you. Anything that sends you somewhere hands you the walk as a line '
+        'you can type.\n\n'
         'While shifts pass: contracts expire, heat decays, market stock '
         'rotates, faction posture drifts back toward baseline, and '
         '[warn]other runners take work off the board[/].\n\n'
@@ -678,7 +680,8 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] doing nothing is a real strategy with a real '
         'price, and knowing when to pay it is most of the city layer.',
         see=('heat', 'rivals', 'contracts', 'reading', 'clock'),
-        commands=('travel', 'map', 'rest', 'board', 'look', 'visit', 'news'),
+        commands=('travel', 'walk', 'map', 'rest', 'board', 'look', 'visit',
+                  'news'),
         covers=('districts', 'shifts', 'spots'),
         terms=('moving around', 'getting about',),
         group='city'),
