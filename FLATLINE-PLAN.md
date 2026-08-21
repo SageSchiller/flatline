@@ -12,7 +12,7 @@ updated: 2026-08-21
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,387 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. **Phase 7** in the phase list is the numbered candidate list; items 1 to 3 are done, and **the next pass the author asked for is tone and environment: the city deeper, more dangerous and more alive, gritty dark cyberpunk with Pratchett-shaped self-aware humour, inside the D34 budget.** Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
+> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,387 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. **Phase 7** in the phase list is the numbered candidate list; items 1 to 3, 5 and 6 are done. **Next, in order of what the city is still thin on: the seventeen people at three lines each (a voice pass, one person at a time); presence by shift; district and rival threads (item 4) on the `Posting` mechanism.** Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
@@ -1309,6 +1309,56 @@ their own readers (events, the board, the epilogue) under D51, and the
 spine's four ending flags are the four Deepwater decisions, which
 `validate.py` checks.
 
+### D53: The city, deeper
+
+Asked for a city that feels deep, dangerous and alive: gritty dark cyberpunk
+with Pratchett-shaped, self-aware moments. The voice was already there (the
+weather events, the footnotes, the rats' committee). What was thin was the
+*ground*: a district was one fixed paragraph and a list of services, the
+same paragraph at every hour, and nowhere inside it to stand. Danger below
+an incident was one warning line. And `city.news` was written by the shift
+tick, kept to forty lines, serialised, and read by nothing.
+
+**Each district has a scene for each hour.** `districts.SCENES`: nine
+districts by three shifts, two or three sentences each, printed by `look`
+and on arrival in place of the city-wide shift scene. Marrow at night and
+the Shambles at night are not the same night, and now they are not the same
+paragraph.
+
+**Places to stand in.** `content/spots.py`: twenty-seven places, two or
+three a district, each with a scene, a night variant where the night is
+different, and who you would usually find there. `look` lists them,
+`visit <place>` (or its row) goes and stands in one for nothing, shows it at
+this hour, and introduces whoever is there, which counts as meeting them,
+so a scene that was waiting on `met:` arrives from the place. Texture, not
+a menu: the verbs are the same verbs and the people are the same people.
+
+**The street lets you know.** `fallout.close_call`: in the band below an
+incident (danger 25 to 44), on a chance that climbs with the danger, the
+street does something instead of printing a warning: somebody walks beside
+you for eleven paces, a shutter comes down, your name is said to check how
+it sounds. It costs three attention with that faction, which is the honest
+cost of having been seen, and it is printed under a `noticed` rule so it
+reads as an event and not as advice.
+
+**`news`** (`wire`) reads the scrollback the city was already keeping and
+nobody could see: who took what off the board, who posted a number against
+your name, who died on whose job, what expired, what you sold.
+
+**Fourteen more events**, in the same proportions: three grim, three wry,
+eight absurd (the lift committee with no lift, the form for requesting a
+form, the crane named by a vote with the losing name on the other side, the
+queue with a constitution). Budget after: 52 / 31 / 17 against 50-70 /
+20-35 / 10-20. Absurd was at the floor; it is now in the middle.
+
+**What it does not do.** No NPC gained lines (seventeen people at three
+lines each is the next place the city is thin, and it wants a pass of its
+own, in seventeen voices). No scene happens inside a run. Nothing here
+costs the player anything except a close call, and a close call is priced
+like what it is. `validate.check_city_texture` requires every district to
+have every hour, two to four places each, every place findable by its own
+name with and without the article, and every close call to say where.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -1554,13 +1604,12 @@ More districts, factions, chrome, and programs. Content, not systems.
    for the districts; the rivals (`who`, disposition, D44) are the best
    written people in the game and have no arc. Rivalry, alliance, betrayal,
    one each.
-5. **Locations inside districts.** Two or three named spots per district,
-   listed by `look`, entered with `visit <spot>` at no shift cost, with who
-   is there and when (presence by shift as well as by place). Not a menu:
-   places you go because something is there.
-6. **`news`.** One verb that collates what happened while you slept: the
-   board, postures, bounties, thread outcomes, the departed (D43). Most of
-   it prints inline today and scrolls away.
+5. ~~Locations inside districts.~~ Done: D53, as `spots` and `visit`.
+   Presence by shift is still open: the people are where they are at every
+   hour, and a city where Mara is only in the bar in the mornings would be
+   one more true thing.
+6. ~~`news`.~~ Done: D53. It reads `city.news`, which was a dead field.
+   Thread outcomes and posture moves are not yet written into it.
 7. **`journal` as a real log**: the decisions you made and what they cost,
    per thread; and `now` saying "a choice is waiting: `choose`".
 
@@ -2243,3 +2292,27 @@ run brings it, which is soon enough and reads better.
 
 `validate.py` clean, `test.py` green at **13,387 checks**, `./build.sh`
 clean. 18 threads, 43 scenes, 50 decisions, 97 events at 55/34/11.
+
+### 2026-08-21 (d): the city, deeper
+
+**D53.** The tone pass the author asked for, done as ground rather than as
+adjectives. Read the existing prose first and found the voice already
+right, and the city thin underneath it: one paragraph per district at
+every hour, nowhere inside a district to stand, danger below an incident a
+single warning line, and `city.news` a scrollback nothing read.
+
+Wrote twenty-seven district-by-hour scenes, twenty-seven places with night
+variants and who is usually there (`visit`, free, counts as meeting), six
+close calls that cost three attention, `news`, and fourteen events, eight of
+them absurd, which lifts the absurd share from the floor of the D34 budget
+to the middle of it. `check_city_texture` holds every district to every
+hour and every place to being findable by its own name.
+
+**One thing it turned up.** `city.news` was the project's bug class in a
+world field: written on every shift, trimmed to forty, saved and loaded,
+read by nobody. `news` reads it now, and the next pass should write thread
+outcomes and posture moves into it, because a wire that only carries what
+the shift tick happened to say is a wire with one correspondent.
+
+`validate.py` clean, `test.py` green at **13,443 checks**. 111 events at
+52/31/17.

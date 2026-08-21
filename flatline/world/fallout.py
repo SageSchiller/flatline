@@ -82,6 +82,56 @@ def bounty_check(alias, city, rng: Stream) -> list[str]:
     return told
 
 
+#: Being noticed without being picked up. The rung below the ladder (D53):
+#: the street letting you know it has your name, at a cost of nothing but
+#: the noticing itself, which is a cost. `{district}` and `{fac}` are filled.
+CLOSE_CALLS: tuple[str, ...] = (
+    'Somebody in {fac}\'s colours steps off the kerb in {district} as you '
+    'pass and walks beside you for eleven paces without saying anything, and '
+    'then does not, and you do not look round to find out where they went.',
+    'A handset comes up across the street in {district}, pointed, and goes '
+    'down again, and the person holding it has the expression of somebody '
+    'who has just been told the price of something.',
+    'Two people in a doorway in {district} stop talking as you pass and '
+    'start again when you have passed, and what they start again with is a '
+    'question, and you are fairly sure of the subject.',
+    'Somebody says your name in {district}. Not to you. The right name, the '
+    'one on the posters, said the way you say a thing to check how it sounds '
+    'out loud.',
+    'A shutter comes down in {district} as you reach it, not fast, and the '
+    'face behind it belongs to somebody who knows {fac} pay for faces and '
+    'has just decided how much yours is worth, and decided it is not worth '
+    'the trouble today.',
+    'In {district} somebody from {fac} looks at you for exactly as long as '
+    'it takes to be sure, and then looks at the time, and then writes '
+    'something down, and the writing down is the part that follows you out '
+    'of the district.',
+)
+
+#: Attention a close call adds. Small: they saw you, and now there is one
+#: more person who can say so.
+CLOSE_CALL_HEAT = 3
+
+
+def close_call(rng: Stream, alias, city, faction: str,
+               danger: int) -> Incident | None:
+    """Maybe the street lets you know. None when it keeps it to itself.
+
+    Fires in the band below an incident, on a chance that climbs with the
+    danger, so that a district you are merely watched in is a district where
+    things happen rather than a warning line. It costs a little heat, which
+    is the honest cost of having been seen.
+    """
+    if not rng.chance(min(0.5, danger / 160.0)):
+        return None
+    fac = factions.BY_KEY[faction]
+    text = rng.pick(CLOSE_CALLS).format(district=city.district.name,
+                                        fac=fac.short)
+    alias.add_heat(faction, CLOSE_CALL_HEAT)
+    return Incident('close', text,
+                    f'{fac.short} attention up {CLOSE_CALL_HEAT}.')
+
+
 def pick_up(rng: Stream, char, alias, city, faction: str) -> Incident:
     """You were recognised. Apply one rung of the ladder and describe it.
 

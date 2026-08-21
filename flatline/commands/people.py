@@ -17,6 +17,7 @@ from ..content import threads as thread_content
 from ..content import appearance
 from ..content import districts
 from ..content import shifts
+from ..content import spots
 from ..shell import CommandError, command
 from ..world import story as story_mod
 
@@ -44,7 +45,9 @@ def cmd_look(sess, args) -> None:
     # somewhere for six shifts had nothing to look at.
     c.say(f'[dim]{district.blurb}[/]')
     c.blank()
-    c.say(when.scene)
+    # This district at this hour, when somebody wrote it; the city-wide
+    # shift scene otherwise (D53).
+    c.say(districts.scene(district.key, game.city.phase) or when.scene)
 
     # What the clock is doing to you, in the two places it is doing it.
     parts = []
@@ -70,6 +73,7 @@ def cmd_look(sess, args) -> None:
 
     from .city import here_you_can
     here_you_can(sess, district, looking=True)
+    _places_line(sess, district)
 
     c.blank()
     if not here:
@@ -108,6 +112,112 @@ def _noticed(sess) -> None:
     if said:
         sess.console.blank()
         sess.console.say(f'[dim]{said}[/]')
+
+
+def _places_line(sess, district) -> None:
+    """The places you can go and stand in, one line, typeable."""
+    c = sess.console
+    places = spots.in_district(district.key)
+    if not places:
+        return
+    sess.remember('spots', [s.key for s in places])
+    bullet = c.caps.g('bullet')
+    c.say('[dim]Places:[/] ' + f' [dim]{bullet}[/] '.join(
+        f'[fg]{s.name}[/]' for s in places)
+          + ' [dim](`visit <place>`, which costs nothing)[/]', subsequent='  ')
+
+
+@command('visit', 'Go and stand somewhere in this district.',
+         group='city', contexts=('city',), aliases=('enter', 'goto'),
+         usage='visit [place|row number]',
+         blocked='The places are out there, and so, for the moment, is the '
+                 'rest of you.',
+         detail='A district has two or three places in it that a person '
+                'would actually go and stand: the noodle bar, the west gate, '
+                'the crate outside the clinic. `look` lists them. Visiting '
+                'one costs nothing, because it is inside the district you are '
+                'already in; it shows you the place as it is at this hour, '
+                'and whoever is usually there if they are there now. The '
+                'people are the same people and the verbs are the same verbs: '
+                'this is texture, and texture is most of what makes somewhere '
+                'feel like it goes on when you are not looking.',
+         complete=lambda sess, prefix: [
+             s.key for s in spots.in_district(sess.game.city.where)
+         ] if sess.game else [])
+def cmd_visit(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    district = game.city.district
+    places = spots.in_district(district.key)
+    if not places:
+        raise CommandError('nowhere in particular to stand here. `look` for '
+                           'who is about.')
+    if not len(args):
+        c.header(district.name, f'{len(places)} places')
+        sess.remember('spots', [s.key for s in places])
+        here = {n.key for n in story_mod.present(game, game.story)}
+        for n, spot in enumerate(places, 1):
+            who = [npc_content.BY_KEY[k].name for k in spot.who
+                   if k in npc_content.BY_KEY and k in here]
+            tail = f'  [dim]{", ".join(who)}[/]' if who else ''
+            c.raw(f'  [accent]{n}[/]  [fg]{spot.name}[/]{tail}')
+        c.blank()
+        c.say('[dim]`visit <place>` or `visit <row number>`. It costs '
+              'nothing.[/]')
+        return
+
+    token = sess.pick('spots', args.rest().lower(),
+                      fallback=[s.key for s in places], what='place',
+                      again='visit')
+    spot = spots.find(district.key, token)
+    if spot is None:
+        raise CommandError(f'nowhere called {args.rest()!r} here. `visit` '
+                           f'lists the places.')
+    c.header(spot.name, district.name)
+    c.say(spots.scene_for(spot, game.city.phase))
+    here = {n.key for n in story_mod.present(game, game.story)}
+    for key in spot.who:
+        npc = npc_content.BY_KEY.get(key)
+        if npc is None:
+            continue
+        c.blank()
+        if key in here:
+            first = game.story.meet(key)
+            if first:
+                c.raw(f'[accent2][bold]{npc.name}[/][/]  [dim]{npc.epithet}[/]')
+                c.say(npc.first)
+                _noticed(sess)
+            else:
+                c.raw(f'[accent]{npc.name}[/]  [dim]{npc.epithet}[/]')
+                c.say(f'[dim]Here, as usual. `talk {npc.key}`.[/]')
+        else:
+            c.say(f'[dim]{npc.name} is not here at the moment.[/]')
+    _check_story(sess)
+
+
+@command('news', 'What the city did while you were not looking.',
+         group='info', contexts=('city',), aliases=('wire',),
+         usage='news [count]',
+         blocked='The wire is out there. In here there is only the trace.',
+         detail='The city keeps a scrollback of what it did: who took what '
+                'off the board, who posted a number against your name, who '
+                'died on whose job, what expired, what you sold. Most of it '
+                'printed once as it happened and scrolled away. This is where '
+                'it went. It costs nothing.')
+def cmd_news(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    count = args.int_at(0, 12, 'how many lines')
+    lines = game.city.news[-max(1, count):]
+    c.header('The wire', game.city.when)
+    if not lines:
+        c.say('[dim]Nothing has happened that anybody wrote down. Give it a '
+              'shift.[/]')
+        return
+    bullet = c.caps.g('bullet')
+    for line in lines:
+        c.say(f'[dim]{bullet}[/] {line}', subsequent='  ')
+    if len(game.city.news) > len(lines):
+        c.blank()
+        c.say(f'[dim]`news {len(game.city.news)}` for all of it.[/]')
 
 
 @command('talk', 'Say something to somebody.',

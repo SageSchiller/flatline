@@ -6001,9 +6001,106 @@ def test_spine() -> None:
     save_mod.delete('spine-save')
 
 
+def test_texture() -> None:
+    """D53: the city at this hour, places to stand in, the street letting you
+    know, and the wire."""
+    T.section('texture')
+    from flatline.content import spots
+    from flatline.world import fallout
+
+    def fresh(handle='Tex'):
+        return Game.new(Character.from_origin('gutter', handle), seed=4242)
+
+    # `look` prints the district at this hour, and arrival does too.
+    game = fresh()
+    _, out = play(['look'], game=game)
+    T.ok(ui.plain(districts.scene('marrow', game.city.phase))[:40] in out,
+         '`look` prints Marrow at this hour')
+    T.ok('Places:' in out and 'the noodle bar' in out,
+         'and lists the places to stand in')
+    _, out = play(['travel ninth'], game=game)
+    T.ok(ui.plain(districts.scene('ninth', game.city.phase))[:40] in out,
+         'arrival prints the Ninth at this hour')
+
+    # `visit`: listing, by name, by row, at night, with who is there.
+    game = fresh()
+    sess, out = play(['visit'], game=game)
+    T.ok('the noodle bar' in out and 'the exchange' in out,
+         '`visit` alone lists the places here')
+    _, out = play(['visit noodle bar'], game=game)
+    T.ok('three landlines' in out, '`visit noodle bar` stands in it')
+    T.ok('Mara Okonkwo' in out, 'and finds Mara there')
+    T.ok('met:mara' in game.story.flags, 'which counts as meeting her')
+    _, out = play(['visit 2'], game=game)
+    T.ok('interchange' in out, '`visit 2` is the second row')
+    _, out = play(['visit nowhere'], game=game)
+    T.ok('nowhere called' in out, 'and an unknown place is refused')
+    game.city.shift = 2  # night
+    _, out = play(['visit exchange'], game=game)
+    T.ok('people who do not sleep' in out, 'at night the place is the night')
+    game.city.where = 'shambles'
+    _, out = play(['visit crate'], game=game)
+    T.ok('Lark' in out, 'Lark is on the crate')
+    game.story.flags.add('lark_dead')
+    _, out = play(['visit crate'], game=game)
+    T.ok('not here at the moment' in out, 'and not once she is dead')
+    for d in districts.DISTRICTS:
+        T.ok(len(spots.in_district(d.key)) >= 2,
+             f'{d.key} has places to stand in')
+    T.ok(all(ui.width(line) <= 80 for line in out.splitlines()),
+         'a place fits eighty columns')
+
+    # The street lets you know, in the band below an incident, and it costs
+    # a little heat; below the band it keeps quiet.
+    game = fresh()
+    stream = game.rng('events')
+    before = game.alias.attention('sixes')
+    hits = sum(1 for _ in range(200)
+               if fallout.close_call(stream, game.alias, game.city, 'sixes',
+                                     40) is not None)
+    T.ok(0 < hits < 200, f'a close call sometimes happens ({hits}/200)')
+    T.ok(game.alias.attention('sixes') > before,
+         'and being seen costs attention')
+    game = fresh()
+    call = fallout.close_call(game.rng('events'), game.alias, game.city,
+                              'sixes', 40)
+    if call is not None:
+        T.ok('Marrow' in call.text and call.detail, 'and it says where')
+    # Through travel: push heat into the band and walk in.
+    game = fresh()
+    game.alias.add_heat('sixes', 40)
+    danger, who = game.city.danger(game.alias, 'ninth')
+    if 25 <= danger < fallout.INCIDENT_FLOOR:
+        _, out = play(['travel ninth'], game=game)
+        T.ok('noticed' in out or 'looking for your name' in out,
+             'walking into a watched district says something')
+
+    # The wire.
+    game = fresh()
+    _, out = play(['news'], game=game)
+    T.ok('The wire' in out and 'Nothing has happened' in out,
+         '`news` on day one has nothing')
+    game.city.news.extend(['Somebody took c001.', 'Somebody else died.'])
+    _, out = play(['news'], game=game)
+    T.ok('took c001' in out and 'else died' in out, 'and prints what it has')
+    _, out = play(['news 1'], game=game)
+    T.ok('else died' in out and 'took c001' not in out,
+         'and a count trims it to the latest')
+    T.ok(REGISTRY.lookup('wire') is REGISTRY.lookup('news'), '`wire` is news')
+
+    # The tonal budget holds with the new ground and air in.
+    from flatline.content import events
+    counts = {t: sum(1 for e in events.EVENTS if e.tone == t)
+              for t in events.TONES}
+    total = len(events.EVENTS)
+    for tone, (lo, hi) in events.TONE_BUDGET.items():
+        T.ok(lo <= counts[tone] / total <= hi,
+             f'{tone} is {counts[tone] / total:.0%}, inside the budget')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
-    test_consequences, test_spine,
+    test_consequences, test_spine, test_texture,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,

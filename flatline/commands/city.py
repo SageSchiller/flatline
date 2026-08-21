@@ -1290,6 +1290,12 @@ def cmd_travel(sess, args) -> None:
     c.blank()
     c.rule(district.name)
     c.say(district.arrival)
+    # What the place is doing at this hour, which is not the same thing as
+    # what it is (D53).
+    now = districts.scene(district.key, game.city.phase)
+    if now:
+        c.blank()
+        c.say(now)
     if free:
         c.info('You know the way. It does not cost you a shift.')
 
@@ -1297,8 +1303,17 @@ def cmd_travel(sess, args) -> None:
         _resolve_incident(sess, who, danger)
     elif danger >= 25:
         c.blank()
-        c.warn(f'{factions.BY_KEY[who].short} have people here and they are '
-               f'looking for your name. Do not linger.')
+        # The band below an incident is not a warning line any more. The
+        # street may let you know, and the letting-know costs a little.
+        call = fallout.close_call(game.rng('events'), game.alias, game.city,
+                                  who, danger)
+        if call is not None:
+            c.rule('noticed', role='warn')
+            c.say(f'[warn]{call.text}[/]')
+            c.say(f'[dim]{call.detail}[/]')
+        else:
+            c.warn(f'{factions.BY_KEY[who].short} have people here and they '
+                   f'are looking for your name. Do not linger.')
     here_you_can(sess, district)
 
 

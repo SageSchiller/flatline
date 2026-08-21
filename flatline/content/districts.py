@@ -169,6 +169,179 @@ DISTRICTS: tuple[District, ...] = (
 BY_KEY: dict[str, District] = {d.key: d for d in DISTRICTS}
 DISTRICT_KEYS: tuple[str, ...] = tuple(BY_KEY)
 
+
+# --------------------------------------------------------------------------
+# what each district is doing, by shift (D53)
+# --------------------------------------------------------------------------
+
+#: district -> phase -> two or three sentences. `look` and arrival print
+#: these in place of the city-wide shift scene, because Marrow at night and
+#: the Shambles at night are not the same night, and the one paragraph a
+#: district used to have was the same paragraph every time you stood in it.
+#: Second person where a person is there to be second; the city otherwise.
+SCENES: dict[str, dict[str, str]] = {
+    'ninth': {
+        'morning':
+            'The pumps have been going all night and the water in the '
+            'stairwells has gone down a hand\'s width, which is what the '
+            'Ninth calls morning. Shutters go up on the stalls that have '
+            'shutters. The rest were never shut.',
+        'afternoon':
+            'Everything in the Ninth that is for sale is out on the street '
+            'now, on cloth, on crates, on the bonnets of vans that do not '
+            'move. The Sixes\' people are not visible, which is how you know '
+            'they are here.',
+        'night':
+            'The Ninth does not go dark so much as go orange: sodium lamps '
+            'over standing water, and the generator two floors up still being '
+            'tested. Somebody is frying something. Somebody is always frying '
+            'something.{{It is the one reliable public service.}}',
+    },
+    'marrow': {
+        'morning':
+            'Marrow opens the way a throat clears. The noodle bar\'s '
+            'landlines have been ringing since before the shutters, and the '
+            'queue at the exchange is the people who did not sleep standing '
+            'behind the people who did.',
+        'afternoon':
+            'Every walkway in Marrow is at capacity and every conversation is '
+            'being held at the volume of somebody who assumes the next table '
+            'is listening, which it is. Nobody starts anything. That is what '
+            'the district is for.',
+        'night':
+            'Marrow at night is four thousand people pretending to be four '
+            'hundred. The noodle bar is open, because it is always open, and '
+            'the landlines are quiet, and Mara is writing in the book.',
+    },
+    'vertical': {
+        'morning':
+            'The Vertical takes its first shift in through the lobby at a rate '
+            'the lobby has decided on. The gait logger does not need to look '
+            'up. Ninety floors of lights come on in an order somebody in '
+            'facilities is proud of.',
+        'afternoon':
+            'The Vertical does not have an afternoon so much as a sustained '
+            'peak, climate-controlled, with the walkways between the towers '
+            'full of people who are allowed to be on them. You are not, yet, '
+            'one of those people, and the building has noticed.',
+        'night':
+            'Floors forty through sixty are still lit. Down here the lobby '
+            'has gone to its night setting, which is brighter, and the guard '
+            'at the desk is reading something on a screen angled so that the '
+            'camera can read it too.',
+    },
+    'green': {
+        'morning':
+            'Aoyama Green wakes up already landscaped. Sprinklers, the hum of '
+            'the clinics\' plant, and the first of the day\'s patients '
+            'arriving in good coats to have something done that their '
+            'families have been told is routine.',
+        'afternoon':
+            'The campus lawns are being used as lawns, by people on breaks, '
+            'and the clinic doors open and close on a schedule so regular you '
+            'could set a trace by it. Everybody looks well. That is a '
+            'product.',
+        'night':
+            'At night the Green is lit the way a showroom is lit when the '
+            'showroom is closed: everything visible and nothing for sale. The '
+            'clinics keep a skeleton staff and very good locks, and the '
+            'aftercare ward glows at the back of the campus like a pilot '
+            'light.',
+    },
+    'glasshouse': {
+        'morning':
+            'The Glasshouse is already bright when you arrive, because it is '
+            'always bright; the lighting does not know what time it is and '
+            'would not care. Sendai\'s demonstrators are setting out the '
+            'day\'s interfaces on cloth, like a market, if a market talked to '
+            'your deck.',
+        'afternoon':
+            'Sendai are demonstrating something to a crowd that is mostly '
+            'other demonstrators. Every surface reflects every other surface. '
+            'Your deck reports that three different things have tried to talk '
+            'to it since you walked in, politely.',
+        'night':
+            'At night the Glasshouse is an operating theatre after the '
+            'operation. The lights stay on and the staff go home and the '
+            'demonstrations sit under cloths, and it is the quietest '
+            'expensive place in the city.',
+    },
+    'freeport': {
+        'morning':
+            'Freeport starts before it is light because the tide does not '
+            'care. The cranes are moving, the west gate has a new sheet of '
+            'paper on it, and somebody is reading it aloud to somebody who '
+            'could read it themselves, which is how news works here.',
+        'afternoon':
+            'The docks are at full stretch: containers, shouting, the market '
+            'doing business out of the backs of things, and the noticeboard by '
+            'the west gate with a small argument going on in front of it about '
+            'the wording of something that will be voted on by dark.',
+        'night':
+            'Freeport at night is the cranes with their lights on and the '
+            'water doing what water does under them. The bars are open. The '
+            'fences are open. The vote got settled, and the losing side is '
+            'buying, which is the rule.',
+    },
+    'precinct': {
+        'morning':
+            'The Precinct changes shift without anybody\'s heart rate moving. '
+            'The complaints counter opens. The queue at it is already there, '
+            'because it was there last night; it is not clear anybody in it '
+            'went home.',
+        'afternoon':
+            'The Precinct is busy in the way a business is busy: forms, '
+            'stamps, a surplus counter doing a brisk trade in things that were '
+            'evidence last quarter. Everybody is on shift and nobody is in a '
+            'hurry and the queue has moved one place.',
+        'night':
+            'At night the Precinct is lit at the level somebody costed, and '
+            'the counter is staffed by somebody who would rather not be, and '
+            'the cells at the back are full of people being extremely '
+            'reasonable at each other through the bars.{{Nightwatch run the '
+            'cells as a line item. It is an unusually profitable one.}}',
+    },
+    'shambles': {
+        'morning':
+            'The Shambles clinic has had a queue since four. The Blue '
+            'Surgeon\'s light has been on since three. The street smells of '
+            'solvent and, under the solvent, the thing the solvent is for.',
+        'afternoon':
+            'Carrion\'s street is doing its day\'s business, which is chrome '
+            'going in, chrome coming out, and a cabinet at the front of every '
+            'shop with the things that came out recently, serial numbers '
+            'showing. Nobody asks. Everybody already knows.',
+        'night':
+            'The Shambles at night is the one district that gets louder. The '
+            'clinics work late because the work comes in late, and the people '
+            'on the street with more hardware than skin are the ones on shift, '
+            'and they watch you the way a butcher watches a queue.',
+    },
+    'terraces': {
+        'morning':
+            'Eleven thousand people leave the Terraces in the morning through '
+            'four stairwells, quietly, with the practised courtesy of people '
+            'who will do this again tomorrow. Something is growing on every '
+            'landing. Nobody here knows your name.',
+        'afternoon':
+            'The Terraces in the afternoon belong to the people who do not '
+            'leave: the old, the very young, a man on the ninth landing who '
+            'has opinions about parking. Kagawa\'s farms hum under the floor. '
+            'It is the nearest thing to peace this city sells, and it is '
+            'rented.',
+        'night':
+            'The stairwells fill again at night, slower, and then empty, and '
+            'the Terraces settle into the sound of eleven thousand people '
+            'being tired behind thin walls. A child is doing homework by '
+            'vending-machine light. The homework is about Kagawa.',
+    },
+}
+
+
+def scene(district: str, phase: str) -> str:
+    """What this district is doing at this hour, or '' if nobody wrote it."""
+    return SCENES.get(district, {}).get(phase, '')
+
 #: The city as a plain graph. Derived rather than authored, so it cannot drift
 #: from the districts themselves, and shaped for `ui.spanning_tree` and
 #: `ui.shortest_path` which are the two things that ever ask.

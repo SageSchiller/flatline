@@ -444,6 +444,108 @@ EVENTS: tuple[Event, ...] = (
           'sign explaining the name to newcomers. The sign has been updated '
           'twice. The escalator has not.',
           districts=('marrow',), weight=0.6),
+
+    # ----------------------------------------------------------------------
+    # D53: the city, deeper. More ground, more air, in the same proportions.
+    # ----------------------------------------------------------------------
+
+    Event('watched_walk', 'grim',
+          'Somebody is walking home the long way round, through the lit '
+          'streets, at the speed of a person who has worked out exactly how '
+          'far behind them the other footsteps are, and is not going to turn '
+          'round to check.',
+          phases=('night',)),
+
+    Event('clinic_bill', 'grim',
+          'A man outside the clinic is reading an itemised bill, slowly, the '
+          'way you read a thing that has been itemised so that you can see '
+          'where the money went and cannot do anything about any of it.',
+          districts=('green', 'shambles', 'vertical')),
+
+    Event('empty_chair', 'grim',
+          'There is a chair in the corner of the bar that nobody sits in, and '
+          'nobody has said why, and a new face sat in it this shift and was '
+          'moved, gently, by three separate people, none of whom explained.',
+          districts=('marrow', 'ninth', 'freeport')),
+
+    Event('night_prices', 'wry',
+          'The half of the market that stays open at night has adjusted its '
+          'prices, and put up a sign explaining the adjustment, and the sign '
+          'costs more to read than the adjustment, in time, which is the joke '
+          'and also the business model.',
+          phases=('night',)),
+
+    Event('lawn_sign', 'wry',
+          'Aoyama Green has put a sign on the lawn asking people not to walk '
+          'on the lawn. It is on the lawn. The path to the sign is now a '
+          'path, and somebody in facilities has put a sign on that.',
+          districts=('green',)),
+
+    Event('crane_names', 'wry',
+          'The cranes in Freeport have names, painted by the people who run '
+          'them, and the newest crane has been named by a vote, and the vote '
+          'was close, and the losing name has been painted on the other side, '
+          'which the winning side describes as gracious and the losing side '
+          'describes as the plan.',
+          districts=('freeport',)),
+
+    Event('lift_committee', 'absurd',
+          'The Terraces lift committee has met. It has no power, no budget and '
+          'no lift, the lift having been optimised out in a restructure nobody '
+          'attended, and it continues to meet fortnightly, with minutes, '
+          'because the alternative is not having a committee.{{Attendance is '
+          'good. The minutes are read aloud to the stairwell, which attends.}}',
+          districts=('terraces',), weight=0.7),
+
+    Event('precinct_form', 'absurd',
+          'The Precinct has introduced a form for requesting a form. It is a '
+          'single sheet and it is, everybody in the queue agrees, very well '
+          'designed. It has already been requested.{{Using the other form.}}',
+          districts=('precinct',), weight=0.7),
+
+    Event('kagawa_name', 'absurd',
+          'Kagawa have renamed the east stairwell. The new name is a number, '
+          'the number is longer than the old name, and there is a laminated '
+          'notice explaining that this is simpler. The notice has a number '
+          'too.',
+          districts=('vertical', 'terraces'), weight=0.7),
+
+    Event('demo_card', 'absurd',
+          'Sendai\'s demonstrator has lost the card and is now describing the '
+          'neural interface from memory, with feeling, and the crowd has '
+          'noticed the difference and is visibly moved, and the product has '
+          'not been mentioned for eleven minutes.{{Sales are up.}}',
+          districts=('glasshouse',), weight=0.7),
+
+    Event('noticeboard_vote', 'absurd',
+          'Freeport\'s noticeboard has a motion on it to move the noticeboard. '
+          'The motion has been amended, by hand, by four people, and the '
+          'fourth amendment proposes moving the motion. It will pass. '
+          'Everything at the west gate passes eventually, which is either '
+          'democracy or tides and the dockers have stopped distinguishing.',
+          districts=('freeport',), weight=0.7),
+
+    Event('clinic_music', 'absurd',
+          'The Shambles clinic has started playing music in the queue, at the '
+          'Blue Surgeon\'s instruction, to improve outcomes. The music is one '
+          'song. The outcomes have improved.{{Nobody has established whether '
+          'it is the song or the instruction, and the Surgeon has declined to '
+          'run the control.}}',
+          districts=('shambles',), weight=0.7),
+
+    Event('wire_correction', 'absurd',
+          'The low-band station has issued a correction to a correction, and '
+          'then, after some dead air, a short statement standing by the '
+          'original error on grounds of consistency.',
+          weight=0.6),
+
+    Event('queue_society', 'absurd',
+          'The queue outside the Marrow exchange has developed a constitution. '
+          'It is unwritten, it covers saving places, it has a dispute '
+          'procedure, and it is enforced by a woman in a green coat who has '
+          'never, as far as anybody knows, been inside the exchange.{{She is '
+          'not in the queue. She is the queue\'s.}}',
+          districts=('marrow',), weight=0.7),
 )
 
 # --------------------------------------------------------------------------

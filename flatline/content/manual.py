@@ -669,11 +669,17 @@ TOPICS: tuple[Topic, ...] = (
         'free way to let heat cool. It is a way to let somebody else make the '
         'city more expensive, because when a rival succeeds against a faction, '
         'that faction hardens for you too.\n\n'
+        'A district is also somewhere to stand. [fg]look[/] shows what it is '
+        'doing at this hour, who is about, and the two or three places a '
+        'person would actually go: [fg]visit <place>[/] goes and stands in '
+        'one, for nothing. [fg]news[/] is the wire: what the city did while '
+        'you were not looking, most of which printed once and scrolled away.'
+        '\n\n'
         '[warn]The decision:[/] doing nothing is a real strategy with a real '
         'price, and knowing when to pay it is most of the city layer.',
         see=('heat', 'rivals', 'contracts', 'reading', 'clock'),
-        commands=('travel', 'map', 'rest', 'board'),
-        covers=('districts', 'shifts',),
+        commands=('travel', 'map', 'rest', 'board', 'look', 'visit', 'news'),
+        covers=('districts', 'shifts', 'spots'),
         terms=('moving around', 'getting about',),
         group='city'),
     Topic(

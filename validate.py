@@ -895,10 +895,11 @@ def check_dead_fields(rep: Report) -> None:
     source = (_engine_source() + _command_source() + _model_source()
               + _world_source() + _content_source())
 
+    from flatline.content import spots as spot_content
     records = [
         appearance.Feature, appearance.Slot, events.Event,
         cyberspace.Signature, npc_content.Npc, trait_content.Trait,
-        icons.Icon, origins.Origin,
+        icons.Icon, origins.Origin, spot_content.Spot,
     ]
     for record in records:
         for field in dataclasses.fields(record):
@@ -3547,9 +3548,95 @@ def check_spine(rep: Report) -> None:
               'fewer than eight decisions in the whole spine')
 
 
+def check_city_texture(rep: Report) -> None:
+    """D53: every district has a scene for every hour, two or three places
+    to stand in, and the street has something to say below an incident.
+
+    Texture is content too, and content that is missing for one district at
+    one hour is the kind of gap nobody notices until they stand in it.
+    """
+    from flatline.content import spots as spot_content
+    from flatline.world import fallout
+
+    def sentence(where: str, text: str, what: str,
+                 lo: int = 80, hi: int = 700) -> None:
+        stripped, notes = ui.split_notes(text)
+        body = ui.plain(stripped)
+        written = len(body) + sum(len(ui.plain(n)) for n in notes)
+        rep.check(lo < written <= hi, where,
+                  f'{what} is {written} characters; wanted {lo} to {hi}')
+        tail = body.rstrip().rstrip(ui._SUPER + ']0123456789[')
+        rep.check(tail.endswith(('.', '!', '?')), where,
+                  f'{what} does not end in a full stop')
+        for note in notes:
+            flat = ui.plain(note).rstrip().rstrip(ui._SUPER + ']0123456789[')
+            rep.check(flat.endswith(('.', '!', '?')), where,
+                      f'an aside in {what} does not end in a full stop')
+
+    for d in districts.DISTRICTS:
+        for phase in city_mod.SHIFT_NAMES:
+            where = f'districts/{d.key}/{phase}'
+            text = districts.scene(d.key, phase)
+            rep.check(bool(text), where, 'has no scene for this hour')
+            if text:
+                sentence(where, text, 'the scene')
+    for key in districts.SCENES:
+        rep.check(key in districts.BY_KEY, 'districts/scenes',
+                  f'a scene is written for unknown district {key!r}')
+        for phase in districts.SCENES[key]:
+            rep.check(phase in city_mod.SHIFT_NAMES, f'districts/{key}',
+                      f'a scene is written for unknown hour {phase!r}')
+
+    seen: set[str] = set()
+    for s in spot_content.SPOTS:
+        where = f'spots/{s.key}'
+        rep.check(s.key not in seen, where, 'duplicate key')
+        seen.add(s.key)
+        rep.check(s.district in districts.BY_KEY, where,
+                  f'in unknown district {s.district!r}')
+        rep.check(s.name.startswith('the '), where,
+                  'name should read "the <place>", the way a person says it')
+        sentence(where, s.blurb, 'the blurb')
+        if s.night:
+            sentence(where, s.night, 'the night variant', lo=40)
+        for who in s.who:
+            npc = npc_content.BY_KEY.get(who)
+            rep.check(npc is not None, where, f'names unknown person {who!r}')
+            if npc is not None and npc.where:
+                rep.check(npc.where == s.district, where,
+                          f'{who} lives in {npc.where}, not {s.district}')
+            if npc is not None and npc.at:
+                rep.check(npc.at in districts.BY_KEY[s.district].services
+                          if s.district in districts.BY_KEY else True, where,
+                          f'{who} needs a {npc.at} and {s.district} has none')
+    for d in districts.DISTRICTS:
+        count = len(spot_content.in_district(d.key))
+        rep.check(2 <= count <= 4, f'districts/{d.key}',
+                  f'{count} places to stand in; wanted two to four')
+        # Finding by name has to work for every name, and must not be
+        # ambiguous within a district.
+        for s in spot_content.in_district(d.key):
+            found = spot_content.find(d.key, s.name)
+            rep.check(found is s, f'spots/{s.key}',
+                      'cannot be found by its own name')
+            found = spot_content.find(d.key, s.name.removeprefix('the '))
+            rep.check(found is s, f'spots/{s.key}',
+                      'cannot be found without the article')
+
+    rep.check(len(fallout.CLOSE_CALLS) >= 4, 'fallout/close',
+              'fewer than four ways for the street to let you know')
+    for i, text in enumerate(fallout.CLOSE_CALLS):
+        where = f'fallout/close/{i}'
+        rep.check('{district}' in text, where, 'does not say where')
+        sentence(where, text.format(district='Marrow', fac='Kagawa'),
+                 'the close call')
+    rep.check(0 < fallout.CLOSE_CALL_HEAT < 10, 'fallout/close',
+              'a close call should cost a little, not a lot')
+
+
 CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
-    check_guide, check_consequences, check_spine,
+    check_guide, check_consequences, check_spine, check_city_texture,
     check_icons, check_dissonance, check_cyberspace, check_rivals, check_debt,
     check_origins, check_appearance, check_events, check_rice, check_shifts, check_district_mood, check_dead_fields, check_skills, check_factions, check_districts,
     check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_offers, check_legacy, check_bonds, check_safehouses, check_crew, check_mods, check_commands,

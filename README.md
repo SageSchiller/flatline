@@ -39,7 +39,7 @@ with a line of the verbs that district makes possible.
 
 At the prompt, `tutorial` walks you through a first run one instruction at a
 time. `help` is one screen: what to read first, the verbs that answer "what
-now", and where the rest lives. `help commands` is all 117 verbs, `help
+now", and where the rest lives. `help commands` is all 119 verbs, `help
 topics` is all 38 explanations, and `help <anything>` finds a verb, a system,
 or searches both, including every proper noun in the game.
 
@@ -98,7 +98,7 @@ slow effect but no effect, and looks identical to a slow one from outside.
 
 ## The design
 
-`FLATLINE-PLAN.md` is the long version: forty-nine numbered locked decisions,
+`FLATLINE-PLAN.md` is the long version: fifty-three numbered locked decisions,
 the systems design, and a session log. **Read it first** before changing
 anything structural.
 
@@ -160,9 +160,9 @@ The three ideas everything else hangs off:
 verb nobody else can use and its own starting face · 34 implants · 46 programs
 · 28 countermeasures · 9 pieces of bench work · 9 districts, each with a mark for the faction that
 holds it · 12 factions · 7 rival runners who decide about you, and one you can keep · 17 named characters who hand out work, keep private stock and do favours on a tab · 18 storylines across 43 scenes and 50 decisions, every one of them read back by the world, with a spine through the middle that has four endings and one of them is a door ·
-102 appearance features · 97 ambient city events, 46 of them consequences of something you decided · 38 manual topics ·
+102 appearance features · 9 districts with a scene for every hour and 27 places in them to go and stand · 111 ambient city events, 46 of them consequences of something you decided · 38 manual topics ·
 10 drugs · 3 lenders · 2 games of chance in 5 rooms ·
-117 commands · 67 unlockable pieces of terminal across 6 axes.
+119 commands · 67 unlockable pieces of terminal across 6 axes.
 
 Footnotes are a real feature of the console. `{{like this}}` in any content
 string gets lifted out and printed under the block, and they nest, because the
