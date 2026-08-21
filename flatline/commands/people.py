@@ -604,7 +604,17 @@ def cmd_choose(sess, args) -> None:
         rival = game.city.rival(rival_key)
         if rival is not None:
             rival.adjust_disposition(delta)
+    if choice.drift:
+        before = game.char.dissonance
+        game.char.dissonance = max(0, min(100, before + choice.drift))
+        c.say(f'[accent2]Dissonance {before} to {game.char.dissonance}.[/]')
     sess.autosave()
+    if choice.ends:
+        # The third exit. The choice has already said what happened; this
+        # is the numbers, the decisions read back, and what is left.
+        from .core import end_character
+        end_character(sess, choice.ends)
+        return
     _check_story(sess)
 
 
@@ -650,6 +660,17 @@ def _check_story(sess) -> None:
         c.blank()
         for para in stage.text.split('\n\n'):
             c.say(para)
+            c.blank()
+        if stage.posts is not None:
+            # The scene put something on the board. Said in the board's own
+            # terms, because the next thing the player types is `board`.
+            contract = game.city.post_story(game.rng, game.alias, stage.posts,
+                                            f'{thread_key}.{stage.key}')
+            c.say(f'[dim]On the board: [/][accent]{contract.title}[/]'
+                  f'[dim], {contract.cid}, against '
+                  f'{contract.target_data.short}. It does not expire and '
+                  f'nobody else will take it. `board {contract.cid}` to read '
+                  f'it, `take {contract.cid}` when you are ready.[/]')
             c.blank()
         if stage.choices:
             c.say('[warn]This one is waiting on you.[/] [dim]`choose`.[/]')

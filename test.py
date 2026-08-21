@@ -5842,9 +5842,168 @@ def test_consequences() -> None:
     T.eq(a.city.ambient, b.city.ambient, 'and the same weather')
 
 
+def test_spine() -> None:
+    """D52: the Deepwater spine, and story inside runs."""
+    T.section('spine')
+    from flatline.content import legacy, threads as thread_content
+    from flatline.world import contracts as contract_world
+
+    def fresh(handle='Spine'):
+        game = Game.new(Character.from_origin('gutter', handle), seed=4242)
+        return game, game.story
+
+    # A posting finished is a rule the story can read.
+    game, st = fresh()
+    T.ok(not st.satisfied('did:deepwater.posting', game), '`did:` is unmet')
+    st.flags.add('did:deepwater.posting')
+    T.ok(st.satisfied('did:deepwater.posting', game), 'until the run is done')
+
+    # The posting scene arrives once you have heard and have one fact.
+    game, st = fresh()
+    game.char.runs = 6
+    st.flags.update({'dw_heard', 'ran:deepwater'})
+    # Two looks: the first reaches `inside`, which is the fact the posting
+    # wants, and a scene unlocked by a scene arrives on the next check.
+    sess, out = play(['look', 'look'], game=game)
+    T.ok('dw_posting' in st.flags, 'hearing plus one fact opens the posting')
+    held = [c for c in game.city.board if c.story == 'deepwater.posting']
+    T.eq(len(held), 1, 'and it puts one held contract on the board')
+    contract = held[0]
+    T.ok('Four Hundred and Eight' in out and contract.cid in out,
+         'and says so in the board\'s own terms')
+    T.eq((contract.patron, contract.target, contract.objective),
+         ('deepwater', 'deepwater', 'exfiltrate'),
+         'shaped exactly as the scene asked')
+    T.eq(contract.pay, 6000, 'and priced as the scene asked')
+    T.ok(contract.held and contract.expires - game.city.shift > 1000,
+         'it is held')
+    stage = next(s for s in thread_content.BY_KEY['deepwater'].stages
+                 if s.key == 'posting')
+    game.city.post_story(game.rng, game.alias, stage.posts,
+                         'deepwater.posting')
+    T.eq(len([c for c in game.city.board if c.held]), 1,
+         'posting it again posts nothing')
+    # It survives time, rivals and top-ups, and costs the board no slot.
+    for _ in range(25):
+        game.city.advance(game.rng, game.alias, 1, char=game.char,
+                          satisfied=lambda r: st.satisfied(r, game),
+                          flags=st.flags)
+    T.ok(any(c.story == 'deepwater.posting' for c in game.city.board),
+         'twenty-five shifts later it is still on the board')
+    ordinary = [c for c in game.city.board if not c.held]
+    T.eq(len(ordinary), game.city.board_size(game.char),
+         'and the ordinary board is full beside it')
+    _, out = play(['board'], game=game)
+    T.ok('held' in out, 'the board says it is held')
+    _, out = play([f'board {contract.cid}'], game=game)
+    T.ok('will keep' in out, 'and so does the detail')
+
+    # Running it: the brief names the record the scene named. A payload on
+    # the deck, because an exfiltrate that cannot be finished is not a test
+    # of anything.
+    game.city.where = contract.district
+    for key in list(game.char.deck.loaded):
+        game.char.deck.unload(key)
+    game.char.library.append('siphon')
+    T.ok(game.char.deck.can_load('siphon')[0], 'a payload fits the deck')
+    game.char.deck.load('siphon')
+    sess, out = play([f'take {contract.cid}', 'jack in', 'job'], game=game)
+    T.ok(sess.run is not None, 'the held contract runs')
+    T.ok('your handle in the header' in out,
+         'and the brief names the record the scene named')
+    state = sess.run
+    asset = state.net.find_asset(state.net.objective_asset)
+    T.ok(asset is not None and asset[1].label, 'the asset carries the label')
+    # Finish it: the objective record is in the haul, and the scene that
+    # comes after arrives with the world moving.
+    state.haul.append(state.net.objective_asset)
+    sess.console.start_capture()
+    sess.execute('jack out')
+    out = sess.console.end_capture()
+    T.ok(sess.run is None, 'and the run ends')
+    T.ok('did:deepwater.posting' in st.flags, 'finishing it sets `did:`')
+    T.ok('dw_carried' in st.flags, 'and the next scene arrives at once')
+    T.ok('deepwater.carried' in st.pending, 'waiting on a decision')
+    T.ok(not any(c.story for c in game.city.board),
+         'and the held contract is gone from the board')
+    _, out = play([''], game=game)
+    T.ok('choose' in out, 'an empty line says a choice is waiting')
+    # A gutter runner at six runs also has the Sixes waiting on them;
+    # `choose` takes the oldest first, so put the log at the front.
+    st.pending = ['deepwater.carried'] + [p for p in st.pending
+                                          if p != 'deepwater.carried']
+    before = game.char.dissonance
+    sess.console.start_capture()
+    sess.execute('choose read')
+    out = sess.console.end_capture()
+    T.eq(game.char.dissonance, before + 6, 'reading it to the end costs drift')
+    T.ok('dw_read' in st.flags and 'Dissonance' in out,
+         'and is recorded, and said')
+
+    # The offer opens from the carried log as well as from the pattern.
+    T.ok('dw_offer' in st.flags or 'deepwater.offer' in st.pending
+         or any(k == 'deepwater' and s.key == 'offer'
+                for k, s in st.available(game)),
+         'the offer is reachable from the log alone')
+
+    # The door: crossings, and it goes somewhere.
+    game, st = fresh('Door')
+    st.flags.update({'dw_heard', 'dw_offer', 'dw_read', 'archive_consented'})
+    sess, out = play(['look'], game=game)
+    T.ok('dw_asked' not in st.flags, 'without Lark alive it does not ask')
+    st.flags.add('lark_saved')
+    sess, out = play(['look'], game=game)
+    T.ok('dw_asked' in st.flags and 'It asks' in out,
+         'with all three crossings, it asks')
+    sess.console.start_capture()
+    sess.execute('choose go')
+    out = sess.console.end_capture()
+    T.eq(game.over, 'went under', 'going under finishes the character')
+    T.ok('what you left behind' in out and 'went under' in out,
+         'with the decisions read back')
+    T.ok('dw_under' in st.flags, 'and the ending recorded')
+    sess.console.start_capture()
+    sess.execute('board')
+    out = sess.console.end_capture()
+    T.ok('went under' in out, 'and nothing more can be done as them')
+    game, st = fresh('Stay')
+    st.flags.update({'dw_heard', 'dw_offer', 'dw_read', 'archive_consented',
+                     'lark_saved'})
+    sess, out = play(['look', 'choose stay'], game=game)
+    T.ok(not game.over and 'dw_stayed' in st.flags,
+         'saying no leaves you standing')
+
+    # Every new decision has an epilogue line, and the spine's endings are
+    # all Deepwater decisions.
+    for flag in ('dw_read', 'dw_archived', 'dw_burned', 'dw_under',
+                 'dw_stayed'):
+        T.ok(flag in legacy.EPILOGUE_BY_FLAG, f'{flag} is in the epilogue')
+    T.ok('dw_under' in legacy.ENDING_FLAGS, 'going under is an ending')
+
+    # The origin threads print paragraphs, not backslashes.
+    for t in thread_content.THREADS:
+        for s in t.stages:
+            T.ok('\\n' not in s.text, f'{t.key}.{s.key} has no literal \\n')
+            for ch in s.choices:
+                T.ok('\\n' not in ch.text,
+                     f'{t.key}.{s.key}.{ch.key} has no literal \\n')
+
+    # A held contract round-trips through a save.
+    game, st = fresh('Saved')
+    game.char.runs = 6
+    st.flags.update({'dw_heard', 'ran:deepwater'})
+    play(['look', 'look'], game=game)
+    game.save('spine-save')
+    back = Game.load('spine-save')
+    T.ok(any(c.story == 'deepwater.posting' and c.label
+             for c in back.city.board),
+         'the held contract survives a save, label and all')
+    save_mod.delete('spine-save')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
-    test_consequences,
+    test_consequences, test_spine,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,

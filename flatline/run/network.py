@@ -83,6 +83,9 @@ class DataAsset:
     taken: bool = False
     #: Set when the contract is about this specific asset.
     objective: bool = False
+    #: What a scene called it, when it did. Overrides the kind's name
+    #: everywhere the asset is named (D52).
+    label: str = ''
 
     @property
     def data(self) -> node_content.DataKind:
@@ -90,7 +93,7 @@ class DataAsset:
 
     @property
     def name(self) -> str:
-        return self.data.name
+        return self.label or self.data.name
 
 
 @dataclass(slots=True)

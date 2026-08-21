@@ -103,6 +103,16 @@ class Contract:
     #: which is that somebody specific is waiting for it.
     from_npc: str = ''
     size_mod: float = 1.0
+    #: `thread.stage` of the scene that posted this, or ''. A story contract
+    #: is held: it does not expire, rivals do not take it, and finishing it
+    #: sets `did:<story>` for the scenes that come after (D52).
+    story: str = ''
+    #: What the objective record is called, when the scene names it.
+    label: str = ''
+
+    @property
+    def held(self) -> bool:
+        return bool(self.story)
 
     @property
     def patron_data(self) -> factions.Faction:
@@ -123,6 +133,7 @@ class Contract:
             'title': self.title, 'blurb': self.blurb, 'district': self.district,
             'intel': dict(self.intel), 'taken': self.taken,
             'from_npc': self.from_npc, 'size_mod': self.size_mod,
+            'story': self.story, 'label': self.label,
         }
 
     @classmethod
@@ -136,6 +147,7 @@ class Contract:
             intel=dict(d.get('intel') or {}), taken=bool(d.get('taken')),
             from_npc=d.get('from_npc', ''),
             size_mod=float(d.get('size_mod', 1.0)),
+            story=d.get('story', ''), label=d.get('label', ''),
         )
 
 
@@ -167,6 +179,8 @@ PATRON_RIDERS: tuple[tuple[str, str, float], ...] = (
     ('laptop_sold', 'meridian', 1.6),
     # Meridian read the public log in Freeport too.
     ('sunday_sold', 'meridian', 0.4),
+    # You wiped something of theirs. They post less, and do not say why.
+    ('dw_burned', 'deepwater', 0.5),
 )
 
 
@@ -271,6 +285,34 @@ def make_one(rng: Stream, cid: int, patron: str, target: str, shift: int,
         expires=shift + rng.int(*LIFETIME), posture=target_posture,
         title=title, blurb=blurb, district=district, size_mod=size_mod,
     )
+
+
+#: How long a held contract lives, in shifts. Long enough to be "does not
+#: expire" for any campaign, and a number rather than a flag so that the
+#: ordinary expiry code never has to know it exists.
+HELD = 9999
+
+
+def make_story(rng: Stream, cid: int, posting, tag: str, shift: int,
+               alias, posture: dict) -> Contract:
+    """A contract a scene asked for. Generated like any other, then bent.
+
+    The generator prices it, places it and draws its network exactly as it
+    would a board posting against the same target, so a story run is a real
+    run; what the scene fixes is who, against whom, what for, what it is
+    called, and that it waits.
+    """
+    contract = make_one(rng, cid, posting.patron, posting.target, shift,
+                        alias, posture)
+    contract.objective = posting.objective
+    contract.title = posting.title
+    contract.blurb = posting.blurb
+    contract.label = posting.label
+    contract.story = tag
+    contract.expires = shift + HELD
+    if posting.pay:
+        contract.pay = int(posting.pay)
+    return contract
 
 
 def _where(rng: Stream, target: str) -> str:

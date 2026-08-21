@@ -12,7 +12,7 @@ updated: 2026-08-21
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,235 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 32,000 lines. Two passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line), and **D51**, a decision must be read: every one of the forty-five story decisions now has readers (presence, offers, forty-one consequence events, the streets, the board, the ending) and a line in the epilogue, and `validate.py` fails the build on one that does not. **Phase 7** in the phase list is the numbered candidate list for what to build next, story first; **the spine (item 2) is the next thing to do.** Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
+> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,387 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. **Phase 7** in the phase list is the numbered candidate list; items 1 to 3 are done, and **the next pass the author asked for is tone and environment: the city deeper, more dangerous and more alive, gritty dark cyberpunk with Pratchett-shaped self-aware humour, inside the D34 budget.** Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
@@ -1255,6 +1255,60 @@ one without, and they draw the same board and the same weather. No thread
 gained a scene; this is the layer underneath the scenes, and the reason the
 scenes in Phase 7 will be worth writing.
 
+### D52: The spine, and story inside runs
+
+The game had eighteen storylines and no main one. The nearest thing was
+Deepwater: five scenes, four ways in, an offer at the end, and the retire
+door keyed to drift alone. This makes Deepwater the spine and gives the
+story a way to happen where the game actually happens, which is inside a
+network.
+
+**The arc, in five acts, each with more than one way in.** *Hearing it*
+(two runs, or the drawer, or Mara's favour, or the package). *Three facts*
+(the Archivist's nine logs that do not end, Remnant's name, a Deepwater
+network with no perimeter; Ozymandias will not say). *The posting*: a
+contract through Mara with your handle on the record, against Deepwater's
+own network, which does not expire and which nobody else will take. *What
+you carried out*: your own log, longer than you have been running, with the
+last entry dated the day after tomorrow; read it, give it to the Archivist,
+or wipe it. *The offer*: take, refuse, publish, as before, reachable now
+from the log alone or from the three facts together. And *the door*: it
+asks, the way the Archivist asked, and it only asks somebody who saved
+Lark, said yes to the archive, and read the entry for the day after
+tomorrow. Go under, or say no. Four endings, and the fourth is reached only
+through two other threads, which is what D31 was for.
+
+**Story inside runs.** `Stage.posts` is a `Posting`: patron, target,
+objective, title, blurb, the name of the record. Reaching the scene puts a
+contract on the board through the ordinary generator and then bends it:
+held (no expiry, rivals do not see it, it costs the board no slot), with
+`label` on the objective asset so the brief, the node and the haul all call
+it what the scene called it. Finishing it sets `did:<thread>.<stage>`, and
+a later scene requires that, which is the difference between having done
+the thing and having heard about it. `validate.check_spine` draws every
+posting's network and requires something to read every `did:`, so a story
+run nobody comes back from cannot ship. `_check_story` now also runs after
+every shift spent, so a scene whose moment has come arrives when the world
+moves rather than the next time you happen to look at somebody.
+
+**The third exit.** `Choice.ends` finishes a character by a decision:
+`end_character` prints the numbers the flatline prints, reads the decisions
+back, leaves one thing from the flatline's list (the chair is still
+occupied; nobody chose), and files them as `went under`. `Choice.drift`
+exists because reading your own log to the end should leave a mark.
+
+**What it turned up.** The ten origin threads were written with `\\n\\n`
+and had been printing literal backslashes in every paragraph break since
+the day they shipped; nobody had read one in the terminal. `test.py` now
+refuses a backslash in any scene.
+
+**What it does not do.** Deepwater is not explained, on purpose, and the
+door is not a reward: it is a fourth ending and it goes under. Scenes still
+surface only in the city; a run is still a run. Act four's choices have
+their own readers (events, the board, the epilogue) under D51, and the
+spine's four ending flags are the four Deepwater decisions, which
+`validate.py` checks.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -1491,15 +1545,11 @@ More districts, factions, chrome, and programs. Content, not systems.
 **Story and world**
 
 1. ~~A decision must be read.~~ Done: D51.
-2. **The spine.** Deepwater as the main arc: five acts, each with two or
-   more entrances (it has four already), ending in take / refuse / publish,
-   plus a fourth ending reachable only through crossings (Lark saved *and*
-   the archive consented *and* the drawer read). The D51 readers are where
-   the acts land: the board, the streets, the people, the ending.
-3. **Story inside runs.** A stage that places a bespoke contract: a named
-   record on a named host, with `pull`/`wipe`/`push` setting a flag
-   (`found:<kind>`, `did:<cid>`). Scenes happen in the city today and the
-   game is the network.
+2. ~~The spine.~~ Done: D52. Five acts, four endings, a door only crossings
+   open.
+3. ~~Story inside runs.~~ Done: D52, as `Posting` and `did:`. The
+   mechanism is general; only the spine uses it so far. District and rival
+   threads (4) should.
 4. **Nine district threads, seven rival threads.** `Stage.where` is there
    for the districts; the rivals (`who`, disposition, D44) are the best
    written people in the game and have no arc. Rivalry, alliance, betrayal,
@@ -2167,3 +2217,29 @@ next.
 `validate.py` clean, `test.py` green at **13,235 checks**, `./build.sh`
 clean. 92 ambient events (51 weather, 41 consequences) at 55/34/11 against
 the budget.
+
+### 2026-08-21 (c): the spine
+
+**D52.** Deepwater rewritten as the main arc: nine scenes in five acts, with
+more than one way into each, three new decisions in the middle (read the
+log, give it to the Archivist, wipe it) and a fourth ending at the end that
+only opens through Lark and the archive. The mechanism underneath is
+general: `Stage.posts` puts a held contract on the board, `label` names the
+record so the run is about the thing the scene said, and `did:<thread.stage>`
+is how the next scene knows. `Choice.ends` is the third exit.
+
+**Two things found on the way.** Every origin thread had been printing
+literal backslashes at its paragraph breaks since it shipped (`\\n\\n` in
+the source); `test.py` now refuses a backslash in any scene. And the brief
+named "the record they want" until the host was probed, which is right for
+a board job and coy for a record the scene has already named: a labelled
+record is named at the door.
+
+**One thing deliberately left.** A scene unlocked by a scene arrives on the
+next check rather than in the same breath. Cascading would be truer to
+"the moment its condition holds" and would also dump three scenes in a
+row on somebody who looked around once; the next `look`, `talk`, shift or
+run brings it, which is soon enough and reads better.
+
+`validate.py` clean, `test.py` green at **13,387 checks**, `./build.sh`
+clean. 18 threads, 43 scenes, 50 decisions, 97 events at 55/34/11.

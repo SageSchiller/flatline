@@ -3449,9 +3449,107 @@ def check_consequences(rep: Report) -> None:
                               f'gives {key!r}, which is not in any catalogue')
 
 
+def check_spine(rep: Report) -> None:
+    """D52: the spine, and story inside runs.
+
+    Every posting names real content and draws a run that can be finished;
+    finishing it is required by a later scene, or it is a run nobody comes
+    back from; the Deepwater thread has the shape the plan promised (five
+    acts, more than one way into the offer, and a door that only crossings
+    open, which goes somewhere); and every ending flag is a Deepwater
+    decision.
+    """
+    from flatline.content import legacy
+    from flatline.rng import Rng
+    from flatline.run import network as net_mod
+
+    all_stages = [(t, s) for t in thread_content.THREADS for s in t.stages]
+    for t, s in all_stages:
+        if s.posts is None:
+            continue
+        where = f'threads/{t.key}/{s.key}/posts'
+        p = s.posts
+        rep.check(p.patron in factions.BY_KEY, where,
+                  f'unknown patron {p.patron!r}')
+        rep.check(p.target in factions.BY_KEY, where,
+                  f'unknown target {p.target!r}')
+        rep.check(p.objective in contract_mod.OBJECTIVES, where,
+                  f'unknown objective {p.objective!r}')
+        rep.check(bool(p.title and p.blurb), where, 'has no title or blurb')
+        rep.check(p.pay >= 0, where, 'pays less than nothing')
+        if p.objective in ('exfiltrate', 'corrupt', 'wipe'):
+            rep.check(bool(p.label), where,
+                      'is about a record and does not say which')
+        tag = f'did:{t.key}.{s.key}'
+        readers = [f'{t2.key}.{s2.key}' for t2, s2 in all_stages
+                   if tag in s2.requires or tag in s2.any_of]
+        rep.check(bool(readers), where,
+                  f'nothing requires {tag!r}: a run nobody comes back from')
+        if p.target in factions.BY_KEY and p.objective in contract_mod.OBJECTIVES:
+            net = net_mod.generate(Rng(7).fork('network', f'{t.key}.{s.key}'),
+                                   p.target, factions.BY_KEY[p.target].posture,
+                                   p.objective, 1.0)
+            rep.check(bool(net.objective_node), where,
+                      'draws a network with no objective')
+            if p.label:
+                rep.check(bool(net.objective_asset), where,
+                          'names a record but the run has no objective record')
+
+    for t, s in all_stages:
+        for ch in s.choices:
+            where = f'threads/{t.key}/{s.key}/{ch.key}'
+            if ch.ends:
+                rep.check(ch.ends == ch.ends.lower()
+                          and not ch.ends.endswith('.')
+                          and len(ch.ends.split()) >= 2, where,
+                          f'`ends` should be a short past-tense phrase, not '
+                          f'{ch.ends!r}')
+            rep.check(-20 <= ch.drift <= 20, where,
+                      f'drift {ch.drift} is a cliff, not a mark')
+
+    dw = thread_content.BY_KEY.get('deepwater')
+    rep.check(dw is not None, 'spine', 'there is no Deepwater thread')
+    if dw is None:
+        return
+    keys = [s.key for s in dw.stages]
+    rep.check(len(keys) >= 8, 'spine', f'{len(keys)} scenes is not a spine')
+    for key in ('hear', 'posting', 'carried', 'offer', 'under'):
+        rep.check(key in keys, 'spine', f'has no {key!r} act')
+    by_key = {s.key: s for s in dw.stages}
+    offer = by_key.get('offer')
+    if offer is not None:
+        rep.check(len(offer.any_of) >= 2, 'spine', 'the offer has one way in')
+    posting = by_key.get('posting')
+    if posting is not None:
+        rep.check(len(posting.any_of) >= 3, 'spine',
+                  'the posting has fewer than three ways in')
+        rep.check(posting.posts is not None, 'spine',
+                  'the posting scene posts nothing')
+    under = by_key.get('under')
+    if under is not None:
+        others = set()
+        for rule in under.requires:
+            for t2, s2 in all_stages:
+                if t2.key == 'deepwater':
+                    continue
+                if rule in s2.sets or any(rule in ch.sets for ch in s2.choices):
+                    others.add(t2.key)
+        rep.check(len(others) >= 2, 'spine',
+                  f'the door is opened by {len(others)} other thread(s); it '
+                  f'should take crossings')
+        rep.check(any(ch.ends for ch in under.choices), 'spine',
+                  'the door does not go anywhere')
+    decided = {flag for s in dw.stages for ch in s.choices for flag in ch.sets}
+    for flag in legacy.ENDING_FLAGS:
+        rep.check(flag in decided, 'spine',
+                  f'ending flag {flag!r} is not a Deepwater decision')
+    rep.check(sum(1 for s in dw.stages for ch in s.choices) >= 8, 'spine',
+              'fewer than eight decisions in the whole spine')
+
+
 CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
-    check_guide, check_consequences,
+    check_guide, check_consequences, check_spine,
     check_icons, check_dissonance, check_cyberspace, check_rivals, check_debt,
     check_origins, check_appearance, check_events, check_rice, check_shifts, check_district_mood, check_dead_fields, check_skills, check_factions, check_districts,
     check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_offers, check_legacy, check_bonds, check_safehouses, check_crew, check_mods, check_commands,

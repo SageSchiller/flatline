@@ -468,6 +468,37 @@ def cmd_retire(sess, args) -> None:
           'one will find them.[/]')
 
 
+def end_character(sess, how: str) -> None:
+    """A character finished by a decision, not by ICE or the door. D52.
+
+    `how` is the past-tense phrase the roster will use: 'went under'. The
+    scene that ended them has already said what happened; this prints the
+    numbers the flatline prints, reads the decisions back, leaves one thing
+    to whoever is next, and files them. What is left is drawn from the
+    flatline's list, because the chair is still occupied and the deck is
+    still warm: nobody chose what to leave.
+    """
+    from .. import save as save_mod
+    game, c = sess.game, sess.console
+    char = game.char
+    c.blank()
+    c.rule(how, role='accent2')
+    c.kv([('handle', char.handle),
+          ('ran as', game.alias.name),
+          ('runs', str(char.runs)),
+          ('earned', f'[credit]{game.earned:,}c[/]'),
+          ('drift', f'{char.dissonance} ({char.dissonance_band[1]})')])
+    _epilogue(sess)
+    game.over = how
+    _bequeath(sess, 'flatlined')
+    sess.record_progress()
+    save_mod.bump_meta(went_under=1)
+    sess.autosave()
+    c.blank()
+    c.say('[dim]`new` when you want to be somebody else. Something of this '
+          'one will find them.[/]')
+
+
 def _epilogue(sess) -> None:
     """What you left behind, in people. D51.
 

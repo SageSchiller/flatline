@@ -853,7 +853,7 @@ def cmd_board(sess, args) -> None:
         rows.append((str(n), f'{mark}{contract.cid}', contract.title,
                      contract.patron_data.short, contract.target_data.short,
                      contract.objective, f'{contract.pay:,}c',
-                     f'{left}sh'))
+                     'held' if contract.held else f'{left}sh'))
     c.table(('#', 'id', 'job', 'patron', 'target', 'what', 'pay', 'left'),
             rows, roles=('accent', 'dim', 'accent', 'info', 'err', 'dim',
                          'credit', 'warn'))
@@ -905,7 +905,8 @@ def _show_contract(sess, contract) -> None:
             f'from here)[/]'
             if contract.district != game.city.where
             else ' [dim](you are here)[/]')),
-        ('expires', f'in {contract.expires - game.city.shift} shifts'),
+        ('expires', 'held for you, and it will keep' if contract.held
+                    else f'in {contract.expires - game.city.shift} shifts'),
         ('posture', f'{int(contract.posture)} [dim]'
                     f'{contract.target_data.doctrine}[/]'),
     ])
@@ -960,13 +961,14 @@ def city_job(sess) -> None:
                   + ('you are here' if not hops
                      else f'{hops} shift{"s" if hops != 1 else ""} away')
                   + '[/]'),
-        ('expires', f'in {left} shift{"s" if left != 1 else ""}'),
+        ('expires', 'held for you, and it will keep' if contract.held
+                    else f'in {left} shift{"s" if left != 1 else ""}'),
     ])
 
     # The walk is priced in the same currency as the deadline, and a job you
     # cannot reach in time is worth knowing about before you spend two shifts
     # walking toward it.
-    if hops >= left:
+    if hops >= left and not contract.held:
         c.blank()
         c.err(f'The walk is {hops} shift{"s" if hops != 1 else ""} and it '
               f'expires in {left}. You will not make it. `drop` it, or go '
@@ -1675,6 +1677,10 @@ def _advance(sess, shifts: int) -> None:
         sess.console.say(line)
     _rot(sess, shifts)
     _drift(sess)
+    # The world moved, so any scene whose moment has come arrives now rather
+    # than the next time you happen to look at somebody (D52).
+    from .people import _check_story
+    _check_story(sess)
     sess.record_progress()
     sess.autosave()
 

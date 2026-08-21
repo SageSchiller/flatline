@@ -104,6 +104,12 @@ def cmd_jack_in(sess, args) -> None:
     stream = game.rng.fork('network', contract.cid)
     net = net_mod.generate(stream, contract.target, int(contract.posture),
                            contract.objective, contract.size_mod)
+    if contract.label and net.objective_asset:
+        # A scene named the record. The brief, the node and the haul all
+        # call it that, so the run is about the thing the story said (D52).
+        found = net.find_asset(net.objective_asset)
+        if found is not None:
+            found[1].label = contract.label
     state = RunState.begin(net, game.char, game.rng('combat'), c,
                            contract=contract.to_dict(),
                            phase=game.city.phase)
@@ -360,6 +366,11 @@ def _resolve(sess) -> None:
             game.city.board = [x for x in game.city.board
                                if x.cid != contract.cid]
             game.city.accepted = ''
+            if contract.story:
+                # The scene that comes after reads this, and only this: it
+                # is the difference between having done the thing and having
+                # heard about it (D52).
+                game.story.flags.add(f'did:{contract.story}')
             # Work somebody handed you personally comes off the tab when you
             # finish it. That is the whole loop: they trust you with a job,
             # the job buys favours, and the favours were what you wanted.

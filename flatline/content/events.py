@@ -485,6 +485,46 @@ CONSEQUENCES: tuple[Event, ...] = (
           'without meeting.',
           requires=('dw_published',), weight=CONSEQUENCE_WEIGHT),
 
+    Event('dw_reader', 'grim',
+          'A runner in the Glasshouse is telling somebody, very calmly, that '
+          'they have read a log of their own that runs past today, and that '
+          'the entries after today are not frightening, which is the '
+          'frightening part, and the somebody is pretending to take a call.',
+          districts=('glasshouse', 'marrow'),
+          requires=('dw_read',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('dw_shelf', 'wry',
+          'The Archivist has one log on a shelf of its own, apart from the '
+          'four hundred and seven, because it is still being written, and '
+          'has been heard explaining to the fence, patiently, that you cannot '
+          'file something that has not finished, and the fence has asked '
+          'whether it could at least be dusted.',
+          districts=('glasshouse', 'freeport'),
+          requires=('dw_archived',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('dw_header', 'grim',
+          'A fence in Freeport is refusing, politely, to buy anything with a '
+          'Deepwater header on it this month, and will not say what he was '
+          'offered last month, and has started closing early.',
+          districts=('freeport', 'ninth'),
+          requires=('dw_burned',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('dw_normal', 'wry',
+          'Somebody in the Glasshouse has been asked something by a network '
+          'and said no, and is still, a week later, being perfectly normal '
+          'about it, and everybody who knows them has noticed exactly how '
+          'normal.',
+          districts=('glasshouse',),
+          requires=('dw_stayed',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('ozy_sign', 'absurd',
+          'Ozymandias has added a line to the scroll: DO NOT ASK ABOUT '
+          'DEEPWATER, in the same flat capitals, between RESISTANCE TO '
+          'ELEVEN NAMED CONDITIONS and the price. The price has gone up. '
+          'Somebody has left coins anyway.',
+          districts=('ninth',),
+          requires=('ozy_deepwater',), weight=CONSEQUENCE_WEIGHT),
+
     # -- Lark ---------------------------------------------------------------
 
     Event('lark_jacket', 'grim',

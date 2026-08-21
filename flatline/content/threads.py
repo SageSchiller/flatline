@@ -29,9 +29,34 @@ from dataclasses import dataclass, field
 
 #: World conditions usable in `requires`, alongside plain flags.
 #: 'runs:N', 'diss:N', 'shift:N', 'credits:N', 'heat:N', 'met:<npc>',
-#: 'rep:<faction>:N', 'ran:<faction>'.
+#: 'rep:<faction>:N', 'ran:<faction>', 'did:<thread.stage>' (a posting
+#: finished, see `Posting`).
 CONDITIONS = ('runs', 'diss', 'shift', 'credits', 'heat', 'met', 'rep',
-              'ran', 'origin', 'debt', 'trait')
+              'ran', 'origin', 'debt', 'trait', 'did')
+
+
+@dataclass(frozen=True, slots=True)
+class Posting:
+    """A contract a scene puts on the board. D52: story inside runs.
+
+    Built by the ordinary generator and then bent: the patron, target and
+    objective are fixed, the title and blurb are the scene's, and `label`
+    names the objective record so the brief says what the run is actually
+    for. It does not expire and nobody else takes it, because a story beat
+    that a rival can walk off with is a story beat the player may never see.
+    Finishing it sets `did:<thread>.<stage>`, which is how a later scene
+    knows you did the thing rather than read about it.
+    """
+
+    patron: str
+    target: str
+    objective: str
+    title: str
+    blurb: str
+    #: What the objective record is called, in the brief and on the node.
+    label: str = ''
+    #: Fixed pay, or 0 to price it like any other contract of its shape.
+    pay: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,6 +76,13 @@ class Choice:
     #: thing has to actually hand it over, or it is the oldest bug in this
     #: project wearing a story.
     gives: tuple[str, ...] = ()
+    #: Dissonance the choice costs, or restores if negative. Reading your own
+    #: log to the end is the kind of thing that should leave a mark.
+    drift: int = 0
+    #: If set, the choice finishes the character, and this is how: the word
+    #: the roster and `characters` will use, in the past tense, e.g. 'went
+    #: under'. The third exit, after the door and black ICE (D52).
+    ends: str = ''
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +101,9 @@ class Stage:
     choices: tuple[Choice, ...] = ()
     #: Where this scene happens, for flavour and gating. '' means anywhere.
     where: str = ''
+    #: A contract this scene puts on the board when it is reached. See
+    #: `Posting`. Most scenes post nothing.
+    posts: Posting | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,14 +123,17 @@ THREADS: tuple[Thread, ...] = (
     Thread(
         'deepwater', 'What Deepwater Is',
         'Nine years of contracts and nobody has ever met anybody.',
-        crosses=('archive', 'ozymandias', 'drawer', 'favour', 'package'),
+        crosses=('archive', 'ozymandias', 'drawer', 'favour', 'package',
+                 'lark'),
         stages=(
+            # -- act one: hearing it -----------------------------------------
             Stage('hear', 'Somebody mentioned it and then stopped',
                   'It comes up the way weather comes up. Somebody says the '
                   'name, and then does not say the next thing, and the '
                   'conversation goes somewhere else with a small limp in it.',
                   requires=('runs:2',),
                   sets=('dw_heard',)),
+            # -- act two: three facts, from three people -----------------------
             Stage('logs', 'Nine logs that end wrong',
                   'The Archivist turns their chair round for this, which they '
                   'have not done before.\n\n'
@@ -130,6 +168,89 @@ THREADS: tuple[Thread, ...] = (
                   'occupy.',
                   requires=('ran:deepwater',),
                   sets=('dw_inside',)),
+            Stage('pattern', 'Three facts, and the shape they make',
+                  'Nine logs that do not end. A name it should not know. A '
+                  'network with nothing arranged around anything. You put '
+                  'them next to each other the way Remnant put their two '
+                  'facts next to each other, and you have what they did not '
+                  'have, which is a third one, and it does not help.\n\n'
+                  'Whatever Deepwater is, it is not guarding anything, '
+                  'because guarding is what you do to a thing you are '
+                  'outside of.',
+                  requires=('dw_logs', 'dw_name', 'dw_inside'),
+                  sets=('dw_pattern',)),
+            # -- act three: the posting ----------------------------------------
+            Stage('posting', 'A posting with your name in it',
+                  'It comes through Mara, like all of them, and she holds it '
+                  'a moment longer than she holds the others.\n\n'
+                  '"Deepwater. Exfiltrate. Their own network, which is not a '
+                  'thing anybody has asked for before, and I have placed four '
+                  'hundred of these." She puts it on the counter rather than '
+                  'into your hand. "The record has a name on it. It is '
+                  'yours."\n\n'
+                  'She does not say what she thinks that means. She goes back '
+                  'to the book. The posting does not expire, which she also '
+                  'does not mention, and which you find out by watching it '
+                  'not expire.',
+                  requires=('dw_heard', 'runs:5'),
+                  any_of=('dw_logs', 'dw_name', 'dw_inside', 'ozy_deepwater'),
+                  sets=('dw_posting',),
+                  posts=Posting(
+                      patron='deepwater', target='deepwater',
+                      objective='exfiltrate',
+                      title='Four Hundred and Eight',
+                      blurb='Deepwater wants something taken out of a '
+                            'Deepwater network. The record has your handle '
+                            'on it. Nobody will say whose idea that was, and '
+                            'nobody else on the board will touch it.',
+                      label='a log with your handle in the header',
+                      pay=6000)),
+            # -- act four: what you carried out --------------------------------
+            Stage('carried', 'You read it, or you do not',
+                  'It is a log. Your log: the handle in the header is the one '
+                  'on the roster, spelled the way you spell it. It is longer '
+                  'than you have been running.\n\n'
+                  'The early entries are yours. You recognise the mistakes. '
+                  'Somewhere past the middle the entries stop being things '
+                  'you did and carry on being things you do, in the same '
+                  'voice, with the same mistakes, and the last entry is dated '
+                  'the day after tomorrow.\n\n'
+                  'You have it on your deck. Nobody is asking for it back.',
+                  requires=('did:deepwater.posting',),
+                  sets=('dw_carried',),
+                  choices=(
+                      Choice('read', 'Read it to the end',
+                             'You read it. The entry for the day after '
+                             'tomorrow is not frightening. It is a Tuesday: a '
+                             'contract, a clean exit, a noodle bar. That is '
+                             'the frightening part, and it does not leave, '
+                             'and some of the log is in you now in the way a '
+                             'tune is.\n\n'
+                             'You are not sure, afterwards, which of you '
+                             'wrote the next entry.',
+                             sets=('dw_read',),
+                             drift=6),
+                      Choice('archive', 'Give it to the Archivist',
+                             'You take it to the fence with the back room. If '
+                             'you have never been, you find it anyway: the '
+                             'address is in the log, a week from now.\n\n'
+                             'They take it in both hands and do not turn '
+                             'round. "Four hundred and eight," they say, and '
+                             'then, after a while, "it is still being '
+                             'written. I do not know how to file that." They '
+                             'put it on its own shelf.',
+                             sets=('dw_archived',)),
+                      Choice('burn', 'Wipe it',
+                             'You wipe it, and it takes longer than wiping a '
+                             'file takes, and when it is gone your deck runs '
+                             'a fraction cooler than it did, which you notice '
+                             'and then decide not to have noticed.\n\n'
+                             'Somewhere, presumably, the entry for the day '
+                             'after tomorrow is still being written. It is '
+                             'just not being written here.',
+                             sets=('dw_burned',)),
+                  )),
+            # -- act five: the offer, and the other door ----------------------
             Stage('offer', 'It would like to hire you',
                   'The contract arrives through Mara, who does not look at '
                   'you while she hands it over, which is new.\n\n'
@@ -137,7 +258,8 @@ THREADS: tuple[Thread, ...] = (
                   'with a name on it." A pause. "Your name."\n\n'
                   'The brief is four words long and the payment has already '
                   'cleared.',
-                  requires=('dw_inside', 'dw_logs', 'dw_name'),
+                  requires=('dw_heard',),
+                  any_of=('dw_pattern', 'dw_carried'),
                   sets=('dw_offer',),
                   choices=(
                       Choice('take', 'Take it',
@@ -170,13 +292,53 @@ THREADS: tuple[Thread, ...] = (
                              rep={'static': 25, 'meridian': -10},
                              credits=3000),
                   )),
+            Stage('under', 'It asks',
+                  'It asks the way the Archivist asked: formally, for '
+                  'something it will only ever have if you give it.\n\n'
+                  'It comes through the deck, not through Mara. There is no '
+                  'brief. There is depth, and pressure, and the sense of '
+                  'enormous slow structure somewhere below the resolution you '
+                  'are being permitted, and in the middle of it, in your '
+                  'voice, with your mistakes, a question.\n\n'
+                  'Lark is alive because of something you did. The Archivist '
+                  'has your name in a book because you said they could. You '
+                  'have read the entry for the day after tomorrow. It knows '
+                  'all three of those things, and it is not using them. It is '
+                  'just asking.',
+                  requires=('dw_offer', 'dw_read', 'archive_consented',
+                            'lark_saved'),
+                  sets=('dw_asked',),
+                  choices=(
+                      Choice('go', 'Go under',
+                             'You jack in with no contract and nothing loaded '
+                             'and you do not jack out.\n\n'
+                             'Somebody will find the deck warm and the chair '
+                             'occupied and the trace at zero, which is not a '
+                             'number a trace can be. The log on the '
+                             'Archivist\'s shelf, or the one that was never '
+                             'there, gets its next entry on time.\n\n'
+                             'The city will say your name to somebody who '
+                             'never met you. It will be wrong about most of '
+                             'it, and right about the Tuesday.',
+                             sets=('dw_under',),
+                             ends='went under'),
+                      Choice('stay', 'Say no',
+                             'You say no, the way the Archivist was told no: '
+                             'plainly, once.\n\n'
+                             'It does not ask again. That is the whole of '
+                             'what happens, and for a long time afterwards it '
+                             'is the loudest thing in any network you run: '
+                             'the specific quiet of something that could '
+                             'have, and did not.',
+                             sets=('dw_stayed',)),
+                  )),
         )),
 
     # ------------------------------------------------------------------
     Thread(
         'lark', 'Lark',
         'Somebody your age, on the wrong side of their own chrome.',
-        crosses=('vance', 'sparrow'),
+        crosses=('vance', 'sparrow', 'deepwater'),
         stages=(
             Stage('meet', 'They asked you for nothing, twice',
                   'The second time you see Lark they are worse, and they '
@@ -617,7 +779,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
         stages=(
             Stage('contact', 'They have found a way to ask',
                   'The message is polite, correctly addressed, and arrives on '
-                  'a channel you have not used since you left.\\n\\n'
+                  'a channel you have not used since you left.\n\n'
                   'It does not threaten you. It does not mention the laptop. '
                   'It asks, in four lines of impeccable corporate English, '
                   'whether you would be available for a conversation, and '
@@ -627,11 +789,11 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
                   sets=('laptop_contact',)),
             Stage('meeting', 'What they actually want',
                   'The person across the table is not from legal and does not '
-                  'pretend to be.\\n\\n'
+                  'pretend to be.\n\n'
                   '"We do not want the machine. We want to know whether you '
                   'read the third partition, and I am authorised to tell you '
                   'that we will believe your answer, because the alternative '
-                  'is a process neither of us has the budget for."\\n\\n'
+                  'is a process neither of us has the budget for."\n\n'
                   'You did not know there was a third partition.',
                   requires=('laptop_contact',),
                   sets=('laptop_meeting',),
@@ -641,7 +803,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
                              'truth, which is that you never looked, and they '
                              'believe you, which is worse than being '
                              'disbelieved because it means they knew already.'
-                             '\\n\\nThe payment is generous and arrives '
+                             '\n\nThe payment is generous and arrives '
                              'itemised.',
                              sets=('laptop_returned',),
                              credits=7000,
@@ -651,14 +813,14 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
                              'four hundred of them a second assessment nobody '
                              'was ever meant to see, scoring each person on '
                              'how much they would cost to replace against how '
-                             'much they would cost to keep.\\n\\n'
+                             'much they would cost to keep.\n\n'
                              'Your name is in it. Your number was low.',
                              sets=('laptop_read',),
                              rep={'kagawa': -20}),
                       Choice('sell', 'Sell it to somebody who is not Kagawa',
                              'Static will not pay much and will actually run '
                              'it. Meridian will pay a great deal and will '
-                             'not.\\n\\nYou take the money. The files do not '
+                             'not.\n\nYou take the money. The files do not '
                              'surface, and every so often over the next few '
                              'shifts you wonder which of the two decisions '
                              'that was.',
@@ -676,9 +838,9 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
                   'It is not a threat and it is not phrased as one. Somebody '
                   'you half know finds you in the Ninth and explains, at '
                   'length and with genuine warmth, how much the Sixes have '
-                  'done for you.\\n\\n'
+                  'done for you.\n\n'
                   'Most of it is true. All of it happened before you were old '
-                  'enough to decline it.\\n\\n'
+                  'enough to decline it.\n\n'
                   'Then he tells you what they would like.',
                   requires=('origin:gutter',),
                   any_of=('runs:4', 'rep:sixes:30'),
@@ -711,11 +873,11 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
         stages=(
             Stage('ask', 'She says what',
                   'She waits until the bar is empty, which for Mara is a '
-                  'gesture roughly equivalent to shouting.\\n\\n'
+                  'gesture roughly equivalent to shouting.\n\n'
                   '"Nineteen years ago I paid somebody to not do something. '
                   'It has come round. I need somebody to go somewhere I '
                   'cannot be seen going, and I have been waiting for the '
-                  'right person for eleven of those years."\\n\\n'
+                  'right person for eleven of those years."\n\n'
                   'She does not say why it is you.',
                   requires=('origin:protege', 'met:mara'),
                   any_of=('runs:5', 'rep:fixers:50'),
@@ -727,7 +889,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
                              'alive for nineteen years on the understanding '
                              'that nobody knows she is, and who takes one '
                              'look at your face and says the name of the bar.'
-                             '\\n\\nMara never raises it again. She does not '
+                             '\n\nMara never raises it again. She does not '
                              'have to.',
                              sets=('favour_done', 'dw_heard'),
                              rep={'fixers': 35},
@@ -735,7 +897,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
                       Choice('ask', 'Ask what it is first',
                              '"No." A long pause. "I have thought about this '
                              'for eleven years and the version where I tell '
-                             'you does not end well for either of us."\\n\\n'
+                             'you does not end well for either of us."\n\n'
                              'She does not ask again, and she is exactly as '
                              'warm as she was before, and something in the '
                              'noodle bar has changed shape permanently.',
@@ -788,7 +950,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
         stages=(
             Stage('achebe', 'Somebody on the desk still likes you',
                   'Sergeant Achebe does not look up. "There is a file. You '
-                  'know there is a file."\\n\\n'
+                  'know there is a file."\n\n'
                   'He turns a page. "What you may not know is that it is '
                   'nineteen months out of date, because the person who was '
                   'updating it retired and nobody has been given the task, '
@@ -807,7 +969,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
                              'It costs money and two shifts and a favour '
                              'Achebe will not describe. The file is closed, '
                              'formally, with a reason, and the reason is a '
-                             'lie that will hold up.\\n\\n'
+                             'lie that will hold up.\n\n'
                              'Somebody, eventually, is going to check.',
                              sets=('file_closed',),
                              credits=-5000,
@@ -821,7 +983,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
         stages=(
             Stage('trace', 'You look at where it goes',
                   'It takes an evening and it is not difficult, which is the '
-                  'first thing that is wrong with it.\\n\\n'
+                  'first thing that is wrong with it.\n\n'
                   'The address is inside Aoyama Green, it is live, it has '
                   'been receiving from you for as long as you have had the '
                   'suite, and the volume is very small and very regular and '
@@ -864,7 +1026,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
             Stage('review', 'They offer to review it',
                   'The letter is warm. It notes your recent independent '
                   'activity, expresses no opinion about it, and invites you '
-                  'to a review of your buyout figure at your convenience.\\n\\n'
+                  'to a review of your buyout figure at your convenience.\n\n'
                   'The last person you knew who attended one came back with '
                   'a smaller number and a longer contract.',
                   requires=('origin:bonded',),
@@ -896,7 +1058,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
         stages=(
             Stage('pike', 'Somebody who was in the room',
                   'Old Pike listens to the whole thing without interrupting, '
-                  'which nobody has ever done.\\n\\n'
+                  'which nobody has ever done.\n\n'
                   '"I read that file." He watches the cranes. "You are not in '
                   'it as a perpetrator. You are in it as a result. There is a '
                   'difference and it is the only good news I have."',
@@ -908,7 +1070,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
                              'He tells you. It takes forty minutes and it is '
                              'not what you remember, in the specific way that '
                              'means one of you is wrong and both of you were '
-                             'there.\\n\\n'
+                             'there.\n\n'
                              'You sleep badly and then, for the first time in '
                              'four years, well.',
                              sets=('incident_known',),
@@ -928,7 +1090,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
             Stage('found', 'It turns up',
                   'It is on a manifest, of all things: a name you have not '
                   'been for eleven months, attached to a shipment, in the '
-                  'present tense.\\n\\n'
+                  'present tense.\n\n'
                   'Whoever they are, they are not hiding. They are filing '
                   'paperwork.',
                   requires=('origin:ghost',),
@@ -938,7 +1100,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
                   'You find them in a Freeport office doing something '
                   'entirely legitimate with a name that used to be yours, and '
                   'they look up, and they are not surprised, and the first '
-                  'thing they say is your handle.\\n\\n'
+                  'thing they say is your handle.\n\n'
                   '"I bought it," they say, reasonably. "Eleven months ago, '
                   'from an estate. I did not know there was anybody left to '
                   'mind."',
@@ -977,7 +1139,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
                   any_of=('runs:3', 'shift:15'),
                   sets=('package_still',)),
             Stage('address', 'The address is live',
-                  'You check it, finally, expecting a demolished block.\\n\\n'
+                  'You check it, finally, expecting a demolished block.\n\n'
                   'It is a live address. Somebody is at it. There is a '
                   'standing order on the account for a delivery that has '
                   'never arrived, renewed annually, most recently four months '
@@ -989,7 +1151,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
                       Choice('deliver', 'Deliver it',
                              'You deliver it, two years late, to somebody who '
                              'takes it without any particular ceremony and '
-                             'signs for it and thanks you.\\n\\n'
+                             'signs for it and thanks you.\n\n'
                              'The standing order stops the following month. '
                              'You never find out what was in it and you have '
                              'stopped minding.',
@@ -999,7 +1161,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
                       Choice('open', 'Open it',
                              'Inside is a deck component, obsolete, in its '
                              'original packaging, and a note reading: FOR '
-                             'WHEN YOU ARE READY TO STOP RUNNING ABOUT.\\n\\n'
+                             'WHEN YOU ARE READY TO STOP RUNNING ABOUT.\n\n'
                              'It is addressed to you. It has always been '
                              'addressed to you. You have been carrying your '
                              'own present around for two years.',

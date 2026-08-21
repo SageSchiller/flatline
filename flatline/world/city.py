@@ -366,8 +366,11 @@ class City:
         """The other runners work. This is why sitting still is not free."""
         if not self.rivals:
             self.rivals = rival_mod.seed_pool()
+        # A held contract is a story beat, and a story beat a rival can walk
+        # off with is one the player may never see. They do not see it.
         taken, told = rival_mod.take_turn(
-            rng('rivals'), self.rivals, self.board, self.posture, self.shift,
+            rng('rivals'), self.rivals,
+            [c for c in self.board if not c.held], self.posture, self.shift,
             protected=self.accepted,
             busy={self.hired} if self.hired else None)
         if taken:
@@ -426,7 +429,9 @@ class City:
     def top_up_board(self, rng: Rng, alias: Alias, char=None,
                      flags=None) -> list[str]:
         want = self.board_size(char)
-        have = len(self.board)
+        # Held contracts sit on top of the board rather than in it, so a
+        # scene that posts something does not cost the player a slot.
+        have = len([c for c in self.board if not c.held])
         if have >= want:
             return []
         fresh = contract_mod.generate_board(
@@ -437,6 +442,18 @@ class City:
         self.board.extend(fresh)
         return [f'[dim]{len(fresh)} new posting'
                 f'{"s" if len(fresh) != 1 else ""} on the board.[/]']
+
+    def post_story(self, rng: Rng, alias: Alias, posting, tag: str):
+        """Put a scene's contract on the board, once. Returns it. D52."""
+        existing = next((c for c in self.board if c.story == tag), None)
+        if existing is not None:
+            return existing
+        contract = contract_mod.make_story(
+            rng('contracts'), self.next_cid, posting, tag, self.shift, alias,
+            self.posture)
+        self.next_cid += 1
+        self.board.append(contract)
+        return contract
 
     def contract(self, cid: str) -> Contract | None:
         return next((c for c in self.board if c.cid == cid), None)

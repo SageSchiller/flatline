@@ -1102,8 +1102,12 @@ class RunState:
         asset = self.net.find_asset(self.net.objective_asset)
         # Named once you have enumerated the host it sits on. Before that it
         # is a shape in somebody's filesystem and calling it by name would be
-        # the game telling you something you have not earned.
-        asset_name = (asset[1].name if asset and asset[0].mapped
+        # the game telling you something you have not earned. A record a
+        # scene named is the exception: somebody told you what it is at the
+        # door, and the brief saying "the record they want" about your own
+        # log would be coy (D52).
+        asset_name = (asset[1].name
+                      if asset and (asset[0].mapped or asset[1].label)
                       else 'the record they want')
 
         if not self.contract:

@@ -118,7 +118,7 @@ ENDINGS = (
 #: arc that ends in being a person about it; the other two outcomes leave a
 #: coda on whatever the drift had to say. Declared so `validate.py` can see
 #: these flags are decisions a choice makes.
-ENDING_FLAGS = ('dw_employed', 'dw_published', 'dw_refused')
+ENDING_FLAGS = ('dw_employed', 'dw_published', 'dw_refused', 'dw_under')
 
 RETAINED = (
     'The retainer does not lapse',
@@ -184,6 +184,25 @@ EPILOGUE: tuple[tuple[str, str], ...] = (
      'You gave Deepwater to Static, the nine logs and the name, and for a day '
      'it was the only thing in Marrow, and then it was not a thing anybody '
      'said, and nobody will tell you why.'),
+    ('dw_read',
+     'You read your own log to the end, including the entry for the day '
+     'after tomorrow, which was a Tuesday, and some of it is in you now the '
+     'way a tune is.'),
+    ('dw_archived',
+     'You gave your log to the Archivist, who put it on its own shelf '
+     'because it was still being written, and did not know how to file '
+     'that.'),
+    ('dw_burned',
+     'You wiped your own log, and it took longer than a file takes, and your '
+     'deck ran a fraction cooler afterwards, which you decided not to have '
+     'noticed.'),
+    ('dw_under',
+     'It asked, and you went under, with nothing loaded and no contract, and '
+     'the chair was found occupied and the trace at zero.'),
+    ('dw_stayed',
+     'It asked, and you said no, plainly, once, and it did not ask again, '
+     'and the quiet of that was the loudest thing in every network you ran '
+     'afterwards.'),
     # Lark
     ('lark_saved',
      'Lark is alive. Smaller, quieter, arguing with a queue outside the '

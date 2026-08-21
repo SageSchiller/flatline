@@ -143,6 +143,11 @@ def _now_city(sess):
             + (f'On the job: {contract.title}.' if contract
                else 'No contract accepted.'))
     steps = []
+    if game.story.open_choice() is not None:
+        # A scene is waiting on a decision. It outranks everything, because
+        # it is the one thing in the city that does not move without you.
+        steps.append(('choose', 'something is waiting on a decision from '
+                                'you'))
     if contract is None:
         steps.append(('board', 'work on offer. `board 1` reads the first '
                                'one, `take 1` accepts it'))
