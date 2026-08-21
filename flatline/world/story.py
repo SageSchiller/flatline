@@ -196,12 +196,20 @@ class Story:
 # --------------------------------------------------------------------------
 
 
-def present(game, story: Story) -> list[npc_content.Npc]:
-    """Everybody who can be found in the district the player is standing in."""
+def present(game, story: Story,
+            any_hour: bool = False) -> list[npc_content.Npc]:
+    """Everybody who can be found in the district the player is standing in.
+
+    `any_hour` ignores the clock: everybody who would be here at *some*
+    hour, which is what `look` needs in order to say who is not about right
+    now and when they will be (D54).
+    """
     district = game.city.district
     out = []
     for npc in npc_content.in_district(district.key, district.services):
         if not npc_content.meets(npc, game.char, game.alias, game.char.runs):
+            continue
+        if not any_hour and not npc_content.about_now(npc, game.city.phase):
             continue
         # The story half of `requires`: plain flags and `not:` rules, which
         # `meets` cannot see because the content layer has no story. This is
@@ -230,6 +238,15 @@ STREET_RIDERS: tuple[tuple[str, str, float], ...] = (
     ('file_closed', 'nightwatch', 0.5),
     # Kagawa have decided about you, and what they decided was "fine".
     ('laptop_returned', 'kagawa', 0.6),
+    # D55. The pumps run on Sixes parts, and the Ninth knows who brought the
+    # ledger.
+    ('pumps_sixes', 'sixes', 0.7),
+    # The lobby reads your gait as furniture.
+    ('reviews_self', 'kagawa', 0.7),
+    # Somebody walked out of the aftercare ward, and Aoyama are well.
+    ('ward_walked', 'aoyama', 1.4),
+    # The evidence log is gone, and with it most of what they had on you.
+    ('surplus_wiped', 'nightwatch', 0.7),
 )
 
 

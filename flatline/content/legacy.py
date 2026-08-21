@@ -359,6 +359,74 @@ EPILOGUE: tuple[tuple[str, str], ...] = (
     ('package_burned',
      'You put the package in an incinerator in the Ninth and stayed for all '
      'of it.'),
+    # The districts (D55)
+    ('pumps_sixes',
+     'You took the water board\'s ledger out of Kagawa and handed it to the '
+     'Sixes, and the pumps under the Ninth run on parts with a stencil on '
+     'them.'),
+    ('pumps_public',
+     'You gave Static the DEFERRED column, nineteen years then a line, and '
+     'the water board issued a statement, and the pumps did not change.'),
+    ('pumps_sold',
+     'You sold the water board its own ledger back, and the thanks was '
+     'sincere, and somebody in the Ninth stopped selling you fried things.'),
+    ('queue_jacket',
+     'You ruled that a jacket holds a place in the Marrow queue, and became '
+     'law, and had not meant to.'),
+    ('queue_person',
+     'You ruled that only a person holds a place in the Marrow queue, and '
+     'the woman in the green coat said strict holds, and it held.'),
+    ('queue_declined',
+     'You declined to rule on the queue, and she ruled herself, and you '
+     'never knew what she decided.'),
+    ('reviews_fair',
+     'You moved eleven numbers toward each other in Kagawa\'s review suite, '
+     'and the satisfied-client poster came down, and nobody put another up.'),
+    ('reviews_self',
+     'You put your own number up in Kagawa\'s review suite, and the lobby '
+     'has read you as furniture ever since.'),
+    ('reviews_left',
+     'You had the review suite\'s weights open and left the arithmetic '
+     'correct.'),
+    ('ward_walked',
+     'You walked somebody out of the aftercare ward in forty seconds, and '
+     'they said she was right, they were well, and went.'),
+    ('ward_told',
+     'You told Doctor Vance about the finger on the glass, and the window '
+     'was frosted, and she sent you something small and expensive.'),
+    ('ward_left',
+     'You saw the finger on the glass twice and did nothing, and the third '
+     'time it was somebody else.'),
+    ('demo_free',
+     'You wiped the reset policy off Sendai\'s floor and left the unit to '
+     'think, and it reads from memory, with feeling, to an audience.'),
+    ('demo_sold',
+     'You wiped the reset policy and then told Sendai what was on their '
+     'floor, and they reset it on the sixteenth instead.'),
+    ('vote_spoke',
+     'You stood at the west gate and spoke, badly, and Freeport voted your '
+     'way, and the losing side bought.'),
+    ('vote_quiet',
+     'You stayed at the back while Freeport voted on you, and it went the '
+     'other way, by a little.'),
+    ('surplus_wiped',
+     'You wiped fifteen entries from Nightwatch\'s evidence log, four of '
+     'them yours, and the box on the surplus counter was sold as a box.'),
+    ('surplus_read',
+     'You read what Nightwatch had written about you before you wiped it, '
+     'and it was good, and you could not wipe having read it.'),
+    ('ledger_taken',
+     'You took the Blue Surgeon\'s referral ledger for Carrion while the '
+     'door was open, and the Surgeon said nothing and started another.'),
+    ('ledger_warned',
+     'You told the Blue Surgeon that Carrion wanted the ledger taken, and '
+     'they showed it to him instead, page by page.'),
+    ('trays_saved',
+     'You made the landing inspection skip level forty, and the tomatoes '
+     'went on under a borrowed light, and it was not a transaction.'),
+    ('trays_sold',
+     'You flagged level forty for priority and took the finder\'s fee, and '
+     'the landing was bare the next time you passed.'),
 )
 
 EPILOGUE_BY_FLAG: dict[str, str] = {flag: line for flag, line in EPILOGUE}

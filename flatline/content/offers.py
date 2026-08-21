@@ -312,7 +312,7 @@ FAVOURS: tuple[Favour, ...] = (
         'surgeon', 'clean', 'Eleven hours, no charge',
         'The Blue Surgeon walks some of the drift back. They owe you a friend.',
         effect='ground', amount=8,
-        requires=('surgeon_owed',),
+        requires=('surgeon_owed', 'not:ledger_taken'),
         text='They do it in the clean room off the Shambles, talking the '
              'whole time, about nothing, about Lark, about a technique they '
              'read about once and have never had the chance to try. No '

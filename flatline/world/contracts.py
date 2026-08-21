@@ -181,6 +181,18 @@ PATRON_RIDERS: tuple[tuple[str, str, float], ...] = (
     ('sunday_sold', 'meridian', 0.4),
     # You wiped something of theirs. They post less, and do not say why.
     ('dw_burned', 'deepwater', 0.5),
+    # D55. Static ran Kagawa's DEFERRED column; Kagawa remember the byline.
+    ('pumps_public', 'kagawa', 0.7),
+    # You sold the water board its own ledger, and they were grateful.
+    ('pumps_sold', 'kagawa', 1.3),
+    # Eleven numbers moved toward each other, and Kagawa cannot find who.
+    ('reviews_fair', 'kagawa', 0.8),
+    # Sendai were told what was on their floor, and were efficient about it.
+    ('demo_sold', 'sendai', 1.4),
+    # Freeport voted your way, and the losing side bought.
+    ('vote_spoke', 'freeport', 1.4),
+    # Freeport voted the other way, and the Quartermaster wrote it down.
+    ('vote_quiet', 'freeport', 0.6),
 )
 
 

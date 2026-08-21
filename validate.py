@@ -2324,6 +2324,26 @@ def check_npcs(rep: Report) -> None:
             rep.check(kind in npc_content.NUMERIC_RULES
                       or _story_flag(rule) is not None, where,
                       f'unknown requirement {rule!r}')
+        # D54: hours are real shifts, and somebody with hours keeps at least
+        # one; a person who is never about is a person who does not exist.
+        for hour in n.hours:
+            rep.check(hour in city_mod.SHIFT_NAMES, where,
+                      f'keeps unknown hour {hour!r}')
+        rep.check(len(set(n.hours)) == len(n.hours), where,
+                  'lists an hour twice')
+        # The voice pass: enough to say that `talk` does not repeat itself
+        # inside a shift, and enough topics to be worth asking.
+        rep.check(len(n.lines) >= 5, where,
+                  f'{len(n.lines)} lines; `talk` repeats itself')
+        rep.check(len(n.topics) >= 3, where,
+                  f'{len(n.topics)} topics; not worth asking')
+    # Everybody with hours has to share an hour with Marrow's morning or the
+    # tutorial's first `look` shows a city with nobody in it. Not everybody:
+    # enough.
+    morning = [n for n in npc_content.NPCS
+               if n.where in ('marrow', '') and npc_content.about_now(n, 'morning')]
+    rep.check(len(morning) >= 2, 'npcs/hours',
+              'fewer than two people about in Marrow on the first morning')
 
     # A city of one register is a city with one joke in it.
     from collections import Counter

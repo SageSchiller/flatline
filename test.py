@@ -5686,6 +5686,7 @@ def test_consequences() -> None:
     # Mr Sunday stops appearing once sold.
     game = fresh()
     game.char.runs = 6
+    game.city.shift = 1  # afternoon: his hours
     T.ok('broker' in [n.key for n in story_mod.present(game, game.story)],
          'Mr Sunday is on his stool in Marrow')
     game.story.flags.add('sunday_sold')
@@ -5881,7 +5882,8 @@ def test_spine() -> None:
                  if s.key == 'posting')
     game.city.post_story(game.rng, game.alias, stage.posts,
                          'deepwater.posting')
-    T.eq(len([c for c in game.city.board if c.held]), 1,
+    T.eq(len([c for c in game.city.board
+              if c.story == 'deepwater.posting']), 1,
          'posting it again posts nothing')
     # It survives time, rivals and top-ups, and costs the board no slot.
     for _ in range(25):
@@ -5924,7 +5926,7 @@ def test_spine() -> None:
     T.ok('did:deepwater.posting' in st.flags, 'finishing it sets `did:`')
     T.ok('dw_carried' in st.flags, 'and the next scene arrives at once')
     T.ok('deepwater.carried' in st.pending, 'waiting on a decision')
-    T.ok(not any(c.story for c in game.city.board),
+    T.ok(not any(c.story == 'deepwater.posting' for c in game.city.board),
          'and the held contract is gone from the board')
     _, out = play([''], game=game)
     T.ok('choose' in out, 'an empty line says a choice is waiting')
@@ -6040,10 +6042,32 @@ def test_texture() -> None:
     T.ok('people who do not sleep' in out, 'at night the place is the night')
     game.city.where = 'shambles'
     _, out = play(['visit crate'], game=game)
-    T.ok('Lark' in out, 'Lark is on the crate')
+    T.ok('not here at this hour' in out and 'afternoons' in out,
+         'Lark keeps daylight hours, and the crate says which')
+    game.city.shift = 3  # the next morning
+    _, out = play(['visit crate'], game=game)
+    T.ok('Lark' in out and 'not here' not in out, 'and in the morning she is on it')
     game.story.flags.add('lark_dead')
     _, out = play(['visit crate'], game=game)
     T.ok('not here at the moment' in out, 'and not once she is dead')
+
+    # D54: hours. `look` says who keeps other hours, once you know them.
+    from flatline.content import npcs as npc_content
+    game = fresh()
+    game.story.meet('broker')
+    game.char.runs = 6
+    _, out = play(['look'], game=game)
+    T.ok('Mr Sunday' not in out.split('Not about')[0] if 'Not about' in out
+         else 'Mr Sunday' not in out, 'Mr Sunday is not in Marrow in the morning')
+    T.ok('Not about at this hour' in out and 'Mr Sunday (afternoons and nights)'
+         in out, 'and `look` says when he is')
+    game.city.shift = 1
+    _, out = play(['look'], game=game)
+    T.ok('Mr Sunday' in out.split('Not about')[0], 'in the afternoon he is')
+    T.eq(npc_content.hours_label(npc_content.BY_KEY['vending']), 'any hour',
+         'Ozymandias keeps no hours')
+    T.ok(all(len(n.lines) >= 5 and len(n.topics) >= 3 for n in npc_content.NPCS),
+         'everybody has enough to say')
     for d in districts.DISTRICTS:
         T.ok(len(spots.in_district(d.key)) >= 2,
              f'{d.key} has places to stand in')
@@ -6098,9 +6122,109 @@ def test_texture() -> None:
              f'{tone} is {counts[tone] / total:.0%}, inside the budget')
 
 
+def test_arcs() -> None:
+    """D55: nine threads rooted in a place, one played through."""
+    T.section('arcs')
+    from flatline.content import arcs, legacy, threads as thread_content
+    from flatline.world import contracts as contract_world
+    from flatline.world import story as story_mod
+
+    T.eq(len(arcs.DISTRICT_THREADS), len(districts.DISTRICTS),
+         'one thread per district')
+    for t in arcs.DISTRICT_THREADS:
+        T.ok(t.key in thread_content.BY_KEY, f'{t.key} is registered')
+        places = {s.where for s in t.stages if s.where}
+        T.eq(len(places), 1, f'{t.key} stays in one district')
+        T.ok(any(s.choices for s in t.stages), f'{t.key} has a decision')
+
+    # Every first scene is reachable by a character who has met the right
+    # person and run a little.
+    for t in arcs.DISTRICT_THREADS:
+        game = Game.new(Character.from_origin('gutter', 'Arc'), seed=4242)
+        game.char.runs = 9
+        first = t.stages[0]
+        for rule in tuple(first.requires) + tuple(first.any_of):
+            if rule.startswith('met:'):
+                game.story.meet(rule[4:])
+        ok = all(game.story.satisfied(r, game) for r in first.requires) and (
+            not first.any_of or any(game.story.satisfied(r, game)
+                                    for r in first.any_of))
+        T.ok(ok, f'{t.key}: the first scene opens for somebody who met '
+                 f'the right person and ran nine times')
+
+    # The pumps, end to end: Tuck, the posting, the run, the ledger, and the
+    # streets of the Ninth afterwards.
+    game = Game.new(Character.from_origin('gutter', 'Pumps'), seed=4242)
+    st = game.story
+    game.char.runs = 6
+    game.city.where = 'ninth'
+    game.city.shift = 1  # afternoon: Tuck's hours
+    sess, out = play(['look', 'look'], game=game)
+    T.ok('met:tuck' in st.flags, 'Tuck is on the stalls in the afternoon')
+    T.ok('pumps_seen' in st.flags, 'and shows you the tape')
+    T.ok('pumps_posting' in st.flags, 'and the Sixes post the ledger job')
+    held = [c for c in game.city.board if c.story == 'pumps.posting']
+    T.eq(len(held), 1, 'one held contract against Kagawa')
+    contract = held[0]
+    T.eq(contract.target, 'kagawa', 'against Kagawa')
+    T.ok('Standing Water' in out, 'named in the board\'s terms')
+    for key in list(game.char.deck.loaded):
+        game.char.deck.unload(key)
+    game.char.library.append('siphon')
+    game.char.deck.load('siphon')
+    game.city.where = contract.district
+    sess, out = play([f'take {contract.cid}', 'jack in', 'job'], game=game)
+    T.ok(sess.run is not None and 'maintenance ledger' in out,
+         'the brief names the ledger')
+    sess.run.haul.append(sess.run.net.objective_asset)
+    sess.console.start_capture()
+    sess.execute('jack out')
+    sess.console.end_capture()
+    T.ok('did:pumps.posting' in st.flags and 'pumps_ledger' in st.flags,
+         'finishing it opens the ledger scene')
+    st.pending = ['pumps.ledger'] + [p for p in st.pending
+                                      if p != 'pumps.ledger']
+    game.alias.add_heat('sixes', 60)
+    d0, _ = game.city.danger(game.alias, 'ninth', flags=st.flags)
+    sess.console.start_capture()
+    sess.execute('choose sixes')
+    out = sess.console.end_capture()
+    T.ok('pumps_sixes' in st.flags and 'stencil' in out,
+         'handing it to the Sixes is recorded and said')
+    d1, _ = game.city.danger(game.alias, 'ninth', flags=st.flags)
+    T.ok(d1 < d0, f'and the Ninth is safer for you ({d0} to {d1})')
+    T.ok(legacy.epilogue(st.flags), 'and the ending will mention it')
+    w = contract_world._weighted_patrons(game.alias, {'pumps_sold'})
+    w0 = contract_world._weighted_patrons(game.alias, ())
+    T.ok(w['kagawa'] > w0['kagawa'], 'selling it back would have made '
+                                      'Kagawa post more')
+
+    # The queue, which posts nothing and asks you to be law.
+    game = Game.new(Character.from_origin('gutter', 'Queue'), seed=4242)
+    game.char.runs = 4
+    sess, out = play(['look'], game=game)
+    T.ok('queue_dispute' in game.story.flags and 'green coat' in out,
+         'the woman in the green coat asks you to rule')
+    game.story.pending = ['queue.dispute']
+    sess, out = play(['choose jacket'], game=game)
+    T.ok('queue_jacket' in game.story.flags, 'and the jacket holds the place')
+    game.char.runs = 9
+    sess, out = play(['look'], game=game)
+    T.ok('queue_cited' in game.story.flags, 'and you are cited, later')
+
+    # Carrion's man and the Surgeon's book: warning closes nothing, taking
+    # closes the Surgeon's favour.
+    game = Game.new(Character.from_origin('gutter', 'Book'), seed=4242)
+    game.story.flags.update({'surgeon_owed', 'ledger_taken'})
+    game.city.where = 'shambles'
+    game.story.meet('surgeon')
+    _, out = play(['deal surgeon favour clean'], game=game)
+    T.ok('will not' in out, 'the Surgeon will not, once the ledger is taken')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
-    test_consequences, test_spine, test_texture,
+    test_consequences, test_spine, test_texture, test_arcs,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,

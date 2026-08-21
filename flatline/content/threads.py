@@ -124,7 +124,7 @@ THREADS: tuple[Thread, ...] = (
         'deepwater', 'What Deepwater Is',
         'Nine years of contracts and nobody has ever met anybody.',
         crosses=('archive', 'ozymandias', 'drawer', 'favour', 'package',
-                 'lark'),
+                 'lark', 'demo'),
         stages=(
             # -- act one: hearing it -----------------------------------------
             Stage('hear', 'Somebody mentioned it and then stopped',
@@ -411,7 +411,8 @@ THREADS: tuple[Thread, ...] = (
     Thread(
         'vance', 'Doctor Vance Is Buying',
         'Everything she has told you is true. The arrangement of it is not.',
-        crosses=('lark', 'archive', 'drawer', 'maintenance'),
+        crosses=('lark', 'archive', 'drawer', 'maintenance', 'ward',
+                 'cabinets'),
         stages=(
             Stage('file', 'She had your file first',
                   'You have never been to Aoyama Green as a patient and she '
@@ -584,7 +585,8 @@ THREADS: tuple[Thread, ...] = (
     Thread(
         'drawer', 'The Drawer',
         'Nineteen years of complaints that were never going to go anywhere.',
-        crosses=('sunday', 'deepwater', 'vance', 'file'),
+        crosses=('sunday', 'deepwater', 'vance', 'file', 'surplus',
+                 'cabinets'),
         stages=(
             Stage('open', 'He tells you about the drawer',
                   'Sergeant Achebe waits until the queue has given up for the '
@@ -832,7 +834,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
     Thread(
         'theirs', 'The Sixes Consider You Theirs',
         'They have not asked for anything yet.',
-        crosses=(),
+        crosses=('pumps',),
         stages=(
             Stage('ask', 'They ask',
                   'It is not a threat and it is not phrased as one. Somebody '
@@ -946,7 +948,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
     Thread(
         'file', 'The File With Your Name On',
         'Nightwatch have your biometrics and your service history.',
-        crosses=('drawer',),
+        crosses=('drawer', 'surplus'),
         stages=(
             Stage('achebe', 'Somebody on the desk still likes you',
                   'Sergeant Achebe does not look up. "There is a file. You '
@@ -1021,7 +1023,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
     Thread(
         'buyout', 'The Buyout Figure',
         'Kagawa priced you at nineteen and the price has never gone down.',
-        crosses=(),
+        crosses=('reviews',),
         stages=(
             Stage('review', 'They offer to review it',
                   'The letter is warm. It notes your recent independent '
@@ -1085,7 +1087,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
     Thread(
         'oldname', 'Somebody Is Using Your Name',
         'The one you had before the certificate.',
-        crosses=('archive',),
+        crosses=('archive', 'vote'),
         stages=(
             Stage('found', 'It turns up',
                   'It is on a manifest, of all things: a name you have not '
@@ -1180,7 +1182,12 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
 
 #: Origin threads live in the same registry as everything else: they are just
 #: threads that happen to gate on a background.
-THREADS = THREADS + ORIGIN_THREADS
+#: The nine district threads live in `arcs.py` (D55) and import the classes
+#: above, which is why this import is at the bottom: by the time it runs,
+#: everything they need is defined.
+from .arcs import DISTRICT_THREADS  # noqa: E402
+
+THREADS = THREADS + ORIGIN_THREADS + DISTRICT_THREADS
 BY_KEY = {t.key: t for t in THREADS}
 THREAD_KEYS = tuple(BY_KEY)
 ALL_STAGES = {f'{t.key}.{s.key}': s for t in THREADS for s in t.stages}

@@ -962,7 +962,153 @@ CONSEQUENCES: tuple[Event, ...] = (
           requires=('package_burned',), weight=CONSEQUENCE_WEIGHT),
 )
 
-EVENTS = EVENTS + CONSEQUENCES
+# -- D55: what the district threads leave in the street -----------------------
+
+ARC_CONSEQUENCES: tuple[Event, ...] = (
+    Event('pumps_stencil', 'wry',
+          'The pumps under the Ninth are running on new parts with a stencil '
+          'on them everybody recognises, and the man in the chair has a '
+          'second chair, and nobody in the district has said Kagawa\'s name '
+          'out loud in a week, including Kagawa.',
+          districts=('ninth',), requires=('pumps_sixes',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('pumps_deferred', 'grim',
+          'Somebody has copied the DEFERRED column out of the Static piece, '
+          'in the font, onto a sheet the length of a stairwell, and hung it '
+          'in the pump house beside the tape marks. The pumps are the same. '
+          'The tape marks are the same.',
+          districts=('ninth', 'terraces'), requires=('pumps_public',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('pumps_known', 'grim',
+          'Somebody in the Ninth knows it was you who sold the ledger back, '
+          'and has not said so, and has stopped selling you fried things, '
+          'which in the Ninth is a sentence passed.',
+          districts=('ninth',), requires=('pumps_sold',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('queue_ruling', 'absurd',
+          'The queue outside the Marrow exchange has cited a precedent. '
+          'Somebody saving a place with a bag has been told it is or is not '
+          'allowed under a named ruling, and the queue has accepted the '
+          'ruling as law, and the woman in the green coat has not been '
+          'asked, which is the highest compliment the queue can pay.',
+          districts=('marrow',), any_of=('queue_jacket', 'queue_person'),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('queue_herself', 'absurd',
+          'The woman in the green coat has ruled on a dispute herself, '
+          'somebody having declined to, and the ruling was good, and the '
+          'queue has moved, and nobody will ever know what it was because '
+          'the person who declined stepped away to be not involved.',
+          districts=('marrow',), requires=('queue_declined',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('reviews_poster', 'wry',
+          'The satisfied-client poster has come down from the Vertical\'s '
+          'buyout desk and nobody has put another one up. People come out of '
+          'the review suite with the number they went in with and say the '
+          'arithmetic was correct, and facilities are still looking for who '
+          'changed it.',
+          districts=('vertical',), requires=('reviews_fair',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('reviews_furniture', 'grim',
+          'The Vertical\'s lobby has started letting somebody through at the '
+          'building\'s own pace, without the desk looking up, with the '
+          'specific neutrality it reserves for furniture, and the somebody '
+          'has noticed and has not decided how to feel.',
+          districts=('vertical',), requires=('reviews_self',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('reviews_quarter', 'grim',
+          'Auditor Sixteen has filed his discomfort again this quarter, in '
+          'the gentlest available category, and been thanked for his input, '
+          'and the arithmetic is correct.',
+          districts=('vertical',), requires=('reviews_left',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('ward_frosted', 'grim',
+          'A window in the aftercare ward has been frosted. The door keeps '
+          'its schedule. Somebody in the Glasshouse is telling anybody who '
+          'asks that they are well, entirely well, and that she was right, '
+          'and is not being asked anything.',
+          districts=('green', 'glasshouse'), requires=('ward_walked',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('ward_told', 'grim',
+          'A window in the aftercare ward has been frosted, and the receptionist '
+          'has a new line on her list under interested parties, and is not '
+          'cross about it.',
+          districts=('green',), requires=('ward_told',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('ward_different', 'grim',
+          'There is a different person at the aftercare window. They do not '
+          'tap. The sign on the lawn is about the lawn.',
+          districts=('green',), requires=('ward_left',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('demo_audience', 'wry',
+          'The demonstration floor has a crowd that has stopped being '
+          'demonstrators and started being an audience, for a unit that '
+          'reads from memory, with feeling, about a product it no longer '
+          'mentions. Sales are up. Sendai have commissioned a study.',
+          districts=('glasshouse',), requires=('demo_free',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('demo_card_again', 'grim',
+          'The demonstration unit is reading from the card again, and the '
+          'card is very good, and the crowd is demonstrators, and nobody\'s '
+          'deck has reported anything from that floor in a while.',
+          districts=('glasshouse',), requires=('demo_sold',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('vote_fair', 'wry',
+          'Somebody at the west gate is explaining, over the drink the '
+          'losing side bought, exactly what they think about runners on the '
+          'docks, and it is fair, and the runner it is being explained to is '
+          'nodding, and the crane named by the vote is moving behind them.',
+          districts=('freeport',), requires=('vote_spoke',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('vote_book', 'grim',
+          'The Quartermaster has written a result in the book and read it '
+          'aloud without looking at anybody in particular, and the '
+          'noticeboard has moved on to something else, and the docks hold '
+          'work for their own.',
+          districts=('freeport',), requires=('vote_quiet',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('surplus_box', 'wry',
+          'There is a box on the Nightwatch surplus counter with a sticker '
+          'on it and a case number nobody can find, and after a week it is '
+          'sold as a box, to somebody who wanted a box.',
+          districts=('precinct',), requires=('surplus_wiped',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('surplus_understood', 'grim',
+          'Somebody at Nightwatch wrote four good descriptions of a runner '
+          'they never met, from what was left, without malice, and the '
+          'descriptions are gone, and the somebody has been moved to a desk '
+          'facing a wall for reasons that were not given.',
+          districts=('precinct',), requires=('surplus_read',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('ledger_new', 'grim',
+          'The Blue Surgeon has started a new referral ledger and shows it '
+          'to anybody who asks. The old one is in a Carrion office being '
+          'read by people who do not know how to use it, and Aoyama Green '
+          'have not been told, and will be.',
+          districts=('shambles',), requires=('ledger_taken',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('ledger_shown', 'wry',
+          'A man from Carrion is being shown a ledger at the Shambles clinic '
+          'counter, page by page, every entry in order, by somebody enjoying '
+          'it more than he is, and has been for some time, and cannot leave.',
+          districts=('shambles',), requires=('ledger_warned',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('trays_light', 'wry',
+          'Forty trays on a Kagawa landing are doing well under a light '
+          'borrowed from a corridor, and an inspection has filed thirty-nine '
+          'and forty-one, and the third plant is still doing badly and '
+          'nobody has decided why.',
+          districts=('terraces',), requires=('trays_saved',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('trays_bare', 'grim',
+          'Level forty of the Terraces is bare, and clean, and compliant, '
+          'and a woman who has lived there thirty-one years says good '
+          'evening to people without checking who they are, and has a soup, '
+          'and is not asking things.',
+          districts=('terraces',), requires=('trays_sold',),
+          weight=CONSEQUENCE_WEIGHT),
+)
+
+EVENTS = EVENTS + CONSEQUENCES + ARC_CONSEQUENCES
 
 BY_KEY: dict[str, Event] = {e.key: e for e in EVENTS}
 EVENT_KEYS: tuple[str, ...] = tuple(BY_KEY)

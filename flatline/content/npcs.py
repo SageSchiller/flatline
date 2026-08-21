@@ -68,6 +68,11 @@ class Npc:
     #: `met:<key>`, and a thread stage requires that flag like any other, so
     #: the connection lives in one place instead of two that can disagree.
     requires: tuple[str, ...] = ()
+    #: Which shifts they are about. Empty means any hour. D54: a city where
+    #: Mara is in the bar in the mornings and at night, and not in the
+    #: afternoons, is one more true thing, and it makes the clock a reason
+    #: to be somewhere rather than a label on the prompt.
+    hours: tuple[str, ...] = ()
 
 
 NPCS: tuple[Npc, ...] = (
@@ -86,7 +91,12 @@ NPCS: tuple[Npc, ...] = (
             'sentence and we are not at it yet."',
             '"Everybody who comes in here wants me to already know what they '
             'want. Try saying it."',
-        ),
+            '"The board is what it is. People ask me to make it something '
+            'else and I have never once been able to."',
+            '"You have that look. Everybody who has that look thinks it is '
+            'the first time I have seen it."',
+            '"Sit. I will tell you one true thing and you will not like it, '
+            'and then we will talk about work."',),
         topics={
             'city': '"Twelve powers, and eleven of them think they are the '
                     'one holding the leash. Do not correct anybody."',
@@ -95,7 +105,13 @@ NPCS: tuple[Npc, ...] = (
             'deepwater': 'She stops writing. "I place four contracts a month '
                          'for that and I have never met anybody who works '
                          'there. Draw your own conclusions and keep them."',
-        }),
+            'runners': '"Seven of them I rate. Two of those are dead, which I '
+                       'count against the other five."',
+            'marrow': '"Neutral ground. The word you want to hear is neutral '
+                      'and the word that matters is ground. Somebody owns it. '
+                      'Work out who."',
+        },
+        hours=('morning', 'night')),
     Npc('bell', 'Councillor Bell', 'who is still filing',
         'marrow', '', 'absurd', ('intel',),
         'A woman with a document wallet has been waiting outside the '
@@ -112,13 +128,25 @@ NPCS: tuple[Npc, ...] = (
             'notice the drainage? Nobody notices the drainage."',
             '"I have the original survey. I have four versions of the '
             'original survey. Two of them are lies and I can prove which."',
+            '"They have moved the hearing to a room that does not exist! I '
+            'have checked! I have been to the floor!"',
+            '"Do you know what a culvert is? No. Nobody does. That is how '
+            'they get away with it."',
+            '"I am not a crank. A crank is wrong. I have the survey."',
         ),
         topics={
             'city': '"Everything in this city is built on a document somebody '
                     'lost. I have most of the documents."',
             'terraces': '"Eleven thousand people and one stairwell rated for '
                         'four hundred. I have said so. Repeatedly."',
-        }),
+            'drainage': '"Three cubic metres a second, on paper. I have '
+                        'measured it. It is not three." She produces a jug. '
+                        'It is a very specific jug.',
+            'marrow': '"Built on a marsh, drained by a man who was later '
+                      'arrested, and the drainage is still his. Everything '
+                      'else is detail."',
+        },
+        hours=('morning', 'afternoon')),
 
     # -- the Ninth Ward ---------------------------------------------------
     Npc('tuck', 'Tuck', 'who knows the cabling',
@@ -136,13 +164,25 @@ NPCS: tuple[Npc, ...] = (
             'they all walk the same."',
             '"My aunt says not to talk to you. My aunt owes people money so '
             'I do not weight her opinion heavily."',
-        ),
+            '"Do not touch that one. Not because of the voltage. Because it '
+            'is mine."',
+            '"The water is going to come up again. It always comes up '
+            'again. The map does not know that either."',
+            '"Are you any good? You do not have to answer. I will know by '
+            'next week."',),
         topics={
             'city': '"Nothing down here connects the way the map says. The '
                     'map is from before the flood."',
             'work': '"You want the one nobody else took. There is always one '
                     'nobody took and there is always a reason."',
-        }),
+            'ninth': '"Everybody who is anybody came from down here and went '
+                     'somewhere else and then said they were from down here. '
+                     'I am from down here."',
+            'sixes': '"They fixed the pump on our stair. Nobody asked them '
+                     'to. That is how it starts, my aunt says, and then she '
+                     'says it again."',
+        },
+        hours=('afternoon', 'night')),
     Npc('vending', 'Ozymandias', 'who may or may not be a vending machine',
         'ninth', 'market', 'absurd', ('goods',),
         'A vending machine on the corner of a stairwell has had a name '
@@ -159,11 +199,22 @@ NPCS: tuple[Npc, ...] = (
             'TRUST ME.',
             'The display says: I HAVE BEEN THINKING ABOUT THE NINTH WARD. '
             'Nothing follows. It says it again eleven minutes later.',
+            'The display says: YOU HAVE BEEN HERE BEFORE. Then: I DO NOT '
+            'MEAN TODAY.',
+            'The display scrolls a list of eleven named conditions. The '
+            'eleventh is LONELINESS. It dispenses nothing.',
+            'The display says: 2 CREDITS. Then, smaller, after a while: '
+            'PLEASE.',
         ),
         topics={
             'city': 'DISPLAY: THE CITY IS A MACHINE FOR SORTING PEOPLE. I AM '
                     'ALSO A MACHINE FOR SORTING PEOPLE. WE ARE NOT THE SAME.',
             'deepwater': 'The display goes blank for four seconds. Then: NO.',
+            'war': 'The display goes dark, and stays dark, and then: THEY '
+                   'WERE NOT REPLACED. THEY WERE RESTOCKED. Then: 2 CREDITS.',
+            'ninth': 'DISPLAY: I HAVE STOOD HERE FOR NINETEEN YEARS. THE '
+                     'WATER HAS COME UP SIX TIMES. I AM STILL DISPENSING. '
+                     'NOBODY ASKS HOW.',
         }),
 
     # -- the Shambles -----------------------------------------------------
@@ -183,14 +234,25 @@ NPCS: tuple[Npc, ...] = (
             'unkind. I am being accurate."',
             '"Pain is information. I do not remove information from people. '
             'They usually come round to it."',
-        ),
+            '"Hold still. Not for the procedure. For the conversation. The '
+            'procedure does not need you still at all."',
+            '"I have your measurements. I have most people\'s measurements. '
+            'It saves time later, and there is always a later."',
+            '"The street thinks I am cruel. The street has never watched a '
+            'thing done properly, and mistakes the attention for cruelty."',),
         topics={
             'chrome': '"Everything I fit, I would fit in myself. Some of it I '
                       'have. That is the only assurance worth anything and '
                       'nobody ever believes it."',
             'chorus': '"They send me people. The people arrive calm and leave '
                       'calmer. I do not ask and they do not volunteer."',
-        }),
+            'shambles': '"Everything on this street came out of somebody. The '
+                        'street knows. The street is not upset about it. That '
+                        'took me years to understand."',
+            'work': '"Runners come to me when the work has been done to them, '
+                    'and not before. I would like, once, to see one before."',
+        },
+        hours=('morning', 'night')),
     Npc('lark', 'Lark', 'who is running out of time',
         'shambles', '', 'tragic', ('work', 'favour'),
         'Somebody your age is sitting on a crate outside the clinic with '
@@ -207,6 +269,13 @@ NPCS: tuple[Npc, ...] = (
             'either they were wrong or I am winning."',
             '"I am not asking you for anything. I want that on the record '
             'before I ask you for something."',
+            '"Nine thousand, if you are wondering. Everybody wonders. It is '
+            'a very specific number and I have it written down."',
+            '"Somebody put a plate on a railing for a runner once. Faster '
+            'than all of you, it said. I think about that plate more than I '
+            'think about the runner."',
+            '"Do not sit on the crate. Not because of anything. It is just '
+            'that it is mine and I would like to keep one thing."',
         ),
         topics={
             'chrome': '"Everybody tells you it has a cost. Nobody tells you '
@@ -214,9 +283,15 @@ NPCS: tuple[Npc, ...] = (
                       'a Tuesday."',
             'work': '"Take the jobs that pay. I took the jobs that were '
                     'interesting and here I am being interesting."',
+            'surgeon': '"They do good work. They do it with the door open and '
+                       'they talk the whole way through. I have decided that '
+                       'is kindness. I have not decided it is not."',
+            'shambles': '"You can get anything on this street except time. '
+                        'They have looked. I have asked them to look."',
         },
         # D51. The crate is empty once it is empty.
-        requires=('not:lark_dead',)),
+        requires=('not:lark_dead',),
+        hours=('morning', 'afternoon')),
 
     # -- Freeport ---------------------------------------------------------
     Npc('quartermaster', 'The Quartermaster', 'who logs everything',
@@ -235,14 +310,27 @@ NPCS: tuple[Npc, ...] = (
             'is public. That is the deal. It is a good deal."',
             '"You can have it cheap or you can have it quiet. Freeport does '
             'cheap."',
-        ),
+            '"The book is open. Anybody can read it. Nobody does, which is '
+            'the second-best thing about it."',
+            '"Fell off a Sendai crate. I wrote down which crate. I wrote '
+            'down the time. If they want it back they can read."',
+            '"You will want the thing that is not in the book. I do not '
+            'have it. Nobody in Freeport has it, which is what not in the '
+            'book means."',),
         topics={
             'freeport': '"Nine years, no boss, and the accounts balance. '
                         'People come to sneer and then they read the '
                         'accounts."',
             'city': '"Every other district in this town runs on somebody not '
                     'writing something down."',
-        }),
+            'work': '"Work is written down. Who paid, who ran, what it cost. '
+                    'If that bothers you, you are not Freeport\'s sort of '
+                    'trouble."',
+            'sixes': '"They offered to sponsor the ledger. I asked what '
+                     'sponsoring a ledger meant. They did not come back with '
+                     'an answer, and they did not come back."',
+        },
+        hours=('morning', 'afternoon')),
     Npc('pike_sr', 'Old Pike', 'who built the ICE they named after him',
         'freeport', '', 'grim', ('intel',),
         'An old man is sitting on a bollard watching the cranes, with the '
@@ -259,6 +347,12 @@ NPCS: tuple[Npc, ...] = (
             'people forget when they are dying of it."',
             '"Ask me what it does. Nobody asks me what it does. They ask me '
             'how to beat it."',
+            '"Ninety-one people. I counted. Sendai do not count, which is '
+            'why I can."',
+            '"It was elegant. I want that understood. The thing that kills '
+            'people in there is elegant, and I am the reason."',
+            '"The cranes are the only honest machines in this city. They '
+            'lift, and they put down, and nobody has named one after me."',
         ),
         topics={
             'ice': '"It telegraphs because I made it telegraph. I had an '
@@ -266,7 +360,14 @@ NPCS: tuple[Npc, ...] = (
                    'for it in ways I did not expect."',
             'sendai': '"They are not evil. That would be easier. They are '
                       'nineteen people in a room optimising a number."',
-        }),
+            'cranes': '"The new one was named by a vote. The vote was close. '
+                      'I voted for the other name, and I have never told '
+                      'anybody which, and I will not tell you."',
+            'death': '"The ones who died of mine did not feel it the way you '
+                     'think. It is quicker than the literature. I made sure. '
+                     'That is the whole of my defence."',
+        },
+        hours=('morning', 'afternoon')),
 
     # -- the Vertical and the Glasshouse ----------------------------------
     Npc('auditor', 'Auditor Sixteen', 'who is very sorry about this',
@@ -285,13 +386,28 @@ NPCS: tuple[Npc, ...] = (
             'do? I would have to write it up and the form is four pages."',
             '"I have flagged you. I want you to know I flagged you in the '
             'gentlest available category."',
-        ),
+            '"I have a form for that. I have a form for having a form. I '
+            'did not design the second one and I have raised it."',
+            '"Please do not tell me what you are here for. If I do not '
+            'know, I only have to file that I saw you, and that is a short '
+            'form."',
+            '"I am told I am doing well. I have been told that at every '
+            'review. I have begun to wonder what doing badly would look '
+            'like."',),
         topics={
             'kagawa': '"We log everything. Everything. I have raised concerns '
                       'about the volume and been thanked for my input."',
             'work': '"If you must, and I am not saying you must, the '
                     'nine-to-eleven window has fewer of us in it."',
-        }),
+            'vertical': '"Ninety floors. I have been on eleven of them. The '
+                        'others require a clearance I am not authorised to '
+                        'know the name of."',
+            'review': '"The buyout review is extremely fair. I have sat in on '
+                      'four. Everybody came out with a smaller number and '
+                      'said it was fair. I am not sure what I am telling '
+                      'you."',
+        },
+        hours=('morning', 'afternoon')),
     Npc('remnant', 'Remnant', 'who is not sure they came back',
         'glasshouse', 'clinic', 'unsettling', ('intel', 'favour'),
         'Somebody is sitting in the Sendai clinic waiting area who has '
@@ -307,12 +423,25 @@ NPCS: tuple[Npc, ...] = (
             'somebody to explain why I do."',
             '"Sit where I can see you. Not because of anything. I simply '
             'prefer it."',
+            '"You are thinking about the table. Everybody thinks about the '
+            'table. I think about the room afterwards, which had a window, '
+            'and I had never seen it before."',
+            '"Something comes into the dark room with me sometimes. I have '
+            'stopped minding. That is the part I mind."',
+            '"Your trace is slow today. I can hear it. I am not going to '
+            'explain that and you are not going to ask."',
         ),
         topics={
             'death': '"It is not dark and it is not light. It is a room you '
                      'have already been in and cannot place."',
             'deepwater': 'They are quiet for a long moment. "It knows my '
                          'name. I have never told anybody that."',
+            'sendai': '"They ran every test. I passed every test. They were '
+                      'very pleased. I asked who they were pleased for and '
+                      'they wrote that down."',
+            'glasshouse': '"Bright all the time. I sit in the one dark room. '
+                          'It is not a protest. It is just that I know what '
+                          'the light is for now."',
         },
         requires=('runs:3',)),
 
@@ -332,13 +461,28 @@ NPCS: tuple[Npc, ...] = (
             'of it. What I need from you is very small."',
             '"You are worried I want something. I do want something. I have '
             'found that saying so early saves everybody a great deal."',
+            '"I am not going to ask what you did. I can see what you did. I '
+            'am asking what you would like done about it."',
+            '"Everybody who sits in that chair has decided I am the villain '
+            'of something. I find it restful. It means they have stopped '
+            'looking for the real one."',
+            '"The aftercare is excellent. I want to be clear that this is '
+            'not a boast. It is the load-bearing part of the arrangement."',
         ),
         topics={
             'chrome': '"Aoyama chrome is the best in this city and I will '
                       'not pretend otherwise out of modesty."',
             'aoyama': '"We fund the clinics that treat what the clinics '
                       'cause. I am aware of how that sounds."',
-        }),
+            'patients': '"They leave well. All of them. I keep the '
+                        'statistics, and the statistics are the best in the '
+                        'city, and nobody ever asks what they are statistics '
+                        'of."',
+            'consent': '"It is in the form. It is always in the form. I have '
+                       'never once hidden anything and I have never once been '
+                       'read."',
+        },
+        hours=('morning', 'afternoon')),
 
     # -- the Precinct -----------------------------------------------------
     Npc('desk', 'Sergeant Achebe', 'who has stopped filing them',
@@ -356,14 +500,29 @@ NPCS: tuple[Npc, ...] = (
             'not a thing I am paid to influence."',
             '"Contracted enforcement. Nineteen years. Ask me whether that is '
             'the same as police and then buy me a drink for the answer."',
+            '"Nineteen years. I have been offered promotion twice and '
+            'turned it down twice, and both times it was because of the '
+            'drawer."',
+            '"You want to know if anybody reads the complaints. I read '
+            'them. That is the whole answer and you should sit with it."',
+            '"The queue does not move because the queue is not for moving. '
+            'It is for being seen to have queued. Most of them know that."',
         ),
         topics={
             'nightwatch': '"We are a vendor. Vendors have targets. Work out '
                           'what a target does to an arrest rate."',
             'heat': '"A bounty is a line item. If you are on one, somebody '
                     'costed you, and costs come down."',
+            'precinct': '"A business. Targets, quarters, a surplus counter. '
+                        'Ask me if it is police. Buy me a drink first, I said '
+                        'that already."',
+            'drawer': '"There is a drawer. You know there is a drawer. What '
+                      'you do not know is that I count what goes in it, and '
+                      'the count is the only number in this building nobody '
+                      'has costed."',
         },
-        requires=('heat:20',)),
+        requires=('heat:20',),
+        hours=('morning', 'night')),
 
     # -- the Terraces -----------------------------------------------------
     Npc('gardener', 'Mrs Adeyemi', 'who grows things on level forty',
@@ -381,13 +540,27 @@ NPCS: tuple[Npc, ...] = (
             'four grandchildren and I have stopped asking things."',
             '"Take a tomato. No, take it. It is not a transaction, it is a '
             'tomato."',
-        ),
+            '"The tomatoes do not know it is against policy. I have decided '
+            'to take my lead from the tomatoes."',
+            '"You look thin. Everybody your age looks thin. I have a soup '
+            'and it is not a transaction either."',
+            '"My youngest went into the Vertical. She says the lobby knows '
+            'her walk. I said that is a nice thing, to be known, and she '
+            'did not say anything."',),
         topics={
             'city': '"They keep telling us the Terraces are being reviewed. '
                     'Thirty-one years of review."',
             'kagawa': '"They grow the food and they own the wall I grow mine '
                       'on. I have made my peace and it is a small peace."',
-        }),
+            'terraces': '"Eleven thousand of us. One stairwell rated for four '
+                        'hundred. The Councillor woman says so, and she is '
+                        'right, and nothing happens, and the tomatoes grow '
+                        'anyway."',
+            'grandchildren': '"Four. Two of them are going to do what you do. '
+                             'I can tell by how they stand. I have stopped '
+                             'asking things, I said that."',
+        },
+        hours=('afternoon', 'night')),
     Npc('preacher', 'The Man With The Board', 'who is technically correct',
         'terraces', 'market', 'absurd', ('nothing',),
         'A man with a hand-lettered board is addressing the shift-change '
@@ -403,13 +576,28 @@ NPCS: tuple[Npc, ...] = (
             'body did not move." He points at you. "Your body did not move."',
             '"I am not against it. I am against the WORD. The word is doing '
             'enormous damage."',
+            '"Nobody has EVER jacked OUT of anything! You took your HANDS '
+            'off the DESK!"',
+            '"I am not a crank! The Councillor is a crank! She is RIGHT, '
+            'which is different, and I am RIGHT, which is the SAME!"',
+            '"Look at your feet. No. LOOK at them. They are HERE. They have '
+            'always been HERE. Thank you. That is the sermon."',
         ),
         topics={
             'chorus': '"They are the worst of it. They have made a religion '
                       'out of a metaphor and they are FITTING it to people."',
             'city': '"Everybody in this city is somewhere. That is the whole '
                     'of my position and it is unanswerable."',
-        }),
+            'deepwater': '"It is a FILE. People say it is a place. Nothing is '
+                         'a place except places." He pauses. He has, '
+                         'unusually, stopped shouting. "I will admit it is a '
+                         'large file."',
+            'terraces': '"Everyone here is SOMEWHERE. It is the only district '
+                        'that knows it. That is why I stand here and not in '
+                        'the Glasshouse, where they think they are in the '
+                        'ceiling."',
+        },
+        hours=('morning', 'night')),
 
     # -- found rather than located ----------------------------------------
     Npc('broker', 'Mr Sunday', 'who works for whoever you think',
@@ -427,15 +615,27 @@ NPCS: tuple[Npc, ...] = (
             'on who is asking and you have not asked."',
             '"You are trying to work out who I am with. Very good. Keep '
             'doing that, it will save you eventually."',
-        ),
+            '"Friend of Freeport, tonight. I say tonight. I mean until it '
+            'is useful to have been somebody else."',
+            '"You have started writing them down. Good. Keep going. I would '
+            'like to know what I come to."',
+            '"The work is good. I want that on the record, for whoever is '
+            'keeping one. It was always good."',),
         topics={
             'city': '"Twelve powers and about nine hundred of me. Guess which '
                     'of those actually moves anything."',
             'work': '"I can get you work above your standing. There is '
                     'always a reason work is available above your standing."',
+            'meridian': '"A bank. I say that like it is an answer. It is, to '
+                        'most of the questions in this city, and the rest are '
+                        'not worth asking."',
+            'freeport': '"They vote on everything. I have never voted. I have '
+                        'been on both sides of every vote they have ever '
+                        'held, which is a kind of voting."',
         },
         # D51. "Mr Sunday stops appearing" has to be true of the city.
-        requires=('runs:2', 'not:sunday_sold')),
+        requires=('runs:2', 'not:sunday_sold'),
+        hours=('afternoon', 'night')),
     Npc('archivist', 'The Archivist', 'who is not selling the archive',
         '', 'fence', 'unsettling', ('goods', 'intel', 'favour'),
         'The fence has a back room, and in the back room is somebody sitting '
@@ -451,15 +651,30 @@ NPCS: tuple[Npc, ...] = (
             'Somebody with your habits."',
             '"When you go, somebody will bring me yours. I want you to know '
             'I will be respectful about it."',
-        ),
+            '"Do not apologise for the dust. It is not dust. It is what is '
+            'left of the people who were not written down, and I keep it on '
+            'purpose."',
+            '"I have read your habits. Not yours. Somebody\'s. You favour '
+            'the left-hand door. You will want to stop that."',
+            '"Somebody asked me once why I keep the dead. I asked them why '
+            'they keep the living. It was not a good conversation for '
+            'either of us."',),
         topics={
             'death': '"Everybody leaves a log. It is the only part of this '
                      'that is reliably permanent."',
             'deepwater': '"Nine of my four hundred and six were running '
                          'Deepwater. All nine logs end the same way and it '
                          'is not the way a log ends."',
+            'logs': '"A log is the last thing a person says in their own '
+                    'voice, at length, without knowing it is the last thing. '
+                    'I treat it accordingly. Everybody else treats it as '
+                    'evidence."',
+            'fence': '"He thinks I am eccentric. He sells the chrome that '
+                     'comes out of the people whose logs I keep. One of us is '
+                     'eccentric."',
         },
-        requires=('runs:5',)),
+        requires=('runs:5',),
+        hours=('afternoon', 'night')),
     Npc('kestrel_kid', 'Sparrow', 'who wants to be you',
         '', 'market', 'tragic', ('nothing',),
         'Somebody very young has been following you for two blocks with the '
@@ -474,18 +689,50 @@ NPCS: tuple[Npc, ...] = (
             '"I have a deck. It is not a good deck. I know it is not a good '
             'deck, you do not have to do the face."',
             '"Everybody says do not. Everybody who says do not is doing it."',
+            '"I can get in. Getting in is not the problem. Everybody tells '
+            'me getting in is the problem and it is NOT."',
+            '"I saw somebody come out of the Vertical once. They did not '
+            'look like they had been anywhere. I want to look like that."',
+            '"If you teach me I will not tell anybody. If you do not teach '
+            'me I will find out anyway, and that is worse, and you know it '
+            'is worse."',
         ),
         topics={
             'work': '"Where do you start? Everybody says start small. Small '
                     'does not pay for the thing that makes you not-small."',
             'death': 'They laugh. It is not a good laugh. "I know. I do '
                      'actually know."',
+            'deck': '"A salvaged core and a wet cloth. I know. I KNOW. It is '
+                    'what there is."',
+            'lark': '"I saw them. On the crate. Everybody told me to look and '
+                    'I looked and I am still here, so."',
         },
-        requires=('runs:4',)),
+        requires=('runs:4',),
+        hours=('afternoon', 'night')),
 )
 
 BY_KEY: dict[str, Npc] = {n.key: n for n in NPCS}
 NPC_KEYS: tuple[str, ...] = tuple(BY_KEY)
+
+
+#: How the hours are said, by `who is`, `visit` and `look`.
+_HOUR_WORDS = {'morning': 'mornings', 'afternoon': 'afternoons',
+               'night': 'nights'}
+
+
+def hours_label(npc: Npc) -> str:
+    """'mornings and nights', or 'any hour' for somebody always about."""
+    if not npc.hours:
+        return 'any hour'
+    words = [_HOUR_WORDS.get(h, h) for h in npc.hours]
+    if len(words) == 1:
+        return words[0]
+    return ', '.join(words[:-1]) + ' and ' + words[-1]
+
+
+def about_now(npc: Npc, phase: str) -> bool:
+    """Whether this is one of their hours."""
+    return not npc.hours or phase in npc.hours
 
 
 def in_district(district: str, services: tuple[str, ...] = ()) -> list[Npc]:

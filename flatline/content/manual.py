@@ -871,7 +871,7 @@ TOPICS: tuple[Topic, ...] = (
         'in it.',
         see=('people', 'city'),
         commands=('journal', 'choose', 'look'),
-        covers=('threads',),
+        covers=('threads', 'arcs'),
         terms=('storyline', 'plot', 'quests',),
         group='city'),
     Topic(

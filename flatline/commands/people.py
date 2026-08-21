@@ -75,10 +75,17 @@ def cmd_look(sess, args) -> None:
     here_you_can(sess, district, looking=True)
     _places_line(sess, district)
 
+    # Who keeps other hours. Only people you have met, because "somebody you
+    # have never seen is not here" is not information, and only the ones who
+    # are away because of the clock rather than because of anything else.
+    away = [n for n in story_mod.present(game, game.story, any_hour=True)
+            if n not in here and n.key in game.story.met]
+
     c.blank()
     if not here:
         c.say('[dim]Nobody here is interested in you, which in this district '
               'is a mercy.[/]')
+        _away_line(sess, away)
         return
     c.rule(f'{len(here)} worth talking to')
 
@@ -94,7 +101,20 @@ def cmd_look(sess, args) -> None:
     c.blank()
     c.say('[dim]`talk <name>` to say something. `ask <name> <topic>` if you '
           'want something specific.[/]')
+    _away_line(sess, away)
     _check_story(sess)
+
+
+def _away_line(sess, away) -> None:
+    """Who keeps other hours, and which. One line, so the clock is a reason
+    to come back rather than a door that was shut without saying so."""
+    if not away:
+        return
+    c = sess.console
+    c.blank()
+    c.say('[dim]Not about at this hour: ' + ', '.join(
+        f'{n.name} ({npc_content.hours_label(n)})' for n in away) + '.[/]',
+          subsequent='  ')
 
 
 def _noticed(sess) -> None:
@@ -189,6 +209,9 @@ def cmd_visit(sess, args) -> None:
             else:
                 c.raw(f'[accent]{npc.name}[/]  [dim]{npc.epithet}[/]')
                 c.say(f'[dim]Here, as usual. `talk {npc.key}`.[/]')
+        elif not npc_content.about_now(npc, game.city.phase):
+            c.say(f'[dim]{npc.name} is not here at this hour. '
+                  f'{npc_content.hours_label(npc).capitalize()}.[/]')
         else:
             c.say(f'[dim]{npc.name} is not here at the moment.[/]')
     _check_story(sess)
@@ -287,7 +310,9 @@ def cmd_who_is(sess, args) -> None:
     elif npc.at:
         where = f'anywhere with a {npc.at}'
     c.blank()
-    c.kv([('found', where), ('offers', ', '.join(npc.offers))])
+    c.kv([('found', where),
+          ('about', npc_content.hours_label(npc)),
+          ('offers', ', '.join(npc.offers))])
     live = [o for o in npc.offers if o != 'nothing']
     if live:
         c.blank()

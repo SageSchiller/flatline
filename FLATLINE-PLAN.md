@@ -12,7 +12,7 @@ updated: 2026-08-21
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,387 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. **Phase 7** in the phase list is the numbered candidate list; items 1 to 3, 5 and 6 are done. **Next, in order of what the city is still thin on: the seventeen people at three lines each (a voice pass, one person at a time); presence by shift; district and rival threads (item 4) on the `Posting` mechanism.** Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
+> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,387 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. Then **D54** (six lines and four topics per person, in seventeen voices; hours, so the clock is a reason to be somewhere) and **D55** (nine threads rooted in the districts, twenty-two decisions, four postings). **Phase 7** in the phase list is the numbered candidate list; items 1 to 3, 5 and 6 are done and 4 is half done. **Next: a decision at each rival's bond latch (D44), thread outcomes and posture moves written into `news`, then the author's map/navigation pass and "the city is large and full of stuff".** Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
@@ -1359,6 +1359,54 @@ like what it is. `validate.check_city_texture` requires every district to
 have every hour, two to four places each, every place findable by its own
 name with and without the article, and every close call to say where.
 
+### D54: Seventeen voices, and hours
+
+**The voice pass.** Every one of the seventeen people had three lines and
+two topics, which is enough to be a character and not enough to be company:
+`talk` repeated itself inside a shift. Each now has six lines and four or
+five topics, written one person at a time in their own register, and
+`validate.py` holds the floor at five and three. Ozymandias has found
+loneliness among the eleven named conditions; the Man With The Board has
+conceded, unusually quietly, that Deepwater is at least a large file.
+
+**Hours.** `Npc.hours`: which shifts somebody is about, empty for always.
+Mara is in the bar mornings and nights; Mr Sunday takes the stool
+afternoons and nights; the Archivist, Sparrow and Tuck keep afternoons and
+nights; the clinics and counters keep office hours; the machine and the
+dark room keep none. The world layer filters presence by the clock; `look`
+says who keeps other hours and which, once you have met them; `visit` says
+when the person who is usually here will be; `who is` shows the hours. The
+clock was a label on the prompt and a number in three formulas; it is now a
+reason to be somewhere.
+
+### D55: Nine threads rooted in a place
+
+Every thread was about a person, and a district was where a person stood.
+`content/arcs.py`: nine threads about the districts themselves, one each,
+three scenes or so, a decision in every one, four of them putting a
+contract on the board (D52): the pumps under the Ninth and the water
+board's ledger; the queue outside the Marrow exchange asking you to be law;
+the Vertical's review suite and eleven numbers; the aftercare ward and a
+finger on the glass; a demonstration unit that would prefer not to be
+reset; a vote at the west gate about you; the surplus counter selling your
+own residue; Carrion wanting the Blue Surgeon's book taken rather than
+shown; forty trays of tomatoes on a Kagawa landing and a schedule that is
+a line in a table.
+
+Twenty-two decisions, every one read (D51): the streets (the Ninth safer
+once the pumps run on Sixes parts; Aoyama's ground worse once somebody
+walked out of the ward), the board (Kagawa post less after Static ran the
+DEFERRED column, Sendai post more once told what was on their floor,
+Freeport either way), the Surgeon's favour closing if you took the ledger,
+twenty-one events, and a line each in the epilogue. `validate` holds the
+crossings symmetric, the postings generable, and each `did:` read. 27
+threads, 67 scenes, 72 decisions; 132 events at 52/32/16.
+
+**What it does not do.** The rivals. The plan said seven rival threads and
+the rivals turned out to have an arc already (D44: bonds that latch,
+declare themselves once, and act on the shift boundary). What they do not
+have is a decision at the moment of latching, which is the next pass.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -1600,10 +1648,9 @@ More districts, factions, chrome, and programs. Content, not systems.
 3. ~~Story inside runs.~~ Done: D52, as `Posting` and `did:`. The
    mechanism is general; only the spine uses it so far. District and rival
    threads (4) should.
-4. **Nine district threads, seven rival threads.** `Stage.where` is there
-   for the districts; the rivals (`who`, disposition, D44) are the best
-   written people in the game and have no arc. Rivalry, alliance, betrayal,
-   one each.
+4. ~~Nine district threads~~ Done: D55. Seven rival threads: the rivals
+   have an arc already (D44 bonds); what they want is a decision at the
+   moment of latching, with readers. Open.
 5. ~~Locations inside districts.~~ Done: D53, as `spots` and `visit`.
    Presence by shift is still open: the people are where they are at every
    hour, and a city where Mara is only in the bar in the mornings would be
@@ -2316,3 +2363,29 @@ the shift tick happened to say is a wire with one correspondent.
 
 `validate.py` clean, `test.py` green at **13,443 checks**. 111 events at
 52/31/17.
+
+### 2026-08-21 (e): voices, hours, and nine places with a thread in them
+
+**D54, D55.** The first three of the four things the city was thin on, in
+the order they were listed. Seventeen people went from three lines to six
+and from two topics to four or five, each written in their own register,
+and `validate.py` now holds that floor. Hours: fifteen of the seventeen
+keep some, the machine and the dark room keep none, and `look` tells you
+who is away and when they are back, once you have met them. And nine
+threads rooted in the districts, in `content/arcs.py`, twenty-two
+decisions, four postings, every decision read.
+
+**One thing found.** The rivals did not need threads: D44 gave them an arc
+(bonds) that I had not re-read before listing the work. What they lack is a
+decision at the latch, and that is the next pass, not seven parallel
+threads.
+
+**One thing worth writing down about the tooling.** Patching seventeen
+`Npc(...)` blocks by anchor, the anchor for "the end of the call" has to be
+the last `),` in the block and not the last `),` followed by a newline,
+because the block as sliced ends before its own newline. It took two
+attempts and one syntax error, which `test.py` caught before anything
+shipped, which is what it is for.
+
+`validate.py` clean, `test.py` green at **13,619 checks**. 27 threads, 67
+scenes, 72 decisions; 132 events at 52/32/16.
