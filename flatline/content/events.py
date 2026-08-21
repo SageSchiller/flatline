@@ -1108,7 +1108,46 @@ ARC_CONSEQUENCES: tuple[Event, ...] = (
           weight=CONSEQUENCE_WEIGHT),
 )
 
-EVENTS = EVENTS + CONSEQUENCES + ARC_CONSEQUENCES
+# -- D56: the other runners, decided --------------------------------------------
+
+_RUNNERS = ('vesper', 'hound', 'quietkid', 'saint', 'ledger', 'moth', 'grieve')
+
+RUNNER_CONSEQUENCES: tuple[Event, ...] = (
+    Event('partner_seen', 'wry',
+          'Two runners are working the same Kagawa segment from two terminals '
+          'apart without speaking, and everybody in the exchange can see they '
+          'are together, and neither of them will ever say so, and the '
+          'exchange has decided not to either.',
+          districts=('marrow', 'freeport'),
+          any_of=tuple(f'with_{k}' for k in _RUNNERS),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('partner_apart', 'grim',
+          'A runner at the bar is saying that they work alone, to somebody '
+          'who offered, and the somebody is taking it well, and the bar has '
+          'done the arithmetic on how long working alone lasts and is not '
+          'sharing it.',
+          districts=('marrow', 'ninth', 'freeport'),
+          any_of=tuple(f'apart_{k}' for k in _RUNNERS),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('nemesis_paid', 'wry',
+          'Somebody has paid somebody to stop saying their name in rooms, and '
+          'the somebody has stopped, and is being loud about having stopped, '
+          'which the bar agrees is a smaller problem, and is still a '
+          'problem.',
+          districts=('marrow', 'ninth'),
+          any_of=tuple(f'paid_{k}' for k in _RUNNERS),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('nemesis_stood', 'grim',
+          'A runner\'s name is being said in a room they are not in, the way '
+          'you name a weather event, and it has been for a while, and the '
+          'room has stopped looking up when it happens, which is worse than '
+          'when it looked up.',
+          districts=('marrow', 'ninth', 'freeport'),
+          any_of=tuple(f'stood_{k}' for k in _RUNNERS),
+          weight=CONSEQUENCE_WEIGHT),
+)
+
+EVENTS = EVENTS + CONSEQUENCES + ARC_CONSEQUENCES + RUNNER_CONSEQUENCES
 
 BY_KEY: dict[str, Event] = {e.key: e for e in EVENTS}
 EVENT_KEYS: tuple[str, ...] = tuple(BY_KEY)

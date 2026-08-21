@@ -159,8 +159,8 @@ The three ideas everything else hangs off:
 12 skills with 24 techniques · 26 traits · 10 origins, each with a signature
 verb nobody else can use and its own starting face · 34 implants · 46 programs
 · 28 countermeasures · 9 pieces of bench work · 9 districts, each with a mark for the faction that
-holds it · 12 factions · 7 rival runners who decide about you, and one you can keep · 17 named characters who keep hours, hand out work, keep private stock and do favours on a tab · 27 storylines across 67 scenes and 72 decisions, every one of them read back by the world, with a spine through the middle that has four endings and one of them is a door ·
-102 appearance features · 9 districts with a scene for every hour and 27 places in them to go and stand · 132 ambient city events, 67 of them consequences of something you decided · 38 manual topics ·
+holds it · 12 factions · 7 rival runners who decide about you, and one you can keep · 17 named characters who keep hours, hand out work, keep private stock and do favours on a tab · 28 storylines across 81 scenes and 100 decisions, every one of them read back by the world, with a spine through the middle that has four endings and one of them is a door ·
+102 appearance features · 9 districts with a scene for every hour and 27 places in them to go and stand · 136 ambient city events, 71 of them consequences of something you decided · 38 manual topics ·
 10 drugs · 3 lenders · 2 games of chance in 5 rooms ·
 119 commands · 67 unlockable pieces of terminal across 6 axes.
 

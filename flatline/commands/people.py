@@ -713,6 +713,8 @@ def cmd_choose(sess, args) -> None:
                            + ', '.join(x.key for x in stage.choices))
 
     game.story.resolve(thread.key, stage.key, choice)
+    game.city.news.append(f'[accent2]{thread.name}:[/] you chose '
+                          f'{choice.label.lower()}.')
     c.blank()
     c.rule(choice.label, role='accent2')
     for para in choice.text.split('\n\n'):
@@ -789,6 +791,9 @@ def _check_story(sess) -> None:
     for thread_key, stage in game.story.available(game):
         thread = thread_content.BY_KEY[thread_key]
         game.story.reach(thread_key, stage)
+        # The wire carries the story too (D56): a scene is something the
+        # city did, and `news` is where what the city did goes.
+        game.city.news.append(f'[dim]{thread.name}:[/] {stage.headline}.')
         c.blank()
         c.rule(thread.name, role='accent2')
         c.say(f'[dim]{stage.headline}[/]')

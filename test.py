@@ -6212,6 +6212,73 @@ def test_arcs() -> None:
     sess, out = play(['look'], game=game)
     T.ok('queue_cited' in game.story.flags, 'and you are cited, later')
 
+    # D56: the other runners, at the moment they decide. A bond latching
+    # writes a flag the scene reads; the answers are read by the hire price,
+    # by the shift boundary, and by the wire.
+    from flatline.world import rivals as rival_world
+    from flatline.content import rivals as rival_content
+    game = Game.new(Character.from_origin('gutter', 'Bond'), seed=4242)
+    st = game.story
+    vesper = game.city.rival('vesper')
+    # The latch wants history as well as warmth (D44): give it both, then
+    # let the real shift tick cross it with the story handed in.
+    vesper.disposition = rival_content.PARTNER_AT + 5
+    vesper.jobs = rival_content.BOND_AFTER_JOBS
+    game.city.advance(game.rng, game.alias, 1, char=game.char,
+                      satisfied=lambda r: st.satisfied(r, game),
+                      flags=st.flags)
+    T.eq(vesper.bond, 'partner', 'Vesper crosses into a partner')
+    T.ok('bond:vesper:partner' in st.flags,
+         'and the latch writes a flag the story can read')
+    sess, out = play(['look'], game=game)
+    T.ok('vesper_partner' in st.reached.get('runners', []),
+         'and her scene arrives')
+    T.ok('machinery is available' in out, 'in her voice')
+    full = rival_world.hire_price(vesper)
+    st.pending = ['runners.vesper_partner']
+    sess, out = play(['choose in'], game=game)
+    T.ok('with_vesper' in st.flags, 'saying yes is recorded')
+    T.ok(rival_world.hire_price(vesper, st.flags) <= full // 2 + 1,
+         'and her fee halves')
+    T.ok(any('The Other Runners' in line for line in game.city.news),
+         'and the wire carries it')
+    # Directly: the nemesis side, and what paying buys.
+    game = Game.new(Character.from_origin('gutter', 'Paid'), seed=4242)
+    st = game.story
+    hound = game.city.rival('hound')
+    hound.bond = 'nemesis'
+    st.flags.add('bond:hound:nemesis')
+    sess, out = play(['look'], game=game)
+    T.ok('hound_nemesis' in st.reached.get('runners', []) and 'expensive' in out,
+         'Hound names a figure')
+    st.pending = ['runners.hound_nemesis']
+    before = game.char.credits
+    sess, out = play(['choose pay'], game=game)
+    T.ok('paid_hound' in st.flags and game.char.credits < before,
+         'paying is recorded and costs')
+    acts = []
+    stream = game.rng('rivals')
+    for _ in range(200):
+        acts.extend(rival_world.bond_turn(stream, game.city.rivals, game.alias,
+                                          st.flags))
+    T.ok(not any('Hound' in a for a in acts),
+         'and a paid nemesis stops acting on the shift boundary')
+    acts = []
+    for _ in range(200):
+        acts.extend(rival_world.bond_turn(stream, game.city.rivals, game.alias))
+    T.ok(any('Hound' in a for a in acts), 'where an unpaid one would not')
+    T.eq(len([s for s in thread_content.BY_KEY['runners'].stages]), 14,
+         'seven runners, two sides each')
+
+    # The wire carries scenes, choices and what a run did to the city.
+    game = Game.new(Character.from_origin('gutter', 'Wire'), seed=4242)
+    game.char.runs = 4
+    sess, out = play(['look'], game=game)
+    T.ok(any('The Constitution' in line for line in game.city.news),
+         'a scene arriving is news')
+    _, out = play(['news'], game=game)
+    T.ok('Constitution' in out, 'and `news` prints it')
+
     # Carrion's man and the Surgeon's book: warning closes nothing, taking
     # closes the Surgeon's favour.
     game = Game.new(Character.from_origin('gutter', 'Book'), seed=4242)

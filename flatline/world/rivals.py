@@ -127,16 +127,19 @@ def check_bonds(pool: list[Rival]) -> list[tuple[Rival, str]]:
     return crossed
 
 
-def bond_turn(rng: Stream, pool: list[Rival], alias) -> list[str]:
+def bond_turn(rng: Stream, pool: list[Rival], alias, flags=()) -> list[str]:
     """What the people who have made up their minds about you do this shift.
 
     One thing each, occasionally. A bond that fired every shift would be a
     weather system; what makes this a relationship is that it turns up when
-    you were thinking about something else.
+    you were thinking about something else. A nemesis you paid to stop
+    (`paid_<key>`, D56) has stopped: that is what the figure bought.
     """
     told: list[str] = []
     for rival in pool:
         if not rival.alive or rival.bond not in rival_content.BOND_KINDS:
+            continue
+        if rival.bond == 'nemesis' and f'paid_{rival.key}' in flags:
             continue
         if not rng.chance(rival_content.BOND_CHANCE):
             continue
@@ -325,10 +328,18 @@ HIRE_BASE = 900
 HIRE_CUT = 0.25
 
 
-def hire_price(rival: Rival) -> int:
-    """What they want up front. Liking you is a discount, not a waiver."""
+def hire_price(rival: Rival, flags=()) -> int:
+    """What they want up front. Liking you is a discount, not a waiver.
+
+    Somebody who decided to work with you and was told yes (`with_<key>`,
+    D56) charges half: the fee that is smaller than it should be, and
+    arrives on time.
+    """
     base = HIRE_BASE + rival.data.skill * 420
-    return max(300, int(base * (1.0 - rival.disposition / 300.0)))
+    price = max(300, int(base * (1.0 - rival.disposition / 300.0)))
+    if f'with_{rival.key}' in flags:
+        price = max(300, price // 2)
+    return price
 
 
 def can_hire(rival: Rival) -> tuple[bool, str]:

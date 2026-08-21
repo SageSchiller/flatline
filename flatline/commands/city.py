@@ -1888,7 +1888,7 @@ def cmd_hire(sess, args) -> None:
         for rival in pool:
             ok, why = rival_world.can_hire(rival)
             style, _ = rival_content.ALLY_SPECIALTY[rival.data.style]
-            price = rival_world.hire_price(rival)
+            price = rival_world.hire_price(rival, game.story.flags)
             rows.append((rival.data.handle, rival.data.style, style,
                          f'{price:,}c' if ok else '[err]no[/]'))
         c.table(('who', 'style', 'what you get', 'fee'), rows,
@@ -1913,7 +1913,7 @@ def cmd_hire(sess, args) -> None:
     ok, why = rival_world.can_hire(rival)
     if not ok:
         raise CommandError(why)
-    price = rival_world.hire_price(rival)
+    price = rival_world.hire_price(rival, game.story.flags)
     style, detail = rival_content.ALLY_SPECIALTY[rival.data.style]
 
     if not args.has('confirm'):

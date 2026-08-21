@@ -32,7 +32,7 @@ from dataclasses import dataclass, field
 #: 'rep:<faction>:N', 'ran:<faction>', 'did:<thread.stage>' (a posting
 #: finished, see `Posting`).
 CONDITIONS = ('runs', 'diss', 'shift', 'credits', 'heat', 'met', 'rep',
-              'ran', 'origin', 'debt', 'trait', 'did')
+              'ran', 'origin', 'debt', 'trait', 'did', 'bond')
 
 
 @dataclass(frozen=True, slots=True)
@@ -1185,9 +1185,9 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
 #: The nine district threads live in `arcs.py` (D55) and import the classes
 #: above, which is why this import is at the bottom: by the time it runs,
 #: everything they need is defined.
-from .arcs import DISTRICT_THREADS  # noqa: E402
+from .arcs import DISTRICT_THREADS, RUNNER_THREAD  # noqa: E402
 
-THREADS = THREADS + ORIGIN_THREADS + DISTRICT_THREADS
+THREADS = THREADS + ORIGIN_THREADS + DISTRICT_THREADS + (RUNNER_THREAD,)
 BY_KEY = {t.key: t for t in THREADS}
 THREAD_KEYS = tuple(BY_KEY)
 ALL_STAGES = {f'{t.key}.{s.key}': s for t in THREADS for s in t.stages}

@@ -427,6 +427,93 @@ EPILOGUE: tuple[tuple[str, str], ...] = (
     ('trays_sold',
      'You flagged level forty for priority and took the finder\'s fee, and '
      'the landing was bare the next time you passed.'),
+    # The other runners (D56)
+    ('with_vesper',
+     'Vesper Okonkwo called you a colleague, and you let the machinery move, '
+     'and it moved.'),
+    ('apart_vesper',
+     'Vesper Okonkwo called you a colleague, and you kept it clean, and she '
+     'meant it slightly less for the rest of your career.'),
+    ('paid_vesper',
+     'Vesper Okonkwo named a figure at which it would stop, through Mara, '
+     'and you paid it, and it held.'),
+    ('stood_vesper',
+     'Vesper Okonkwo named a figure and you did not pay it, and you learned '
+     'which patrons she had talked to by who stopped posting.'),
+    ('with_hound',
+     'Hound wanted to be on the same jobs, and was, uninvited, and the '
+     'noise was always somewhere else.'),
+    ('apart_hound',
+     'You told Hound you work alone, and they said that was fine six times, '
+     'at volume.'),
+    ('paid_hound',
+     'You paid Hound to stop saying your name in rooms, and they stopped, '
+     'loudly.'),
+    ('stood_hound',
+     'You did not pay Hound, and everybody in the city knew your name for a '
+     'year, and not in the way that helps.'),
+    ('with_quietkid',
+     'A route arrived with no sender and you used it, and another came the '
+     'next week, and you never met the Quiet Kid, and you were partners.'),
+    ('apart_quietkid',
+     'You dropped one line back to the Quiet Kid, which was no, and nothing '
+     'ever arrived again.'),
+    ('paid_quietkid',
+     'You paid the Quiet Kid\'s number and they were never where you were '
+     'going to be again, or anywhere.'),
+    ('stood_quietkid',
+     'You did not pay the Quiet Kid, and they were where you were going to '
+     'be, slightly before, for the rest of it.'),
+    ('with_saint',
+     'You kept Saint Ambrose\'s channel open, and at three in the morning, '
+     'twice, somebody already knew.'),
+    ('apart_saint',
+     'You closed Saint Ambrose\'s channel, and he said yes, that is wise, '
+     'before you had asked.'),
+    ('paid_saint',
+     'You paid the stack that runs Saint Ambrose, and whatever it had '
+     'decided was undecided, evenly.'),
+    ('stood_saint',
+     'You did not pay the stack, and Saint Ambrose carried it out evenly '
+     'and courteously for the rest of your career, and was once, you think, '
+     'sorry.'),
+    ('with_ledger',
+     'You took Ledger\'s second job each month, and it never once failed, '
+     'and you knew what it was costing them.'),
+    ('apart_ledger',
+     'You said no to Ledger, and Ledger gave two reasons you had not '
+     'thought of, and you felt worse.'),
+    ('paid_ledger',
+     'You paid Ledger to close the file, and it stayed closed, because '
+     'Ledger said it would.'),
+    ('stood_ledger',
+     'You left Ledger\'s file open and accurate, and patrons asked you the '
+     'right question every so often, and you knew whose it was.'),
+    ('with_moth',
+     'You took Moth on the next one, and they nearly died twice in eleven '
+     'ticks, and you got them out.'),
+    ('apart_moth',
+     'You told Moth no, and they took something above their level the next '
+     'day, and it was fine, that time.'),
+    ('paid_moth',
+     'You paid Moth a figure that was too high, and Moth spent it in a '
+     'week, and was nineteen.'),
+    ('stood_moth',
+     'You did not pay Moth, and they said your name badly in rooms and then '
+     'tried to prove a point, and you heard later than you should have.'),
+    ('with_grieve',
+     'Grieve left names where you would find them and you used them, and '
+     'neither of you ever mentioned it, and it was the most reliable thing '
+     'in your career.'),
+    ('apart_grieve',
+     'You left Grieve\'s name where it was, and Grieve noticed, and every '
+     'conversation was an interview again.'),
+    ('paid_grieve',
+     'You paid Grieve a figure that was exactly fair, and they were simply '
+     'somewhere else afterwards.'),
+    ('stood_grieve',
+     'You did not pay Grieve, and Grieve hunted you professionally, '
+     'patiently, and filed the reports.'),
 )
 
 EPILOGUE_BY_FLAG: dict[str, str] = {flag: line for flag, line in EPILOGUE}

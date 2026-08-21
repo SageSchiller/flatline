@@ -349,9 +349,13 @@ def _resolve(sess) -> None:
     # The story layer reads what you have actually done.
     game.story.flags.add(f'ran:{summary["faction"]}')
 
-    for line in game.city.apply_run(game.alias, summary, game.rng,
-                                    game.char.memorable):
+    fallout_lines = game.city.apply_run(game.alias, summary, game.rng,
+                                        game.char.memorable)
+    for line in fallout_lines:
         c.say(line)
+    # Posture moves and heat arriving are news (D56): they printed once
+    # here and scrolled away, and they are exactly what the wire is for.
+    game.city.news.extend(fallout_lines)
 
     contract = game.city.current
     if contract is not None:

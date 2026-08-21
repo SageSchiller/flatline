@@ -12,7 +12,7 @@ updated: 2026-08-21
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,387 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. Then **D54** (six lines and four topics per person, in seventeen voices; hours, so the clock is a reason to be somewhere) and **D55** (nine threads rooted in the districts, twenty-two decisions, four postings). **Phase 7** in the phase list is the numbered candidate list; items 1 to 3, 5 and 6 are done and 4 is half done. **Next: a decision at each rival's bond latch (D44), thread outcomes and posture moves written into `news`, then the author's map/navigation pass and "the city is large and full of stuff".** Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
+> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,387 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. Then **D54** (six lines and four topics per person, in seventeen voices; hours, so the clock is a reason to be somewhere) and **D55** (nine threads rooted in the districts, twenty-two decisions, four postings). Then **D56**: a decision at each rival's bond latch (fourteen scenes, twenty-eight decisions, read by the hire price, the shift boundary, four events and the epilogue), and the wire carrying scenes, decisions and what a run did to the city. **Phase 7** items 1 to 6 are done. **Next, at the author's request: a map and navigation pass, and making the city feel large and full of stuff.** Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
@@ -1407,6 +1407,27 @@ the rivals turned out to have an arc already (D44: bonds that latch,
 declare themselves once, and act on the shift boundary). What they do not
 have is a decision at the moment of latching, which is the next pass.
 
+### D56: The other runners decide, and you answer; and the wire
+
+**A say at the latch.** D44's bond latches and declares itself, and then
+acts on you for the rest of the campaign, and you never got a word in. The
+shift tick now writes `bond:<runner>:<kind>` into the story when a bond
+crosses, and `arcs.RUNNER_THREAD` has fourteen scenes that read it: each of
+the seven, on each side, in their own register. A partner says what the
+machinery could mean and you work with them or keep it professional. A
+nemesis names a figure, exactly fair, and you pay it or let it stand.
+Twenty-eight decisions, every one read: a partner you said yes to charges
+half to come in with you (`hire_price` reads `with_<key>`); a nemesis you
+paid stops acting on the shift boundary (`bond_turn` reads `paid_<key>`);
+four events, one per answer, gated on any of the seven; and a line each in
+the epilogue, in the runner's name.
+
+**The wire carries the story.** `city.news` was only ever what the shift
+tick happened to say. A scene arriving is news now, a decision is news in
+your own words, and what a run did to the city (heat arriving, posture
+moving) is news, so `news` reads as a wire with more than one
+correspondent.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -1648,15 +1669,14 @@ More districts, factions, chrome, and programs. Content, not systems.
 3. ~~Story inside runs.~~ Done: D52, as `Posting` and `did:`. The
    mechanism is general; only the spine uses it so far. District and rival
    threads (4) should.
-4. ~~Nine district threads~~ Done: D55. Seven rival threads: the rivals
-   have an arc already (D44 bonds); what they want is a decision at the
-   moment of latching, with readers. Open.
+4. ~~Nine district threads, seven rival threads.~~ Done: D55 and D56 (the
+   rivals as fourteen decisions at the bond latch, on top of D44's arc).
 5. ~~Locations inside districts.~~ Done: D53, as `spots` and `visit`.
    Presence by shift is still open: the people are where they are at every
    hour, and a city where Mara is only in the bar in the mornings would be
    one more true thing.
-6. ~~`news`.~~ Done: D53. It reads `city.news`, which was a dead field.
-   Thread outcomes and posture moves are not yet written into it.
+6. ~~`news`.~~ Done: D53, and D56 writes scenes, decisions and what a run
+   did to the city into it.
 7. **`journal` as a real log**: the decisions you made and what they cost,
    per thread; and `now` saying "a choice is waiting: `choose`".
 
@@ -2389,3 +2409,21 @@ shipped, which is what it is for.
 
 `validate.py` clean, `test.py` green at **13,619 checks**. 27 threads, 67
 scenes, 72 decisions; 132 events at 52/32/16.
+
+### 2026-08-21 (f): the other runners decide, and the wire
+
+**D56.** The last of the four: the rivals, and `news`. D44's bond latch now
+writes a story flag, fourteen scenes read it (seven runners, two sides,
+each in their register), and the two answers each are read by something
+real: half-price hires for a partner you said yes to, silence on the shift
+boundary from a nemesis you paid, four events and twenty-eight epilogue
+lines. `news` carries scenes, your decisions in your own words, and what a
+run did to the city.
+
+**One thing it turned up.** The bond test wanted to latch Vesper by warmth
+alone and the latch refused, correctly: D44 gates on history as well as
+disposition, and a test that forgets the second gate is a test of the wrong
+thing. `rival.jobs` is the history.
+
+`validate.py` clean, `test.py` green at **13,673 checks**. 28 threads, 81
+scenes, 100 decisions; 136 events.

@@ -182,7 +182,7 @@ class City:
             self._decay_posture()
             told.extend(self._apply_pending(alias))
             told.extend(self._expire(alias))
-            told.extend(self._rival_turn(rng, alias))
+            told.extend(self._rival_turn(rng, alias, flags))
             told.extend(fallout_mod.bounty_check(alias, self, rng('events')))
             if debt is not None:
                 told.extend(self._debt_turn(rng, alias, debt, char))
@@ -362,8 +362,15 @@ class City:
             told.append(f'[dim]{debt.amount:,}c outstanding.[/]')
         return told
 
-    def _rival_turn(self, rng: Rng, alias: Alias | None = None) -> list[str]:
-        """The other runners work. This is why sitting still is not free."""
+    def _rival_turn(self, rng: Rng, alias: Alias | None = None,
+                    flags=None) -> list[str]:
+        """The other runners work. This is why sitting still is not free.
+
+        `flags` is the story's flag set when the caller has one: a bond
+        latching is written into it as `bond:<runner>:<kind>`, which is how
+        the runner's scene finds out (D56), and a nemesis you have paid off
+        stops acting.
+        """
         if not self.rivals:
             self.rivals = rival_mod.seed_pool()
         # A held contract is a story beat, and a story beat a rival can walk
@@ -382,8 +389,11 @@ class City:
             told.append(f'[accent2]{rival.name} has decided something about '
                         f'you.[/]')
             told.append(rival_mod.declare(rival, kind))
+            if flags is not None:
+                flags.add(f'bond:{rival.key}:{kind}')
         if alias is not None:
-            told.extend(rival_mod.bond_turn(rng('rivals'), self.rivals, alias))
+            told.extend(rival_mod.bond_turn(rng('rivals'), self.rivals, alias,
+                                            flags or ()))
         self.news.extend(told)
         del self.news[:-NEWS_KEPT]
         return told

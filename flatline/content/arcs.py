@@ -632,3 +632,199 @@ DISTRICT_THREADS: tuple[Thread, ...] = (
                   where='terraces'),
         )),
 )
+
+
+# --------------------------------------------------------------------------
+# the other runners, at the moment they decide (D56)
+# --------------------------------------------------------------------------
+#
+# D44 gave every rival an arc: a bond that latches at either end, announces
+# itself once, and acts on the shift boundary for the rest of the campaign.
+# What it did not give the player was a say. These are the fourteen moments,
+# one per runner per side, where the bond becomes a conversation: somebody
+# has decided you are a colleague and says what that could mean; somebody
+# has decided you are weather and names what it costs to stop. Two answers
+# each, and the world reads both.
+
+#: (rival key, name, partner scene, in, apart, nemesis scene, pay, stand)
+_RUNNER_SCENES = (
+    ('vesper', 'Vesper Okonkwo',
+     'Vesper Okonkwo introduces you as a colleague, which from her is a '
+     'technical term with a great deal of machinery behind it, and then, over '
+     'a drink she pays for, says the machinery is available. "I do not do '
+     'this. I am doing it. There is work I cannot be seen near, and you can."',
+     'You say yes. The machinery moves about a week later: a door that stays '
+     'open, a patron who was not going to think of you, a fee that is smaller '
+     'than it should be and arrives on time.',
+     'You say you would rather keep it clean. She nods, exactly as warm, and '
+     'the machinery does not move, and she introduces you as a colleague for '
+     'the rest of your career, and means it slightly less.',
+     'Vesper Okonkwo is extremely warm about you in public and has stopped '
+     'returning anything in private, and three people who used to take your '
+     'calls now take a beat. Then a note, through Mara, who does not look up: '
+     'there is a figure at which it stops.',
+     'You pay the figure. It is not small. The three people take your calls '
+     'on the first ring again, and Vesper is warm in public and says nothing '
+     'in private, which is the arrangement, and it holds.',
+     'You do not pay. The beat before people answer gets longer. You learn '
+     'which patrons she has talked to by who stops posting, and you learn it '
+     'slowly, which is how she wanted it.'),
+    ('hound', 'Hound',
+     'Hound tells a bar, loudly, that you are the only person in this city '
+     'who has never let them down, and then, quieter, at the bar, that they '
+     'would like that to stay true, and that it would be easier if you were '
+     'on the same jobs.',
+     'Hound is on the next three jobs you take, uninvited, breaking things in '
+     'front of you, and the noise is enormous and it is, you notice, always '
+     'somewhere else.',
+     'You tell Hound you work alone. They say that is fine about six times, '
+     'at volume, and it is fine, and they are still loud about you in rooms '
+     'you are not in, and you are not sure which you would have preferred.',
+     'Hound has started saying your name in rooms you are not in, the way you '
+     'would name a weather event. Then, in a room you are in: "It can stop. I '
+     'am not unreasonable. I am expensive."',
+     'You pay Hound. They stop. They are loud about how they stopped, which '
+     'is a different problem, and a smaller one.',
+     'You do not pay. Hound is loud about you for a year, in rooms you are '
+     'not in, and then in one you are, and nothing comes of it except that '
+     'everybody knows your name, and not in the way that helps.'),
+    ('quietkid', 'The Quiet Kid',
+     'A file drop. No sender. It is a route into something you were going to '
+     'need a route into, and under it, one line: with you, if you want. no '
+     'need to answer.',
+     'You do not answer. You use the route. Another arrives the next week. '
+     'You have never met the Quiet Kid and there is a reasonable argument '
+     'that you are now partners.',
+     'You drop one line back: no. Nothing arrives the next week. Nothing '
+     'arrives ever again, and the Quiet Kid takes the work you were looking '
+     'at, slightly before you look at it, exactly as before.',
+     'You notice, over about a fortnight, that the Quiet Kid is where you '
+     'were going to be, slightly before you get there. Then a file drop, no '
+     'sender, one line and a number: the number is what it costs to stop '
+     'noticing.',
+     'You pay the number. The Quiet Kid is not where you were going to be. '
+     'You never see them again, which, with the Quiet Kid, is what the '
+     'arrangement was always going to look like.',
+     'You do not pay. The Quiet Kid is where you were going to be, for the '
+     'rest of it, slightly before, and never once in a way you could point '
+     'at.'),
+    ('saint', 'Saint Ambrose',
+     'Saint Ambrose keeps a channel open to you, and says so, slightly too '
+     'slowly, as though translating. "It is not comfortable. It means that at '
+     'three in the morning somebody already knows. I would like it to be you '
+     'who knows, when it is me."',
+     'You keep the channel. It is not comfortable. At three in the morning, '
+     'twice, somebody already knows, and once it is you.',
+     'You close it. He does not argue; he answers a question you have not '
+     'asked yet, which is "yes, that is wise", and the latency artefact, for '
+     'once, is in the right direction.',
+     'Saint Ambrose has not decided anything about you. A decision was made '
+     'somewhere in the stack that runs him now and he is carrying it out with '
+     'the same evenness he carries out everything. He tells you, slightly too '
+     'slowly, that the stack accepts payment.',
+     'You pay the stack. Whatever was decided is undecided, evenly, and Saint '
+     'Ambrose answers a question you have not asked, which is "no, I do not '
+     'remember why."',
+     'You do not pay. He carries it out evenly for the rest of your career, '
+     'and is perfectly courteous about it, and once, at three in the morning, '
+     'you are fairly sure he is sorry.'),
+    ('ledger', 'Ledger',
+     'Ledger has run the numbers on you one more time and come back with a '
+     'conclusion they are willing to act on, which from Ledger is the loudest '
+     'thing that has ever happened. "One job a month. Two, if the second is '
+     'yours. I would like the second to be yours."',
+     'You take Ledger\'s second job each month. They have done a fortnight '
+     'of legwork you did not do, every time, and it has never once failed, '
+     'and you are aware of how much that is costing them.',
+     'You say no. Ledger says that is correct, and gives two reasons you had '
+     'not thought of, and you feel worse rather than better, which is also '
+     'correct.',
+     'Ledger has filed you. Not with anybody. With themselves, accurately. '
+     'They tell you so, because not telling you would be inaccurate, and they '
+     'tell you the file can be closed, and what closing costs.',
+     'You pay to close it. Ledger closes it, and it stays closed, because '
+     'Ledger has never once failed to do a thing they said they would do, '
+     'and that is what you were paying for.',
+     'You do not pay. The file stays open and accurate, and every so often a '
+     'patron asks you a question that is exactly the right question, and you '
+     'know whose question it was.'),
+    ('moth', 'Moth',
+     'Moth tells a bar, loudly, that you are the only person in this city who '
+     'has never let them down, and Moth is nineteen, and the bar has done the '
+     'arithmetic, and looks at you.',
+     'You take Moth on the next one. They are brilliant and they are fast and '
+     'they nearly die twice in eleven ticks, and you get them out, and they '
+     'are insufferable about it for a week, and alive.',
+     'You tell Moth no. They say that is fine, at volume, and take something '
+     'above their level the next day because nobody told them not to, and '
+     'you hear about it, and it was fine, this time.',
+     'Moth has started saying your name in rooms you are not in, and Moth is '
+     'nineteen, and saying it badly, and the rooms are laughing at Moth and '
+     'not at you, which Moth has not noticed. Then Moth names a figure, too '
+     'high, with a straight face.',
+     'You pay Moth the figure. Moth is delighted, and is loud about that '
+     'instead, and spends it in a week, and is nineteen.',
+     'You do not pay. Moth keeps saying your name badly in rooms, and then '
+     'takes something above their level to prove a point, and the point is '
+     'not proved, and you hear about it later than you should have.'),
+    ('grieve', 'Grieve',
+     'Grieve leaves something where you will find it: a name, the hour it '
+     'works, the desk it reports to. Nothing is said about it. Grieve used to '
+     'hunt every other name on that list, and has decided not to hunt yours, '
+     'and this is how that is said.',
+     'You use the name. More arrive, at intervals, never announced. You never '
+     'discuss it with Grieve and Grieve never discusses it with you, and it '
+     'is the most reliable thing in your career.',
+     'You leave the name where it was. Grieve notices, because Grieve notices '
+     'everything, and leaves nothing else, and treats every conversation with '
+     'you as an interview again, and is very tired.',
+     'Grieve is where you were going to be, slightly before, and Grieve used '
+     'to do this for a living. There is no offer. You make one, and Grieve '
+     'listens to the whole of it with the tired attention of an interviewer, '
+     'and names a figure that is exactly fair.',
+     'You pay Grieve. They stop. There is no announcement and no warmth; they '
+     'are simply somewhere else, and you are aware, afterwards, of how good '
+     'they were.',
+     'You do not pay. Grieve hunts you the way Grieve hunted everybody, '
+     'professionally, patiently, and without apparent interest, and is the '
+     'only nemesis you will ever have who files the reports.'),
+)
+
+#: What buying a nemesis off costs. One number for all seven, because the
+#: figure is "exactly fair" and fairness does not vary by who is asking.
+BUYOFF = 2500
+
+
+def _runner_stages() -> tuple[Stage, ...]:
+    out = []
+    for key, name, partner, yes, apart, nemesis, pay, stand in _RUNNER_SCENES:
+        out.append(Stage(
+            f'{key}_partner', f'{name} has decided',
+            partner,
+            requires=(f'bond:{key}:partner',),
+            sets=(f'asked_{key}',),
+            choices=(
+                Choice('in', 'Work with them', yes, sets=(f'with_{key}',)),
+                Choice('apart', 'Keep it professional', apart,
+                       sets=(f'apart_{key}',)),
+            )))
+        out.append(Stage(
+            f'{key}_nemesis', f'{name} names a figure',
+            nemesis,
+            requires=(f'bond:{key}:nemesis',),
+            sets=(f'priced_{key}',),
+            choices=(
+                Choice('pay', f'Pay them ({BUYOFF:,}c)', pay,
+                       sets=(f'paid_{key}',), credits=-BUYOFF),
+                Choice('stand', 'Let it stand', stand,
+                       sets=(f'stood_{key}',)),
+            )))
+    return tuple(out)
+
+
+RUNNER_THREAD = Thread(
+    'runners', 'The Other Runners',
+    'Seven people doing what you do, and what each of them decided about '
+    'you.',
+    crosses=(),
+    stages=_runner_stages())
