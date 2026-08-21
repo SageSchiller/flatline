@@ -14,6 +14,7 @@ is most of what a new player needs to learn.
 
 from __future__ import annotations
 
+import difflib
 import shlex
 from dataclasses import dataclass, field
 from typing import Callable, Iterable, Sequence
@@ -50,6 +51,9 @@ AFTER_THE_END = frozenset({
     # Look at what happened.
     'char', 'rep', 'deck', 'skills', 'log', 'journal', 'who', 'self',
     'status', 'history', 'crew', 'safehouse', 'techniques', 'career',
+    # Ask what now. The answer for a finished character is to go elsewhere,
+    # and an empty line has to be able to say so.
+    'now',
     # Leave, or go somewhere else.
     'new', 'switch', 'characters', 'delete', 'restore', 'save', 'quit',
     # The parts that were never theirs. D38: the city takes the runner and
@@ -330,8 +334,16 @@ def resolve(line: str, context: str, registry: Registry = REGISTRY) -> Invocatio
             names = ', '.join(sorted(c.name for c in matches))
             raise CommandError(f'{word!r} is ambiguous: {names}')
         else:
+            # A typo is the commonest way to be told something is not a
+            # command, and `bord` is not a player who needs the help index,
+            # it is a player who needs the one word they nearly typed.
+            near = difflib.get_close_matches(
+                word, registry.names(context), n=3, cutoff=0.6)
+            hint = (' Did you mean ' + ', '.join(f'`{n}`' for n in near) + '?'
+                    if near else '')
             raise CommandError(
-                f'{word!r} is not a command. Type `help` for what is.')
+                f'{word!r} is not a command.{hint} Type `help` for what is, '
+                f'or Enter on an empty line for what to do next.')
 
     if not cmd.legal_in(context):
         # Three sentences: what is wrong, why, and the way out of it. The bare

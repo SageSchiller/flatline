@@ -221,7 +221,8 @@ def _help_landing(sess) -> None:
     ])
 
     c.blank()
-    c.say('[dim]Prefixes work: `conn` reaches `connect`. Chain commands with '
+    c.say('[dim]Prefixes work: `conn` reaches `connect`. Row numbers work '
+          'wherever a list was shown: `take 2`, `buy 3`. Chain commands with '
           '`;`. `help --all` is the old everything-at-once index.[/]')
 
 
@@ -440,7 +441,7 @@ def cmd_retire(sess, args) -> None:
                   'since the first shift.[/]')
         return
 
-    title, text = legacy.ending(char.dissonance)
+    title, text = legacy.ending(char.dissonance, game.story.flags)
     c.blank()
     c.rule('out', role='accent2')
     c.say(legacy.LEAVING)
@@ -455,6 +456,7 @@ def cmd_retire(sess, args) -> None:
           ('earned', f'[credit]{game.earned:,}c[/]'),
           ('walked away with', f'[credit]{char.credits:,}c[/]'),
           ('drift', f'{char.dissonance} ({char.dissonance_band[1]})')])
+    _epilogue(sess)
 
     game.over = 'retired'
     _bequeath(sess, 'retired')
@@ -464,6 +466,24 @@ def cmd_retire(sess, args) -> None:
     c.blank()
     c.say('[dim]`new` when you want to be somebody else. Something of this '
           'one will find them.[/]')
+
+
+def _epilogue(sess) -> None:
+    """What you left behind, in people. D51.
+
+    Every decision the character made, read back once, in the order the
+    threads are written, at whichever end they reached. Printed at retirement
+    and at the flatline alike, because the flatline is the ending most
+    players get and it used to forget everything but the numbers.
+    """
+    from ..content import legacy
+    game, c = sess.game, sess.console
+    lines = legacy.epilogue(game.story.flags)
+    if not lines:
+        return
+    c.blank()
+    c.rule('what you left behind, in people', role='accent2')
+    c.bullets(lines, role='dim')
 
 
 def _bequeath(sess, how: str) -> None:
@@ -635,15 +655,16 @@ def _roster_rows(sess, entries):
     """One table of characters, marking whoever is loaded."""
     here = sess.slot if sess.game is not None else None
     rows = []
-    for e in entries:
+    for n, e in enumerate(entries, 1):
         if e.broken:
-            rows.append((f'[err]{e.slot}[/]', '[err]unreadable[/]', '', '',
-                         '[dim]-[/]'))
+            rows.append((str(n), f'[err]{e.slot}[/]', '[err]unreadable[/]',
+                         '', '', '[dim]-[/]'))
             continue
         mark = '[accent]you[/]' if e.slot == here else ''
         if e.finished:
             mark = f'[dim]{e.over}[/]' if not mark else f'[warn]{e.over}[/]'
         rows.append((
+            str(n),
             e.handle,
             origins.BY_KEY[e.origin].name if e.origin in origins.BY_KEY
             else e.origin,
@@ -670,9 +691,12 @@ def cmd_characters(sess, args) -> None:
         c.info('Nobody yet. `new` to see the origins.')
         return
     c.header('Characters', f'{len(entries)} of them')
-    c.table(('handle', 'origin', 'when', 'done', ''),
+    c.table(('#', 'handle', 'origin', 'when', 'done', ''),
             _roster_rows(sess, entries),
-            roles=('accent', 'dim', None, 'dim', None))
+            roles=('accent', 'accent', 'dim', None, 'dim', None))
+    # Slots rather than handles, so that two runners who share a handle are
+    # still two different row numbers.
+    sess.remember('characters', [e.slot for e in entries])
     c.blank()
     if any(e.broken for e in entries):
         c.say('[err]One of these will not open.[/] [dim]It is still on disk; '
@@ -702,6 +726,9 @@ def cmd_switch(sess, args) -> None:
     want = args.get(0)
     if want is None:
         raise CommandError('switch to whom? `characters` for the list.')
+    want = sess.pick('characters', want,
+                     fallback=[e.slot for e in save_mod.roster()],
+                     what='row', again='characters')
 
     found = save_mod.find(want)
     if not found:
@@ -745,6 +772,9 @@ def cmd_delete(sess, args) -> None:
     want = args.get(0)
     if want is None:
         raise CommandError('delete whom? `characters` for the list.')
+    want = sess.pick('characters', want,
+                     fallback=[e.slot for e in save_mod.roster()],
+                     what='row', again='characters')
     found = save_mod.find(want)
     if not found:
         raise CommandError(f'no character called {want!r}.')

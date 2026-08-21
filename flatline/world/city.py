@@ -162,8 +162,15 @@ class City:
         return districts.BY_KEY[self.where]
 
     def advance(self, rng: Rng, alias: Alias, shifts: int = 1,
-                debt=None, char=None) -> list[str]:
-        """Move time forward. Returns everything the player should be told."""
+                debt=None, char=None, satisfied=None,
+                flags=None) -> list[str]:
+        """Move time forward. Returns everything the player should be told.
+
+        `satisfied` is the story's rule check bound to the game and `flags`
+        its flag set: the city does not hold the story, but D51 has the
+        street and the board read what the player decided, so both are
+        handed in by whoever spends the shift.
+        """
         told: list[str] = []
         self.ambient = []
         for _ in range(max(1, shifts)):
@@ -190,10 +197,10 @@ class City:
                 told.extend(said)
             if self.shift % market_mod.REFRESH == 0:
                 self.refresh_stock(rng)
-            self.ambient.extend(self._ambient(rng))
+            self.ambient.extend(self._ambient(rng, satisfied))
         # Top the board back up rather than replacing it, so a contract the
         # player was saving does not vanish because a shift ticked over.
-        told.extend(self.top_up_board(rng, alias, char))
+        told.extend(self.top_up_board(rng, alias, char, flags))
         return told
 
     def _raid_turn(self, rng: Rng, alias: Alias, char) -> list[str]:
@@ -252,7 +259,7 @@ class City:
             told.append(f'[err]{safehouses.BURNED}[/]')
         return told
 
-    def _ambient(self, rng: Rng) -> list[str]:
+    def _ambient(self, rng: Rng, satisfied=None) -> list[str]:
         """One thing the city did this shift that has nothing to do with you.
 
         Deliberately consequence-free. The moment an ambient event can cost
@@ -274,7 +281,7 @@ class City:
         if remembered:
             return [f'[dim]{remembered}[/]']
         event = event_content.pick(stream, self.where, self.phase,
-                                   self.events_seen)
+                                   self.events_seen, satisfied)
         if event is None:
             return []
         self.events_seen.add(event.key)
@@ -409,13 +416,15 @@ class City:
             size += 1  # Known quantity
         return size
 
-    def refresh_board(self, rng: Rng, alias: Alias, char=None) -> None:
+    def refresh_board(self, rng: Rng, alias: Alias, char=None,
+                      flags=None) -> None:
         self.board = contract_mod.generate_board(
             rng('contracts'), self.shift, alias, self.posture,
-            count=self.board_size(char), start_id=self.next_cid)
+            count=self.board_size(char), start_id=self.next_cid, flags=flags)
         self.next_cid += len(self.board) + 1
 
-    def top_up_board(self, rng: Rng, alias: Alias, char=None) -> list[str]:
+    def top_up_board(self, rng: Rng, alias: Alias, char=None,
+                     flags=None) -> list[str]:
         want = self.board_size(char)
         have = len(self.board)
         if have >= want:
@@ -423,7 +432,7 @@ class City:
         fresh = contract_mod.generate_board(
             rng('contracts'), self.shift, alias, self.posture,
             count=want - have, start_id=self.next_cid,
-            avoid={c.title for c in self.board})
+            avoid={c.title for c in self.board}, flags=flags)
         self.next_cid += len(fresh) + 1
         self.board.extend(fresh)
         return [f'[dim]{len(fresh)} new posting'
@@ -568,11 +577,14 @@ class City:
         """
         return '; '.join(f'travel {k}' for k in self.route(target))
 
-    def danger(self, alias: Alias, target: str, rng: Rng | None = None):
+    def danger(self, alias: Alias, target: str, rng: Rng | None = None,
+               flags=None):
         """How risky arriving in a district is, given who is looking for you.
 
         Lives in `world/fallout.py` so that travel, legwork, and anything else
-        that puts you on a street ask exactly the same question.
+        that puts you on a street ask exactly the same question. `flags` is
+        the story's flag set, because what you decided about a faction is
+        part of the answer (D51).
         """
         stream = rng('events') if rng is not None else None
         if stream is None:
@@ -580,7 +592,8 @@ class City:
             # threaded for callers that go on to resolve an incident.
             from ..rng import Rng as _Rng
             stream = _Rng(0)('events')
-        return fallout_mod.arrival_risk(stream, alias, self, target)
+        return fallout_mod.arrival_risk(stream, alias, self, target,
+                                        flags or ())
 
     # -- consequences --------------------------------------------------
 

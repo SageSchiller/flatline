@@ -26,10 +26,21 @@ It boots. If you are on a colour terminal you get the animated version, and
 `title` replays it; everywhere else you get the last frame and the game is
 identical. Ctrl-C during it means "get on with it", not "quit".
 
+If you have never played a game by typing at it, three things carry you.
+**Enter on an empty line** always says what to do next: the one real move,
+the reason, and the handful of verbs that matter where you are standing
+(`now` is the same thing typed). **`new`** asks three questions, one line
+each: which origin, what to call them, and whether to put the opening points
+where that origin usually does; `new <handle> --origin <key>` is the same in
+one line when you have picked. And **row numbers are names**: wherever the
+game shows you a list, `take 2`, `buy 3`, `travel 1` and `switch 2` mean the
+row you just read. A typo gets "did you mean", and arriving anywhere ends
+with a line of the verbs that district makes possible.
+
 At the prompt, `tutorial` walks you through a first run one instruction at a
 time. `help` is one screen: what to read first, the verbs that answer "what
-now", and where the rest lives. `help commands` is all 106 verbs, `help
-topics` is all 35 explanations, and `help <anything>` finds a verb, a system,
+now", and where the rest lives. `help commands` is all 117 verbs, `help
+topics` is all 38 explanations, and `help <anything>` finds a verb, a system,
 or searches both, including every proper noun in the game.
 
 Two verbs are worth knowing before anything else. **`job`** says what you are
@@ -128,6 +139,14 @@ The three ideas everything else hangs off:
   Whichever way you go out, retired or flatlined, you leave exactly one thing
   to whoever you make next, and afterwards the city mentions your name to
   somebody who never met you.
+- **A decision is read.** Every choice in every storyline sets a flag, and
+  every flag is read by something other than the ending: somebody stops
+  being in the city, a counter closes, a favour opens, the streets of one
+  faction get safer, a patron stops posting, an ambient event arrives a few
+  shifts later happening to somebody else. And every one has a line in the
+  ending, whichever ending it is. `validate.py` fails the build on a
+  decision nothing reads, because a choice that changes nothing is prose
+  with a flag on it.
 - **The street and the net want opposite hours.** At peak the walkways are
   full, which is bad for you out there and good for you in here, because all
   those people are generating the traffic you hide in. At night nobody is
@@ -140,10 +159,10 @@ The three ideas everything else hangs off:
 12 skills with 24 techniques · 26 traits · 10 origins, each with a signature
 verb nobody else can use and its own starting face · 34 implants · 46 programs
 · 28 countermeasures · 9 pieces of bench work · 9 districts, each with a mark for the faction that
-holds it · 12 factions · 7 rival runners who decide about you, and one you can keep · 17 named characters who hand out work, keep private stock and do favours on a tab · 18 storylines across 39 scenes ·
-102 appearance features · 51 ambient city events · 38 manual topics ·
+holds it · 12 factions · 7 rival runners who decide about you, and one you can keep · 17 named characters who hand out work, keep private stock and do favours on a tab · 18 storylines across 39 scenes and 45 decisions, every one of them read back by the world ·
+102 appearance features · 92 ambient city events, 41 of them consequences of something you decided · 38 manual topics ·
 10 drugs · 3 lenders · 2 games of chance in 5 rooms ·
-112 commands · 67 unlockable pieces of terminal across 6 axes.
+117 commands · 67 unlockable pieces of terminal across 6 axes.
 
 Footnotes are a real feature of the console. `{{like this}}` in any content
 string gets lifted out and printed under the block, and they nest, because the

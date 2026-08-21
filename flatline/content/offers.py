@@ -87,7 +87,7 @@ WORK: tuple[Work, ...] = (
     Work(
         'lark', patron='carrion', targets=('kagawa', 'aoyama', 'sendai'),
         pay=1.3, patience=4,
-        requires=('runs:3',),
+        requires=('runs:3', 'not:lark_dead'),
         pitch='"There is a thing I want doing and I cannot pay what it is '
               'worth, so I am paying what I have, which is more than it is '
               'worth to anybody who is not me." She does not explain the '
@@ -101,7 +101,7 @@ WORK: tuple[Work, ...] = (
     Work(
         'vance', patron='aoyama', targets=('sendai', 'kagawa', 'meridian'),
         pay=1.1, patience=10,
-        requires=('runs:2', 'met:vance'),
+        requires=('runs:2', 'met:vance', 'not:vance_exposed'),
         pitch='"The clinic has an interest here and the clinic cannot be seen '
               'to have an interest here. I am telling you that plainly '
               'because the alternative is telling you something else and then '
@@ -115,7 +115,7 @@ WORK: tuple[Work, ...] = (
     Work(
         'broker', patron='freeport', targets=('kagawa', 'nightwatch'),
         pay=1.25, patience=5,
-        requires=('runs:4',),
+        requires=('runs:4', 'not:sunday_sold'),
         pitch='"I am going to describe a job and I am going to tell you which '
               'parts of the description are true. That is not a courtesy. It '
               'is that I have watched four people take this without asking '
@@ -148,6 +148,11 @@ class Stock:
     pitch: str = ''
     #: Said once, the first time, and it is the whole character.
     first: str = ''
+    #: Story rules for the counter being open to you at all. D51: a cabinet
+    #: is something a person decides to get out, and people remember.
+    requires: tuple[str, ...] = ()
+    #: What they say when it stays closed.
+    refusal: str = ''
 
 
 STOCK: tuple[Stock, ...] = (
@@ -177,7 +182,11 @@ STOCK: tuple[Stock, ...] = (
               'as though any part of this were happening in a hospital.',
         first='"Prescribed, technically. The technically is doing a great '
               'deal of work in that sentence and we will both pretend it is '
-              'not."'),
+              'not."',
+        requires=('not:vance_exposed',),
+        refusal='Doctor Vance is perfectly pleasant, and the cabinet stays '
+                'closed, and she does not refer to the Static piece, and '
+                'neither of you needs her to.'),
     Stock(
         'archivist',
         goods=('quietcastle', 'ledgerhand', 'mirrorbox'),
@@ -228,7 +237,7 @@ FAVOURS: tuple[Favour, ...] = (
         'mara', 'quiet', 'A word in the right place',
         'The Switchboard forget about the worst of your recent work.',
         effect='heat', amount=35,
-        requires=('met:mara',),
+        requires=('met:mara', 'not:favour_refused'),
         text='She makes two calls, neither of them long, and neither of them '
              'about you as far as anybody listening would be able to tell. '
              'The second one she makes in a language you do not have.\n\n'
@@ -242,7 +251,7 @@ FAVOURS: tuple[Favour, ...] = (
         'mara', 'holding', 'She holds the job for you',
         'Your accepted contract stops expiring for a while.',
         effect='hold', amount=8,
-        requires=('met:mara',),
+        requires=('met:mara', 'not:favour_refused'),
         text='"I will tell them you are being thorough." She writes the word '
              'thorough in the book, and underlines it, and you get the '
              'distinct impression that the underlining is the part that '
@@ -254,7 +263,7 @@ FAVOURS: tuple[Favour, ...] = (
         'lark', 'walked', 'She walks you out of it',
         'A district full of people looking for you forgets your face.',
         effect='heat', amount=45,
-        requires=('met:lark',),
+        requires=('met:lark', 'not:lark_dead'),
         text='She does not tell you what she does. You are simply in a '
              'different part of the Shambles about forty minutes later, with '
              'a different coat, and the coat is not new and does not fit and '
@@ -292,6 +301,81 @@ FAVOURS: tuple[Favour, ...] = (
         refusal='"Not this time." Remnant is the only person in this city who '
                 'will refuse you without any implication that you have done '
                 'something wrong, and it is somehow worse.'),
+
+    # -- D51: favours a decision opened ---------------------------------------
+    #
+    # None of these exist until the player decided something. They are the
+    # mechanical half of a choice whose prose says somebody now owes you, or
+    # trusts you, or has let you further in.
+
+    Favour(
+        'surgeon', 'clean', 'Eleven hours, no charge',
+        'The Blue Surgeon walks some of the drift back. They owe you a friend.',
+        effect='ground', amount=8,
+        requires=('surgeon_owed',),
+        text='They do it in the clean room off the Shambles, talking the '
+             'whole time, about nothing, about Lark, about a technique they '
+             'read about once and have never had the chance to try. No '
+             'money changes hands and they are careful not to make a point '
+             'of that.\n\n'
+             '"That is one. I do not keep count. I want to be clear that I '
+             'do not keep count, and that this is one."',
+        refusal='"No." The Blue Surgeon does not look up from what they are '
+                'doing to somebody else. "You are not owed a second one, and '
+                'I would not be doing you a kindness by pretending you were."'),
+    Favour(
+        'vance', 'referral', 'A word at the right desk',
+        'Aoyama forget about you for a while. She sent you something expensive '
+        'once; this is the rest of it.',
+        effect='heat', amount=30,
+        requires=('vance_owed',),
+        text='"I referred you." She says it the way she says everything, as '
+             'though reading it from a form. "Not to anybody. Onward. There '
+             'is a file on you in this building and it has been moved to a '
+             'part of the building that nobody reads from, and that is a '
+             'thing I can do once and have now done."',
+        refusal='"I did say once." She smiles, and it is a real smile, and '
+                'it closes the subject the way a door closes.'),
+    Favour(
+        'vance', 'immaculate', 'She writes it out properly',
+        'A habit, taken back a step, on paper, with a heading.',
+        effect='detox', amount=1,
+        requires=('vance_employed',),
+        text='She does not ask what it is. She looks, and writes, and tears '
+             'the sheet off, and the course she has written takes four days '
+             'and works, and the paperwork would survive any audit in the '
+             'city.\n\n"Staff rate," she says, which is the first time either '
+             'of you has used the word.',
+        refusal='"Not again so soon. Dependency on the treatment is still '
+                'dependency and I do not keep a second set of books for '
+                'people I like."'),
+    Favour(
+        'archivist', 'kept', 'They read the job the way they read the dead',
+        'Full intel on the contract you are carrying, from four hundred and '
+        'seven logs.',
+        effect='intel', amount=1,
+        requires=('archive_consented',),
+        text='They ask for the target and turn back to the wall. What comes '
+             'back is not a briefing: it is nine people who ran this network '
+             'and what each of them saw last, stitched into a shape, and the '
+             'shape is correct.\n\n'
+             '"Four hundred and seven. Not yet, obviously." They do not look '
+             'round when they say it.',
+        refusal='"Not this one." A pause. "I read a great deal for you. I '
+                'would like to keep being able to, which means not now."'),
+    Favour(
+        'mara', 'long', 'She pays somebody again',
+        'Some of what you owe, settled by a woman who has done this before.',
+        effect='debt', amount=3000,
+        requires=('favour_done',),
+        text='She does not ask who holds the paper. She makes one call, '
+             'and it is not a long call, and part of what you owe is '
+             'simply not owed any more.\n\n'
+             '"Nineteen years ago I paid somebody to not do something. It '
+             'turns out I am quite good at it."',
+        refusal='"No." She caps the pen. "That was for the room in the '
+                'Terraces, and the room in the Terraces is settled. The rest '
+                'is yours."'),
 )
 
 

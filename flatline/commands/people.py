@@ -68,6 +68,9 @@ def cmd_look(sess, args) -> None:
         c.blank()
         c.say(f'[dim]{line}[/]')
 
+    from .city import here_you_can
+    here_you_can(sess, district, looking=True)
+
     c.blank()
     if not here:
         c.say('[dim]Nobody here is interested in you, which in this district '
@@ -340,6 +343,12 @@ def _deal_goods(sess, npc) -> None:
     if npc.where and npc.where != game.city.where:
         raise CommandError(f'{npc.name} keeps their stock in '
                            f'{districts.BY_KEY[npc.where].name}.')
+    # A counter can close on you. D51: what you did to somebody is part of
+    # whether they still get the cabinet out.
+    for rule in stock.requires:
+        if not game.story.satisfied(rule, game):
+            raise CommandError(stock.refusal or f'{npc.name} has nothing '
+                               f'under the counter for you.')
     game.city.open_counter(stock)
     c.header(npc.name, 'what they keep back')
     c.say(f'[dim]{stock.pitch}[/]')
@@ -579,6 +588,14 @@ def cmd_choose(sess, args) -> None:
         game.char.credits = max(0, game.char.credits + choice.credits)
         word = 'in' if choice.credits > 0 else 'gone'
         c.say(f'[credit]{abs(choice.credits):,}c[/] {word}.')
+    if choice.gives:
+        from ..content import cyberware, hardware, programs
+        for key in choice.gives:
+            game.char.library.append(key)
+            name = next((table.BY_KEY[key].name
+                         for table in (hardware, programs, cyberware)
+                         if key in table.BY_KEY), key)
+            c.say(f'[dim]{name} is in the bag.[/]')
     for faction, delta in choice.rep.items():
         game.alias.adjust_rep(faction, delta)
         c.say(f'[dim]{factions.BY_KEY[faction].short} '

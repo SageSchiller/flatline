@@ -63,7 +63,14 @@ class Story:
 
     def satisfied(self, rule: str, game) -> bool:
         """Whether one requirement holds. Unknown rules are never satisfied,
-        which fails closed: a typo hides a scene rather than unlocking one."""
+        which fails closed: a typo hides a scene rather than unlocking one.
+
+        `not:<rule>` is the one combinator, and it exists for D51: a dead
+        friend's work has to stop being on offer, and "Lark is alive" is not
+        a flag anything sets, it is the absence of one.
+        """
+        if rule.startswith('not:'):
+            return not self.satisfied(rule[4:], game)
         if ':' not in rule:
             return rule in self.flags
         kind, _, value = rule.partition(':')
@@ -192,5 +199,40 @@ def present(game, story: Story) -> list[npc_content.Npc]:
     for npc in npc_content.in_district(district.key, district.services):
         if not npc_content.meets(npc, game.char, game.alias, game.char.runs):
             continue
+        # The story half of `requires`: plain flags and `not:` rules, which
+        # `meets` cannot see because the content layer has no story. This is
+        # how somebody stops being in the city once they are dead. D51.
+        if not all(story.satisfied(rule, game) for rule in npc.requires
+                   if rule.partition(':')[0] not in npc_content.NUMERIC_RULES):
+            continue
         out.append(npc)
+    return out
+
+
+# --------------------------------------------------------------------------
+# D51: decisions the streets read
+# --------------------------------------------------------------------------
+
+#: What a decision does to how safe one faction's streets are for you, as
+#: (flag, faction, multiplier on arrival risk). Read by
+#: `fallout.arrival_risk`, so travel and legwork feel it alike. Declared as
+#: data so `validate.py` can see that the flag is set by a choice and the
+#: faction exists, which is the whole of D51: a choice is content that claims
+#: a consequence, and a claim the engine never reads is a lie that validates.
+STREET_RIDERS: tuple[tuple[str, str, float], ...] = (
+    # The Sixes consider you theirs, and mean it, in the Ninth.
+    ('theirs_owned', 'sixes', 0.5),
+    # The file is closed, formally, with a reason that holds up. So far.
+    ('file_closed', 'nightwatch', 0.5),
+    # Kagawa have decided about you, and what they decided was "fine".
+    ('laptop_returned', 'kagawa', 0.6),
+)
+
+
+def street_rider(flags, faction: str) -> float:
+    """Multiplier on a faction's arrival risk, from what you have decided."""
+    out = 1.0
+    for flag, who, mult in STREET_RIDERS:
+        if who == faction and flag in flags:
+            out *= mult
     return out

@@ -38,43 +38,108 @@ from ..world import market as market_mod
 
 @command('new', 'Make a character.',
          contexts=('city',), group='character', bare=True,
-         usage='new [handle] --origin <key> [--seed n]',
-         detail='With no arguments, lists the origins. Creation gives you an '
-                'attribute budget and an experience budget, which you spend '
-                'with `boost` and `train`: the same commands you will use for '
-                'the rest of the character\'s life.')
+         usage='new [handle --origin <key|number> [--seed n]] [--long]',
+         detail='With nothing after it, it asks: which origin, what to call '
+                'them, and whether to spend the opening points the usual way '
+                'for that origin. `new <handle> --origin <key>` does the '
+                'same in one line, for anybody who has picked already; the '
+                'origin can be its number from the list. `new --long` is '
+                'every origin in full. Creation gives you an attribute budget '
+                'and an experience budget, which you spend with `boost` and '
+                '`train`: the same commands you will use for the rest of the '
+                'character\'s life.')
 def cmd_new(sess, args) -> None:
     c = sess.console
     if not len(args) and not args.opt('origin'):
-        c.header('Origins', f'{len(origins.ORIGINS)} of them')
-        c.say('[dim]An origin sets where you start, never where you can go.[/]')
-        for origin in origins.ORIGINS:
-            c.blank()
-            c.raw(f'[accent][bold]{origin.name}[/][/]  [dim]{origin.key}[/]')
-            c.say(origin.blurb, indent='  ')
-            shape = '  '.join(
-                f'{attr_content.BY_KEY[k].short} {v:+d}'
-                for k, v in origin.attrs.items())
-            c.say(f'[dim]{shape}  {origin.credits:,}c[/]', indent='  ')
-            c.say(f'[warn]{origin.passive}:[/] [dim]{origin.passive_detail}[/]',
-                  indent='  ', subsequent='  ')
-            c.say(f'[accent2]{origin.signature_name}[/] '
-                  f'[dim](`{origin.signature}`, once a run, nobody else '
-                  f'can):[/] [dim]{origin.signature_detail}[/]',
-                  indent='  ', subsequent='  ')
-        c.blank()
-        c.say('[dim]`new <handle> --origin <key>` when you have picked.[/]')
+        if args.has('long') or args.has('list') or args.has('all'):
+            list_origins(sess)
+            return
+        from . import guide
+        guide.start_creation(sess)
         return
 
     if sess.run is not None:
         raise CommandError('finish the run first.')
 
-    origin_key = (args.opt('origin') or '').lower()
-    if origin_key not in origins.BY_KEY:
+    if not args.opt('origin'):
+        # A name and nothing else is one of the three answers. Ask the other
+        # two rather than refusing over a flag nobody was told about.
+        from . import guide
+        guide.start_creation(sess, handle=args[0])
+        return
+    origin = resolve_origin(args.opt('origin') or '')
+    if origin is None:
         raise CommandError('pick an origin: '
-                           + ', '.join(origins.ORIGIN_KEYS))
+                           + ', '.join(origins.ORIGIN_KEYS)
+                           + ', or its number. Or `new` with nothing after '
+                           'it, to be asked.')
     handle = args.get(0) or 'nobody'
     seed = args.int_opt('seed', random_seed())
+    create_character(sess, handle, origin.key, seed)
+    c.blank()
+    c.say('[dim]`char` to see the build, `spend` to put the opening points '
+          'where this origin usually does, or `boost <attribute>` and '
+          '`train <skill>` to spend them yourself. `trait` to decide what '
+          'kind of person this is, `self` to decide what they look like, '
+          'which is a real decision here and not a portrait. `board` when '
+          'you are ready to work. Enter on an empty line says what to do '
+          'next.[/]')
+
+
+def resolve_origin(token: str):
+    """An origin from its number in the list, its key, or its name. Or None.
+
+    Numbers are the list order in `new` and `new --long`, which is the order
+    of `origins.ORIGINS` and does not change between screens.
+    """
+    t = (token or '').strip().lower()
+    if not t:
+        return None
+    if t.isdigit():
+        n = int(t)
+        return (origins.ORIGINS[n - 1]
+                if 1 <= n <= len(origins.ORIGINS) else None)
+    if t in origins.BY_KEY:
+        return origins.BY_KEY[t]
+    hits = [o for o in origins.ORIGINS
+            if o.key.startswith(t) or o.name.lower().startswith(t)]
+    return hits[0] if len(hits) == 1 else None
+
+
+def show_origin(sess, origin, number: int | None = None) -> None:
+    """One origin in full: shape, money, passive and signature."""
+    c = sess.console
+    c.blank()
+    num = f'[dim]{number:>2}[/]  ' if number is not None else ''
+    c.raw(f'{num}[accent][bold]{origin.name}[/][/]  [dim]{origin.key}[/]')
+    c.say(origin.blurb, indent='  ')
+    shape = '  '.join(
+        f'{attr_content.BY_KEY[k].short} {v:+d}'
+        for k, v in origin.attrs.items())
+    c.say(f'[dim]{shape}  {origin.credits:,}c[/]', indent='  ')
+    c.say(f'[warn]{origin.passive}:[/] [dim]{origin.passive_detail}[/]',
+          indent='  ', subsequent='  ')
+    c.say(f'[accent2]{origin.signature_name}[/] '
+          f'[dim](`{origin.signature}`, once a run, nobody else '
+          f'can):[/] [dim]{origin.signature_detail}[/]',
+          indent='  ', subsequent='  ')
+
+
+def list_origins(sess) -> None:
+    """Every origin in full. The long form; `new` alone is the short one."""
+    c = sess.console
+    c.header('Origins', f'{len(origins.ORIGINS)} of them')
+    c.say('[dim]An origin sets where you start, never where you can go.[/]')
+    for i, origin in enumerate(origins.ORIGINS, 1):
+        show_origin(sess, origin, i)
+    c.blank()
+    c.say('[dim]`new` to be asked which, or `new <handle> --origin <key>` '
+          'when you have picked. The number works in place of the key.[/]')
+
+
+def create_character(sess, handle: str, origin_key: str, seed: int) -> None:
+    """Make them, file them, and say who they are. Both forms of `new` end here."""
+    c = sess.console
 
     # Put the character who is already here away before making another one.
     # This used to be a refusal you cleared with `--force`, and `--force` did
@@ -122,13 +187,6 @@ def cmd_new(sess, args) -> None:
     save_mod.bump_meta(characters_created=1)
     _inherit(sess)
     sess.record_progress()
-
-    c.blank()
-    c.say('[dim]`char` to see the build, `boost <attribute>` and '
-          '`train <skill>` to spend, `trait` to decide what kind of person '
-          'this is, and `self` to decide what they look like, which is a '
-          'real decision here and not a portrait. `board` when you are ready '
-          'to work.[/]')
 
 
 def _inherit(sess) -> None:
@@ -655,6 +713,7 @@ def cmd_market(sess, args) -> None:
     c.header(f'{district.name} market',
              f'tier {district.max_tier} and below')
     rows = []
+    shown = []
     for listing in listings:
         item = _item(listing)
         if item is None:
@@ -665,12 +724,15 @@ def cmd_market(sess, args) -> None:
                                     game.city.phase,
                                     game.char.attr('guile'))
         detail = _listing_detail(listing, item)
-        rows.append((item.name, listing.kind, detail, f'{price:,}c'))
-    c.table(('item', 'kind', 'what it does', 'price'), rows,
-            roles=('accent', 'dim', 'dim', 'credit'))
+        shown.append(listing.key)
+        rows.append((str(len(shown)), item.name, listing.kind, detail,
+                     f'{price:,}c'))
+    c.table(('#', 'item', 'kind', 'what it does', 'price'), rows,
+            roles=('accent', 'accent', 'dim', 'dim', 'credit'))
+    sess.remember('market', shown)
     c.blank()
-    c.say('[dim]`buy <name>` to take one. `buy <name> --why` to see the '
-          'price broken down.[/]')
+    c.say('[dim]`buy <name>` or `buy <row number>` to take one. '
+          '`buy <name> --why` to see the price broken down.[/]')
 
 
 @command('buy', 'Buy something from the local market.',
@@ -680,15 +742,24 @@ def cmd_market(sess, args) -> None:
 def cmd_buy(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     if not len(args):
-        raise CommandError('buy what?')
+        raise CommandError('buy what? `market` lists it, with a row number '
+                           'against each thing.')
     query = args.rest().lower()
     qualifies = game.char.dissonance >= drift.DEEP_CLINIC_BAND
     listings = game.city.listings(deep=None if qualifies else False)
+    by_number = query.isdigit()
+    if by_number:
+        query = sess.pick('market', query,
+                          fallback=[x.key for x in listings if _item(x)],
+                          what='row', again='market')
     matches = []
     for listing in listings:
         item = _item(listing)
-        if item and (query in item.name.lower() or query == listing.key):
+        if item and (query == listing.key if by_number
+                     else (query in item.name.lower() or query == listing.key)):
             matches.append((listing, item))
+            if by_number:
+                break
     if not matches:
         raise CommandError(f'nothing here matches {query!r}')
     if len(matches) > 1:
@@ -768,10 +839,7 @@ def cmd_board(sess, args) -> None:
     city = game.city
 
     if len(args):
-        contract = city.contract(args[0])
-        if contract is None:
-            raise CommandError(f'no contract {args[0]!r} on the board')
-        _show_contract(sess, contract)
+        _show_contract(sess, _contract_arg(sess, args[0]))
         return
 
     if not city.board:
@@ -779,17 +847,36 @@ def cmd_board(sess, args) -> None:
         return
     c.header('The board', f'{city.when}')
     rows = []
-    for contract in city.board:
+    for n, contract in enumerate(city.board, 1):
         left = contract.expires - city.shift
         mark = '*' if contract.cid == city.accepted else ''
-        rows.append((f'{mark}{contract.cid}', contract.title,
+        rows.append((str(n), f'{mark}{contract.cid}', contract.title,
                      contract.patron_data.short, contract.target_data.short,
                      contract.objective, f'{contract.pay:,}c',
                      f'{left}sh'))
-    c.table(('id', 'job', 'patron', 'target', 'what', 'pay', 'left'), rows,
-            roles=('dim', 'accent', 'info', 'err', 'dim', 'credit', 'warn'))
+    c.table(('#', 'id', 'job', 'patron', 'target', 'what', 'pay', 'left'),
+            rows, roles=('accent', 'dim', 'accent', 'info', 'err', 'dim',
+                         'credit', 'warn'))
+    # The row numbers mean this board, as printed. See `Session.pick`.
+    sess.remember('board', [contract.cid for contract in city.board])
     c.blank()
-    c.say('[dim]`board <id>` for detail. `take <id>` to accept.[/]')
+    c.say('[dim]`board 1` reads the first one properly. `take 1` accepts '
+          'it. The id works too.[/]')
+
+
+def _contract_arg(sess, token: str):
+    """A contract from a row number or an id, or a readable refusal."""
+    game = sess.game
+    cid = sess.pick('board', token,
+                    fallback=[x.cid for x in game.city.board],
+                    what='contract', again='board')
+    contract = game.city.contract(cid)
+    if contract is None:
+        if token.isdigit():
+            raise CommandError(f'row {token} was {cid}, and it has gone from '
+                               f'the board since you looked. `board` again.')
+        raise CommandError(f'no contract {token!r} on the board')
+    return contract
 
 
 def _show_contract(sess, contract) -> None:
@@ -831,6 +918,15 @@ def _show_contract(sess, contract) -> None:
         c.rule('intel')
         for key, value in contract.intel.items():
             c.say(f'[ok]{key}:[/] {value}')
+    # How to say yes, in the terms the board used. The row number is only
+    # offered when this contract is on the board the player last read, so
+    # the advice cannot name a row that means something else now.
+    if contract.cid != game.city.accepted and not game.city.accepted:
+        shown = sess.listed.get('board') or []
+        by_row = (f'`take {shown.index(contract.cid) + 1}` or '
+                  if contract.cid in shown else '')
+        c.blank()
+        c.say(f'[dim]{by_row}`take {contract.cid}` to accept it.[/]')
 
 
 def city_job(sess) -> None:
@@ -845,8 +941,9 @@ def city_job(sess) -> None:
     contract = game.city.current
     if contract is None:
         c.header('No job', 'nothing accepted')
-        c.say('[dim]Nothing accepted. `board` for what is on offer and '
-              '`board <id>` to read one properly, then `take <id>`.[/]')
+        c.say('[dim]Nothing accepted. `board` for what is on offer, '
+              '`board 1` to read the first one properly, then `take 1`. '
+              'The id works in place of the number.[/]')
         return
 
     c.header(contract.title, contract.cid)
@@ -875,7 +972,6 @@ def city_job(sess) -> None:
               f'expires in {left}. You will not make it. `drop` it, or go '
               f'anyway and lose the fee.')
 
-    steps: list[str] = []
     need = OBJECTIVE_PROGRAM.get(contract.objective)
     if need and not game.char.deck.has_category(need):
         c.blank()
@@ -887,9 +983,7 @@ def city_job(sess) -> None:
         owned = [programs.BY_KEY[k] for k in game.char.library
                  if k in programs.BY_KEY
                  and programs.BY_KEY[k].category == need]
-        if owned:
-            steps.append(f'load {owned[0].name.lower()}')
-        else:
+        if not owned:
             cheapest = min(programs.by_category(need),
                            key=lambda p: (p.tier, p.price))
             c.say(f'[dim]You do not own one either. Every market carries a '
@@ -903,26 +997,56 @@ def city_job(sess) -> None:
                       'escort work needs no payload, and a run with no '
                       'contract on it pays for whatever you can carry out. '
                       '`board` shows which is which.[/]')
-            steps.append('market program')
-    if hops:
-        steps.append(game.city.walk_to(contract.district))
-    steps.append('jack in')
     c.blank()
     c.say('[dim]Next:[/]')
-    for step in steps:
+    for step, _ in city_steps(game):
         c.raw(f'  [fg]{step}[/]')
 
 
+def city_steps(game) -> list[tuple[str, str]]:
+    """What stands between you and the job, as (command, why), in order.
+
+    The computed half of the city `job`, kept separate so that `now` can
+    print the first of them without the rest of the brief. The same list
+    feeds both, so the one-line answer and the full one cannot disagree.
+    """
+    from ..world.contracts import OBJECTIVE_PROGRAM
+    contract = game.city.current
+    if contract is None:
+        return [('board', 'work on offer')]
+    steps: list[tuple[str, str]] = []
+    need = OBJECTIVE_PROGRAM.get(contract.objective)
+    if need and not game.char.deck.has_category(need):
+        owned = [programs.BY_KEY[k] for k in game.char.library
+                 if k in programs.BY_KEY
+                 and programs.BY_KEY[k].category == need]
+        if owned:
+            steps.append((f'load {owned[0].name.lower()}',
+                          f'the job needs a {need} loaded, and you own one'))
+        else:
+            steps.append(('market program',
+                          f'the job needs a {need} loaded, and you own none'))
+    where = districts.BY_KEY[contract.district]
+    hops = game.city.shifts_to(contract.district)
+    if hops:
+        steps.append((game.city.walk_to(contract.district),
+                      f'the job is in {where.name}, {hops} shift'
+                      f'{"s" if hops != 1 else ""} away'))
+        steps.append(('jack in', 'once you are there'))
+    else:
+        steps.append(('jack in', 'you are in the right district'))
+    return steps
+
+
 @command('take', 'Accept a contract.',
-         contexts=('city',), group='city', usage='take <id>')
+         contexts=('city',), group='city', usage='take <id|row number>')
 def cmd_take(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     if game.city.accepted:
         raise CommandError(f'you are already on {game.city.accepted}. '
                            f'`drop` it first.')
-    contract = game.city.contract(args.require(0, 'a contract id'))
-    if contract is None:
-        raise CommandError('no contract by that id')
+    contract = _contract_arg(
+        sess, args.require(0, 'a contract id, or its row on the board'))
     contract.taken = True
     game.city.accepted = contract.cid
     c.ok(f'Taken: [accent]{contract.title}[/] against '
@@ -1076,7 +1200,8 @@ def _district_label(sess, key: str, walked: set, goal: str) -> str:
         # Only for somewhere you might go. What the people in this district
         # think of you is not news when you are already standing in it, and
         # it costs the row the width that the useful half needs.
-        danger, who = game.city.danger(game.alias, key)
+        danger, who = game.city.danger(game.alias, key,
+                                       flags=game.story.flags)
         if danger >= fallout.INCIDENT_FLOOR:
             marks.append(f'[err]{factions.BY_KEY[who].short} want you[/]')
         elif danger >= 25:
@@ -1103,19 +1228,27 @@ def cmd_travel(sess, args) -> None:
     if not len(args):
         c.header('From here', game.city.district.name)
         rows = []
-        for key in game.city.district.neighbours:
+        for n, key in enumerate(game.city.district.neighbours, 1):
             d = districts.BY_KEY[key]
-            danger, who = game.city.danger(game.alias, key)
+            danger, who = game.city.danger(game.alias, key,
+                                           flags=game.story.flags)
             risk = ('[ok]quiet[/]' if danger < 20
                     else '[warn]watched[/]' if danger < 45
                     else f'[err]dangerous ({factions.BY_KEY[who].short})[/]')
-            rows.append((key, d.name, factions.BY_KEY[d.controller].short,
+            rows.append((str(n), key, d.name,
+                         factions.BY_KEY[d.controller].short,
                          ', '.join(d.services), risk))
-        c.table(('key', 'district', 'runs it', 'has', 'for you'), rows,
-                roles=('dim', 'accent', 'info', 'dim', None))
+        c.table(('#', 'key', 'district', 'runs it', 'has', 'for you'), rows,
+                roles=('accent', 'dim', 'accent', 'info', 'dim', None))
+        sess.remember('travel', list(game.city.district.neighbours))
+        c.blank()
+        c.say('[dim]`travel <key>` or `travel <row number>`. Each one is a '
+              'shift. `map` for the whole city and the walk to anywhere.[/]')
         return
 
-    target = args[0].lower()
+    target = sess.pick('travel', args[0].lower(),
+                       fallback=list(game.city.district.neighbours),
+                       what='row', again='travel')
     matches = [k for k in districts.DISTRICT_KEYS if k.startswith(target)]
     if len(matches) == 1:
         target = matches[0]
@@ -1123,7 +1256,8 @@ def cmd_travel(sess, args) -> None:
     if not ok:
         raise CommandError(why)
 
-    danger, who = game.city.danger(game.alias, target, game.rng)
+    danger, who = game.city.danger(game.alias, target, game.rng,
+                                   flags=game.story.flags)
     riders = game.char.riders()
     if 'streetwise' in riders:
         # Knows the streets: you move through this city like your own flat.
@@ -1163,6 +1297,43 @@ def cmd_travel(sess, args) -> None:
         c.blank()
         c.warn(f'{factions.BY_KEY[who].short} have people here and they are '
                f'looking for your name. Do not linger.')
+    here_you_can(sess, district)
+
+
+#: What each thing a district has is called at the prompt. A district that
+#: "has a workshop" means nothing to somebody who does not know that the
+#: verb for a workshop is `repair`; this is the line that says so.
+SERVICE_VERBS = (
+    ('market', 'market', 'buy and sell'),
+    ('clinic', 'clinic', 'chrome, grounding, detox'),
+    ('workshop', 'repair', 'the deck, and `mod` for bench work'),
+    ('fence', 'sell', 'what you carried out'),
+    ('safehouse', 'safehouse', 'somewhere of your own'),
+    ('fixer', 'look', 'somebody worth talking to'),
+)
+
+
+def here_you_can(sess, district, looking: bool = False) -> None:
+    """One line naming the verbs this district makes possible.
+
+    Printed on arrival and by `look`, because the map and the travel table
+    both list what a district *has*, and a new player reading "workshop"
+    has no way to get from that noun to the word they need to type. From
+    inside `look` the advice to look is left out: the people are printed
+    directly underneath.
+    """
+    c = sess.console
+    parts = [f'[fg]{verb}[/] [dim]({what})[/]'
+             for service, verb, what in SERVICE_VERBS
+             if service in district.services
+             and not (looking and verb == 'look')]
+    if not parts:
+        return
+    c.blank()
+    bullet = c.caps.g('bullet')
+    c.say('[dim]Here:[/] ' + f' [dim]{bullet}[/] '.join(parts)
+          + f' [dim]{bullet}[/] [fg]travel[/] [dim](to move on)[/]',
+          subsequent='  ')
 
 
 def _resolve_incident(sess, faction: str, danger: int) -> None:
@@ -1490,8 +1661,10 @@ def _advance(sess, shifts: int) -> None:
     """Move time and report what the world did. Every shift-spending command
     routes through here so nothing can silently skip fallout."""
     game = sess.require_game()
-    told = game.city.advance(game.rng, game.alias, shifts,
-                             debt=game.debt, char=game.char)
+    told = game.city.advance(
+        game.rng, game.alias, shifts, debt=game.debt, char=game.char,
+        satisfied=lambda rule: game.story.satisfied(rule, game),
+        flags=game.story.flags)
     for line in told:
         sess.console.say(line)
     # Scenery goes last and gets its own air. It is the one thing printed here

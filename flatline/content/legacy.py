@@ -113,13 +113,241 @@ ENDINGS = (
 )
 
 
-def ending(dissonance: int) -> tuple[str, str]:
-    """The ending for a given drift. Always one, never a refusal."""
+#: D51. The spine reads back into the ending. Taking Deepwater's retainer
+#: replaces the drift ending outright, because there is no version of that
+#: arc that ends in being a person about it; the other two outcomes leave a
+#: coda on whatever the drift had to say. Declared so `validate.py` can see
+#: these flags are decisions a choice makes.
+ENDING_FLAGS = ('dw_employed', 'dw_published', 'dw_refused')
+
+RETAINED = (
+    'The retainer does not lapse',
+    'You stop taking contracts, and the retainer keeps clearing, on the '
+    'first of the month, itemised, from an account that has been paying nine '
+    'years of runners and has never met one. Nothing is asked of you. The '
+    'money is real. Networks you have never run still feel, when somebody '
+    'describes them, like a word somebody has just said.\n\n'
+    'You do not know whether you retired. You know that you stopped, and that '
+    'something did not, and that the difference is the kind of thing Remnant '
+    'would have wanted a third fact about.')
+
+CODAS = {
+    'dw_published':
+        'Years later somebody at the market mentions the Static piece, the '
+        'one with the nine logs in it, and you watch the conversation move on '
+        'without anybody moving it, and you understand that you are never '
+        'going to find out, and that it was the last thing you did in the '
+        'city that anybody noticed not noticing.',
+    'dw_refused':
+        'The noodle bar has four landlines. One of them has never rung in '
+        'anybody\'s hearing. You think about it more than you expected to, '
+        'and less every year, and never not at all.',
+}
+
+
+def ending(dissonance: int, flags=()) -> tuple[str, str]:
+    """The ending for a given drift, and what the spine did to it.
+
+    Always one, never a refusal. Drift picks the body; the decisions you made
+    about Deepwater either replace it or leave a coda on it.
+    """
+    if 'dw_employed' in flags:
+        return RETAINED
     out = ENDINGS[0]
     for band, title, text in ENDINGS:
         if dissonance >= band:
             out = (band, title, text)
-    return out[1], out[2]
+    title, text = out[1], out[2]
+    for flag, coda in CODAS.items():
+        if flag in flags:
+            text = f'{text}\n\n{coda}'
+    return title, text
+
+
+# --------------------------------------------------------------------------
+# what you left behind, in people (D51)
+# --------------------------------------------------------------------------
+
+#: One line per decision, read back at the end, whichever end it is. Every
+#: flag a choice sets and nothing else sets has a line here, and `validate.py`
+#: fails the build on a decision this forgets, because an ending that does
+#: not mention what you did to Lark is an ending to somebody else's game.
+EPILOGUE: tuple[tuple[str, str], ...] = (
+    # Deepwater
+    ('dw_employed',
+     'Deepwater hired you, and you took it, and the money was real, and you '
+     'never again ran a network that felt entirely unfamiliar.'),
+    ('dw_refused',
+     'Deepwater hired you and you handed it back. Nothing pursued you. Mara '
+     'has four landlines now and one of them has never rung.'),
+    ('dw_published',
+     'You gave Deepwater to Static, the nine logs and the name, and for a day '
+     'it was the only thing in Marrow, and then it was not a thing anybody '
+     'said, and nobody will tell you why.'),
+    # Lark
+    ('lark_saved',
+     'Lark is alive. Smaller, quieter, arguing with a queue outside the '
+     'clinic, alive.'),
+    ('surgeon_owed',
+     'The Blue Surgeon owed you eleven hours, and did not keep count, and '
+     'said so.'),
+    ('vance_owed',
+     'Doctor Vance owed you something and paid it without a note, which is '
+     'how she pays.'),
+    ('lark_dead',
+     'Lark died on a crate outside the Shambles clinic, and somebody left a '
+     'jacket on it, and you did nothing, which you were allowed to do.'),
+    # Vance
+    ('vance_employed',
+     'You found people for Doctor Vance. They were going to die and did not, '
+     'and the paperwork was immaculate, and you never managed to say what '
+     'was wrong with it.'),
+    ('vance_refused',
+     'You told Doctor Vance no. She closed the file and did not hold it '
+     'against you, and the door stayed open, and you never went back '
+     'through it.'),
+    ('vance_exposed',
+     'You took Doctor Vance to Static. Nothing happened to her. Two of her '
+     'patients stopped being her patients and one of them died.'),
+    # Mr Sunday
+    ('sunday_known',
+     'You worked out who Mr Sunday works for and told him so, and he bought '
+     'you a drink, and the work was still good.'),
+    ('sunday_sold',
+     'You sold what you worked out about Mr Sunday to Freeport, and Meridian '
+     'read it, and he stopped appearing, and you never found out whether '
+     'that meant anything.'),
+    ('sunday_kept',
+     'You worked out who Mr Sunday works for and kept taking the work, '
+     'because the work was good, and it was, for a long time.'),
+    # Sparrow
+    ('sparrow_geared',
+     'You gave the Kestrel kid a masking layer and a breaker that would not '
+     'kill them on a Tuesday. They are still running. They are insufferable '
+     'about it.'),
+    ('sparrow_taught',
+     'You taught the Kestrel kid the trace, properly, with the numbers. They '
+     'argued for an hour and then wrote it down. They are still running, and '
+     'they leave clean.'),
+    ('sparrow_scared',
+     'You frightened the Kestrel kid out of it with Lark\'s name. It worked. '
+     'They work a counter in Marrow and do not look up.'),
+    # The drawer
+    ('drawer_clinic',
+     'You followed the clinic reports in Achebe\'s drawer to the Blue '
+     'Surgeon, whose records were immaculate, and every referral went to '
+     'Aoyama Green.'),
+    ('vance_suspect',
+     'You knew about Doctor Vance before she told you, which did not make '
+     'her easier to refuse.'),
+    ('drawer_accounts',
+     'You followed the account reports in Achebe\'s drawer: four families, '
+     'nine years, and something logging in as patiently as the dead.'),
+    # The archive
+    ('archive_consented',
+     'You told the Archivist they could have your log, when it came to it. '
+     'They wrote it in a book.'),
+    ('archive_refused',
+     'You told the Archivist no. They said of course, and meant it, and were '
+     'warmer to you afterwards.'),
+    # The laptop
+    ('laptop_returned',
+     'You gave Kagawa the laptop back unopened and told them the truth, and '
+     'they believed you, which meant they had known already.'),
+    ('laptop_read',
+     'You read the third partition. Eleven thousand files, four hundred '
+     'assessments, and your own number, which was low.'),
+    ('laptop_sold',
+     'You sold Kagawa\'s laptop to Meridian, who paid a great deal and did '
+     'not run it, and the files have not surfaced, and you still wonder '
+     'which decision that was.'),
+    # The Sixes
+    ('theirs_owned',
+     'The Sixes asked and you did it, and it was easy, and the warmth was '
+     'real, and there was never a moment where refusing would obviously '
+     'have been better.'),
+    ('theirs_refused',
+     'The Sixes asked and you said no, and nobody in the Ninth was ever rude '
+     'to you again, and nobody in the Ninth was anything else either.'),
+    # Mara
+    ('favour_done',
+     'You went where Mara could not be seen going, and found a woman who has '
+     'been alive for nineteen years on the understanding that nobody knows '
+     'she is, and Mara never raised it again.'),
+    ('favour_refused',
+     'You asked Mara what the favour was before you would do it, and she '
+     'said no, and the noodle bar changed shape permanently.'),
+    # The lender
+    ('lender_paying',
+     'You paid the lender what you had and got a receipt, the first document '
+     'anybody gave you in the whole affair.'),
+    ('lender_working',
+     'You offered to work the loan off, and they were delighted, and you '
+     'understood later that this had always been the product.'),
+    ('lender_angry',
+     'You kept moving and said nothing to the lender, and on the fifth shift '
+     'the deck was gone and the number had been revised.'),
+    # The file
+    ('file_stale',
+     'You left the Nightwatch file nineteen months out of date, and Achebe '
+     'was careful to have offered no opinion.'),
+    ('file_closed',
+     'You had the Nightwatch file closed properly, with a reason that was a '
+     'lie that held up. Somebody, eventually, is going to check.'),
+    # The maintenance address
+    ('maint_cut',
+     'You cut the maintenance address. The suite worked as before, and '
+     'eleven shifts later your left eye developed a lag on low light that no '
+     'clinic can find a cause for.'),
+    ('maint_fed',
+     'You left the maintenance address running and decided what it saw. It '
+     'was the most enjoyable eleven minutes of your month.'),
+    ('maint_asked',
+     'You asked Aoyama about the maintenance address, and Doctor Vance '
+     'answered in person, delighted, with the consent form.'),
+    # The buyout
+    ('buyout_extended',
+     'You went to the buyout review. The number came down by nine thousand '
+     'and the terms went out by four years, and you signed because the '
+     'arithmetic was correct.'),
+    ('buyout_ignored',
+     'You did not go to the buyout review. The figure was revised upward '
+     'without explanation, and the letter was exactly as warm.'),
+    # The incident file
+    ('incident_known',
+     'You asked Old Pike what actually happened, and he told you, and it was '
+     'not what you remembered, and you slept badly and then, for the first '
+     'time in four years, well.'),
+    ('incident_left',
+     'You decided you did not want to know what was in the incident file, '
+     'and Old Pike said good, and did not look at you differently.'),
+    # The old name
+    ('oldname_reclaimed',
+     'You took your old name back, which left you holding a name you did not '
+     'want and somebody else without one.'),
+    ('oldname_left',
+     'You let somebody else keep your old name. They filed the paperwork, '
+     'and somewhere in a municipal system you are marginally more alive than '
+     'you were.'),
+    # The package
+    ('package_delivered',
+     'You delivered the package, two years late, to somebody who signed for '
+     'it and thanked you, and the standing order stopped the following '
+     'month.'),
+    ('package_opened',
+     'You opened the package. It was addressed to you. It had always been '
+     'addressed to you.'),
+    ('package_burned',
+     'You put the package in an incinerator in the Ninth and stayed for all '
+     'of it.'),
+)
+
+EPILOGUE_BY_FLAG: dict[str, str] = {flag: line for flag, line in EPILOGUE}
+
+
+def epilogue(flags) -> list[str]:
+    """The lines for what this character decided, in the order written."""
+    return [line for flag, line in EPILOGUE if flag in flags]
 
 
 # --------------------------------------------------------------------------

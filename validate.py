@@ -786,11 +786,23 @@ def check_events(rep: Report) -> None:
             rep.check(phase in city_mod.SHIFT_NAMES, where,
                       f'unknown shift phase {phase!r}')
         # An event nothing can ever satisfy is dead content that validates.
-        rep.check(any(events.eligible(d, p)
-                      and e in events.eligible(d, p)
+        # Story rules are granted here and held to account in
+        # `check_consequences`; this is the district-and-shift half.
+        rep.check(any(e in events.eligible(d, p, lambda rule: True)
                       for d in districts.DISTRICT_KEYS
                       for p in city_mod.SHIFT_NAMES),
                   where, 'no district and shift combination can ever show it')
+        # A consequence is a thing that happened to somebody else. Only the
+        # gated events get the weight; weather that outranked consequences
+        # would drown them, and consequences that outranked each other would
+        # be a refrain.
+        if e.requires or e.any_of:
+            rep.check(e.weight == events.CONSEQUENCE_WEIGHT, where,
+                      f'a consequence event at weight {e.weight}; they all '
+                      f'carry {events.CONSEQUENCE_WEIGHT}')
+        else:
+            rep.check(e.weight < events.CONSEQUENCE_WEIGHT, where,
+                      'weather weighted like a consequence')
         stripped, notes = ui.split_notes(e.text)
         body = ui.plain(stripped)
         # Length is measured on everything the player reads, asides included:
@@ -2305,7 +2317,11 @@ def check_npcs(rep: Report) -> None:
                       f'unknown service {n.at!r}')
         for rule in n.requires:
             kind = rule.split(':')[0]
-            rep.check(kind in ('runs', 'diss', 'heat', 'rep'), where,
+            # Numeric rules the content layer evaluates itself, or story
+            # rules the world layer evaluates (a flag, or `not:` a flag),
+            # which `check_consequences` holds to naming a real flag.
+            rep.check(kind in npc_content.NUMERIC_RULES
+                      or _story_flag(rule) is not None, where,
                       f'unknown requirement {rule!r}')
 
     # A city of one register is a city with one joke in it.
@@ -3222,8 +3238,220 @@ def check_balance(rep: Report) -> None:
 # --------------------------------------------------------------------------
 
 
+def check_guide(rep: Report) -> None:
+    """D50: the onboarding layer names only things that exist.
+
+    The arrival line maps district services to verbs, the `now` panel and the
+    guided `new` offer commands by name, and the suggested spend is a plan
+    the engine has to be able to carry out. All of it is content telling the
+    player what to type, which is the one kind of content this project has
+    learned to distrust on sight.
+    """
+    from flatline.commands import guide
+    from flatline.commands.city import SERVICE_VERBS
+
+    seen = set()
+    for service, verb, what in SERVICE_VERBS:
+        where = f'guide/here/{service}'
+        seen.add(service)
+        rep.check(service in districts.SERVICES, where,
+                  f'names unknown service {service!r}')
+        rep.check(REGISTRY.lookup(verb) is not None, where,
+                  f'offers {verb!r}, which is not a command')
+        rep.check(bool(what) and what[0].islower(), where,
+                  'the gloss is not a lowercase phrase')
+    for service in districts.SERVICES:
+        rep.check(service in seen, 'guide/here',
+                  f'{service!r} has no verb on the arrival line, so a player '
+                  f'reading it has nothing to type')
+
+    cmd = REGISTRY.lookup('now')
+    rep.check(cmd is not None, 'guide/now', 'there is no `now`')
+    if cmd is not None:
+        rep.check(cmd.ticks == 0, 'guide/now', 'costs ticks')
+        rep.check('any' in cmd.contexts, 'guide/now',
+                  'does not work in both halves')
+        rep.check(cmd.bare, 'guide/now', 'needs a character, and the empty '
+                                          'line has to work before there is one')
+    for name in ('new', 'spend'):
+        rep.check(REGISTRY.lookup(name) is not None, 'guide',
+                  f'there is no `{name}`')
+    for prompt in (guide.ASK_ORIGIN, guide.ASK_HANDLE, guide.ASK_SPEND):
+        rep.check(prompt.endswith('? ') and len(prompt) <= 40, 'guide/ask',
+                  f'question prompt {prompt!r} is not short and ending in "? "')
+
+    for o in origins.ORIGINS:
+        where = f'guide/spend/{o.key}'
+        char = Character.from_origin(o.key, 'probe')
+        char.points = attr_content.CREATION_POINTS
+        char.xp = skills.CREATION_XP
+        plan = guide.suggest(char)
+        rep.check(bool(plan), where, 'suggests nothing at creation')
+        for verb, key in plan:
+            ok, why = (char.can_boost(key) if verb == 'boost'
+                       else char.can_train(key))
+            rep.check(ok, where, f'{verb} {key} is illegal: {why}')
+            if not ok:
+                break
+            if verb == 'boost':
+                char.boost(key)
+            else:
+                char.train(key)
+        rep.check(char.points == 0, where,
+                  f'leaves {char.points} attribute points unspent')
+        rep.check(char.xp < skills.RANK_COST[2], where,
+                  f'leaves {char.xp} experience, which buys a rank')
+        rep.check(max(char.base_attrs.values()) < attr_content.ATTR_MAX, where,
+                  'pushes an attribute to its ceiling at creation')
+        rep.check(any(r >= 2 for r in char.base_skills.values()), where,
+                  'buys no technique, so nothing new to type')
+
+
+def _story_flag(rule: str) -> str | None:
+    """The plain flag a story rule reads, or None for a numeric condition.
+
+    `not:lark_dead` reads `lark_dead`; `runs:3` reads nothing. A rule that is
+    a flag is only a real reader of that flag if something sets it, which is
+    the other half of what `check_consequences` does with this.
+    """
+    inner = rule[4:] if rule.startswith('not:') else rule
+    if not inner or ':' in inner:
+        return None
+    return inner
+
+
+def check_consequences(rep: Report) -> None:
+    """D51: a decision is content that claims a consequence, and a claim the
+    engine never reads is a lie that validates.
+
+    Every flag a choice sets (and nothing else sets, so it is a decision and
+    not merely a thing that happened) has to be read by something other than
+    the ending: a later scene, an offer, a counter, somebody's presence in
+    the city, an ambient event, the streets, or the board. And every one of
+    them has to be in the epilogue, because an ending that does not mention
+    what you did to Lark is an ending to somebody else's game.
+
+    The same pass holds every story rule anywhere to naming a flag that
+    something sets, which is the old rule from `check_threads` turned on the
+    four other places that grew rules today.
+    """
+    from flatline.content import legacy, offers
+    from flatline.world import contracts as contract_world
+    from flatline.world import story as story_mod
+
+    known = thread_content.flags_set()
+    chosen = thread_content.flags_chosen()
+    staged = {f for t in thread_content.THREADS for s in t.stages
+              for f in s.sets}
+    decisions = {f: who for f, who in chosen.items() if f not in staged}
+    rep.check(len(decisions) >= 40, 'consequences',
+              f'only {len(decisions)} decisions in the whole story')
+
+    readers: dict[str, set[str]] = {f: set() for f in decisions}
+
+    def reads(rule: str, who: str, where: str) -> None:
+        flag = _story_flag(rule)
+        if flag is None:
+            kind = rule.split(':')[0]
+            rep.check(kind in thread_content.CONDITIONS
+                      or kind in ('met', 'ran'), where,
+                      f'{rule!r} is not a rule anything can evaluate')
+            return
+        rep.check(flag in known, where,
+                  f'reads {flag!r}, which nothing in the story ever sets')
+        if flag in readers:
+            readers[flag].add(who)
+
+    for t in thread_content.THREADS:
+        for s in t.stages:
+            for rule in tuple(s.requires) + tuple(s.any_of):
+                reads(rule, f'stage {t.key}.{s.key}', f'threads/{t.key}')
+    for e in events.EVENTS:
+        for rule in tuple(e.requires) + tuple(e.any_of):
+            reads(rule, f'event {e.key}', f'events/{e.key}')
+    for n in npc_content.NPCS:
+        for rule in n.requires:
+            if rule.split(':')[0] not in npc_content.NUMERIC_RULES:
+                reads(rule, f'npc {n.key}', f'npcs/{n.key}')
+    for w in offers.WORK:
+        for rule in w.requires:
+            reads(rule, f'work {w.npc}', f'offers/work/{w.npc}')
+    for fav in offers.FAVOURS:
+        for rule in fav.requires:
+            reads(rule, f'favour {fav.npc}.{fav.key}',
+                  f'offers/favour/{fav.npc}/{fav.key}')
+    for st in offers.STOCK:
+        for rule in st.requires:
+            reads(rule, f'stock {st.npc}', f'offers/stock/{st.npc}')
+        if st.requires:
+            rep.check(bool(st.refusal), f'offers/stock/{st.npc}',
+                      'can close the counter but has nothing to say about it')
+    for flag, faction, mult in story_mod.STREET_RIDERS:
+        where = f'story/streets/{flag}'
+        rep.check(flag in decisions, where, 'is not a decision a choice makes')
+        rep.check(faction in factions.BY_KEY, where,
+                  f'names unknown faction {faction!r}')
+        rep.check(0 < mult < 1.0 or mult > 1.0, where,
+                  f'multiplier {mult} changes nothing')
+        if flag in readers:
+            readers[flag].add('streets')
+    for flag, faction, mult in contract_world.PATRON_RIDERS:
+        where = f'contracts/patrons/{flag}'
+        rep.check(flag in decisions, where, 'is not a decision a choice makes')
+        rep.check(faction in factions.BY_KEY, where,
+                  f'names unknown faction {faction!r}')
+        rep.check(mult != 1.0, where, 'multiplier of one changes nothing')
+        if flag in readers:
+            readers[flag].add('board')
+    for flag in legacy.ENDING_FLAGS:
+        rep.check(flag in decisions, f'legacy/ending/{flag}',
+                  'is not a decision a choice makes')
+        if flag in readers:
+            readers[flag].add('ending')
+    for flag in legacy.CODAS:
+        rep.check(flag in legacy.ENDING_FLAGS, f'legacy/coda/{flag}',
+                  'has a coda but is not declared an ending flag')
+
+    # The epilogue: complete, and nothing in it that is not a decision.
+    epi_flags = [flag for flag, _ in legacy.EPILOGUE]
+    rep.check(len(epi_flags) == len(set(epi_flags)), 'legacy/epilogue',
+              'a decision has two epilogue lines')
+    for flag, line in legacy.EPILOGUE:
+        where = f'legacy/epilogue/{flag}'
+        rep.check(flag in decisions, where,
+                  'is not a decision any choice makes')
+        rep.check(bool(line) and line.rstrip().endswith('.'), where,
+                  'is not a sentence')
+        rep.check(len(ui.plain(line)) > 40, where,
+                  'is a caption, not a line of an ending')
+    epi = set(epi_flags)
+    for flag, (thread, stage, choice) in sorted(decisions.items()):
+        where = f'threads/{thread}/{stage}/{choice}'
+        rep.check(flag in epi, where,
+                  f'decision {flag!r} has no epilogue line: the ending '
+                  f'forgets it')
+        rep.check(bool(readers[flag]), where,
+                  f'decision {flag!r} is read by nothing but the ending: '
+                  f'prose with a flag on it')
+
+    # Every choice whose prose hands something over has to hand it over, and
+    # what it hands over has to exist.
+    from flatline.content import cyberware as ware_content
+    from flatline.content import hardware as hw_content
+    from flatline.content import programs as prog_content
+    for t in thread_content.THREADS:
+        for s in t.stages:
+            for ch in s.choices:
+                for key in ch.gives:
+                    rep.check(key in hw_content.BY_KEY or key in prog_content.BY_KEY
+                              or key in ware_content.BY_KEY,
+                              f'threads/{t.key}/{s.key}/{ch.key}',
+                              f'gives {key!r}, which is not in any catalogue')
+
+
 CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
+    check_guide, check_consequences,
     check_icons, check_dissonance, check_cyberspace, check_rivals, check_debt,
     check_origins, check_appearance, check_events, check_rice, check_shifts, check_district_mood, check_dead_fields, check_skills, check_factions, check_districts,
     check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_offers, check_legacy, check_bonds, check_safehouses, check_crew, check_mods, check_commands,

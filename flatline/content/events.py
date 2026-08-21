@@ -59,6 +59,12 @@ class Event:
     districts: tuple[str, ...] = ()
     #: Which shift. Empty means any.
     phases: tuple[str, ...] = ()
+    #: Story rules, in `Story.satisfied` syntax, all of which must hold. D51:
+    #: this is how a decision shows up in the street a few shifts later,
+    #: happening to somebody else. Empty means the event is ordinary weather.
+    requires: tuple[str, ...] = ()
+    #: At least one of these must hold, if any are given.
+    any_of: tuple[str, ...] = ()
 
 
 EVENTS: tuple[Event, ...] = (
@@ -440,6 +446,382 @@ EVENTS: tuple[Event, ...] = (
           districts=('marrow',), weight=0.6),
 )
 
+# --------------------------------------------------------------------------
+# consequences: what a decision looks like from the street, later (D51)
+# --------------------------------------------------------------------------
+#
+# None of these can fire unless the player decided something. Each is the
+# city carrying on with what you did, happening to somebody who is not you,
+# which is the only register an ambient event is allowed. They carry more
+# weight than weather because a consequence that arrives forty shifts late
+# reads as coincidence, and the seen-penalty stops them becoming a refrain.
+
+CONSEQUENCE_WEIGHT = 2.4
+
+CONSEQUENCES: tuple[Event, ...] = (
+
+    # -- Deepwater ----------------------------------------------------------
+
+    Event('dw_familiar', 'grim',
+          'A runner two terminals down is working a Kagawa segment and gets '
+          'the auth server first time, without a probe, and looks briefly '
+          'unwell about it. They are on the Deepwater retainer too. Nobody on '
+          'the retainer talks about the retainer.',
+          requires=('dw_employed',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('dw_landline', 'wry',
+          'The noodle bar has a fourth landline now. Mara has not explained it '
+          'and nobody has asked, and it has not rung once in anybody\'s '
+          'hearing, and it is dusted every morning with the other three.',
+          districts=('marrow',),
+          requires=('dw_refused',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('dw_quiet', 'grim',
+          'Somebody at the bar starts to bring up the Static piece, the one '
+          'with the nine logs in it, and the conversation moves on so '
+          'smoothly that it takes a moment to notice it has been moved. '
+          'Nobody retracted it and nobody argues with it. It is simply not a '
+          'thing people say, and everybody seems to have agreed on that '
+          'without meeting.',
+          requires=('dw_published',), weight=CONSEQUENCE_WEIGHT),
+
+    # -- Lark ---------------------------------------------------------------
+
+    Event('lark_jacket', 'grim',
+          'The crate outside the clinic has a jacket on it, folded, and has '
+          'had for a while. Somebody has put a stone on the jacket so it does '
+          'not blow away. Nobody has moved the crate.',
+          districts=('shambles',),
+          requires=('lark_dead',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('lark_smaller', 'wry',
+          'Lark is outside the clinic arguing with the queue about where the '
+          'queue starts, and winning, and smaller than they were, and the '
+          'queue lets them win because it has worked out that winning is the '
+          'point of the argument.',
+          districts=('shambles',),
+          requires=('lark_saved',), weight=CONSEQUENCE_WEIGHT),
+
+    # -- Vance --------------------------------------------------------------
+
+    Event('vance_statement', 'grim',
+          'Aoyama Green has put the four-line statement on a card by the '
+          'reception desk, laminated, where the patients can read it while '
+          'they wait. All procedures consensual and clinically indicated. '
+          'There are fewer patients than there were and the ones who are '
+          'there read it more than once.',
+          districts=('green',),
+          requires=('vance_exposed',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('vance_paperwork', 'grim',
+          'A man in the Shambles is telling anybody who will listen that his '
+          'sister went into Aoyama Green for a failing graft and came out '
+          'fine, entirely fine, with immaculate paperwork, and that he cannot '
+          'say what is wrong with that and would like somebody to tell him.',
+          districts=('shambles', 'ninth'),
+          requires=('vance_employed',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('vance_door', 'wry',
+          'Doctor Vance\'s door is open, as it has always been, and the '
+          'receptionist keeps a list that is described as the '
+          'interested-parties list, and is not cross about anybody on it, '
+          'and will not take anybody off it.',
+          districts=('green',),
+          requires=('vance_refused',), weight=CONSEQUENCE_WEIGHT),
+
+    # -- Mr Sunday ----------------------------------------------------------
+
+    Event('sunday_drinks', 'wry',
+          'Mr Sunday is at the bar buying a drink for somebody who has just '
+          'worked something out, and looking delighted about it, and the '
+          'somebody is looking the way people look when the work turns out '
+          'to still be good. Eleven months, apparently, is still the record.',
+          requires=('sunday_known',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('sunday_collections', 'grim',
+          'Meridian\'s collections desk has moved to a bigger office. The '
+          'public log in Freeport still has the piece up, and somebody has '
+          'printed it and pinned it by the west gate, and under it somebody '
+          'else has started a tally of who has been collected from since.',
+          districts=('freeport', 'glasshouse'),
+          requires=('sunday_sold',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('sunday_still_good', 'grim',
+          'A runner at the next table is complaining that every good brief '
+          'lately turns out to be against somebody who owes Meridian money, '
+          'and is looking for somebody to agree. Nobody at the table does. '
+          'Several of them are on the same work.',
+          requires=('sunday_kept',), weight=CONSEQUENCE_WEIGHT),
+
+    # -- Sparrow ------------------------------------------------------------
+
+    Event('sparrow_insufferable', 'wry',
+          'The Kestrel kid came out of a Vertical perimeter node clean twice '
+          'this week on a masking layer they will not say where they got, '
+          'and have been insufferable in the Ninth about it, and somebody has '
+          'finally told them to shut up, kindly, which is new.',
+          districts=('ninth',),
+          requires=('sparrow_geared',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('sparrow_writing', 'wry',
+          'Somebody sixteen is explaining the trace to somebody fifteen, with '
+          'the numbers, and getting most of it right, and insisting on the '
+          'part about the clean exit being the skill with the particular '
+          'fervour of somebody who argued against it for an hour once.',
+          districts=('ninth', 'marrow'),
+          requires=('sparrow_taught',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('sparrow_counter', 'grim',
+          'The kid on the counter at the Marrow exchange is fast and careful '
+          'and does not look up, and has the hands of somebody who used to '
+          'do something else with them, and is sixteen.',
+          districts=('marrow',),
+          requires=('sparrow_scared',), weight=CONSEQUENCE_WEIGHT),
+
+    # -- The drawer, the archive --------------------------------------------
+
+    Event('drawer_records', 'grim',
+          'The Blue Surgeon has taken to showing the referral ledger to '
+          'anybody who asks, unprompted, open on the counter, every entry in '
+          'order. Aoyama Green, Aoyama Green, Aoyama Green. The showing is the '
+          'point. Nobody has asked what the ledger is for.',
+          districts=('shambles',),
+          requires=('drawer_clinic',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('archive_book', 'wry',
+          'The Archivist has been seen in the Glasshouse with an actual book, '
+          'paper, writing a number in it, and closing it quickly when anybody '
+          'came near, in the manner of somebody keeping a list they have been '
+          'told is morbid and have decided is not.',
+          districts=('glasshouse', 'freeport'),
+          requires=('archive_consented',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('archive_warm', 'wry',
+          'The Archivist is holding a door open for somebody, which nobody '
+          'has seen them do, and is visibly unsure how long the holding is '
+          'supposed to go on for, and holds it anyway.',
+          districts=('glasshouse', 'freeport'),
+          requires=('archive_refused',), weight=CONSEQUENCE_WEIGHT),
+
+    # -- The laptop ---------------------------------------------------------
+
+    Event('laptop_itemised', 'grim',
+          'Kagawa Vertical has quietly closed a conversation it had been '
+          'keeping open, and the people it had been keeping it open with have '
+          'been reassigned, warmly, to a different building. An itemised '
+          'payment has cleared. Everybody involved is described as '
+          'satisfied.',
+          districts=('vertical', 'terraces'),
+          requires=('laptop_returned',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('laptop_numbers', 'grim',
+          'Two people in the Terraces lift are comparing, in the flat voice '
+          'of a joke that is not one, what they think their number would be. '
+          'Cost to replace against cost to keep. Neither of them knows the '
+          'list exists. Both of them have guessed about right.',
+          districts=('terraces', 'vertical'),
+          requires=('laptop_read',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('laptop_buried', 'grim',
+          'Meridian have bought something and not run it, which is what '
+          'Meridian do, and the not-running is being handled by a department '
+          'whose name is a floor number. The files will surface when '
+          'surfacing is worth more than not, and the people in them are going '
+          'to work in the meantime.',
+          districts=('glasshouse', 'vertical'),
+          requires=('laptop_sold',), weight=CONSEQUENCE_WEIGHT),
+
+    # -- The Sixes ----------------------------------------------------------
+
+    Event('theirs_warm', 'wry',
+          'Somebody in the Ninth has paid for a round without being asked and '
+          'without saying who it was from, and everybody at the table knows '
+          'who it was from, and the warmth is real, and that is the part '
+          'nobody warns anybody about.',
+          districts=('ninth',),
+          requires=('theirs_owned',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('theirs_polite', 'grim',
+          'Nobody in the Ninth is rude. A stall holder is scrupulously, '
+          'specifically, almost formally polite to a customer, and the '
+          'customer has stopped coming to that stall and started going to '
+          'the one that is merely civil, and that one is further away.',
+          districts=('ninth',),
+          requires=('theirs_refused',), weight=CONSEQUENCE_WEIGHT),
+
+    # -- Mara ---------------------------------------------------------------
+
+    Event('mara_shape', 'grim',
+          'The noodle bar is as warm as it ever was. Mara is exactly as she '
+          'was. Something about the room has changed shape anyway, and the '
+          'regulars have noticed without being able to say what, and have '
+          'started sitting slightly differently.',
+          districts=('marrow',),
+          requires=('favour_refused',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('mara_room', 'grim',
+          'There is a room in the Terraces with the curtain drawn that has '
+          'had the curtain drawn for nineteen years, and somebody brought it '
+          'groceries this morning, and the groceries included a newspaper, '
+          'which is new.',
+          districts=('terraces',),
+          requires=('favour_done',), weight=CONSEQUENCE_WEIGHT),
+
+    # -- The lender ---------------------------------------------------------
+
+    Event('lender_receipt', 'wry',
+          'Somebody on a step in the Glasshouse is writing out a receipt by '
+          'hand, carefully, with a carbon copy, for a payment on a loan that '
+          'is not from a bank, and the person receiving it is holding it like '
+          'the first document anybody has given them, because it is.',
+          districts=('glasshouse', 'ninth'),
+          requires=('lender_paying',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('lender_product', 'grim',
+          'The pleasant person with the numbers on paper is on a different '
+          'step tonight, outside somebody else\'s door, explaining with real '
+          'warmth how working it off is the better arrangement. The numbers '
+          'were only ever the advertisement. The step is the product.',
+          districts=('ninth', 'glasshouse', 'shambles'),
+          requires=('lender_working',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('lender_revised', 'grim',
+          'There is a deck on a Ninth Ward shelf with a university asset tag '
+          'still on it, and a revised number in careful handwriting pinned '
+          'beside it, and the stall holder will not sell it and will not say '
+          'who is collecting.',
+          districts=('ninth',),
+          requires=('lender_angry',), weight=CONSEQUENCE_WEIGHT),
+
+    # -- The file -----------------------------------------------------------
+
+    Event('file_drift', 'wry',
+          'The Precinct\'s records desk has a backlog that nobody has been '
+          'assigned to since the last person retired, and a sergeant who has '
+          'carefully not raised it, and it is nineteen months deep and '
+          'growing, and at least one file in it is better off that way.',
+          districts=('precinct',),
+          requires=('file_stale',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('file_check', 'grim',
+          'Somebody at the Precinct is, eventually, going to check. A clerk '
+          'has pulled a closed file at random for audit and read the reason '
+          'on it and put it back. The reason held up, this time, with this '
+          'clerk.',
+          districts=('precinct',),
+          requires=('file_closed',), weight=CONSEQUENCE_WEIGHT),
+
+    # -- The maintenance address --------------------------------------------
+
+    Event('maint_lag', 'grim',
+          'A man in the clinic queue is explaining that his left eye has a '
+          'four-second lag in low light and no clinic can find a cause, and '
+          'the person beside him says theirs does too, since they cut '
+          'something, and neither of them says what they cut.',
+          districts=('green', 'shambles'),
+          requires=('maint_cut',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('maint_form', 'wry',
+          'Aoyama Green has started handing new patients the consent form '
+          'open at the post-market surveillance clause, with the clause '
+          'highlighted, since somebody asked about it in person, which '
+          'nobody had done before. Nobody reads it. The highlighting is '
+          'very neat.',
+          districts=('green',),
+          requires=('maint_asked',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('maint_feed', 'wry',
+          'An address inside Aoyama Green is receiving post-market '
+          'surveillance from an ocular suite that has, for several shifts '
+          'now, been looking at a single unremarkable wall, and a technician '
+          'has filed a report about the wall, and the report has been '
+          'escalated.',
+          districts=('green',),
+          requires=('maint_fed',), weight=CONSEQUENCE_WEIGHT),
+
+    # -- The buyout ---------------------------------------------------------
+
+    Event('buyout_signed', 'grim',
+          'Kagawa Vertical\'s buyout desk has a satisfied-client poster up. '
+          'Everybody on it is smiling and every figure on it is smaller than '
+          'it was and every contract behind it is longer, and the arithmetic '
+          'is correct, and the arithmetic is on the poster.',
+          districts=('vertical',),
+          requires=('buyout_extended',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('buyout_letter', 'wry',
+          'A courier is delivering, to somebody who did not attend a review, '
+          'a letter that is exactly as warm as the last letter and contains a '
+          'larger number, and the courier has been told to wait for a '
+          'signature, and is waiting, warmly.',
+          districts=('vertical', 'terraces'),
+          requires=('buyout_ignored',), weight=CONSEQUENCE_WEIGHT),
+
+    # -- The incident file --------------------------------------------------
+
+    Event('incident_told', 'grim',
+          'Old Pike is watching the cranes and not telling anybody a story, '
+          'which is how you can tell he told it once recently, and that it '
+          'took forty minutes, and that it was not what the other person '
+          'remembered.',
+          districts=('freeport',),
+          requires=('incident_known',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('incident_kept', 'wry',
+          'Old Pike has a file he offered to read to somebody and was told '
+          'no, and he is visibly pleased about it, and the file is back in '
+          'the drawer, and the drawer is the point.',
+          districts=('freeport',),
+          requires=('incident_left',), weight=CONSEQUENCE_WEIGHT),
+
+    # -- The old name -------------------------------------------------------
+
+    Event('oldname_paper', 'wry',
+          'A Freeport office is filing paperwork in a name somebody used to '
+          'have, correctly and on time, and a municipal system has '
+          'consequently marked a dead person as marginally alive, and nobody '
+          'in the municipal system has raised it because it is the most '
+          'paperwork anybody has ever filed for them.',
+          districts=('freeport',),
+          requires=('oldname_left',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('oldname_empty', 'grim',
+          'There is a Freeport office with a name scraped off the door and a '
+          'person inside it doing the same entirely legitimate work under no '
+          'name at all, which turns out to be possible, and harder, and they '
+          'have not complained to anybody.',
+          districts=('freeport',),
+          requires=('oldname_reclaimed',), weight=CONSEQUENCE_WEIGHT),
+
+    # -- The package --------------------------------------------------------
+
+    Event('package_order', 'wry',
+          'A standing order on an account in the Terraces, renewed annually '
+          'for a delivery that never came, has been quietly cancelled, and '
+          'the bank has sent a letter asking if everything is all right, and '
+          'the letter has been answered, which the bank did not expect.',
+          districts=('terraces',),
+          requires=('package_delivered',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('package_present', 'grim',
+          'Somebody in a Ninth Ward bar is describing the exact moment they '
+          'found out a thing they had carried for years was addressed to '
+          'them, and the table is quiet in the specific way that means '
+          'everybody is checking what they are carrying.',
+          districts=('ninth', 'marrow'),
+          requires=('package_opened',), weight=CONSEQUENCE_WEIGHT),
+
+    Event('package_ash', 'grim',
+          'The incinerator in the Ninth took longer than it should have over '
+          'something the other night, and the person who fed it stayed for '
+          'all of it, and the attendant has stopped asking people what they '
+          'are burning because the answers were getting worse.',
+          districts=('ninth',),
+          requires=('package_burned',), weight=CONSEQUENCE_WEIGHT),
+)
+
+EVENTS = EVENTS + CONSEQUENCES
+
 BY_KEY: dict[str, Event] = {e.key: e for e in EVENTS}
 EVENT_KEYS: tuple[str, ...] = tuple(BY_KEY)
 
@@ -448,14 +830,32 @@ EVENT_KEYS: tuple[str, ...] = tuple(BY_KEY)
 CHANCE = 0.34
 
 
-def eligible(district: str, phase: str) -> list[Event]:
-    """Everything that could happen here, now."""
-    return [e for e in EVENTS
-            if (not e.districts or district in e.districts)
-            and (not e.phases or phase in e.phases)]
+def eligible(district: str, phase: str, satisfied=None) -> list[Event]:
+    """Everything that could happen here, now.
+
+    `satisfied` is `Story.satisfied` bound to a game, or None when there is
+    no story to ask, in which case only ordinary weather qualifies: a
+    consequence cannot happen to somebody who never decided anything.
+    """
+    out = []
+    for e in EVENTS:
+        if e.districts and district not in e.districts:
+            continue
+        if e.phases and phase not in e.phases:
+            continue
+        if e.requires or e.any_of:
+            if satisfied is None:
+                continue
+            if not all(satisfied(r) for r in e.requires):
+                continue
+            if e.any_of and not any(satisfied(r) for r in e.any_of):
+                continue
+        out.append(e)
+    return out
 
 
-def pick(rng, district: str, phase: str, seen: set[str] | None = None):
+def pick(rng, district: str, phase: str, seen: set[str] | None = None,
+         satisfied=None):
     """One event, or None if this shift is quiet.
 
     Prefers things the player has not seen. Not a hard exclusion: a city that
@@ -464,7 +864,7 @@ def pick(rng, district: str, phase: str, seen: set[str] | None = None):
     """
     if not rng.chance(CHANCE):
         return None
-    options = eligible(district, phase)
+    options = eligible(district, phase, satisfied)
     if not options:
         return None
     seen = seen or set()

@@ -70,6 +70,8 @@ STARTER_PATH = ('basics', 'firstrun', 'triangle', 'origins')
 #: is what qualifies them: somebody who is lost should never have to spend a
 #: resource to stop being lost. `validate.py` holds them to that.
 ORIENTATION = (
+    ('now', 'the next move and the verbs that matter; an empty line does '
+            'the same'),
     ('job', 'what you are trying to do, and the next move'),
     ('map', 'the shape of where you are, city or network'),
     ('status', 'where you stand, and how fast'),

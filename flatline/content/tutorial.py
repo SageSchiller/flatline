@@ -54,11 +54,12 @@ class Step:
 STEPS: tuple[Step, ...] = (
     Step(
         'make',
-        'Type `new` to see the ten origins, then '
-        '`new <a name> --origin <key>` to pick one.',
+        'Type `new`. It asks which of the ten origins, what to call them, '
+        'and whether to spend the opening points the usual way.',
         'An origin sets where you start and never where you can go. If you '
         'have no preference, `gutter` is the straightforward one: fast, '
-        'cheap, and loud.',
+        'cheap, and loud. Whenever you do not know what to type, Enter on '
+        'an empty line says what to do next.',
         done=lambda s: _has_game(s),
         payoff='That is a character. Everything from here is theirs.',
         topic='attributes'),
@@ -79,7 +80,8 @@ STEPS: tuple[Step, ...] = (
         'You start with six attribute points and twelve experience. Ranks 2 '
         'and 4 of any skill unlock a technique, which is a new verb rather '
         'than a bigger number, so `train intrusion` twice is a real change to '
-        'what you can type.',
+        'what you can type. `spend` puts the lot where your origin usually '
+        'would, if you would rather play than plan.',
         done=lambda s: bool(_char(s)) and (
             _char(s).points < 6 or _char(s).xp < 12),
         payoff='Progression here is about buying new things to type.',

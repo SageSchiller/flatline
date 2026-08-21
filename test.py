@@ -5321,8 +5321,530 @@ def test_migration() -> None:
             T.ok(isinstance(out, dict), f'migration {version} returns a dict')
 
 
+def test_guide() -> None:
+    """D50: an empty line answers, `new` is a conversation, numbers are names."""
+    T.section('guide')
+    from flatline.commands import guide
+    from flatline.commands.city import SERVICE_VERBS
+
+    # An empty line answers, with nobody loaded.
+    sess, out = play([''])
+    T.ok('what now' in out, 'an empty line with nobody loaded prints what now')
+    T.ok('`new`' in out or 'new ' in out, 'and points at `new`')
+    T.ok(sess.pending is None, 'and asks nothing')
+    _, out = play(['now'])
+    T.ok('what now' in out, '`now` is the same thing typed')
+    for alias in ('next', 'hint', 'menu'):
+        T.ok(REGISTRY.lookup(alias) is REGISTRY.lookup('now'),
+             f'`{alias}` reaches it too')
+
+    # Did you mean.
+    _, out = play(['bord'])
+    T.ok('Did you mean' in out and '`board`' in out,
+         'a typo is answered with the word it nearly was')
+    _, out = play(['zzqqxxw'])
+    T.ok('not a command' in out and 'Did you mean' not in out,
+         'and nothing close means no guess')
+
+    # The guided `new`, end to end, by number, spending the points.
+    sess, out = play(['new', '2', 'Guided', '1'])
+    T.ok(sess.game is not None, 'the conversation makes a character')
+    T.eq(sess.game.char.origin, 'gutter', 'origin picked by its number')
+    T.eq(sess.game.char.handle, 'Guided', 'the second answer is the handle')
+    T.eq(sess.game.char.points, 0, 'answer 1 spends the attribute points')
+    T.ok(sess.game.char.xp < skills.CREATION_XP, 'and the experience')
+    T.ok(max(sess.game.char.base_attrs.values()) < attr_content.ATTR_MAX,
+         'without pushing an attribute to the ceiling')
+    T.ok(sess.pending is None, 'and nothing is left waiting')
+    T.ok('what now' in out, 'and it ends on the next move')
+    T.ok(save_mod.exists(sess.slot), 'and they are on disk')
+    save_mod.delete(sess.slot)
+
+    # By name, keeping the points.
+    sess, out = play(['new', 'academic', 'Keeper', '2'])
+    T.eq(sess.game.char.origin, 'academic', 'origin picked by its name')
+    T.eq(sess.game.char.points, attr_content.CREATION_POINTS,
+         'answer 2 keeps the points')
+    T.eq(sess.game.char.xp, skills.CREATION_XP, 'and the experience')
+    save_mod.delete(sess.slot)
+
+    # Reading first, a bad answer, and backing out.
+    sess, out = play(['new', 'read 2'])
+    T.ok('Jury-rig' in out, '`read 2` reads the gutter runner in full')
+    T.ok(sess.pending is not None, 'and the question is still waiting')
+    T.eq(sess.prompt(), guide.ASK_ORIGIN, 'the prompt is the question')
+    sess.console.start_capture()
+    sess.execute('zzz')
+    out = sess.console.end_capture()
+    T.ok('not one of' in out and sess.pending is not None,
+         'a bad answer is refused and asked again')
+    sess.console.start_capture()
+    sess.execute('')
+    out = sess.console.end_capture()
+    T.ok(sess.pending is None and sess.game is None,
+         'an empty line backs out of the question')
+    T.ok('No runner made' in out, 'and says so')
+    T.ok(sess.prompt() != guide.ASK_ORIGIN,
+         'and the prompt goes back to being a prompt')
+    sess, out = play(['new', 'read all'])
+    T.ok(all(o.name in out for o in origins.ORIGINS),
+         '`read all` is every origin in full')
+    T.ok(sess.pending is not None, 'and still asks')
+    sess, _ = play(['new', 'random', 'Dealt'])
+    T.ok(sess.game is not None and sess.game.char.origin in origins.BY_KEY,
+         '`random` lets the city pick')
+    save_mod.delete(sess.slot)
+
+    # Handles that cannot be handles.
+    for bad in ('map', '42', 'two words', 'x' * 30):
+        sess, out = play(['new', '2', bad])
+        T.ok(sess.game is None and sess.pending is not None,
+             f'{bad!r} is refused as a handle and asked again')
+    sess, _ = play(['new Twin --origin gutter'])
+    sess2, out = play(['new', '2', 'Twin'])
+    T.ok(sess2.game is None and 'already' in out,
+         'a handle already on the roster is refused')
+    save_mod.delete(sess.slot)
+    T.ok(guide.handle_problem('Fine-Name') == '', 'an ordinary handle passes')
+
+    # `quit` at a question is still quit.
+    sess, _ = play(['new', 'quit'])
+    T.ok(not sess.running, '`quit` at a question leaves the game')
+
+    # A handle and nothing else answers one question and is asked the rest.
+    sess, out = play(['new Named', '3', '2'])
+    T.ok(sess.game is not None and sess.game.char.handle == 'Named'
+         and sess.game.char.origin == 'protege',
+         '`new <handle>` asks only for the origin and the spend')
+    T.ok('handle?' not in out, 'and never asks for the handle')
+    save_mod.delete(sess.slot)
+    _, out = play(['new 42'])
+    T.ok('digits' in out, 'and a bad handle is refused before any question')
+
+    # The tutorial waits for the conversation to end.
+    sess, out = play(['tutorial', 'new', '2', 'Taught'])
+    T.ok('step 2' not in out, 'no tutorial step prints between questions')
+    sess.console.start_capture()
+    sess.execute('2')
+    out = sess.console.end_capture()
+    T.ok('step 2' in out, 'and the next step prints once it is over')
+    save_mod.delete(sess.slot)
+
+    # The one-shot form is unchanged, and takes the number too.
+    sess, out = play(['new Shot --origin 2'])
+    T.eq(sess.game.char.origin, 'gutter',
+         'the one-shot form takes the origin by number')
+    T.eq(sess.game.char.points, attr_content.CREATION_POINTS,
+         'and spends nothing by itself')
+    T.ok(sess.pending is None, 'and asks nothing')
+    # `spend`: show, ask, refuse, then do it.
+    sess.console.start_capture()
+    sess.execute('spend')
+    out = sess.console.end_capture()
+    T.ok(sess.pending is not None and 'usually puts' in out,
+         '`spend` shows the plan and asks')
+    sess.execute('no')
+    T.eq(sess.game.char.points, attr_content.CREATION_POINTS,
+         '`no` keeps them')
+    sess.execute('spend --go')
+    T.eq(sess.game.char.points, 0, '`spend --go` spends without asking')
+    sess.console.start_capture()
+    sess.execute('spend')
+    out = sess.console.end_capture()
+    T.ok('nothing unspent' in out.lower(), 'and then there is nothing to spend')
+    save_mod.delete(sess.slot)
+
+    # The suggestion is legal, complete, and the same twice, for every origin.
+    for o in origins.ORIGINS:
+        char = Character.from_origin(o.key, 'Probe')
+        char.points = attr_content.CREATION_POINTS
+        char.xp = skills.CREATION_XP
+        plan = guide.suggest(char)
+        twin = Character.from_origin(o.key, 'Probe')
+        twin.points, twin.xp = char.points, char.xp
+        T.eq(guide.suggest(twin), plan, f'{o.key}: the same origin gets the '
+                                        f'same plan')
+        legal = True
+        for verb, key in plan:
+            ok, why = (char.can_boost(key) if verb == 'boost'
+                       else char.can_train(key))
+            if not ok:
+                legal = False
+                T.failures.append(f'guide: {o.key} plan step {verb} {key} '
+                                  f'is illegal: {why}')
+                break
+            char.boost(key) if verb == 'boost' else char.train(key)
+        T.ok(legal, f'{o.key}: every step is legal when taken')
+        T.eq(char.points, 0, f'{o.key}: the plan spends every point')
+        T.ok(char.xp < skills.RANK_COST[2],
+             f'{o.key}: and leaves less than a rank two ({char.xp} xp)')
+        T.ok(max(char.base_attrs.values()) < attr_content.ATTR_MAX,
+             f'{o.key}: and maxes nothing')
+        T.ok(any(r >= 2 for r in char.base_skills.values()),
+             f'{o.key}: and buys at least one technique')
+        T.ok(guide.describe(plan, Character.from_origin(o.key, 'P'))
+             , f'{o.key}: the plan can be described')
+
+    # `new --long` is the long listing.
+    _, out = play(['new --long'])
+    T.ok(all(o.name in out for o in origins.ORIGINS),
+         '`new --long` lists every origin in full')
+    # The short table fits the narrow rung.
+    sess, out = play(['new'])
+    T.ok(all(ui.width(line) <= 80 for line in out.splitlines()),
+         'the origin table fits eighty columns')
+
+    # What now, around the city.
+    char = Character.from_origin('gutter', 'Now')
+    char.points, char.xp = attr_content.CREATION_POINTS, skills.CREATION_XP
+    game = Game.new(char, seed=4242)
+    sess, out = play([''], game=game)
+    T.ok('what now' in out and '`board' in out or 'board' in out,
+         'no contract: the next move is the board')
+    T.ok('spend' in out, 'and an unspent budget is mentioned')
+    cid = game.city.board[0].cid
+    sess.console.start_capture()
+    sess.execute(f'take {cid}')
+    sess.execute('')
+    out = sess.console.end_capture()
+    line, steps, also = guide.what_now(sess)
+    T.ok(steps, 'with a contract there is a next step')
+    first = steps[0][0]
+    T.ok(first.startswith(('travel', 'load', 'market')) or first == 'jack in',
+         f'and it is a real move ({first!r})')
+    T.ok(first in out, 'which the panel prints')
+    T.ok(all(REGISTRY.lookup(a.split()[0]) for a in also),
+         'and every "also" verb exists')
+    for cmd, _ in steps:
+        T.ok(REGISTRY.lookup(cmd.split()[0].split(';')[0]) is not None,
+             f'step {cmd!r} starts with a command')
+
+    # Row numbers are names: the board.
+    game = Game.new(Character.from_origin('gutter', 'Rows'), seed=4242)
+    sess, out = play(['board', 'take 2'], game=game)
+    T.eq(game.city.accepted, sess.listed['board'][1],
+         '`take 2` takes the second row of the board as printed')
+    T.ok('#' in out, 'and the board shows the numbers')
+    game = Game.new(Character.from_origin('gutter', 'Rows'), seed=4242)
+    _, out = play(['take 9'], game=game)
+    T.ok('runs 1 to' in out and not game.city.accepted,
+         'a row off the end is refused with the range')
+    _, out = play(['board', 'board 1'], game=game)
+    T.ok(game.city.board[0].title in out, '`board 1` reads the first row')
+    T.ok('`take 1`' in out, 'and offers the row to take')
+    _, out = play(['board 1'], game=game)
+    T.ok('`take 1`' not in out and f'`take {game.city.board[0].cid}`' in out,
+         'but only when that board has been shown this session')
+    _, out = play(['board 2', 'take 1'], game=game)
+    T.eq(game.city.accepted, game.city.board[0].cid,
+         'without a listing, the row is the live board order')
+
+    # The market.
+    game = Game.new(Character.from_origin('defector', 'Shop'), seed=4242)
+    sess, out = play(['market'], game=game)
+    shown = sess.listed['market']
+    T.ok(shown, 'the market remembers what it showed')
+    want = next((i for i, k in enumerate(shown, 1) if k == 'crowbar'), None)
+    if want is not None:
+        before = len(game.char.library)
+        sess.console.start_capture()
+        sess.execute(f'buy {want}')
+        out = sess.console.end_capture()
+        T.eq(len(game.char.library), before + 1,
+             f'`buy {want}` buys row {want}')
+        T.ok('Crowbar' in out, 'and names what it bought')
+    _, out = play(['buy 99'], game=game)
+    T.ok('runs 1 to' in out, 'a market row off the end is refused')
+
+    # Travel.
+    game = Game.new(Character.from_origin('gutter', 'Walk'), seed=4242)
+    first = game.city.district.neighbours[0]
+    sess, out = play(['travel', 'travel 1'], game=game)
+    T.eq(game.city.where, first, '`travel 1` walks to the first row')
+    T.ok('Here:' in out, 'and arrival says what is here')
+    _, out = play(['look'], game=game)
+    T.ok('Here:' in out, '`look` says what is here too')
+    T.ok('look (' not in out, 'without telling you to look')
+    for service, verb, what in SERVICE_VERBS:
+        T.ok(REGISTRY.lookup(verb) is not None, f'"{service}" offers a real '
+                                                 f'verb ({verb})')
+        T.ok(service in districts.SERVICES, f'and {service!r} is a service')
+
+    # The roster.
+    for handle in ('RowOne', 'RowTwo'):
+        s, _ = play([f'new {handle} --origin gutter --seed 7'])
+    sess, out = play(['characters'])
+    slots = sess.listed.get('characters') or []
+    T.ok(len(slots) >= 2, 'the roster remembers its rows')
+    T.ok('#' in out, 'and shows them')
+    want = next((i for i, s in enumerate(slots, 1) if s == 'rowtwo'), None)
+    if want:
+        sess.console.start_capture()
+        sess.execute(f'switch {want}')
+        sess.console.end_capture()
+        T.ok(sess.game is not None and sess.game.char.handle == 'RowTwo',
+             f'`switch {want}` picks up the row')
+    for slot in ('rowone', 'rowtwo'):
+        if save_mod.exists(slot):
+            save_mod.delete(slot)
+
+    # In a run, an empty line says where the trace is and what to do.
+    game = Game.new(Character.from_origin('gutter', 'Runner'), seed=4242)
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    sess, _ = play([f'take {contract.cid}', 'jack in --force'], game=game)
+    T.ok(sess.run is not None, 'in a run')
+    sess.console.start_capture()
+    sess.execute('')
+    out = sess.console.end_capture()
+    T.ok('what now' in out and 'trace' in out, 'an empty line in a run '
+                                                'prints the trace')
+    T.ok('jack out' in out, 'and the way out')
+    T.raises(lambda: sess.ask('x? ', lambda s, t: None),
+             'a question cannot be asked inside a run')
+    _, steps, _ = guide.what_now(sess)
+    T.ok(steps and steps[0][0], 'and there is a next move')
+
+    # A finished character is told where to go.
+    game = Game.new(Character.from_origin('gutter', 'Late'), seed=4242)
+    game.over = 'flatlined'
+    _, out = play([''], game=game)
+    T.ok('what now' in out and ('new' in out or 'switch' in out),
+         'a finished character gets what now, pointing elsewhere')
+
+    # The splash tells a first-timer where to start.
+    console = quiet_console()
+    sess = Session(console=console)
+    console.start_capture()
+    sess.splash(quick=True)
+    out = console.end_capture()
+    T.ok('empty line' in out, 'the splash mentions the empty line')
+    living = [e for e in save_mod.roster() if not e.broken]
+    if not living:
+        T.ok('Start here' in out and 'tutorial' in out,
+             'and a first-timer gets the start-here block')
+
+    # Scripts cannot be left holding a question.
+    sess, _ = play(['new Scripted --origin gutter'])
+    sess.pending = None
+    from flatline import script as script_mod
+    sess.scripts['ask'] = script_mod.Script(name='ask', lines=['spend'])
+    sess.console.start_capture()
+    sess.run_script('ask')
+    out = sess.console.end_capture()
+    T.ok(sess.pending is None, 'a script that asks is not left waiting')
+    T.ok('by hand' in out, 'and says to do it by hand')
+    save_mod.delete(sess.slot)
+
+    # The help landing still fits, and mentions the empty line.
+    _, landing = play(['help'])
+    lines = [x for x in landing.splitlines() if x.strip()]
+    T.ok(len(lines) <= 30, f'`help` still fits a screen ({len(lines)} lines)')
+    T.ok('now' in landing and 'empty line' in landing,
+         'and offers `now` to somebody who is lost')
+
+
+def test_consequences() -> None:
+    """D51: a decision is read by the world, not only printed."""
+    T.section('consequences')
+    from flatline.content import events, legacy, npcs as npc_content, offers
+    from flatline.content import threads as thread_content
+    from flatline.world import contracts as contract_world
+    from flatline.world import story as story_mod
+
+    def fresh(origin='gutter', handle='Dec'):
+        return Game.new(Character.from_origin(origin, handle), seed=4242)
+
+    # `not:` is the one combinator.
+    game = fresh()
+    T.ok(game.story.satisfied('not:lark_dead', game),
+         '`not:` holds for a flag nothing set')
+    game.story.flags.add('lark_dead')
+    T.ok(not game.story.satisfied('not:lark_dead', game),
+         'and fails once the flag is set')
+    T.ok(not game.story.satisfied('not:runs:0', game),
+         'and negates a condition as well as a flag')
+
+    # Lark leaves the city when she dies, and takes her work with her.
+    game = fresh()
+    game.city.where = 'shambles'
+    before = [n.key for n in story_mod.present(game, game.story)]
+    T.ok('lark' in before, 'Lark is in the Shambles while alive')
+    game.story.meet('lark')
+    from flatline.commands.people import _work_ready
+    game.char.runs = 5
+    T.ok(_work_ready(game, npc_content.BY_KEY['lark'])[0],
+         'and her work is on offer')
+    game.story.flags.add('lark_dead')
+    after = [n.key for n in story_mod.present(game, game.story)]
+    T.ok('lark' not in after, 'and gone once she is dead')
+    T.ok(not _work_ready(game, npc_content.BY_KEY['lark'])[0],
+         'with her work gone too')
+    _, out = play(['deal lark favour walked'], game=game)
+    T.ok('will not' in out, 'and her favour')
+
+    # Mr Sunday stops appearing once sold.
+    game = fresh()
+    game.char.runs = 6
+    T.ok('broker' in [n.key for n in story_mod.present(game, game.story)],
+         'Mr Sunday is on his stool in Marrow')
+    game.story.flags.add('sunday_sold')
+    T.ok('broker' not in [n.key for n in story_mod.present(game, game.story)],
+         'and not once the log has run')
+
+    # Doctor Vance's counter closes after exposure.
+    game = fresh()
+    game.city.where = 'green'
+    game.story.meet('vance')
+    _, out = play(['deal vance goods'], game=game)
+    T.ok('cabinet stays closed' not in out, 'her cabinet is open to start with')
+    game.story.flags.add('vance_exposed')
+    _, out = play(['deal vance goods'], game=game)
+    T.ok('cabinet stays closed' in out, 'and closes once she is in the paper')
+
+    # Gated events: never without the story, the right branch with it.
+    plain = events.eligible('shambles', 'morning')
+    T.ok(plain and all(not (e.requires or e.any_of) for e in plain),
+         'without a story only weather is eligible')
+    game = fresh()
+    game.story.flags.add('lark_dead')
+    sat = lambda rule: game.story.satisfied(rule, game)  # noqa: E731
+    keys = {e.key for e in events.eligible('shambles', 'morning', sat)}
+    T.ok('lark_jacket' in keys, 'the jacket on the crate can happen now')
+    T.ok('lark_smaller' not in keys, 'and the other branch cannot')
+    stream = game.rng('events')
+    seen = set()
+    for _ in range(300):
+        e = events.pick(stream, 'shambles', 'morning', set(), sat)
+        if e is not None:
+            seen.add(e.key)
+    T.ok('lark_jacket' in seen, 'and it does come up when the shift is drawn')
+    T.ok(all(events.BY_KEY[k].requires == () or k == 'lark_jacket'
+             for k in seen), 'and nothing else gated on a decision does')
+    # Through the city itself, with the story handed in.
+    game = fresh()
+    game.story.flags.add('sparrow_scared')
+    game.city.where = 'marrow'
+    told = []
+    for _ in range(60):
+        game.city.advance(game.rng, game.alias, 1, char=game.char,
+                          satisfied=lambda r: game.story.satisfied(r, game),
+                          flags=game.story.flags)
+        told.extend(game.city.ambient)
+    T.ok(any('counter' in line and 'sixteen' in line for line in told),
+         'the city shows the consequence within sixty shifts')
+
+    # The board reads Deepwater.
+    game = fresh()
+    w0 = contract_world._weighted_patrons(game.alias, ())
+    w1 = contract_world._weighted_patrons(game.alias, {'dw_published'})
+    T.ok('deepwater' in w0 and 'deepwater' not in w1,
+         'publishing Deepwater takes them off the board')
+    w2 = contract_world._weighted_patrons(game.alias, {'dw_employed'})
+    T.ok(w2['deepwater'] > w0['deepwater'] * 2,
+         'and the retainer puts them on it three times over')
+    game.story.flags.add('dw_published')
+    for _ in range(20):
+        game.city.refresh_board(game.rng, game.alias, game.char,
+                                flags=game.story.flags)
+        T.ok(all(c.patron != 'deepwater' for c in game.city.board),
+             'no Deepwater posting after publishing')
+
+    # The streets read the Sixes, and only the Sixes.
+    game = fresh()
+    game.alias.add_heat('sixes', 70)
+    d0, who = game.city.danger(game.alias, 'ninth')
+    d1, _ = game.city.danger(game.alias, 'ninth', flags={'theirs_owned'})
+    T.ok(d0 > 0 and d1 <= d0 * 0.6,
+         f'being theirs halves the Ninth\'s danger ({d0} to {d1})')
+    T.eq(game.city.danger(game.alias, 'ninth', flags={'file_closed'})[0], d0,
+         'and a decision about Nightwatch changes nothing there')
+    T.eq(story_mod.street_rider(set(), 'sixes'), 1.0, 'no flags, no rider')
+
+    # A choice whose prose hands you something hands it over.
+    game = fresh('courier', 'Pkg')
+    game.story.flags.update({'package_still'})
+    game.story.reached['package'] = ['still']
+    stage = next(s for s in thread_content.BY_KEY['package'].stages
+                 if s.key == 'address')
+    game.story.reach('package', stage)
+    sess, out = play(['choose open'], game=game)
+    T.ok('io_copper' in game.char.library,
+         'opening the package puts the component in the bag')
+    T.ok('in the bag' in out, 'and says so')
+    T.ok('package_opened' in game.story.flags, 'and the decision is recorded')
+
+    # Favours a decision opened.
+    game = fresh()
+    game.city.where = 'shambles'
+    game.story.meet('surgeon')
+    game.char.dissonance = 40
+    _, out = play(['deal surgeon favour clean'], game=game)
+    T.ok('will not' in out, 'the Surgeon owes you nothing yet')
+    game.story.flags.add('surgeon_owed')
+    before = game.char.dissonance
+    _, out = play(['deal surgeon favour clean'], game=game)
+    T.ok(game.char.dissonance < before,
+         f'and walks the drift back once they do ({before} to '
+         f'{game.char.dissonance})')
+    T.ok(any(f.npc == 'mara' and f.key == 'long' for f in offers.FAVOURS),
+         'Mara can pay somebody again')
+
+    # The epilogue names every decision, and the ending reads the spine.
+    staged = {f for t in thread_content.THREADS for s in t.stages
+              for f in s.sets}
+    decisions = {f for f in thread_content.flags_chosen() if f not in staged}
+    lines = legacy.epilogue(decisions)
+    T.eq(len(lines), len(decisions), 'every decision has its line')
+    T.eq(legacy.epilogue(set()), [], 'no decisions, no epilogue')
+    two = legacy.epilogue({'sparrow_taught', 'lark_dead'})
+    T.eq(len(two), 2, 'two decisions, two lines')
+    T.ok('Lark' in two[0] and 'Kestrel' in two[1],
+         'in the order the threads are written')
+    t0, x0 = legacy.ending(10)
+    t1, _ = legacy.ending(10, {'dw_employed'})
+    T.ok(t1 != t0 and 'retainer' in t1.lower(),
+         'taking the retainer replaces the ending')
+    _, x2 = legacy.ending(10, {'dw_published'})
+    T.ok(x2.startswith(x0) and 'Static' in x2,
+         'publishing leaves a coda on the drift ending')
+    T.eq(legacy.ending(80, {'dw_employed'})[0], t1,
+         'and the retainer outranks the drift')
+
+    # Retiring reads it all back.
+    game = fresh('gutter', 'Out')
+    game.char.credits = legacy.STAKE + 10
+    game.story.flags.update({'lark_saved', 'dw_refused', 'sparrow_scared'})
+    sess, out = play(['retire --confirm'], game=game)
+    T.ok('what you left behind' in out, 'retiring prints the epilogue')
+    T.ok('Lark is alive' in out and 'counter in Marrow' in out,
+         'with the decisions in it')
+    T.ok('landline' in out, 'and the refused retainer has its coda')
+    # And the flatline does, through the same helper.
+    from flatline.commands.core import _epilogue
+    sess, _ = play([], game=fresh())
+    sess.game.story.flags.add('package_burned')
+    sess.console.start_capture()
+    _epilogue(sess)
+    out = sess.console.end_capture()
+    T.ok('incinerator' in out, 'the flatline path has the same epilogue')
+
+    # Nothing here touches a number for somebody who decided nothing: two
+    # games, one with the story handed in and one without, draw the same
+    # board and the same weather.
+    a, b = fresh(), fresh()
+    a.city.advance(a.rng, a.alias, 3, char=a.char,
+                   satisfied=lambda r: a.story.satisfied(r, a),
+                   flags=a.story.flags)
+    b.city.advance(b.rng, b.alias, 3, char=b.char)
+    T.eq([c.cid for c in a.city.board], [c.cid for c in b.city.board],
+         'an empty story draws the same board')
+    T.eq(a.city.ambient, b.city.ambient, 'and the same weather')
+
+
 SUITES = (
-    test_determinism, test_saves, test_character, test_checks,
+    test_determinism, test_saves, test_character, test_checks, test_guide,
+    test_consequences,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,

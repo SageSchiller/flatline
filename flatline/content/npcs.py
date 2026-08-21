@@ -31,6 +31,11 @@ TONES = ('absurd', 'warm', 'grim', 'tragic', 'deceitful', 'unsettling')
 #: What an NPC will do for you, if anything. `talk` is always available.
 OFFERS = ('work', 'goods', 'intel', 'favour', 'nothing')
 
+#: The `requires` rules this file can evaluate by itself. Anything else in a
+#: requires tuple is a story rule (a flag, or `not:<flag>`), which the world
+#: layer checks against the story; `meets` ignores them on purpose.
+NUMERIC_RULES = ('runs', 'diss', 'heat', 'rep')
+
 
 @dataclass(frozen=True, slots=True)
 class Npc:
@@ -163,7 +168,7 @@ NPCS: tuple[Npc, ...] = (
 
     # -- the Shambles -----------------------------------------------------
     Npc('surgeon', 'The Blue Surgeon', 'who does not use anaesthetic',
-        'shambles', 'clinic', 'unsettling', ('goods',),
+        'shambles', 'clinic', 'unsettling', ('goods', 'favour'),
         'The room behind the Shambles clinic is clean in a way the street '
         'outside is not, and the person in it is washing their hands with '
         'the specific thoroughness of somebody who has been told off about '
@@ -209,7 +214,9 @@ NPCS: tuple[Npc, ...] = (
                       'a Tuesday."',
             'work': '"Take the jobs that pay. I took the jobs that were '
                     'interesting and here I am being interesting."',
-        }),
+        },
+        # D51. The crate is empty once it is empty.
+        requires=('not:lark_dead',)),
 
     # -- Freeport ---------------------------------------------------------
     Npc('quartermaster', 'The Quartermaster', 'who logs everything',
@@ -311,7 +318,7 @@ NPCS: tuple[Npc, ...] = (
 
     # -- Aoyama Green -----------------------------------------------------
     Npc('vance', 'Doctor Vance', 'who is buying, not selling',
-        'green', 'clinic', 'deceitful', ('work', 'goods'),
+        'green', 'clinic', 'deceitful', ('work', 'goods', 'favour'),
         'The consulting room is warm, the chairs are good, and the woman '
         'across the desk has your file open in front of her, which is '
         'interesting because you have never been here before.',
@@ -427,9 +434,10 @@ NPCS: tuple[Npc, ...] = (
             'work': '"I can get you work above your standing. There is '
                     'always a reason work is available above your standing."',
         },
-        requires=('runs:2',)),
+        # D51. "Mr Sunday stops appearing" has to be true of the city.
+        requires=('runs:2', 'not:sunday_sold')),
     Npc('archivist', 'The Archivist', 'who is not selling the archive',
-        '', 'fence', 'unsettling', ('goods', 'intel'),
+        '', 'fence', 'unsettling', ('goods', 'intel', 'favour'),
         'The fence has a back room, and in the back room is somebody sitting '
         'in front of a wall of storage that hums, and they do not turn '
         'around when you come in.',

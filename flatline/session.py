@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass, field
+from typing import Callable
 
 from . import save as save_mod
 from . import theme
@@ -26,9 +27,41 @@ from .content import tutorial
 from .script import MAX_DISPATCH, ScriptError, parse
 from . import anim
 from . import prompt as prompt_mod
-from .shell import (AFTER_THE_END, REGISTRY, CommandError, Invocation, Quit,
-                    resolve, split_line)
+from .shell import (AFTER_THE_END, REGISTRY, Args, CommandError, Invocation,
+                    Quit, resolve, split_line)
 from .ui import Caps, Console
+
+
+@dataclass(slots=True)
+class Question:
+    """Something the game has asked, and is waiting on the next line for.
+
+    D50. The shell is still the whole interface: a question is a prompt that
+    says what it wants, and the answer is the next line typed, exactly as a
+    command would be. What it adds is that a flow with three decisions in it
+    can be three short answers rather than one line of flag syntax, which is
+    the difference between `new` being a form and being a conversation.
+
+    An empty line always backs out. A handler that does not like an answer
+    says so and asks again; one that is happy does its work and either asks
+    the next thing or leaves `pending` empty, which is how a conversation
+    ends. Nothing here is allowed inside a run: every prompt style has to show
+    the trace, and a question cannot.
+    """
+
+    #: What the prompt line shows while this is waiting. Short, ends in `? `.
+    prompt: str
+    #: Called with (session, answer). Raises CommandError for a bad answer
+    #: after re-asking, or returns having done its work.
+    handler: Callable
+    #: What to say when the player backs out with an empty line.
+    on_cancel: str = ''
+    #: Tab-completion candidates while waiting, where readline exists.
+    choices: tuple[str, ...] = ()
+
+
+#: Words that back out of a question, besides an empty line.
+BACK_OUT = frozenset({'cancel', 'stop', 'back', 'never mind', 'nevermind'})
 
 
 @dataclass(slots=True)
@@ -57,6 +90,15 @@ class Session:
     tutorial_step: int = -1
     #: Which prompt shape the player has chosen. See `prompt.py`.
     prompt_style: str = 'classic'
+    #: A question waiting on the next line, or None. See `Question`.
+    pending: Question | None = None
+    #: The last list of each kind the player was shown, as the keys that were
+    #: printed, in printed order. `take 2` means the second row of the board
+    #: you last read, which is the only thing a row number can honestly
+    #: mean: the board moves between shifts, and a number that silently
+    #: re-pointed at whatever is there now would accept jobs the player never
+    #: saw. See `pick`.
+    listed: dict = field(default_factory=dict)
 
     # ------------------------------------------------------------------
     # context
@@ -131,8 +173,89 @@ class Session:
         not negotiable: every style shows the same facts. A prompt style that
         could hide the trace would be a cosmetic that changes the game, and
         `validate.py` checks that none of them do.
+
+        While a question is waiting, the prompt is the question. That is the
+        one case where the prompt carries no state, and it is allowed because
+        a question is never asked inside a run.
         """
+        if self.pending is not None:
+            return self.pending.prompt
         return prompt_mod.render(self, self.prompt_style)
+
+    # ------------------------------------------------------------------
+    # questions, and lists you can answer by number
+    # ------------------------------------------------------------------
+
+    def ask(self, prompt: str, handler: Callable, on_cancel: str = '',
+            choices: tuple[str, ...] = ()) -> None:
+        """Wait for the next line and hand it to `handler`. See `Question`."""
+        if self.run is not None:
+            raise CommandError('not while you are in a run.')
+        self.pending = Question(prompt=prompt, handler=handler,
+                                on_cancel=on_cancel, choices=choices)
+
+    def cancel_question(self, say: bool = True) -> None:
+        q, self.pending = self.pending, None
+        if q is not None and say:
+            self.console.say(f'[dim]{q.on_cancel or "Left it there."}[/]')
+
+    def answer(self, line: str) -> None:
+        """The next line typed while a question was waiting."""
+        q, self.pending = self.pending, None
+        text = line.strip()
+        if not text or text.lower() in BACK_OUT:
+            self.console.say(f'[dim]{q.on_cancel or "Left it there."}[/]')
+            return
+        # Somebody who types `quit` at a question wants out of the game, not
+        # out of the question, and keeping them in a conversation they have
+        # asked to leave is the thing every wizard ever built gets wrong.
+        if text.lower() in ('quit', 'exit'):
+            self.console.say(f'[dim]{q.on_cancel or "Left it there."}[/]')
+            self.execute(text)
+            return
+        try:
+            q.handler(self, text)
+        except CommandError as e:
+            if str(e):
+                self.console.err(str(e))
+        except Quit as quit_:
+            self.running = False
+            self.exit_code = quit_.code
+        self.console.footnotes()
+        # The tutorial waits for the conversation to finish. An instruction
+        # printed between one question and the next reads as the answer to
+        # the question, and the tutorial is the one reader with no way to
+        # tell that it was not.
+        if self.tutorial_step >= 0 and self.pending is None:
+            self.tutorial_advance()
+
+    def remember(self, kind: str, keys) -> None:
+        """Record the list the player was just shown, for `pick`."""
+        self.listed[kind] = list(keys)
+
+    def pick(self, kind: str, token: str, fallback=None, what: str = 'row',
+             again: str = '') -> str:
+        """A row number into the key it stood for, or the token unchanged.
+
+        `1` is the first row of the last `kind` list printed. When nothing of
+        that kind has been printed this session, the live list is used, so
+        `take 1` before `board` still means the first contract, which is what
+        the player would have seen had they looked.
+        """
+        if not token.isdigit():
+            return token
+        shown = self.listed.get(kind)
+        if shown is None:
+            shown = list(fallback or ())
+        n = int(token)
+        if not 1 <= n <= len(shown):
+            hint = f' `{again}` to see the list.' if again else ''
+            if not shown:
+                raise CommandError(f'there is nothing numbered here yet.{hint}')
+            raise CommandError(
+                f'there is no {what} {n}: the list runs 1 to {len(shown)}.'
+                f'{hint}')
+        return shown[n - 1]
 
     # ------------------------------------------------------------------
     # the shell, and what unlocks it
@@ -228,7 +351,24 @@ class Session:
                   quick=quick, style=self.shell.get('banner', 'block'))
         c.raw(f'[dim]{sep.join(TAGLINE_PARTS)}[/]')
         c.blank()
-        c.say(f'[dim]{self.opening_line()}[/]')
+        living = [e for e in save_mod.roster() if not e.broken]
+        if self.game is None and not living:
+            # Nobody has ever sat down here. Three things to type, each with
+            # what it does, rather than one sentence that assumes the reader
+            # already knows what a command is. D50.
+            c.say('[accent]Start here[/]')
+            for name, blurb in (
+                    ('new', 'make a runner. It asks you three questions.'),
+                    ('tutorial', 'a guided first run, one step at a time.'),
+                    ('help', 'what to read first, and what it all means.')):
+                c.say(f'[fg]{name}[/]{" " * (10 - len(name))}[dim]{blurb}[/]',
+                      indent='  ', subsequent='            ')
+            c.blank()
+            c.say('[dim]Enter on an empty line, at any point, says what to '
+                  'do next.[/]')
+        else:
+            c.say(f'[dim]{self.opening_line()}[/]')
+            c.say('[dim]Enter on an empty line says what to do next.[/]')
         c.blank()
 
     def opening_line(self) -> str:
@@ -273,7 +413,21 @@ class Session:
         return f'{target} {tail}'.strip()
 
     def execute(self, line: str) -> None:
-        """One typed line, which may be several commands."""
+        """One typed line, which may be several commands.
+
+        Or the answer to a question, if one is waiting: the whole line, not
+        split on `;`, because an answer is not a command. Or nothing at all,
+        which is the other thing D50 gives a meaning to: an empty line asks
+        "what now", because that is what a player who does not know what to
+        type does with the keyboard, and it used to be the one input the game
+        had no answer to.
+        """
+        if self.pending is not None:
+            self.answer(line)
+            return
+        if not line.strip():
+            self.what_now()
+            return
         for part in split_line(self.expand(line)):
             if not self.running:
                 return
@@ -284,6 +438,17 @@ class Session:
                     self.console.err(str(e))
                 continue
             self.invoke(inv)
+
+    def what_now(self) -> None:
+        """What an empty line means: the next move, and the verbs that matter.
+
+        Goes through `invoke` like anything typed, so the tutorial sees it,
+        footnotes flush, and a finished character gets the same answer they
+        would get from typing `now`.
+        """
+        cmd = REGISTRY.lookup('now')
+        if cmd is not None:
+            self.invoke(Invocation(cmd, Args([]), 'now', ''))
 
     def invoke(self, inv: Invocation) -> None:
         if inv.command.bare is False and self.game is None:
@@ -431,6 +596,14 @@ class Session:
                     dispatched += 1
                     self.console.raw(f'[dim]> {step.command}[/]')
                     self.execute(step.command)
+                    # A script cannot answer a question, and letting its next
+                    # step be the answer would be a script doing something
+                    # nobody wrote. Drop it and say so.
+                    if self.pending is not None:
+                        self.cancel_question(say=False)
+                        self.console.warn(f'[dim]{name}:[/] `{step.command}` '
+                                          f'wanted an answer, which a script '
+                                          f'cannot give. Run it by hand.')
         finally:
             self.in_script = False
 
@@ -477,6 +650,8 @@ class Session:
 
     def _completions(self, text: str) -> list[str]:
         import readline
+        if self.pending is not None:
+            return sorted(c for c in self.pending.choices if c.startswith(text))
         line = readline.get_line_buffer()[:readline.get_endidx()]
         words = line.split()
         first = not words or (len(words) == 1 and not line.endswith(' '))
@@ -508,6 +683,9 @@ class Session:
                     break
                 except KeyboardInterrupt:
                     self.console.blank()
+                    if self.pending is not None:
+                        self.cancel_question()
+                        continue
                     self.console.say('[dim]Use `quit` to leave, or `jack out` '
                                      'if you are mid-run.[/]')
                     continue

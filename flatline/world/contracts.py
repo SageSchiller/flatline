@@ -154,19 +154,36 @@ _JOB_WORDS = (
 )
 
 
+#: D51. What a decision does to who posts work, as (flag, faction,
+#: multiplier on that patron's weight). Zero means they stop posting to you
+#: altogether. Declared as data so `validate.py` can hold the flag to being
+#: one a choice sets, and the faction to existing.
+PATRON_RIDERS: tuple[tuple[str, str, float], ...] = (
+    # You are on the retainer. The work arrives, and keeps arriving.
+    ('dw_employed', 'deepwater', 3.0),
+    # Nobody brings it up, and that includes them.
+    ('dw_published', 'deepwater', 0.0),
+    # Meridian paid, and did not run it, and remember who sold it.
+    ('laptop_sold', 'meridian', 1.6),
+    # Meridian read the public log in Freeport too.
+    ('sunday_sold', 'meridian', 0.4),
+)
+
+
 def generate_board(rng: Stream, shift: int, alias, posture: dict,
                    count: int = BOARD_SIZE, start_id: int = 1,
-                   avoid: set | None = None) -> list[Contract]:
+                   avoid: set | None = None, flags=None) -> list[Contract]:
     """Produce a fresh board from current world state.
 
     `avoid` is the set of titles already posted. Two jobs called Due Diligence
     on one board is not a collision the player can be expected to hold in their
-    head, and it reads as a bug even though it is not.
+    head, and it reads as a bug even though it is not. `flags` is the story's
+    flag set, which decides who still posts to you (D51).
     """
     out: list[Contract] = []
     used = set(avoid or ())
     cid = start_id
-    patrons = _weighted_patrons(alias)
+    patrons = _weighted_patrons(alias, flags or ())
     for _ in range(count):
         patron = rng.weighted(patrons)
         target = pick_target(rng, patron, alias)
@@ -180,8 +197,9 @@ def generate_board(rng: Stream, shift: int, alias, posture: dict,
     return out
 
 
-def _weighted_patrons(alias) -> dict[str, float]:
-    """Who is offering work. Standing buys access to better patrons."""
+def _weighted_patrons(alias, flags=()) -> dict[str, float]:
+    """Who is offering work. Standing buys access to better patrons, and
+    what you decided about somebody decides whether they still call."""
     weights: dict[str, float] = {}
     for key, fac in factions.BY_KEY.items():
         rep = alias.reputation(key)
@@ -194,6 +212,11 @@ def _weighted_patrons(alias) -> dict[str, float]:
         if rep <= -60:
             continue
         weights[key] = max(0.05, base * (1.0 + rep / 60.0))
+    for flag, faction, mult in PATRON_RIDERS:
+        if flag in flags and faction in weights:
+            weights[faction] *= mult
+            if weights[faction] <= 0:
+                del weights[faction]
     return weights
 
 

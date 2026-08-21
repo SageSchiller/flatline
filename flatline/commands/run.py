@@ -213,8 +213,9 @@ def cmd_jack_in(sess, args) -> None:
     if brief.where:
         c.say(f'[dim]{brief.where}[/]')
     c.blank()
-    c.say('[dim]`job` at any point for this and the next move. `scan` to look '
-          'around. `status` for where you stand. `jack out` to leave.[/]')
+    c.say('[dim]`job` at any point for this and the next move, or Enter on '
+          'an empty line. `scan` to look around. `status` for where you '
+          'stand. `jack out` to leave.[/]')
 
 
 #: Above this much trace, leaving with nothing is a decision rather than a
@@ -330,8 +331,10 @@ def _resolve(sess) -> None:
         # and never was, and this is the one moment where saying so out loud
         # is the point rather than an interruption.
         # The game is named after this moment and it has always ended into a
-        # scoreboard. Something of them reaches whoever gets made next.
-        from .core import _bequeath
+        # scoreboard. Something of them reaches whoever gets made next, and
+        # what they decided is read back first (D51).
+        from .core import _bequeath, _epilogue
+        _epilogue(sess)
         _bequeath(sess, 'flatlined')
         sess.record_progress()
         sess.autosave()

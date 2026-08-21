@@ -47,6 +47,10 @@ class Choice:
     rep: dict = field(default_factory=dict)
     #: Disposition changes with named rivals.
     disposition: dict = field(default_factory=dict)
+    #: Catalogue keys that go into the bag. A choice whose prose hands you a
+    #: thing has to actually hand it over, or it is the oldest bug in this
+    #: project wearing a story.
+    gives: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -563,6 +567,23 @@ def flags_set() -> set[str]:
     return out
 
 
+def flags_chosen() -> dict[str, tuple[str, str, str]]:
+    """Every flag a *choice* sets, mapped to (thread, stage, choice).
+
+    These are the decisions, as opposed to the stages, which are merely the
+    things that happened. D51 holds every one of them to being read by
+    something: a later scene, an offer, an event, the streets, the board, or
+    the ending. A decision nothing reads is prose with a flag on it.
+    """
+    out: dict[str, tuple[str, str, str]] = {}
+    for thread in THREADS:
+        for stage in thread.stages:
+            for choice in stage.choices:
+                for flag in choice.sets:
+                    out.setdefault(flag, (thread.key, stage.key, choice.key))
+    return out
+
+
 def flags_required() -> set[str]:
     """Every plain flag anything requires, conditions excluded."""
     out: set[str] = set()
@@ -983,6 +1004,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
                              'addressed to you. You have been carrying your '
                              'own present around for two years.',
                              sets=('package_opened',),
+                             gives=('io_copper',),
                              credits=2000),
                       Choice('burn', 'Get rid of it',
                              'You put it in an incinerator in the Ninth and '

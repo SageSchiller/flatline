@@ -1,0 +1,595 @@
+"""The verbs that lead somebody in: `now`, the guided `new`, and `spend`.
+
+D50. Three things a player who has never typed at a game needs and the shell
+did not give them: an answer to an empty line, a way to make a character
+without knowing flag syntax, and a sensible place to put the opening points
+if they would rather play than plan.
+
+None of it touches a number the ordinary verbs do not. `now` reads state and
+prints the move the player was about to ask `job` for. The guided `new` ends
+up calling exactly what `new <handle> --origin <key>` calls. `spend` spends
+through `boost` and `train`, one point at a time, and shows the plan before
+it does. A player who never types any of the three is playing the same game.
+"""
+
+from __future__ import annotations
+
+from .. import save as save_mod
+from ..content import attributes as attr_content
+from ..content import origins
+from ..content import skills as skill_content
+from ..rng import random_seed
+from ..shell import REGISTRY, CommandError, command
+from . import city as city_cmds
+
+
+# --------------------------------------------------------------------------
+# what now
+# --------------------------------------------------------------------------
+
+
+@command('now', 'What now: the next move, and the verbs that matter here.',
+         group='info', aliases=('next', 'hint', 'menu'), bare=True,
+         usage='now',
+         detail='Enter on an empty line does the same thing. It reads the '
+                'state and names one real thing to type next, with the '
+                'reason, then the handful of verbs worth knowing where you '
+                'are standing. It costs nothing and is always safe to ask. '
+                '`job` is the whole brief; this is the line of it you were '
+                'about to ask for.')
+def cmd_now(sess, args) -> None:
+    c = sess.console
+    line, steps, also = what_now(sess)
+    c.blank()
+    c.rule('what now', role='accent2')
+    if line:
+        c.say(f'[dim]{line}[/]', indent='  ', subsequent='  ')
+    width = max((len(cmd) for cmd, _ in steps), default=0)
+    for i, (cmd, why) in enumerate(steps):
+        label = 'next' if i == 0 else 'then'
+        pad = ' ' * (width - len(cmd))
+        tail = f'  [dim]{why}[/]' if why else ''
+        c.say(f'[dim]{label}[/]  [fg]{cmd}[/]{pad}{tail}', indent='  ',
+              subsequent=' ' * (10 + width))
+    if also:
+        bullet = c.caps.g('bullet')
+        c.say('[dim]also[/]  ' + f' [dim]{bullet}[/] '.join(
+            f'[fg]{a}[/]' for a in also), indent='  ', subsequent='        ')
+
+
+def what_now(sess) -> tuple[str, list[tuple[str, str]], list[str]]:
+    """(situation, [(command, why)], [other verbs]) for the current state.
+
+    Data rather than printed lines so the tutorial, the tests and anything
+    else that wants "the next move" can read it without parsing a screen.
+    The first step is always a real thing to type that moves the state; the
+    rest is one move further, never a walkthrough.
+    """
+    game = sess.game
+    if game is None:
+        return _now_nobody(sess)
+    if game.over:
+        return _now_finished(sess)
+    if sess.run is not None:
+        return _now_run(sess)
+    return _now_city(sess)
+
+
+def _now_nobody(sess):
+    living = [e for e in save_mod.roster() if not e.broken and not e.finished]
+    if not living:
+        return ('Nobody is loaded, and nobody has been made yet.',
+                [('new', 'make a runner. It asks you three questions.'),
+                 ('tutorial', 'a guided first run, once there is somebody '
+                              'to run it')],
+                ['help', 'career'])
+    if len(living) == 1:
+        e = living[0]
+        who = (origins.BY_KEY[e.origin].name.lower()
+               if e.origin in origins.BY_KEY else e.origin)
+        return ('Nobody is loaded.',
+                [(f'switch {e.handle}', f'carry on as {e.handle}, the '
+                                        f'{who}, day {e.day}'),
+                 ('new', 'or make somebody else; nobody is written over')],
+                ['characters', 'help'])
+    return ('Nobody is loaded.',
+            [('characters', f'{len(living)} runners waiting; '
+                            f'`switch <handle>` picks one up'),
+             ('new', 'or make somebody else')],
+            ['help', 'career'])
+
+
+def _now_finished(sess):
+    game = sess.game
+    others = [e for e in save_mod.roster()
+              if not e.broken and not e.finished and e.slot != sess.slot]
+    if others:
+        steps = [(f'switch {others[0].handle}',
+                  f'carry on as {others[0].handle}'),
+                 ('new', 'or make somebody else')]
+    else:
+        steps = [('new', 'make somebody else. The city has things to say '
+                         'about the last one.')]
+    return (f'{game.char.handle} {game.over}. The sheet and the log still '
+            f'open; nothing else does.',
+            steps, ['char', 'log', 'career', 'characters'])
+
+
+def _now_run(sess):
+    state = sess.run
+    node = state.node
+    brief = state.brief()
+    line = (f'trace {state.trace_label()} {sess.console.caps.g("bullet")} '
+            f'alert {state.alert} {sess.console.caps.g("bullet")} '
+            f'tick {state.tick} {sess.console.caps.g("bullet")} '
+            f'noise {node.noise} here')
+    if brief.done:
+        steps = [('jack out', 'the job is done. Everything from here is '
+                              'spending time you have already been paid for')]
+    elif brief.steps:
+        steps = [(brief.steps[0], brief.progress)]
+        steps += [(s, '') for s in brief.steps[1:2]]
+    else:
+        steps = [('job', 'nothing obvious from here; the brief says why')]
+    return line, steps, ['scan', 'probe <host>', 'status', 'map', 'jack out']
+
+
+def _now_city(sess):
+    game = sess.game
+    char = game.char
+    city = game.city
+    contract = city.current
+    line = (f'{city.district.name}, {city.when}. '
+            + (f'On the job: {contract.title}.' if contract
+               else 'No contract accepted.'))
+    steps = []
+    if contract is None:
+        steps.append(('board', 'work on offer. `board 1` reads the first '
+                               'one, `take 1` accepts it'))
+        also = ['look', 'market', 'map', 'char', 'help']
+    else:
+        steps.extend(city_cmds.city_steps(game)[:2])
+        also = ['job', 'map', 'deck', 'market', 'look', 'help']
+    if char.runs == 0 and (char.points or char.xp):
+        steps.append(('spend', f'{char.points} attribute point'
+                               f'{"s" if char.points != 1 else ""} and '
+                               f'{char.xp} experience are unspent. This '
+                               f'suggests a way; `boost` and `train` are '
+                               f'yours'))
+    return line, steps, also
+
+
+# --------------------------------------------------------------------------
+# the guided `new`
+# --------------------------------------------------------------------------
+
+#: What the prompt says while each question waits.
+ASK_ORIGIN = f'origin (1-{len(origins.ORIGINS)}, or a name)? '
+ASK_HANDLE = 'handle? '
+ASK_SPEND = 'spend (1 or 2)? '
+#: What backing out of any of them says.
+NOT_MADE = 'No runner made. `new` when you are ready.'
+
+
+def start_creation(sess, handle: str | None = None) -> None:
+    """`new` with nothing after it: a conversation rather than a form.
+
+    `new <handle>` with no origin lands here too, with the handle already
+    decided, because somebody who typed a name and nothing else has answered
+    one of the three questions and should only be asked the other two.
+    """
+    if sess.run is not None:
+        raise CommandError('finish the run first.')
+    if handle is not None:
+        problem = handle_problem(handle)
+        if problem:
+            raise CommandError(problem)
+    origin_table(sess)
+    _ask_origin(sess, handle)
+
+
+def article(name: str) -> str:
+    """`a` or `an`, for the one sentence that says what the origin is."""
+    return 'an' if name[:1].lower() in 'aeiou' else 'a'
+
+
+def origin_table(sess) -> None:
+    """The ten origins, two lines each, which is the whole list on one screen.
+
+    The long form, with passive, signature and story, is `read <n>` from the
+    question or `new --long` from the prompt. Somebody choosing between ten
+    things needs the ten things side by side first and one of them in full
+    second; the old order gave them eleven screens and then a flag.
+    """
+    c = sess.console
+    c.header('A new runner', f'{len(origins.ORIGINS)} origins')
+    c.say('[dim]An origin sets where you start, never where you can go. '
+          'Pick one by number or by name.[/]')
+    c.blank()
+    name_w = max(len(o.name) for o in origins.ORIGINS)
+    key_w = max(len(o.key) for o in origins.ORIGINS)
+    for i, o in enumerate(origins.ORIGINS, 1):
+        shape = '  '.join(f'{attr_content.BY_KEY[k].short} {v:+d}'
+                          for k, v in o.attrs.items())
+        c.raw(f'  [accent]{i:>2}[/]  [accent][bold]{o.name}[/][/]'
+              f'{" " * (name_w - len(o.name))}  [dim]{o.key}[/]'
+              f'{" " * (key_w - len(o.key))}  [credit]{o.credits:>6,}c[/]'
+              f'  [dim]{shape}[/]')
+        c.say(f'[dim]{o.blurb}[/]', indent='      ', subsequent='      ')
+    c.blank()
+    c.say('[dim]`read 2` reads one in full before you choose, `read all` '
+          'reads every one, `random` lets the city pick. Enter alone '
+          'stops.[/]')
+
+
+def _ask_origin(sess, handle: str | None = None) -> None:
+    sess.ask(ASK_ORIGIN, lambda s, t: _on_origin(s, t, handle),
+             on_cancel=NOT_MADE,
+             choices=tuple(origins.ORIGIN_KEYS) + ('read', 'random'))
+
+
+def _on_origin(sess, text: str, handle: str | None = None) -> None:
+    c = sess.console
+    low = text.lower().strip()
+    words = low.split()
+    if words and words[0] in ('read', 'more', 'about', 'show', 'tell'):
+        what = ' '.join(words[1:])
+        if what in ('all', 'everything', ''):
+            city_cmds.list_origins(sess)
+        else:
+            origin = city_cmds.resolve_origin(what)
+            if origin is None:
+                c.err(f'{what!r} is not one of the {len(origins.ORIGINS)}. '
+                      f'A number, or a name.')
+            else:
+                city_cmds.show_origin(sess, origin)
+        _ask_origin(sess, handle)
+        return
+    if low in ('help', '?', 'list', 'again'):
+        origin_table(sess)
+        _ask_origin(sess, handle)
+        return
+    if low in ('random', 'any', 'surprise me', 'you pick', 'dealer'):
+        # Not a game stream: nothing about the world has been decided yet,
+        # and the creation seed is already drawn from the same place.
+        origin = origins.ORIGINS[random_seed() % len(origins.ORIGINS)]
+    else:
+        origin = city_cmds.resolve_origin(low)
+    if origin is None:
+        c.err(f'{text!r} is not one of the {len(origins.ORIGINS)}. A number '
+              f'from 1 to {len(origins.ORIGINS)}, or a name. `read 3` to '
+              f'read one first, Enter alone to stop.')
+        _ask_origin(sess, handle)
+        return
+    c.blank()
+    c.say(f'[accent]{origin.name}.[/] [dim]{origin.blurb}[/]')
+    if handle is not None:
+        city_cmds.create_character(sess, handle, origin.key, random_seed())
+        offer_spend(sess)
+        return
+    c.say('[dim]What does the city call them? One word is best: it is how '
+          'you pick them up again.[/]')
+    _ask_handle(sess, origin.key)
+
+
+def _ask_handle(sess, origin_key: str) -> None:
+    sess.ask(ASK_HANDLE, lambda s, t: _on_handle(s, t, origin_key),
+             on_cancel=NOT_MADE)
+
+
+def handle_problem(handle: str) -> str:
+    """Why this cannot be a handle, or '' when it can.
+
+    The rules exist because a handle is an address: `switch <handle>` has to
+    find exactly one person by it, a row number must never be mistaken for
+    one, and the shell must never have to guess whether `map` meant the verb
+    or the runner.
+    """
+    h = handle.strip()
+    if not h:
+        return 'a handle needs at least one letter in it.'
+    if len(h) > 24:
+        return 'too long to be a handle. Twenty-four characters at most.'
+    if len(h.split()) > 1:
+        return 'one word. Join it with a dash if it wants two.'
+    if h.isdigit():
+        return ('all digits would be read as a row number by `switch`. Put '
+                'a letter in it.')
+    if REGISTRY.lookup(h.lower()) is not None:
+        return (f'`{h.lower()}` is a command, and the shell would never know '
+                f'which you meant. Another name.')
+    if save_mod.find(h):
+        return (f'there is already a {h} on the roster. Another name, or '
+                f'`delete {h}` first.')
+    return ''
+
+
+def _on_handle(sess, text: str, origin_key: str) -> None:
+    c = sess.console
+    if text.lower() in ('help', '?'):
+        c.say('[dim]A handle is the name the roster files them under: one '
+              'word, no spaces, not a command. What the city calls them is '
+              'separate and is drawn for you.[/]')
+        _ask_handle(sess, origin_key)
+        return
+    problem = handle_problem(text)
+    if problem:
+        c.err(problem)
+        _ask_handle(sess, origin_key)
+        return
+    city_cmds.create_character(sess, text.strip(), origin_key, random_seed())
+    offer_spend(sess)
+
+
+def offer_spend(sess) -> None:
+    """The third question: where the opening points go."""
+    c = sess.console
+    char = sess.game.char
+    plan = suggest(char)
+    if not plan:
+        _close(sess)
+        return
+    c.blank()
+    c.rule('to spend', role='accent2')
+    who = char.origin_data.name.lower()
+    c.say(f'{char.points} attribute point{"s" if char.points != 1 else ""} '
+          f'and {char.xp} experience. {article(who).capitalize()} {who} '
+          f'usually puts them here:')
+    for line in describe(plan, char, c.caps.g('arrow')):
+        c.say(line, indent='  ', subsequent='  ')
+    c.blank()
+    c.say('[fg]1[/]  [dim]spend them this way now[/]', indent='  ')
+    c.say('[fg]2[/]  [dim]keep them. `boost <attribute>` and `train <skill>` '
+          'spend them whenever you like, and `spend` suggests this again.[/]',
+          indent='  ', subsequent='     ')
+    sess.ask(ASK_SPEND, _on_spend,
+             on_cancel='Kept. `char` shows what is unspent, `spend` suggests '
+                       'this again.',
+             choices=('1', '2', 'yes', 'no'))
+
+
+def _on_spend(sess, text: str) -> None:
+    c = sess.console
+    low = text.lower().strip()
+    if low in ('1', 'yes', 'y', 'spend', 'do it', 'go'):
+        apply_plan(sess, suggest(sess.game.char))
+    elif low in ('2', 'no', 'n', 'keep', 'later', 'myself'):
+        c.say('[dim]Kept. `char` shows what is unspent; `boost` and `train` '
+              'spend it one point at a time, and `spend` suggests this '
+              'again.[/]')
+    else:
+        c.err('1 to spend them this way, 2 to keep them. Enter alone keeps '
+              'them.')
+        sess.ask(ASK_SPEND, _on_spend,
+                 on_cancel='Kept. `char` shows what is unspent.',
+                 choices=('1', '2', 'yes', 'no'))
+        return
+    _close(sess)
+
+
+def _close(sess) -> None:
+    c = sess.console
+    c.blank()
+    c.say('[dim]That is a runner. `char` is the sheet, `self` is the face, '
+          '`trait` is who they are. Enter on an empty line, at any point, '
+          'says what to do next:[/]')
+    sess.what_now()
+
+
+# --------------------------------------------------------------------------
+# spend
+# --------------------------------------------------------------------------
+
+
+@command('spend', 'Spend what is unspent the way your origin usually would.',
+         contexts=('city',), group='character', usage='spend [--go]',
+         detail='Reads the origin\'s shape and proposes where the unspent '
+                'attribute points and experience would usually go: the '
+                'attributes the origin is built on, depth in the skills it '
+                'starts with, then breadth across the ones those attributes '
+                'govern. It shows the plan and asks before spending; `--go` '
+                'skips the asking. It is never better than choosing '
+                'yourself, and `boost` and `train` spend the same points one '
+                'at a time.')
+def cmd_spend(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    char = game.char
+    if not (char.points or char.xp):
+        raise CommandError('nothing unspent. Experience arrives at the end '
+                           'of a run.')
+    plan = suggest(char)
+    if not plan:
+        raise CommandError('nothing the shape suggests. `boost` and `train` '
+                           'take it from here.')
+    c.header('To spend', f'{char.points} points, {char.xp} experience')
+    who = char.origin_data.name.lower()
+    c.say(f'[dim]{article(who).capitalize()} {who} usually puts them '
+          f'here:[/]')
+    for line in describe(plan, char, c.caps.g('arrow')):
+        c.say(line, indent='  ', subsequent='  ')
+    if args.has('go'):
+        c.blank()
+        apply_plan(sess, plan)
+        return
+    c.blank()
+    sess.ask('spend it this way (yes or no)? ', _on_spend_verb,
+             on_cancel='Kept.', choices=('yes', 'no'))
+
+
+def _on_spend_verb(sess, text: str) -> None:
+    low = text.lower().strip()
+    if low in ('yes', 'y', '1', 'go', 'do it'):
+        apply_plan(sess, suggest(sess.game.char))
+    elif low in ('no', 'n', '2', 'keep'):
+        sess.console.say('[dim]Kept.[/]')
+    else:
+        sess.console.err('yes or no.')
+        sess.ask('spend it this way (yes or no)? ', _on_spend_verb,
+                 on_cancel='Kept.', choices=('yes', 'no'))
+
+
+#: How many skills beyond the origin's own the suggestion will open. Breadth
+#: past this buys rank ones that unlock nothing; the points go deeper instead.
+BREADTH = 3
+
+
+def _weights(origin) -> dict[str, int]:
+    """How much the origin is about each attribute.
+
+    A positive delta counts for itself plus one, a zero counts for one, a
+    negative counts for nothing: the suggestion leans into the shape rather
+    than sanding it flat, because the shape is the reason the origin was
+    picked.
+    """
+    out = {}
+    for k in attr_content.ATTR_KEYS:
+        d = origin.attrs.get(k, 0)
+        out[k] = d + 1 if d > 0 else (1 if d == 0 else 0)
+    return out
+
+
+def suggest(char) -> list[tuple[str, str]]:
+    """Where the unspent points would usually go, as (verb, key) steps.
+
+    Pure: the same character gets the same plan, and nothing is changed by
+    asking. Every step is legal at the moment it would be taken, which
+    `test.py` checks for every origin, and no attribute is pushed to its
+    ceiling: a maxed attribute on day one makes the first ten hours a
+    straight line, and that is a choice a player should make on purpose.
+    """
+    origin = char.origin_data
+    weights = _weights(origin)
+    plan: list[tuple[str, str]] = []
+
+    # Attributes, proportionally to the shape, highest averages first.
+    attrs = dict(char.base_attrs)
+    given = {k: 0 for k in weights}
+    for _ in range(char.points):
+        cands = [k for k in attr_content.ATTR_KEYS
+                 if weights[k] > 0 and attrs[k] < attr_content.ATTR_MAX - 1]
+        if not cands:
+            break
+        key = max(cands, key=lambda k: (weights[k] / (given[k] + 1),
+                                        weights[k],
+                                        -attr_content.ATTR_KEYS.index(k)))
+        given[key] += 1
+        attrs[key] += 1
+        plan.append(('boost', key))
+
+    # Experience. Depth first in the skills the origin starts with, to the
+    # rank that changes what you can type; then breadth across what the
+    # strong attributes govern; then whatever is left goes deeper, cheapest
+    # rank first.
+    xp = char.xp
+    ranks = dict(char.base_skills)
+
+    def price(key: str) -> int | None:
+        nxt = ranks[key] + 1
+        return skill_content.RANK_COST.get(nxt) if nxt <= skill_content.MAX_RANK else None
+
+    def train(key: str) -> None:
+        nonlocal xp
+        xp -= price(key)
+        ranks[key] += 1
+        plan.append(('train', key))
+
+    for key in origin.skills:
+        while ranks[key] < 2 and price(key) is not None and price(key) <= xp:
+            train(key)
+
+    governed = [s for s in skill_content.SKILLS
+                if s.key in origin.skills or weights.get(s.attr, 0) > 1]
+    opened = {k for k, r in ranks.items() if r > 0}
+    room = len(origin.skills) + BREADTH
+    for s in sorted((s for s in governed if ranks[s.key] == 0),
+                    key=lambda s: (-weights.get(s.attr, 0),
+                                   skill_content.SKILLS.index(s))):
+        if len(opened) >= room:
+            break
+        if price(s.key) is not None and price(s.key) <= xp:
+            train(s.key)
+            opened.add(s.key)
+
+    while True:
+        options = [s for s in governed
+                   if ranks[s.key] > 0 and price(s.key) is not None
+                   and price(s.key) <= xp]
+        if not options:
+            break
+        best = min(options, key=lambda s: (ranks[s.key],
+                                           -weights.get(s.attr, 0),
+                                           skill_content.SKILLS.index(s)))
+        train(best.key)
+    return plan
+
+
+def describe(plan, char, arrow: str = '->') -> list[str]:
+    """The plan as two lines a person can read before saying yes."""
+    out: list[str] = []
+    boosts: dict[str, int] = {}
+    for verb, key in plan:
+        if verb == 'boost':
+            boosts[key] = boosts.get(key, 0) + 1
+    if boosts:
+        out.append(', '.join(
+            f'[accent]{attr_content.BY_KEY[k].name}[/] '
+            f'{char.base_attrs[k]}[dim]{arrow}[/]{char.base_attrs[k] + n}'
+            for k, n in boosts.items()))
+    ranks = dict(char.base_skills)
+    trained: dict[str, tuple[int, int, list[str]]] = {}
+    for verb, key in plan:
+        if verb != 'train':
+            continue
+        start = trained.get(key, (ranks[key], ranks[key], []))[0]
+        ranks[key] += 1
+        techs = trained.get(key, (0, 0, []))[2]
+        tech = skill_content.BY_KEY[key].technique_at(ranks[key])
+        if tech:
+            techs.append(tech.name)
+        trained[key] = (start, ranks[key], techs)
+    if trained:
+        parts = []
+        for key, (start, end, techs) in trained.items():
+            name = skill_content.BY_KEY[key].name
+            span = (f'{start}[dim]{arrow}[/]{end}' if start
+                    else f'[dim]{arrow}[/]{end}')
+            tail = f' [dim]({", ".join(techs)})[/]' if techs else ''
+            parts.append(f'[accent]{name}[/] {span}{tail}')
+        out.append(', '.join(parts))
+    return out
+
+
+def apply_plan(sess, plan) -> None:
+    """Spend it, through the same calls `boost` and `train` make."""
+    c = sess.console
+    char = sess.game.char
+    boosted: dict[str, tuple[int, int]] = {}
+    trained: dict[str, tuple[int, int]] = {}
+    unlocked: list = []
+    for verb, key in plan:
+        if verb == 'boost':
+            before = char.base_attrs[key]
+            after = char.boost(key)
+            boosted[key] = (boosted.get(key, (before, after))[0], after)
+        else:
+            before = char.base_skills[key]
+            tech = char.train(key)
+            trained[key] = (trained.get(key, (before, 0))[0],
+                            char.base_skills[key])
+            if tech:
+                unlocked.append(tech)
+    arrow = c.caps.g('arrow')
+    if boosted:
+        c.ok(', '.join(f'{attr_content.BY_KEY[k].name} {a}[dim]{arrow}[/]{b}'
+                       for k, (a, b) in boosted.items())
+             + f'. [dim]{char.points} point'
+               f'{"s" if char.points != 1 else ""} left.[/]')
+    if trained:
+        c.ok(', '.join(f'{skill_content.BY_KEY[k].name} {b}'
+                       for k, (a, b) in trained.items())
+             + f'. [dim]{char.xp} experience left.[/]')
+    for tech in unlocked:
+        c.say(f'[accent]{tech.name} unlocked.[/] '
+              f'[dim]{tech.verb or "modifies an existing command"}: '
+              f'{tech.summary}[/]', indent='  ', subsequent='  ')
+    sess.autosave()

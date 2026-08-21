@@ -4,7 +4,7 @@ tags:
   - project-plan
   - game
 created: 2026-08-12
-updated: 2026-08-18
+updated: 2026-08-21
 ---
 
 # flatline: Build Plan and Progress Log
@@ -12,7 +12,7 @@ updated: 2026-08-18
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-18** (systems work through 2026-08-15; this is a docs-cleanup refresh). **Phases 0 through 5 are done and D17's finish line is passed.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **12,932 checks**, all seven soak scripts clean, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 29,900 lines. The last substantial passes were 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug that had silently frozen two factions' heat since heat was written, and **D49** made each character addressable by their own handle (with `characters` / `switch` / `delete`) and stopped `new --force` from destroying the loaded character.
+> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,235 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 32,000 lines. Two passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line), and **D51**, a decision must be read: every one of the forty-five story decisions now has readers (presence, offers, forty-one consequence events, the streets, the board, the ending) and a line in the epilogue, and `validate.py` fails the build on one that does not. **Phase 7** in the phase list is the numbered candidate list for what to build next, story first; **the spine (item 2) is the next thing to do.** Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
@@ -1119,6 +1119,142 @@ than a blocklist, because the failure modes are not symmetrical: a missing
 entry means a dead character cannot read their own sheet, and a missing
 blocklist entry means they can go back to work.
 
+### D50: The shell answers an empty line, and creation is a conversation
+
+The game was hard to start for anybody who had not played a command-line
+game before, and the reasons were not depth, they were three small silences.
+The splash ended at a bare prompt. `new` printed a hundred lines of origins
+and then wanted `--origin <key>`, which is flag syntax shown to somebody who
+has never seen a flag. And the shell had no answer to the one thing a lost
+player actually does with a keyboard, which is press Enter.
+
+D2 still holds and nothing here bends it: no panes, no cursor addressing, no
+alternate screen. Strings in, strings out. What changed is that the stream
+learned to ask and to answer.
+
+**An empty line asks "what now".** `now` (also `next`, `hint`, `menu`) reads
+the state and prints the one real thing to type next, with the reason, then
+the handful of verbs that matter where you are standing. It is computed, not
+authored: in the city it is the same `city_steps` the full `job` prints, in
+a run it is `brief().steps`, so the one-line answer and the whole brief
+cannot disagree. It costs nothing, works in both halves and before a
+character exists, and a finished character gets it too, pointing elsewhere.
+It is on the `help` landing page's "lost right now" list, and `validate.py`
+holds it to the same rules as the rest of that list.
+
+**`new` is three questions.** Which origin, from a table of ten that fits one
+screen (`read 4` opens one in full, `read all` opens every one, `random`
+lets the city pick); what to call them; and whether to spend the opening
+points the way that origin usually would. Each answer is the next line
+typed, the prompt is the question while it waits, an empty line backs out,
+and `quit` is still quit. `new <handle> --origin <key|number>` does the same
+in one line for anybody who has picked, `new <handle>` alone asks only the
+other two, and `new --long` is the old full listing. The mechanism is
+`Session.ask`: a pending `Question` whose handler gets the next line whole,
+never split on `;`. It refuses to exist inside a run, because every prompt
+style has to show the trace and a question cannot; scripts that trip one
+have it dropped and are told to run the thing by hand; the tutorial waits
+for a conversation to end before it advances, so no instruction ever prints
+between a question and its answer.
+
+**`spend` is a suggestion, not a build.** It reads the origin's attribute
+shape, leans into it rather than sanding it flat, puts depth into the
+skills the origin starts with up to the rank that changes what you can type,
+then breadth across what the strong attributes govern, capped at three new
+lines so it never buys six rank ones that unlock nothing. It shows the plan
+and asks; `--go` skips the asking. It spends through the same `boost` and
+`train` calls, caps every attribute below the ceiling because a maxed
+attribute on day one is a choice somebody should make on purpose, and
+`validate.py` proves for all ten origins that every step is legal when
+taken, every attribute point goes, less than a rank two is left over, and at
+least one technique is bought. It is never better than choosing yourself,
+and the panel says so.
+
+**Row numbers are names.** Every list the player is asked to pick from now
+carries a `#` column, and the number works wherever the name did: `board 2`,
+`take 2`, `buy 3`, `travel 1`, `switch 2`, `delete 2`, `--origin 4`. The
+number means *the list as last printed*, remembered per kind on the session
+(`Session.pick`), because the board moves between shifts and a number that
+silently re-pointed at whatever was there now would accept jobs the player
+never read. A row that has gone since says so and says to look again;
+before any list was shown, the live order is used, which is what the player
+would have seen had they looked.
+
+**Smaller things that were silences.** A typo gets "did you mean" from
+`difflib` over the verbs legal in context. Arriving anywhere, and `look`,
+end with a `Here:` line that maps what the district *has* to the verb you
+*type* for it, which is the gap between reading "workshop" on the map and
+knowing the word is `repair`; `validate.py` requires every service in
+`districts.SERVICES` to have one and every verb on it to exist. The splash
+gives a first-timer three lines to start from instead of one sentence. The
+board's footer, `job` with nothing accepted, the `jack in` closing line and
+the tutorial's first step all say the same two things: the row number
+works, and Enter says what to do next.
+
+**What it does not do.** Nothing here touches a number. `test.py` plays the
+conversation and the one-line form and gets the same character; the
+suggestion is pure and the same origin gets the same plan twice; `now` is
+read-only. There is no pager, no numbered menu that replaces a verb, and no
+verb that acts on the player's behalf: `now` says `travel precinct`, it does
+not travel. The depth is the point, and the point of this decision is only
+that somebody can find it.
+
+### D51: A decision must be read
+
+Eighteen threads, thirty-nine scenes, forty-five decisions, and a grep that
+found **none of the forty-five was read by anything outside
+`threads.py`**. Offers, events, the board, the streets, the endings: nothing
+looked. A choice printed good prose, set a string, and the world was
+identical afterwards. That is this project's oldest bug class, content that
+claims something the engine never does, living in the most human part of the
+game, where the one reader with no way to tell is the player who just chose.
+
+**The rule.** Every flag a choice sets, and nothing else sets (so it is a
+decision and not merely a thing that happened), must be read by something
+other than the ending, and must have a line in the ending. `check_consequences`
+enforces both, and holds every story rule anywhere, in threads, events, NPC
+presence, work, favours and counters, to naming a flag something sets.
+
+**The readers**, all small, all data the validator can see:
+
+- **Presence.** `Npc.requires` takes story rules now, evaluated by the world
+  layer; `not:<flag>` is the one combinator, and it exists so that "Lark is
+  alive" can be written. Lark leaves the Shambles when she dies. Mr Sunday
+  stops appearing when the log runs.
+- **Offers.** Work, favours and counters take `not:` too, so her work goes
+  with her, Vance's cabinet closes once she is in the paper, and Mara's
+  favours close when you asked what the favour was before you would do it.
+  Five favours exist only because of a decision: the Blue Surgeon's eleven
+  hours, Vance's referral and her staff rate, the Archivist reading the job
+  from four hundred and seven logs, Mara paying somebody again.
+- **Events.** `Event.requires`; forty-one consequences, each the city
+  carrying on with what you did, happening to somebody else, weighted above
+  weather so they arrive while the decision is still warm and penalised once
+  seen so they never become a refrain. The tone budget (D34) still holds at
+  55/34/11 with them in.
+- **The streets.** `story.STREET_RIDERS`: being the Sixes' halves the
+  Ninth's danger, a closed Nightwatch file halves the Precinct's, a returned
+  laptop cuts Kagawa's. Read by `arrival_risk`, so travel and legwork feel it
+  alike.
+- **The board.** `contracts.PATRON_RIDERS`: the retainer triples Deepwater's
+  postings, publishing removes them, Meridian remember who sold them the
+  laptop and who sold Freeport the log.
+- **The ending.** `legacy.ending` reads the spine: the retainer replaces the
+  drift ending outright (there is no version of that arc that ends in being a
+  person about it); refusing and publishing leave codas. And `EPILOGUE`: one
+  line per decision, printed at retirement and at the flatline, under "what
+  you left behind, in people". The flatline is the ending most players get
+  and it used to forget everything but the numbers.
+- **The bag.** `Choice.gives`: a choice whose prose hands you a component
+  now hands it over. The courier had been carrying a present that did not
+  exist.
+
+**What it does not do.** Nothing here moves for somebody who decided
+nothing: `test.py` advances two cities, one with the story handed in and
+one without, and they draw the same board and the same weather. No thread
+gained a scene; this is the layer underneath the scenes, and the reason the
+scenes in Phase 7 will be worth writing.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -1269,7 +1405,7 @@ Two contexts with two verb sets, plus a shared core.
 
 **Run context:** `scan`, `probe`, `map`, `connect`, `route`, `crack`, `spoof`, `forge`, `deploy`, `kill`, `mask`, `pull`, `push`, `wipe`, `sweep`, `overclock`, `focus`, `jack out`.
 
-**Shared:** `help`, `odds` (D14), `log`, `status`, `alias` (shell aliases, distinct from identity aliases; the collision is deliberate and the fiction absorbs it), `script`, `history`, `quit`.
+**Shared:** `help`, `now` (D50: what an empty line means), `odds` (D14), `log`, `status`, `alias` (shell aliases, distinct from identity aliases; the collision is deliberate and the fiction absorbs it), `script`, `history`, `quit`.
 
 **Scripting** is the Daemonology payoff: save a command sequence to a named script, run it as one action with a tick discount, and at higher ranks attach conditions so the script reacts. This is a real automation layer and it is the thing that makes a fifth playthrough different from a first.
 
@@ -1341,6 +1477,74 @@ Scripting and daemons, more ICE behaviours, more objective types, more origins, 
 ### Phase 6: breadth
 
 More districts, factions, chrome, and programs. Content, not systems.
+
+### Phase 7: a world with a point in it
+
+> **Status:** open, as of 2026-08-21. The foundation (D50, D51) is in. The
+> items below are candidates, numbered so a session can pick one and say
+> which; they are in the order I would do them, which is the order in which
+> each makes the next one worth doing. Every one is held to the standing
+> rules: D2 (the shell is the interface), D24/D51 (a claim the engine never
+> reads is a lie), D34 (the tone budget), D38 (nothing cosmetic touches a
+> number).
+
+**Story and world**
+
+1. ~~A decision must be read.~~ Done: D51.
+2. **The spine.** Deepwater as the main arc: five acts, each with two or
+   more entrances (it has four already), ending in take / refuse / publish,
+   plus a fourth ending reachable only through crossings (Lark saved *and*
+   the archive consented *and* the drawer read). The D51 readers are where
+   the acts land: the board, the streets, the people, the ending.
+3. **Story inside runs.** A stage that places a bespoke contract: a named
+   record on a named host, with `pull`/`wipe`/`push` setting a flag
+   (`found:<kind>`, `did:<cid>`). Scenes happen in the city today and the
+   game is the network.
+4. **Nine district threads, seven rival threads.** `Stage.where` is there
+   for the districts; the rivals (`who`, disposition, D44) are the best
+   written people in the game and have no arc. Rivalry, alliance, betrayal,
+   one each.
+5. **Locations inside districts.** Two or three named spots per district,
+   listed by `look`, entered with `visit <spot>` at no shift cost, with who
+   is there and when (presence by shift as well as by place). Not a menu:
+   places you go because something is there.
+6. **`news`.** One verb that collates what happened while you slept: the
+   board, postures, bounties, thread outcomes, the departed (D43). Most of
+   it prints inline today and scrolls away.
+7. **`journal` as a real log**: the decisions you made and what they cost,
+   per thread; and `now` saying "a choice is waiting: `choose`".
+
+**Accessibility and understanding**
+
+8. **A HUD line after every tick-costing run action** (trace, noise, tick,
+   alert), in the stream, with a rice toggle. Newcomers do not read the
+   prompt.
+9. **"Previously" on resume**: five lines when you `switch` or continue.
+10. **Tutorial, second half**: heat arriving a shift later, `talk` and
+    `choose`, `rep`, the door (`retire`). The tutorial stops before the city
+    remembers anything.
+11. **`odds` for connect, pull, scrub and strike.** D14 says no hidden dice
+    and one verb answers.
+
+**Visual**
+
+12. **ICE portraits**: a three-line glyph block per countermeasure family
+    when one engages, like the faction sigils.
+13. **Attribute bars on `char`**, and a computed build label under the
+    handle. Cosmetic identity, zero numbers.
+14. **End-of-run card**: the summary boxed, with the trace sparkline.
+
+**Fun and customisation**
+
+15. **Run conditions**: six to eight states announced at the door
+    (maintenance window, audit in progress, lockdown, another runner
+    inside), each a number the engine reads.
+16. **Scripts discoverable**: a `now` hint at Daemonology 2; `script` is
+    the payoff of a whole skill and nobody finds it.
+17. Naming things (deck, safehouse); the build label from 13.
+
+**Not on the list, on purpose**: a pager, numbered menus that replace verbs,
+an alternate screen, a verb that acts for the player.
 
 ---
 
@@ -1891,3 +2095,75 @@ that death previously changed nothing at all about what you could type.
 
 `validate.py` clean, `test.py` green at **12,932 checks**. All seven soaks
 clean.
+
+### 2026-08-21: the onboarding layer
+
+**D50.** Asked to make the game friendlier for people who have never played
+a command-line game, without losing any of the depth. The diagnosis, from
+playing it cold, was three silences rather than any missing system: a bare
+prompt after the splash, `new` as a hundred-line list followed by flag
+syntax, and no answer at all to pressing Enter.
+
+What shipped, all inside D2: an empty line prints "what now", which is the
+next real move computed from state plus the verbs that matter here (`now`,
+`next`, `hint`, `menu`); `new` is three questions with a one-screen origin
+table, `read <n>` and `random`; `spend` proposes and, if told to, makes the
+origin's usual opening spend; row numbers work on every list (`take 2`,
+`buy 3`, `travel 1`, `switch 2`); typos get "did you mean"; arrival and
+`look` end with a `Here:` line of typeable verbs; the splash has a start-here
+block for a first-timer. The question mechanism is `Session.ask`, and it is
+deliberately small: one pending question, the next line is the answer, empty
+backs out, `quit` is still quit, never inside a run, dropped with a warning
+if a script trips it, and the tutorial waits for it to finish.
+
+**Two things the harnesses caught while writing it.** `validate.Report.check`
+returns `None`, so the first draft of `check_guide` broke out of its loop on
+the first legal step and reported every origin as spending nothing; the
+check now reads the boolean it already had. And the first `now` panel for a
+fresh character named `spend` as the next move, which nagged anybody who
+had said "keep them" a minute earlier; it is the last line now, after the
+real move, and only while the character has not run.
+
+**One deliberate non-feature.** The suggested spend is capped below the
+attribute ceiling and at three new skill lines. Both caps are D10 and D12
+saying the same thing from the other side: the origin is a starting shape
+and not an optimum, and a suggestion that min-maxed would be a build
+decision wearing a convenience's clothes.
+
+`validate.py` clean, `test.py` green at **13,119 checks**, `./build.sh`
+clean. 117 commands, 38 topics. The seven soak scripts from 2026-08-15 are
+not in the repo and were not re-run; nothing here touches what they measure.
+
+### 2026-08-21 (b): a decision must be read, and Phase 7
+
+**D51.** Asked for a game with sub-stories worth doing and a main story with
+paths and endings. Before writing any of that, measured what the story layer
+already did with what it had, and the answer was nothing: forty-five choice
+flags, and a grep found none of them read outside `threads.py`. So the first
+thing was not a new scene, it was the rule that makes a scene worth writing.
+
+Readers added, all as data the validator can see: `not:<flag>` in story
+rules; story rules on NPC presence, work, favours and counters; forty-one
+consequence events with `requires`; `STREET_RIDERS` on arrival risk;
+`PATRON_RIDERS` on who posts work; the spine reading into `legacy.ending`;
+an `EPILOGUE` of one line per decision printed at both endings; and
+`Choice.gives`, because the courier's package contained a component the
+engine never handed over. `check_consequences` requires every decision to
+have a reader and an epilogue line, and every rule anywhere to name a flag
+something sets.
+
+**Two things the harnesses caught.** The event coverage check ("no district
+and shift can ever show it") ran `eligible` with no story and so rejected
+every gated event; it now grants the story and leaves the accounting to
+`check_consequences`. And the first draft left `maint_asked` read by nothing
+but the ending: the choice sets `vance_file` alongside it, which is read, but
+the decision itself was not, which is exactly the distinction the rule
+exists to draw. It has an event now.
+
+**Phase 7** written into the phase list: seventeen numbered candidates,
+story first, from the assessment that produced D50 and D51. The spine is
+next.
+
+`validate.py` clean, `test.py` green at **13,235 checks**, `./build.sh`
+clean. 92 ambient events (51 weather, 41 consequences) at 55/34/11 against
+the budget.

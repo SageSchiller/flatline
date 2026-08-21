@@ -159,12 +159,16 @@ def pick_up(rng: Stream, char, alias, city, faction: str) -> Incident:
         f'[dim]`burn --confirm` when you can afford a new one.[/]')
 
 
-def arrival_risk(rng: Stream, alias, city, target: str) -> tuple[int, str]:
+def arrival_risk(rng: Stream, alias, city, target: str,
+                 flags=()) -> tuple[int, str]:
     """Whether arriving somewhere goes badly, and who made it go badly.
 
     Returns (score, faction). The caller decides what to do with it, because
     travel and legwork want the same check with different thresholds.
+    `flags` is the story's flag set: a decision about a faction changes how
+    its streets treat you (D51, `story.STREET_RIDERS`).
     """
+    from . import story as story_mod
     district = districts.BY_KEY[target]
     watchers = (district.controller, *district.presence)
     # How many people are on the street to be one of the ones who recognises
@@ -174,7 +178,8 @@ def arrival_risk(rng: Stream, alias, city, target: str) -> tuple[int, str]:
     worst, who = 0, ''
     for key in watchers:
         score = alias.attention(key) + int(city.bounties.get(key, 0)) * 1.5
-        score = int(score * (0.5 + district.security / 100.0) * when)
+        score = int(score * (0.5 + district.security / 100.0) * when
+                    * story_mod.street_rider(flags, key))
         if score > worst:
             worst, who = score, key
     return worst, who
