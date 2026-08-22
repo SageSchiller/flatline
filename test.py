@@ -8575,13 +8575,77 @@ def test_signatures() -> None:
     T.ok('no perimeter' in ' '.join(ui.plain(out).split()),
          'and what that means')
 
+
+def test_breadth() -> None:
+    """D69: every playstyle has something to buy at every tier, and nothing
+    on a shelf is a pure upgrade."""
+    T.section('breadth')
+    from flatline.content import cyberware as ware
+    from flatline.content import hardware as hw
+    from flatline.content import icons as icon_content
+    from collections import Counter
+
+    # Every program category has something at every tier.
+    per = Counter((p.category, p.tier) for p in programs.PROGRAMS
+                  if not p.unique)
+    for category in programs.CATEGORIES:
+        for tier in (1, 2, 3):
+            T.ok(per[(category, tier)] >= 1,
+                 f'{category} has something at tier {tier}')
+    # And a one-memory option in most of them, so a wide loadout is possible.
+    light = {p.category for p in programs.PROGRAMS
+             if p.memory == 1 and not p.unique}
+    T.ok(len(light) >= 6, f'{len(light)} categories have a one-memory option')
+
+    # Every skill that gear could support has gear that supports it.
+    granted = set()
+    for item in (list(programs.PROGRAMS) + list(ware.WARE)
+                 + list(hw.COMPONENTS) + list(icon_content.ICONS)):
+        for key in list(getattr(item, 'effects', {}) or {}):
+            if key.startswith('skill_'):
+                granted.add(key[len('skill_'):])
+    for skill in ('stealth', 'subterfuge', 'warfare', 'daemonology',
+                  'streetcraft', 'fieldcraft', 'cryptography', 'forensics',
+                  'architecture', 'hardware'):
+        T.ok(skill in granted, f'something in the catalogue trains {skill}')
+
+    # Chrome: every location has something at tier 1 or 2 to start with.
+    locs = Counter((w.location, w.tier) for w in ware.WARE if not w.unique)
+    for loc in ware.SLOTS:
+        early = locs[(loc, 1)] + locs[(loc, 2)]
+        T.ok(early >= 2, f'{loc} has {early} pieces at tier 1 or 2')
+        T.ok(locs[(loc, 3)] >= 1, f'{loc} has an endgame piece')
+
+    # Nothing purchasable is free of a cost.
+    for comp in hw.COMPONENTS:
+        if comp.price and comp.tier >= 2 and not comp.unique:
+            # A cost is a penalty, a stated drawback, or a key inside the
+            # effects that is pointing the wrong way (Shroud eats a memory
+            # slot to do its job, which is a cost in the same sentence as
+            # the benefit).
+            costs = (bool(comp.penalty) or bool(comp.drawback)
+                     or any(not fx.improves(k, v)
+                            for k, v in comp.effects.items()))
+            T.ok(costs, f'{comp.key} costs something')
+    # Cold Block is not simply worse than Closed Loop any more.
+    block, loop = hw.BY_KEY['cool_block'], hw.BY_KEY['cool_loop']
+    T.ok(bool(loop.penalty), 'the better cooler has a cost')
+    T.ok(block.price < loop.price and block.penalty != loop.penalty,
+         'and the cheaper one is a different trade, not a worse one')
+
+    # Two icons are wearable before any drift at all.
+    starters = [i for i in icon_content.ICONS if i.coherence == 0]
+    T.ok(len(starters) >= 4, f'{len(starters)} icons need no drift')
+    T.ok(len({tuple(sorted(i.effects)) for i in starters}) >= 3,
+         'and they do different things')
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
     test_intrusion, test_catalogue, test_money, test_relics, test_street,
     test_soak, test_advice, test_scale, test_place, test_ladder,
-    test_signatures,
+    test_signatures, test_breadth,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,

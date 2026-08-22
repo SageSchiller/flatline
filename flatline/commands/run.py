@@ -1136,6 +1136,13 @@ def cmd_sidechannel(sess, args) -> None:
     # three silent ticks that opened everything, which outvalued Pivot and
     # made the rank-4 decision no decision. Quiet either way; the gamble is
     # the time.
+    if 'cipherwright_focus' in state.char.riders():
+        if state.focus <= 0:
+            raise CommandError('Cipherwright wants a point of Focus and you '
+                               'have none left.')
+        state.focus -= 1
+        c.say(f'[dim]Cipherwright spends a point of Focus. {state.focus} '
+              f'left, and none of it comes back tonight.[/]')
     hardest = max(s.difficulty for s in crypto)
     check = Check(name='sidechannel', resistance=hardest * 2 - 2)
     check.add('cryptography', state.char.skill('cryptography') * 2)
@@ -1416,6 +1423,10 @@ def strike_damage(state, target=None) -> int:
     Shrike (D63 c): twice the weapon's bite against rating 3 and under, and
     none of it against 6 and up. The note always said so."""
     bonus = state.char.bonus('ice_damage')
+    if (target is not None and 'bottlecap_edge' in state.char.riders()
+            and target.rating > 3):
+        # Improvised, and honest about it (D69).
+        return 0
     if target is not None and 'shrike_edge' in state.char.riders():
         weapon = programs.best(state.char.deck.loaded, 'weapon')
         edge = int(weapon.effects.get('ice_damage', 0)) if weapon else 0
@@ -1444,6 +1455,8 @@ def cmd_strike(sess, args) -> None:
     if not state.running:
         return
     c.blank()
+    if not check.success and 'bottlecap_edge' in state.char.riders():
+        state.escalate(1, 'Something improvised went off and missed.')
     if 'banshee_alarm' in state.char.riders():
         # Banshee (D63 c): it announces you. Guaranteed, as the note says.
         state.escalate(1, 'Banshee announced you to the whole network.')
@@ -1704,9 +1717,11 @@ def cmd_hotswap(sess, args) -> None:
 def cmd_falsify(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     has_palimpsest = 'palimpsest' in state.char.deck.loaded
-    if not state.char.has_technique('falsify') and not has_palimpsest:
-        raise CommandError('Falsify is Forensics rank 4, or a loaded '
-                           'Palimpsest.')
+    has_secondhand = 'secondhand_frames' in state.char.riders()
+    if (not state.char.has_technique('falsify') and not has_palimpsest
+            and not has_secondhand):
+        raise CommandError('Falsify is Forensics rank 4, a loaded '
+                           'Palimpsest, or a loaded Secondhand.')
     if state.framed:
         raise CommandError(f'you have already dressed this up as '
                            f'{fac_content.BY_KEY[state.framed].short}')

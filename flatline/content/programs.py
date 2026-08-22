@@ -306,6 +306,63 @@ PROGRAMS: tuple[Program, ...] = (
             effects={'ice_damage': 2},
             note='Twice the bite against rating 3 and under. Nothing at all against 6 and up.',
             rider='shrike_edge'),
+    # -- D69: the gaps the catalogue audit found -----------------------------
+    Program('handbill', 'Handbill', 'daemon', 1, 2, 1.0, 700, 1,
+            'The cheapest autonomous process anybody sells: a loop that sits '
+            'on a node and answers for it, badly, on a timer you can hear.',
+            note='One memory. The only daemon a street market stocks.',
+            rider='handbill_tick'),
+    Program('bellhop', 'Bellhop', 'hunter', 1, 3, 0.15, 1500, 1,
+            'Signal gear for people who cannot afford signal gear. It does '
+            'not look at hosts, it listens to the wire between them and tells '
+            'you which pairs are talking.',
+            effects={'legwork_bonus': 1},
+            note='One memory, near silent. Traffic only: never contents, '
+                 'never what is guarding them.'),
+    Program('understair', 'Understair', 'mask', 1, 3, 0.0, 1100, 1,
+            'A cheap wrapper that makes your session look like a backup '
+            'agent, which works until somebody checks the backup schedule.',
+            effects={'trace_mult': 0.9},
+            note='One memory. Stops working entirely once the room goes red.',
+            rider='understair_fails'),
+    Program('bottlecap', 'Bottlecap', 'weapon', 1, 2, 1.5, 600, 1,
+            'Improvised, loud, and about as sophisticated as its name. It '
+            'will see off something small and it will announce that it did.',
+            effects={'ice_damage': 1},
+            note='One memory. Nothing at all above rating 3, and a miss is '
+                 'heard everywhere.',
+            rider='bottlecap_edge'),
+    Program('cipherwright', 'Cipherwright', 'forger', 2, 4, 0.3, 3900, 2,
+            'Not a forger of documents: a forger of keys. It builds the '
+            'material a sidechannel needs out of what a node has already '
+            'said, and hands it to you as a credential.',
+            effects={'crypto_bonus': 3, 'skill_cryptography': 1},
+            note='Quiet. Spends a point of Focus every time it is used, and '
+                 'Focus does not come back inside a run.',
+            rider='cipherwright_focus'),
+    Program('slowfuse', 'Slowfuse', 'payload', 2, 4, 0.4, 4100, 2,
+            'A fault that has not happened yet. It goes in quietly and it '
+            'goes off later, which is the entire trade: nobody hears you do '
+            'it and everybody knows roughly when you were there.',
+            effects={'residue_mult': 1.35},
+            note='Built for corruption and wipes. Quiet now, loud in the '
+                 'record afterwards.',
+            jobs=('corrupt', 'wipe')),
+    Program('secondhand', 'Secondhand', 'wiper', 2, 4, 0.55, 4600, 2,
+            'Does not remove what you left. Rewrites whose it was, using a '
+            'signature it takes from somebody else on the same network.',
+            effects={'residue_mult': 0.7},
+            note='Enables `falsify` without Forensics rank. Somebody real '
+                 'gets the heat you moved.',
+            rider='secondhand_frames'),
+    Program('lastword', 'Last Word', 'wiper', 3, 6, 1.15, 9400, 3,
+            'The professional standard, and the reason forensics teams talk '
+            'about the good old days. It does not clean a node. It makes the '
+            'node agree it was never dirty, at length, out loud, in a '
+            'conversation the node will remember having.',
+            effects={'residue_mult': 0.35, 'skill_forensics': 1},
+            note='Three memory. Nothing cleans better, and nothing else in '
+                 'the line is heard doing it.'),
 )
 
 
@@ -605,4 +662,6 @@ def quietest(loaded: list[str], category: str) -> Program | None:
 #: is loaded; see `Deck.riders`.
 RIDERS: frozenset[str] = frozenset({
     'shrike_edge', 'banshee_alarm', 'ledger_eye', 'tide_eye', 'dowse_eye',
+    'handbill_tick', 'understair_fails', 'bottlecap_edge',
+    'cipherwright_focus', 'secondhand_frames',
 })

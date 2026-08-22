@@ -489,6 +489,7 @@ class RunState:
         if i <= 0:
             return
         self.alert = levels[i - 1]
+        self.char.deck.alert = self.alert
         self.quiet_ticks = 0
         self.since_filed = 0
         self.console.blank()
@@ -509,6 +510,7 @@ class RunState:
         if new == i:
             return
         self.alert = levels[new]
+        self.char.deck.alert = self.alert
         self.since_filed = 0
         self._response()
         self.console.blank()
@@ -636,6 +638,20 @@ class RunState:
                 continue
             daemon['life'] -= 1
             prog = programs.BY_KEY.get(daemon['program'])
+            if 'choir_noise' in self.char.riders():
+                # A Choirmaster runs them together, which means their noise
+                # is filed against your session rather than the node's
+                # (D69). You own what they do.
+                self.make_noise(1, self.node)
+            if prog is not None and prog.rider == 'handbill_tick':
+                # The cheapest daemon on the market answers for the node out
+                # loud, on a timer, whether or not that is convenient (D69).
+                daemon['beat'] = daemon.get('beat', 0) + 1
+                if daemon['beat'] % 2 == 0:
+                    self.make_noise(4, node)
+                    self.console.say(f'[dim]{daemon["uid"]} answers for '
+                                     f'{node.uid}, at volume, on its own '
+                                     f'schedule.[/]')
             rating = prog.rating if prog else 2
 
             # A scripted daemon re-decides what it is doing every tick by

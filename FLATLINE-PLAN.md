@@ -2053,6 +2053,53 @@ something arrives on the host you are standing on that did not come up
 through the network. `check_factions` holds every declared signature to
 being acted on somewhere outside content.
 
+### D69: Breadth, so experimenting is worth it
+
+A catalogue audit against the playstyles found the holes, and they were not
+where the eye would have guessed. **Daemonology had no tier-one program at
+all**, which meant the four districts that stock only tier one could never
+sell one and the whole automation arc was unreachable from the Ninth.
+**Streetcraft and fieldcraft had no gear whatsoever**, one trait apiece.
+Four declared effect keys (`skill_subterfuge`, `skill_stealth`,
+`skill_warfare`, `skill_daemonology`) were granted by nothing. Cortex and
+spinal had no tier-one chrome; ocular and limb had no endgame. Signal had
+two items in the game and sabotage two. Only four programs in sixty cost
+one memory, so a wide light loadout was impossible. And three of the most
+expensive components in the game were pure upgrades with an empty penalty.
+
+**Eight programs**: Handbill (the one-memory daemon a street market will
+sell, which answers for its node out loud on a timer), Bellhop (one-memory
+signal gear: traffic only, never contents), Understair (a one-memory mask
+that stops working the moment the room goes red), Bottlecap (a one-memory
+weapon that does nothing above rating three and escalates when it misses),
+Cipherwright (a forger of keys that spends Focus, which never comes back
+in a run), Slowfuse (a fault that goes off after you leave: quiet now,
+loud in the record), Secondhand (framing without the rank: somebody real
+gets the heat), Last Word (the best wiper in the game and the loudest
+thing in its category).
+
+**Nine chrome**: Doorman and Longhaul Frame for the street skills, the
+Choirmaster for daemonology (their noise is filed against you), Second
+Voice for subterfuge (nobody remembers the person you were not, so
+standing does not accrue), Gutter Loop and Cold Spine for overclockers,
+Long Eye and Breaker Hand for the two locations that had no endgame, and
+Quiet Step for stealth.
+
+**Two icons wearable at zero drift**, because six of the eight needed
+coherence 15 or more and a new character had one real choice: the Night
+Cleaner (quiet, and the tells arrive late) and the Meter Reader (cold on
+heat, and useless the moment you do anything a meter reader would not).
+
+**And the pure upgrades are gone.** Closed Loop has a pump that is the
+first thing to fail; the Sendai Glacier is signed firmware nobody else can
+work on, at Sendai repair prices; Needlecast is deaf to everything it is
+not pointed at. Cold Block stopped being strictly worse than Closed Loop
+and became a different trade: no moving parts, and the weight of a brick.
+`test_breadth` holds every category to a tier-one option, every skill that
+gear could train to gear that trains it, every chrome location to an early
+pair and an endgame piece, and every tier-two-and-up component to costing
+something.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -3361,3 +3408,10 @@ more street lines; twenty crossings; the map's own logic; and the service
 difficulty curve fixed so the first job in the game is one a starting deck
 can open. `test_place` and `test_ladder`. `test.py` green at **15,360
 checks**.
+
+### 2026-08-22 (c): breadth
+
+D69. Eight programs, nine chrome, two icons, and the end of three pure
+upgrades, all from an audit against the twelve playstyles. 68 programs,
+47 chrome, 10 icons, 24 of everything one of a kind. `test.py` green at
+**15,510 checks**.

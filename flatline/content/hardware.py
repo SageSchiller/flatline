@@ -84,9 +84,10 @@ COMPONENTS: tuple[Component, ...] = (
               'Fast and cold, because Sendai solved the problem rather than '
               'moving it. Priced accordingly.',
               effects={'tempo': 1, 'tick_mult': 0.82}, heat=3,
-              drawback='Sendai firmware is signed and closed, and the price '
-                       'is the price.',
-              penalty={},
+              drawback='Sendai firmware is signed and closed. Nobody else '
+                       'can work on it, so every repair is a Sendai repair '
+                       'at a Sendai price.',
+              penalty={'repair_mult': 1.45},
               ),
 
     # -- memory ------------------------------------------------------------
@@ -143,9 +144,10 @@ COMPONENTS: tuple[Component, ...] = (
               'Narrow, fast, and pointed. The connection is a line rather than '
               'a cloud, which is as hard to find as it is to widen.',
               effects={'tick_mult': 0.8, 'trace_mult': 0.9}, heat=3,
-              drawback='Narrow is narrow. It does one thing, and the thing '
-                       'costs what a flat costs.',
-              penalty={}),
+              drawback='Narrow is narrow, and a narrow line hears nothing it '
+                       'is not pointed at. Legwork off the wire is worse '
+                       'with one fitted.',
+              penalty={'legwork_bonus': -2}),
 
     # -- cooling -----------------------------------------------------------
     Component('cool_passive', 'Passive Sink', 'cooling', 1, 100,
@@ -159,15 +161,20 @@ COMPONENTS: tuple[Component, ...] = (
               penalty={'pretext_bonus': -1}),
     Component('cool_block', 'Cold Block', 'cooling', 2, 1900,
               'A machined heatsink the size of a brick, bolted where the '
-              'case was never meant to take one.',
+              'case was never meant to take one. No pump, no fan, nothing '
+              'to fail: a lump of metal doing thermodynamics.',
               effects={'heat_cap': 14}, heat=0,
-              drawback='It needs a fan to be worth the weight, and the fan '
-                       'is not quiet.',
-              penalty={'noise_mult': 1.05}),
+              drawback='It weighs what a brick weighs and is exactly as '
+                       'discreet, which is a thing the street notices.',
+              penalty={'pretext_bonus': -1}),
     Component('cool_loop', 'Closed Loop', 'cooling', 2, 3900,
               'Liquid, sealed, silent. The point at which overclocking becomes '
               'a tactic rather than a gamble.',
-              effects={'heat_cap': 18}),
+              effects={'heat_cap': 18},
+              drawback='The pump is the only moving part in the case, which '
+                       'makes it the first thing to go and the dearest thing '
+                       'to put back.',
+              penalty={'repair_mult': 1.25}),
     Component('cool_cryo', 'Cryo Cell', 'cooling', 3, 11400,
               'Runs the core below ambient. Expensive, and it makes the deck '
               'sweat in a way that has ruined more than one contact.',
@@ -191,7 +198,9 @@ COMPONENTS: tuple[Component, ...] = (
     Component('mask_shroud', 'Shroud Layer', 'masking', 2, 4100,
               'Real masking, at the cost of a memory slot the layer keeps for '
               'itself.',
-              effects={'trace_mult': 0.78, 'memory': -1}, heat=2),
+              effects={'trace_mult': 0.78, 'memory': -1}, heat=2,
+              drawback='The layer keeps a memory slot for itself, and it is '
+                       'not negotiable about which.'),
     Component('mask_palindrome', 'Palindrome', 'masking', 3, 12200,
               'Traffic that reads the same from either end, so a trace that '
               'follows it arrives back where it started.',

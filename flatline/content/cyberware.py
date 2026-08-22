@@ -395,6 +395,87 @@ WARE: tuple[Ware, ...] = (
          drawback='Nothing reaches you, including the tells. You are safer '
                   'and considerably blinder.',
          penalty={'tell_lead': -2, 'scan_depth': -1}),
+    # -- D69: what the audit found nothing for -------------------------------
+    Ware('doorman', 'Doorman', 'unbranded, Ninth Ward', 'subdermal', 1, 4,
+         1600, 1,
+         'A subdermal plate across the forearm and a way of standing that '
+         'comes with it. Everybody who has one recognises everybody else who '
+         'has one, which is most of what it does.',
+         effects={'skill_streetcraft': 1, 'cover': 2},
+         drawback='Being known cuts both ways. The people who recognise it '
+                  'include the people who are looking for somebody with one.',
+         penalty={'heat_mult': 1.12}),
+    Ware('longhaul', 'Longhaul Frame', 'Freeport, rebuilt', 'spinal', 2, 6,
+         4200, 2,
+         'Dock chrome: a load frame off the cranes, cut down and put in a '
+         'person, which Freeport have been doing to themselves for years and '
+         'will do to you for a fee.',
+         effects={'skill_fieldcraft': 1, 'integrity': 4},
+         drawback='It was built to carry, not to sit still. Everything you '
+                  'do at a desk takes fractionally longer, forever.',
+         penalty={'tick_mult': 1.08}),
+    Ware('choirmaster', 'Choirmaster', 'Kohler-Reyes', 'cortex', 2, 11, 6200,
+         2,
+         'Runs processes the way a conductor runs a section: not faster, '
+         'together. Daemonologists say it is the difference between owning '
+         'daemons and having them.',
+         effects={'skill_daemonology': 1, 'tempo': 1},
+         drawback='What they are doing, you are doing. Their noise is filed '
+                  'against your session and their mistakes feel like yours.',
+         penalty={'focus': -2},
+         rider='choir_noise'),
+    Ware('second_voice', 'Second Voice', 'Aoyama, discontinued', 'neural', 2,
+         10, 5400, 2,
+         'A laryngeal implant that gives you another person\'s cadence on '
+         'demand. Aoyama sold it to negotiators for a year and then stopped '
+         'answering questions about it.',
+         effects={'skill_subterfuge': 1, 'pretext_bonus': 2},
+         drawback='It is not your voice. Nobody remembers the person you '
+                  'were not, and standing does not accrue to a stranger.',
+         penalty={'rep_mult': 0.85}),
+    Ware('gutterloop', 'Gutter Loop', 'unbranded, salvage', 'subdermal', 1, 3,
+         900, 1,
+         'A cooling loop for a deck, wired into a person, because the person '
+         'was cheaper to modify than the deck. It works. It is cold.',
+         effects={'heat_cap': 3},
+         drawback='It runs coolant under your skin and you can feel it, and '
+                  'people can see where it goes.',
+         penalty={'composure': -1}),
+    Ware('cold_spine', 'Cold Spine', 'Sendai Interface', 'spinal', 3, 14,
+         11800, 3,
+         'A thermal trunk that takes the heat out of a deck and puts it into '
+         'you, where there is more of you to put it in.',
+         effects={'heat_cap': 9, 'tick_mult': 0.92},
+         drawback='It puts the heat in you. Every step of overclock past the '
+                  'budget costs Integrity as well as components.',
+         penalty={},
+         rider='thermal_load'),
+    Ware('long_eye', 'Long Eye', 'Nightwatch, decommissioned', 'ocular', 2,
+         13, 8600, 3,
+         'Surveillance optics from a decommissioned watch post. It reads a '
+         'network the way it read a street: from further away than anybody '
+         'is comfortable with.',
+         effects={'scan_depth': 2, 'skill_architecture': 1},
+         drawback='It was built to watch and not to be watched back. What it '
+                  'shows you is hard to stop looking at.',
+         penalty={'composure': -3}),
+    Ware('breaker_hand', 'Breaker Hand', 'Carrion, made to order',
+         'limb', 3, 15, 9700, 3,
+         'An arm built for one purpose by people who do not ask what the '
+         'purpose is. It hits countermeasures the way it was told to.',
+         effects={'ice_damage': 5, 'skill_warfare': 1},
+         drawback='Nothing about it is subtle and nothing about it is '
+                  'concealable. Every door you talk your way through, you '
+                  'talk through in spite of it.',
+         penalty={'pretext_bonus': -4}),
+    Ware('quiet_step', 'Quiet Step', 'Freeport Collective', 'limb', 2, 7,
+         3900, 2,
+         'Open-hardware feet, more or less: gait dampers that Freeport '
+         'publish the plans for and half the Ninth has fitted badly.',
+         effects={'skill_stealth': 1, 'noise_mult': 0.92},
+         drawback='Published plans mean published signatures. Anybody who '
+                  'has read the specification knows what to look for.',
+         penalty={'trace_mult': 1.08}),
 )
 
 
@@ -486,7 +567,7 @@ WARE_KEYS: tuple[str, ...] = tuple(BY_KEY)
 #: a validation error, which is what stops a drawback existing only in prose.
 RIDERS: frozenset[str] = frozenset({
     'misfire', 'nightwatch_serial', 'dual_thread', 'deadman', 'thermal_load',
-    'blind_trace', 'creeping_dissonance', 'slow_exit',
+    'blind_trace', 'creeping_dissonance', 'slow_exit', 'choir_noise',
 })
 
 

@@ -35,6 +35,10 @@ class Deck:
     #: What you call it (D62). Cosmetic, persisted, read by nothing but the
     #: screens that mention the deck.
     name: str = ''
+    #: What the room is doing, for programs whose passives depend on it
+    #: (D69). Set by the run; 'green' out in the city, where nothing is
+    #: looking for you yet.
+    alert: str = 'green'
     #: What the body adds to the budgets: memory and cooling from chrome,
     #: traits, origin, and icon. Set by `Character.refresh_deck`, never
     #: saved, because it is derived from the character and a stale copy of
@@ -102,17 +106,22 @@ class Deck:
         # damage reduction of 0.07, and Mirrorbox's note about stacking
         # poorly with other masks was a wish. Now it is the rule: two masks
         # are not twice the mask, and the second slot is a second slot.
-        for prog in self.passives():
+        for prog in self.passives(self.alert):
             parts.append(prog.effects)
         return fx.merge(*parts)
 
-    def passives(self) -> list:
+    def passives(self, alert: str = 'green') -> list:
         """The one program per category whose passive effects count: the
         highest rating, ties to the first loaded."""
         best: dict[str, programs.Program] = {}
         for key in self.loaded:
             prog = programs.BY_KEY.get(key)
             if prog is None or not prog.effects:
+                continue
+            if (prog.rider == 'understair_fails'
+                    and alert not in ('green', 'amber')):
+                # A backup agent is a plausible thing to be right up until
+                # somebody is checking the backup schedule (D69).
                 continue
             have = best.get(prog.category)
             if have is None or prog.rating > have.rating:

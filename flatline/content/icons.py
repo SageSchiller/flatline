@@ -139,6 +139,30 @@ ICONS: tuple[Icon, ...] = (
                   'drops the disguise entirely.',
          penalty={'pretext_bonus': -10},
          rider='no_social'),
+    Icon('janitor', 'Night Cleaner',
+         'The shape of somebody who is in the building because the building '
+         'is dirty. Nobody has ever asked one of them a question.',
+         'A person in overalls pushing something. The render is deliberately '
+         'low: whoever built it understood that the trick is not being worth '
+         'the resolution.',
+         price=2400, coherence=0,
+         effects={'residue_mult': 0.75, 'trace_mult': 0.94},
+         drawback='Cleaners are on a schedule and the schedule is public. '
+                  'You are somewhere you can account for and nowhere you '
+                  'cannot, which means the tells arrive late.',
+         penalty={'tell_lead': -1}),
+    Icon('meter', 'Meter Reader',
+         'A utility process with a work order and a route. It belongs on '
+         'every network in the city and on none of them in particular.',
+         'A flat grey shape with a number on it that goes up. It is the '
+         'least interesting thing in any room it is in, which took '
+         'considerable work.',
+         price=1800, coherence=0,
+         effects={'heat_mult': 0.85, 'skill_hardware': 1},
+         drawback='A meter reader reads meters. Anything you do that is not '
+                  'plausibly reading a meter looks worse for the disguise '
+                  'having been there.',
+         penalty={'pretext_bonus': -2}),
 )
 
 BY_KEY: dict[str, Icon] = {i.key: i for i in ICONS}

@@ -162,7 +162,7 @@ The three ideas everything else hangs off:
 ## What is in it
 
 14 skills with 28 techniques, two of them for the street · 29 traits · 10 origins, each with a signature
-verb nobody else can use and its own starting face · 38 implants · 60 programs
+verb nobody else can use and its own starting face · 10 icons · 47 implants · 68 programs
 · 34 deck components · 24 of all of those one of a kind, never sold, found at a place at an hour or handed over by a decision, each with a history · 28 countermeasures · 9 pieces of bench work · 12 districts, each with a mark for the faction that
 holds it · 12 factions · 7 rival runners who decide about you, and one you can keep · 29 named characters who keep hours, hand out work, keep private stock and do favours on a tab · 32 storylines across 95 scenes and 110 decisions, every one of them read back by the world, with a spine through the middle that has four endings and one of them is a door ·
 102 appearance features · 12 districts, drawn, each with what it is built of, what it works at, its named quarters and what is past its edge, 72 quarters in all, a scene for every hour, 151 things to see in the street, 20 written crossings between them, and 60 places to go and stand · 189 ambient city events, 80 of them consequences of something you decided and 12 of them rumours that stop when the thing is found · 41 manual topics · networks in six shapes · the street in four tiers and 20 ways it stops you, six of them written for one street only ·
