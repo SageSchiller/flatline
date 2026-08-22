@@ -1197,6 +1197,13 @@ def city_steps(game) -> list[tuple[str, str]]:
     from ..world.contracts import OBJECTIVE_PROGRAM
     contract = game.city.current
     steps: list[tuple[str, str]] = []
+    # Hurt is a step before any job (D65): the street hits harder when you
+    # are, and a run starts with what you carry in.
+    char = game.char
+    if char.integrity <= max(4, char.integrity_max // 3):
+        steps.append(('rest', f'you are hurt ({char.integrity}/'
+                              f'{char.integrity_max}); the street and the net '
+                              f'both hit harder when you are'))
     # A package in the bag is a step wherever the job is (D65).
     errand = game.city.errand
     if errand and errand.get('kind') == 'courier':
