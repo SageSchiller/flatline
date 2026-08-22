@@ -1349,14 +1349,38 @@ def _suggest_contract(game):
             list(game.char.library) + list(game.char.deck.loaded)
             if k in programs.BY_KEY}
 
+    from ..world.contracts import objective_possible
+
     def equipped(c) -> bool:
         need = OBJECTIVE_PROGRAM.get(c.objective)
         return not need or need in have
 
+    def possible(c) -> bool:
+        # Not "do you own the program" but "could the die carry it": the
+        # verb at the end of the walk is a check like any other and the
+        # advice reads it before it sends anybody (D71).
+        return objective_possible(game.char, c.objective, int(c.posture))
+
     # Posture is the difficulty, and gear you do not have yet is a shop
     # trip rather than a wall: a soft job that wants a nine-hundred-credit
     # payload beats a hard one that wants nothing.
-    return min(board, key=lambda c: (int(c.posture) + (0 if equipped(c) else 12),
+    #
+    # Size is the second axis and it used to be read the wrong way round:
+    # ties went to the better fee, the better fee is the bigger job, and
+    # depth scales with the fee, so the advice reliably pointed a fresh
+    # build at the deepest thing on the softest network. Somebody who is
+    # asking what to do next is asking for a job they can finish. Once
+    # there are a few runs behind them the fee is the right tiebreak
+    # again, because by then the answer to a big network is gear.
+    # Both gaps are priced rather than sorted on, and in the same currency
+    # as the difficulty they are weighed against: gear you have not bought
+    # is a shop trip, a verb the die cannot carry is a wasted night, and
+    # neither is worth walking into a corporate network to avoid.
+    green = game.char.runs < 5
+    return min(board, key=lambda c: (int(c.posture)
+                                     + (0 if equipped(c) else 12)
+                                     + (0 if possible(c) else 20),
+                                     c.size_mod if green else 0.0,
                                      -c.pay))
 
 

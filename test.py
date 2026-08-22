@@ -7856,6 +7856,105 @@ def test_relics() -> None:
 
 
 
+def test_early() -> None:
+    """D71: the first night is winnable, and the advice knows it."""
+    T.section('the first night')
+    from flatline.commands import city as city_cmd
+    from flatline.run import network as net_mod
+    from flatline.content import nodes as node_content
+    from flatline.world import contracts as contract_mod
+
+    # The city's estimate and the run's own sum are the same sum. They were
+    # two copies of one formula and the city's copy asked a different
+    # question: whether you owned a payload, not whether it could land.
+    from flatline.commands.run import push_check, wipe_check
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+    sess = Session(console=quiet_console(), slot='earlytest'); sess.game = game
+    game.city.board and sess.execute(f'take {game.city.board[0].cid}')
+    for kind in ('corrupt', 'implant', 'wipe'):
+        for posture in (20, 45, 70):
+            net = net_mod.generate(Rng(5).fork('network', 'e'), 'sixes', posture)
+            run = RunState(char=game.char, net=net, console=quiet_console(),
+                           rng=Rng(5).fork('ice', 'e'))
+            from flatline.content import programs as program_content
+            payload = program_content.BY_KEY['siphon']
+            check = (wipe_check(run, payload) if kind == 'wipe'
+                     else push_check(run, kind, payload))
+            T.eq(check.resistance,
+                 contract_mod.objective_resistance(kind, posture),
+                 f'{kind} at posture {posture} resists the same either side')
+
+    # A first board carries a job that is soft, small, and doable. All
+    # three: each one alone was true before and the first night still
+    # could not be finished.
+    for seed in range(12):
+        fresh = Game.new(Character.from_origin('gutter', 'x'), seed=seed)
+        good = [c for c in fresh.city.board
+                if int(c.posture) <= 30 and c.size_mod <= 0.8
+                and contract_mod.objective_possible(
+                    fresh.char, c.objective, int(c.posture))]
+        T.ok(good, f'seed {seed}: a first board has a first job')
+        pick = city_cmd._suggest_contract(fresh)
+        T.ok(contract_mod.objective_possible(
+            fresh.char, pick.objective, int(pick.posture)),
+            f'seed {seed}: and the advice points at one that can be done')
+
+    # The ladder is climbable with the kit every origin starts holding:
+    # the lowest auth server answers to a breaker, all the way through,
+    # because a badge is a full crack and one unanswerable service on it
+    # makes the whole server a wall.
+    for seed in range(20):
+        net = net_mod.generate(Rng(seed).fork('network', 'e1'), 'kagawa', 45,
+                               objective='exfiltrate')
+        objective = net.node(net.objective_node)
+        if objective.tier < 2:
+            continue
+        rungs = [n for n in net.nodes.values()
+                 if n.type == 'auth' and n.tier <= 1]
+        T.ok(rungs, f'seed {seed}: a deep job has a rung to reach it by')
+        rung = min(rungs, key=lambda n: (n.tier, n.uid))
+        families = {node_content.SERVICE_BY_KEY[s.key].family
+                    for s in rung.services}
+        T.ok('identity' not in families,
+             f'seed {seed}: the first rung wants no forger')
+        T.ok('access' in families,
+             f'seed {seed}: and answers to a breaker')
+
+    # Nothing stands in front of the desk that cannot be answered at all.
+    for seed in range(20):
+        for faction, posture in (('sixes', 22), ('kagawa', 45)):
+            net = net_mod.generate(Rng(seed).fork('network', 'e2'), faction, posture)
+            route = (net_mod._route(net, net.objective_node) or [])
+            for uid in route:
+                node = net.nodes[uid]
+                if node.tier > net_mod.SOFT_TIER:
+                    continue
+                for construct in node.ice:
+                    if construct.behaviour != 'warden' or not construct.alive:
+                        continue
+                    T.ok(construct.data.effects.get('credential_check'),
+                         f'{faction} {seed}: the doorman on {uid} takes '
+                         f'credentials')
+
+    # A watch banks nothing in a red room, so the brief does not ask for one.
+    net = net_mod.generate(Rng(7).fork('network', 'e3'), 'sixes', 22,
+                           objective='surveil')
+    run = RunState(char=game.char, net=net, console=quiet_console(),
+                   rng=Rng(7).fork('ice', 'e3'),
+                   contract={'objective': 'surveil', 'faction': 'sixes'})
+    run.here = net.objective_node
+    node = net.node(run.here)
+    node.known = node.mapped = node.open = True
+    for level in ('red', 'lockdown'):
+        run.alert = level
+        steps = run.brief().steps
+        T.ok('observe' not in steps,
+             f'the brief does not ask for a watch at {level} alert')
+    run.alert = 'green'
+    T.ok('observe' in run.brief().steps,
+         'and asks for one the moment the room is quiet again')
+
+
 def test_collector() -> None:
     """D70: an arrangement is world state a thread can read."""
     T.section('the collector')
@@ -8769,7 +8868,7 @@ SUITES = (
     test_consequences, test_spine, test_texture, test_arcs,
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
     test_intrusion, test_catalogue, test_money, test_relics, test_street,
-    test_collector,
+    test_collector, test_early,
     test_soak, test_advice, test_scale, test_place, test_ladder,
     test_net_signatures, test_breadth, test_new_origins,
     test_networks, test_run_mechanics, test_city, test_rivals,

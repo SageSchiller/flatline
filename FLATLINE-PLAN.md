@@ -2144,6 +2144,76 @@ is world state rather than a decision, so it is a rule kind in
 the street is a fact about the world, and the man is the face D65 was
 missing.
 
+### D71: The first night is winnable
+
+The measurement that started this: twenty four fresh characters, each
+taking the contract the game itself recommended and following the brief's
+own advice tick by tick. **None of them finished.** Zero of twenty four,
+and the game never said anything was wrong. Every individual piece was
+behaving as designed; the design had four walls in it that only appear
+when somebody with a starting deck walks into them in sequence.
+
+**The rung nobody could climb.** An access tier is worth three points on
+every attempt, and the only way up is a full crack of an auth server.
+`_ensure_ladder` already guaranteed a tier-one auth behind any deep job,
+which is a ladder. It did not guarantee that anybody could climb it: five
+of the six services an auth server can expose want a forger or a
+cryptography breaker, a badge needs *all* of them cracked, and no origin
+starts with a forger. The lowest rung now runs no identity service at all
+and always exposes the endpoint the things that call it would use.
+
+**The door with no handle.** The same fact one level out: a host whose
+services all rolled identity is not a hard door, it is a zero, and it
+reads as one in the odds. `_soften_route` already capped wardens on the
+one route a player would walk; `_openable_route` now makes the same
+promise about the other half of a host. Off that route, whatever rolled
+stands, which is what keeps a forger worth owning.
+
+**The doorman past the desk.** A warden that does not take credentials
+cannot be answered without an attack program, and no origin starts with
+one either. On the walked route, at the tiers in front of the desk that
+issues badges, those are removed and credential wardens come down to a
+rating a fresh face can argue with. Deeper in, and anywhere off the route,
+they stand where they were put.
+
+**The vault with the errand in it.** Every objective sat in the core or
+the restricted zone regardless of what the job paid, so a four hundred
+credit errand for a gang was behind the same two access tiers as a bank's
+ledger. Depth now scales with the fee: a small job against a soft target
+sits one zone in from the front door, and that is the whole of the
+discount. Against a hardened network the size buys a shorter walk, not a
+shorter climb, or every posture in the game collapses into one.
+
+Two more, found on the way down:
+
+**The advice that could not read its own sums.** `_suggest_contract`
+asked whether you owned a payload. The run asks whether the payload can
+land: a corruption is resisted by posture over five plus six, a fresh
+build brings about three, and the cheapest payload built for the job
+costs four thousand one hundred credits against a starting seven hundred.
+So the city walked people to the objective and printed `impossible` there
+for the first time with the trace at forty. The resistance formulas now
+live in `world/contracts.py` where both halves read them, and both the
+board guarantee and the advice ask the real question.
+
+**The friendly-voiced loop.** A watch banks nothing while the alert is
+red, and the brief said `observe` anyway, once a tick, for thirty ticks,
+while the trace went from eighteen to a hundred. It now says `wait`,
+because quiet is what cools a room, or names the thing that is keeping
+the room loud, or says to leave.
+
+Measured after, on the same twenty four: **nineteen finish**, and the
+five that do not are told the truth (something alive holds the room and
+this build carries nothing that answers it). A fresh runner following the
+advice through five contracts now earns about twelve hundred credits and
+ends with more than they started with, against two hundred and seventy
+across forty runs before.
+
+The ladder above the first night is unchanged and was re-measured to
+prove it: a mid build still finishes 18-24 of 24 against a gang, 4-9
+against Kagawa, 4-10 against Meridian and 2-4 against Deepwater. Posture
+is still the difficulty. It is the first hour that was lying.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.

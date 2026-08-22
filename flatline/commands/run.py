@@ -2210,7 +2210,9 @@ def push_check(state, kind: str, payload) -> Check:
     fault is that skill's whole description, and until now its ranks bought
     nothing but the techniques. Implant stays an Intrusion job: you are
     putting something in, not making something look like it fell over."""
-    check = Check(name=kind, resistance=state.net.posture // 5 + 6)
+    from ..world.contracts import objective_resistance
+    check = Check(name=kind,
+                  resistance=objective_resistance(kind, state.net.posture))
     if kind == 'corrupt':
         check.add('sabotage', state.char.skill('sabotage') * 2)
         check.add('guile', state.char.attr('guile'))
@@ -2228,7 +2230,9 @@ def push_check(state, kind: str, payload) -> Check:
 def wipe_check(state, payload) -> Check:
     """The wipe check (D63). Sabotage again, and the payload counts: the
     contract demanded one at the door and the verb never touched it."""
-    check = Check(name='wipe', resistance=state.net.posture // 6 + 3)
+    from ..world.contracts import objective_resistance
+    check = Check(name='wipe',
+                  resistance=objective_resistance('wipe', state.net.posture))
     check.add('sabotage', state.char.skill('sabotage') * 2)
     check.add('guile', state.char.attr('guile'))
     if payload:

@@ -1887,6 +1887,21 @@ class RunState:
         # Named, because both `pull` and `wipe` default to the first asset on
         # the node and the first asset on the node is frequently not the one
         # the contract is about.
+        # A watch banks nothing while the room is red: `_surveil_tick`
+        # throws the lot away every tick the alert is up, so `observe` at
+        # red is the friendly-voiced loop this file refuses to print
+        # anywhere else. Measured: a fresh build banked one tick, went
+        # red, and was advised to observe for thirty more while the trace
+        # ran from eighteen to a hundred. Quiet is the answer and there is
+        # a verb for it; if quiet cannot come because something alive is
+        # making the noise, that is what to say instead.
+        if kind == 'surveil' and self.alert in ('red', 'lockdown'):
+            if not self._something_hunting():
+                return ('wait',)
+            hunter = self._huntable()
+            if hunter:
+                return (f'strike {hunter}',)
+            return ('jack out',)
         asset = self.net.objective_asset
         return {
             'exfiltrate': (f'pull {asset}' if asset else 'pull',),
@@ -1896,6 +1911,28 @@ class RunState:
             'surveil': ('observe',),
             'escort': ('signal move', 'signal out'),
         }.get(kind, ('pull',))
+
+    def _something_hunting(self) -> bool:
+        """Whether anything alive is keeping the room loud. Quiet ticks
+        are what cools an alert, and a construct that acts every tick is
+        noise that no amount of standing still will out-wait."""
+        return any(c.alive and c.behaviour in ('hunter', 'sentry')
+                   for node in self.net.nodes.values() for c in node.ice
+                   if node.known)
+
+    def _huntable(self) -> str:
+        """The name of something worth striking, if striking is a thing
+        this build can do at all."""
+        if programs.best(self.char.deck.loaded, 'weapon') is None:
+            return ''
+        for node in (self.node, *(self.net.node(u) for u in self.node.edges)):
+            if node is None or not node.known:
+                continue
+            for construct in node.ice:
+                if construct.alive and construct.behaviour in ('hunter',
+                                                               'sentry'):
+                    return construct.uid
+        return ''
 
     def _first_shut(self) -> tuple[str, str] | None:
         """An adjacent host you have looked at and not opened, and its way in."""

@@ -528,14 +528,17 @@ class City:
         # without a payload, four of the six objectives need one, and a new
         # character whose whole board needed one was stuck at the door with
         # 700c and no idea why. One job that needs no program: surveil.
+        #
+        # Owning a payload is not the same as being able to use it, which
+        # is the sharper version of the same bug: a corruption is resisted
+        # by posture over five plus six, a fresh build brings about three,
+        # and no payload in the shop closes a seven point gap on the first
+        # night. The question the board asks is now whether the die could
+        # carry the verb at all, which is the question the run will ask.
         if char is not None and char.runs == 0 and self.board:
-            from ..content import programs as program_content
-            owns = any(k in program_content.BY_KEY
-                       and program_content.BY_KEY[k].category == 'payload'
-                       for k in list(char.library) + list(char.deck.loaded))
-            doable = any(not contract_mod.OBJECTIVE_PROGRAM.get(c.objective)
-                         for c in self.board)
-            if not owns and not doable:
+            doable = any(contract_mod.objective_possible(
+                char, c.objective, int(c.posture)) for c in self.board)
+            if not doable:
                 old = self.board[0]
                 self.board[0] = contract_mod.make_one(
                     rng('contracts'), int(old.cid[1:]), old.patron, old.target,
@@ -546,7 +549,17 @@ class City:
             # and a first board of nothing but corporate networks is a first
             # week of runs that cannot be finished by the deck the game just
             # handed out.
-            if not any(int(c.posture) <= SOFT_POSTURE for c in self.board):
+            # Soft *and* small. Depth scales with the fee now, so the
+            # size of the first job is the difference between a thing in a
+            # cupboard on the office floor and a thing two access tiers
+            # down: measured over twenty four fresh characters following
+            # the game's own advice, only one board in eight offered a job
+            # that was both, and the rest were unfinishable on the night
+            # they were offered.
+            if not any(int(c.posture) <= SOFT_POSTURE and c.size_mod <= 0.8
+                       and contract_mod.objective_possible(
+                           char, c.objective, int(c.posture))
+                       for c in self.board):
                 soft = min(factions.FACTION_KEYS,
                            key=lambda k: self.posture.get(
                                k, factions.BY_KEY[k].posture))
@@ -555,10 +568,21 @@ class City:
                                if k != soft
                                and factions.BY_KEY[k].relations.get(soft, 0) < 0),
                               old.patron)
+                # Soft, small, and something the kit can actually do: a
+                # guaranteed first job that ends at `impossible` on the
+                # objective host is the same dead end wearing a friendlier
+                # posture.
+                kind = next(
+                    (o for o in ('surveil', 'exfiltrate', 'corrupt')
+                     if contract_mod.objective_possible(
+                         char, o, int(self.posture.get(
+                             soft, factions.BY_KEY[soft].posture)))),
+                    'surveil') if char is not None else None
                 self.board[-1] = contract_mod.make_one(
                     rng('contracts'), int(old.cid[1:]), patron, soft,
                     self.shift, alias, self.posture,
-                    used={c.title for c in self.board[:-1]})
+                    used={c.title for c in self.board[:-1]},
+                    objective=kind, size_mod=0.75)
 
     def top_up_board(self, rng: Rng, alias: Alias, char=None,
                      flags=None) -> list[str]:

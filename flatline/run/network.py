@@ -445,8 +445,9 @@ def generate(rng: Stream, faction: str, posture: int,
                                        value=value, encrypted=dk.encrypted))
 
     # -- objective ---------------------------------------------------------
-    _place_objective(rng, net, objective)
+    _place_objective(rng, net, objective, size_mod, posture)
     _ensure_ladder(rng, net, scale)
+    _openable_route(rng, net, scale)
     _signature(rng, net, fac)
     return net
 
@@ -514,7 +515,7 @@ def _signature(rng: Stream, net: Network, fac: factions.Faction) -> None:
 
 
 def _ensure_ladder(rng: Stream, net: Network, scale: float) -> None:
-    """A way up to the tier the job is behind (D64 c).
+    """A way up to the tier the job is behind, and a rung on it (D64 c).
 
     Access tiers are a penalty, not a wall: three points on every attempt
     per tier you are short. Against a core objective that is nine, which no
@@ -528,29 +529,65 @@ def _ensure_ladder(rng: Stream, net: Network, scale: float) -> None:
     produce one. Interior rather than perimeter because that is where the
     content says an auth server lives, and one tier short is three points,
     which is a decision rather than a wall.
+
+    A ladder also has to be climbable, which is a separate claim and was
+    the one that was false. Five of the six services an auth server can
+    expose want a forger or a cryptography breaker; only `rpc` answers to
+    the plain breaker that every origin starts holding. An auth server that
+    rolled the other five is a rung nobody on their first night can reach,
+    and it does not announce itself as one: the odds simply read zero, the
+    brief says jack out, and the run was unwinnable from the door. Measured
+    at twenty four fresh characters following the game's own advice: twenty
+    four could not finish. So the lowest auth server on the ladder always
+    exposes the endpoint the things that call it would use.
     """
     objective = net.node(net.objective_node)
     if objective is None or objective.tier < 2:
         return
-    if any(n.type == 'auth' and n.tier <= 1 for n in net.nodes.values()):
-        return
-    pool = [n for n in net.nodes.values()
-            if n.zone == 'interior' and n.uid != net.entry
-            and n.uid != net.objective_node and n.type != 'honeypot']
-    if not pool:
-        return
-    node = rng.pick(pool)
-    node.type = 'auth'
-    node.services = []
-    kinds = node_content.services_for('auth')
-    lo, hi = node_content.BY_KEY['auth'].services
-    count = min(len(kinds), rng.curve(lo, hi, 0.5))
-    for svc in rng.sample(kinds, count):
-        dlo, dhi = svc.difficulty
-        node.services.append(ServiceInstance(
-            key=svc.key,
+    rungs = [n for n in net.nodes.values() if n.type == 'auth' and n.tier <= 1]
+    if not rungs:
+        pool = [n for n in net.nodes.values()
+                if n.zone == 'interior' and n.uid != net.entry
+                and n.uid != net.objective_node and n.type != 'honeypot']
+        if not pool:
+            return
+        node = rng.pick(pool)
+        node.type = 'auth'
+        node.services = []
+        kinds = node_content.services_for('auth')
+        lo, hi = node_content.BY_KEY['auth'].services
+        count = min(len(kinds), rng.curve(lo, hi, 0.5))
+        for svc in rng.sample(kinds, count):
+            dlo, dhi = svc.difficulty
+            node.services.append(ServiceInstance(
+                key=svc.key,
+                difficulty=max(1, int(round(rng.int(dlo, dhi)
+                                            * (0.7 + 0.6 * scale))))))
+        rungs = [node]
+
+    # The rung itself. Lowest first: that is the one somebody standing at
+    # tier zero is going to be asked to climb.
+    rung = min(rungs, key=lambda n: (n.tier, n.uid))
+    # A badge is a *full* crack, so one service nobody can answer makes the
+    # whole server unclimbable however soft the rest of it is. Identity
+    # services want a forger and no origin starts with one, so the first
+    # rung does not run them: it is the small internal one, an endpoint the
+    # things that call it use and a key store, and both of those answer to
+    # the breaker everybody starts holding. The directories live deeper,
+    # where a forger has had time to become a thing you own.
+    cap = max(2, int(round(3 * (0.45 + 0.78 * scale))))
+    kept = [s for s in rung.services
+            if node_content.SERVICE_BY_KEY[s.key].family != 'identity']
+    if not any(node_content.SERVICE_BY_KEY[s.key].family == 'access'
+               for s in kept):
+        dlo, dhi = node_content.SERVICE_BY_KEY['rpc'].difficulty
+        kept.append(ServiceInstance(
+            key='rpc',
             difficulty=max(1, int(round(rng.int(dlo, dhi)
-                                        * (0.7 + 0.6 * scale))))))
+                                       * (0.45 + 0.78 * scale))))))
+    for svc in kept:
+        svc.difficulty = min(svc.difficulty, cap)
+    rung.services = kept
 
 
 def _pick_shape(rng: Stream, fac: factions.Faction) -> str:
@@ -715,7 +752,15 @@ def _data_weights(node: Node, fac: factions.Faction) -> dict[str, float]:
     return weights
 
 
-def _place_objective(rng: Stream, net: Network, objective: str) -> None:
+#: A network at or below this posture is somebody's back office rather
+#: than somebody's security department, and a small job against one sits
+#: where a small job should: on the office floor, in front of the desk
+#: that issues badges (D71).
+SHALLOW_POSTURE = 30
+
+
+def _place_objective(rng: Stream, net: Network, objective: str,
+                     size_mod: float = 1.0, posture: int = 50) -> None:
     """Pick what the contract is about and make sure it is reachable.
 
     Reachability is not assumed. A network whose objective sits behind an edge
@@ -723,15 +768,45 @@ def _place_objective(rng: Stream, net: Network, objective: str) -> None:
     the one generation bug that is completely unacceptable, so it is checked
     here and repaired rather than left to chance.
     """
-    deep = [n for n in net.nodes.values() if n.zone in ('core', 'restricted')]
+    # How deep the job is scales with what the job is worth. Everything
+    # used to sit in the core or the restricted zone, which is where a
+    # vault is, and a four hundred credit errand for a gang was therefore
+    # behind the same two access tiers as a bank's ledger: a fresh build
+    # standing at tier zero had to fully crack an auth server before the
+    # first contract of its life was even reachable. A small job is a
+    # small job. What somebody will pay four hundred credits for is in a
+    # cupboard on the office floor, and the vault is what the big number
+    # on the board is for.
+    # Shallow is for small jobs against soft targets, and only those. A
+    # small job is still a job: against a hardened network the size buys
+    # you a shorter walk, not a shorter climb, or every posture in the
+    # game collapses into one.
+    shallow = size_mod < 0.9 and posture <= SHALLOW_POSTURE
+    entry = net.node(net.entry)
+    order = list(node_content.ZONES)
+    # One zone deeper than wherever the front door turned out to be.
+    # Deepwater has no perimeter and you arrive already inside it, so its
+    # interior is its doorstep and putting the job there puts it in the
+    # entry hall.
+    floor = (order.index(entry.zone) + 1) if entry is not None else 1
+    zones = ((order[min(floor, len(order) - 1)], 'restricted') if shallow
+             else ('core', 'restricted'))
+    # A small job takes the shallowest zone that has anything in it, and
+    # not the pick of both: the point of it is a night that does not need
+    # a badge, and one asset worth more two tiers down undoes that.
+    deep = [n for n in net.nodes.values() if n.zone == zones[0]]
     if not deep:
-        deep = list(net.nodes.values())
+        deep = [n for n in net.nodes.values() if n.zone in zones]
+    if not deep:
+        deep = [n for n in net.nodes.values()
+                if n.zone in ('core', 'restricted')] or list(net.nodes.values())
 
     if objective in ('exfiltrate', 'corrupt', 'wipe'):
         candidates = [(n, a) for n in deep for a in n.data]
         if not candidates:
             # Force one into existence rather than degrading the contract.
-            node = max(deep, key=lambda n: (n.zone == 'core', len(n.services)))
+            node = max(deep, key=lambda n: (n.zone == zones[0],
+                                            len(n.services)))
             kind = rng.weighted(_data_weights(node, factions.BY_KEY[net.faction]))
             dk = node_content.DATA_BY_KEY[kind]
             asset = DataAsset(uid='asset-objective', kind=kind,
@@ -745,7 +820,8 @@ def _place_objective(rng: Stream, net: Network, objective: str) -> None:
         net.objective_node = node.uid
     else:
         # implant, surveil, escort: the objective is a place, not a thing.
-        node = max(deep, key=lambda n: (n.zone == 'core', len(n.services)))
+        node = max(deep, key=lambda n: (n.zone == zones[0],
+                                        len(n.services)))
         net.objective_node = node.uid
 
     _ensure_reachable(net)
@@ -769,6 +845,16 @@ def _is_wall(node: Node) -> bool:
 #: The highest rating a credential warden keeps on the one route
 #: `_ensure_passable` opens (D63 b).
 SOFT_WARDEN = 4
+
+#: Hosts at or below this access tier are in front of the desk: nobody
+#: standing on them has had the chance to be issued a credential yet, so a
+#: warden there is answerable or it is not there at all (D71).
+SOFT_TIER = 1
+
+#: What a warden in front of the desk is rated. Resistance is rating twice
+#: over plus two, so one is four, which a fresh face and a little Guile can
+#: actually argue with.
+SOFT_DOORMAN = 1
 
 
 def _ensure_passable(net: Network) -> None:
@@ -835,11 +921,74 @@ def _soften_route(net: Network) -> None:
         return
     walls = {uid for uid, node in net.nodes.items() if _is_wall(node)}
     for uid in _route(net, objective, avoid=walls) or _route(net, objective):
-        for construct in net.nodes[uid].ice:
-            if (construct.behaviour == 'warden' and construct.alive
-                    and construct.data.effects.get('credential_check')
-                    and construct.rating > SOFT_WARDEN):
+        node = net.nodes[uid]
+        for construct in list(node.ice):
+            if construct.behaviour != 'warden' or not construct.alive:
+                continue
+            if not construct.data.effects.get('credential_check'):
+                # A warden that does not take credentials cannot be
+                # answered at all without an attack program, and no origin
+                # starts with one. On the walked route, before the desk
+                # that issues badges, that is a wall with a door painted
+                # on it: the odds read nothing, the brief says jack out,
+                # and it says it on the first hop of a first contract.
+                # The doormen stand past the desk. Off the route, and
+                # deeper in, they stand wherever they were put (D71).
+                if node.tier <= SOFT_TIER:
+                    node.ice.remove(construct)
+                continue
+            if construct.rating > SOFT_WARDEN:
                 construct.rating = SOFT_WARDEN
+            # And a credential check is only an answer to somebody who
+            # could be holding a credential. At the tiers below the first
+            # auth server nobody is, so the rating comes down to what a
+            # fresh build's own face can carry.
+            if node.tier <= SOFT_TIER:
+                construct.rating = min(construct.rating, SOFT_DOORMAN)
+
+
+def _openable_route(rng: Stream, net: Network, scale: float) -> None:
+    """Every door on the walked route answers to a breaker (D71).
+
+    The companion to `_soften_route`, and the same promise made about the
+    other half of a host. Services come in four families and only one of
+    them, `access`, answers to the plain breaker every origin starts
+    holding: identity wants a forger and crypto wants a cryptography
+    breaker, and neither is something a first night can have bought yet.
+    A host whose services all happen to have rolled identity is therefore
+    not a hard door, it is a zero: the odds read 0.00 at every difficulty,
+    the brief correctly says jack out, and the run was unwinnable from the
+    moment it generated.
+
+    Measured, before this existed: of twenty four fresh characters taking
+    the job the game itself recommended, none finished, and a third of
+    them hit a host with no answerable door inside eight ticks.
+
+    So on the one route a player would actually walk, every host exposes
+    something in the access family. It is not a discount: the difficulty
+    comes off the same curve as everything else and the trace is still
+    running. It is the difference between a hard door and a wall with a
+    door painted on it. Everything off that route keeps whatever it rolled,
+    which is what makes a forger worth owning.
+    """
+    objective = net.objective_node
+    if not objective or objective not in net.nodes:
+        return
+    walls = {uid for uid, node in net.nodes.items() if _is_wall(node)}
+    route = _route(net, objective, avoid=walls) or _route(net, objective)
+    for uid in route:
+        node = net.nodes[uid]
+        if any(node_content.SERVICE_BY_KEY[s.key].family == 'access'
+               for s in node.services):
+            continue
+        legal = [s for s in node_content.services_for(node.type)
+                 if s.family == 'access']
+        svc = rng.pick(legal) if legal else node_content.SERVICE_BY_KEY['shell']
+        dlo, dhi = svc.difficulty
+        node.services.append(ServiceInstance(
+            key=svc.key,
+            difficulty=max(1, int(round(rng.int(dlo, dhi)
+                                       * (0.45 + 0.78 * scale))))))
 
 
 def _route(net: Network, objective: str, avoid=()) -> list[str]:

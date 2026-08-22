@@ -66,6 +66,57 @@ OBJECTIVE_PROGRAM = {
     'escort': '',
 }
 
+#: What the objective verb itself is up against, by posture (D71). The run
+#: builds the full itemised check; this is the resistance half of it, kept
+#: here because the city has to be able to ask the same question before it
+#: recommends a job. It used to live only inside `push_check` and
+#: `wipe_check`, and the city's advice therefore checked whether you owned
+#: a payload and not whether the payload could do anything: a fresh build
+#: was reliably sent at a corruption it could not land, walked the whole
+#: network, stood on the objective, and read `impossible` for the first
+#: time with the trace at forty.
+def objective_resistance(kind: str, posture: int) -> int:
+    if kind in ('corrupt', 'implant'):
+        return posture // 5 + 6
+    if kind == 'wipe':
+        return posture // 6 + 3
+    return 0
+
+
+def objective_power(char, kind: str) -> int:
+    """What a character brings to that verb, before the die.
+
+    Counts anything owned rather than anything loaded: the loadout is a
+    shop trip and a `load`, and the advice already treats gear you own as
+    gear you have.
+    """
+    from ..content import programs as program_content
+    if kind not in ('corrupt', 'implant', 'wipe'):
+        return 0
+    skill = 'intrusion' if kind == 'implant' else 'sabotage'
+    attr = 'logic' if kind == 'implant' else 'guile'
+    power = char.skill(skill) * 2 + char.attr(attr)
+    owned = [program_content.BY_KEY[k]
+             for k in list(char.library) + list(char.deck.loaded)
+             if k in program_content.BY_KEY]
+    payloads = [p for p in owned if p.category == 'payload']
+    if not payloads:
+        return power - 4 if kind == 'wipe' else power
+    rank = char.skill(skill)
+    best = max(program_content.held(p, rank)
+               - (0 if (not p.jobs or kind in p.jobs) else 3)
+               for p in payloads)
+    return power + int(best) * 2
+
+
+def objective_possible(char, kind: str, posture: int) -> bool:
+    """Whether the die could carry it at all (D14: the same sum the run
+    prints). A ten-sided die offset by five is five points of reach."""
+    from ..run.checks import DIE, OFFSET
+    return (objective_power(char, kind) + DIE - OFFSET
+            >= objective_resistance(kind, posture))
+
+
 #: The fee curve against posture. `PAY_BASE` is what nothing at all is
 #: worth, and the rest is how steeply difficulty is priced.
 PAY_BASE = 900
@@ -293,7 +344,8 @@ def pick_target(rng: Stream, patron: str, alias) -> str | None:
 
 def make_one(rng: Stream, cid: int, patron: str, target: str, shift: int,
           alias, posture: dict, used: set | None = None,
-          objective: str | None = None) -> Contract:
+          objective: str | None = None,
+          size_mod: float | None = None) -> Contract:
     pfac, tfac = factions.BY_KEY[patron], factions.BY_KEY[target]
     if objective is None:
         objective = rng.weighted({o: (2.5 if o in pfac.wants else 0.7)
@@ -321,8 +373,9 @@ def make_one(rng: Stream, cid: int, patron: str, target: str, shift: int,
     # the board has to say so before you take it. Hardened targets run
     # bigger operations, so posture leans the roll.
     heavy = 1.0 + (target_posture / 100.0)
-    size_mod = rng.weighted({0.75: 1.2, 1.0: 2.5, 1.35: 1.0 * heavy,
-                             1.7: 0.35 * heavy})
+    if size_mod is None:
+        size_mod = rng.weighted({0.75: 1.2, 1.0: 2.5, 1.35: 1.0 * heavy,
+                                 1.7: 0.35 * heavy})
     pay = int(pay * SIZE_PAY[size_mod])
 
     district = _where(rng, target)
