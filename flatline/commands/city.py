@@ -1174,6 +1174,28 @@ def city_job(sess) -> None:
         c.raw(f'  [fg]{step}[/]')
 
 
+def _suggest_contract(game):
+    """The job to take next: the lowest posture whose program you carry or
+    own, ties to the better pay. None when the board is empty."""
+    from ..world.contracts import OBJECTIVE_PROGRAM
+    board = [c for c in game.city.board if not c.expired(game.city.shift)]
+    if not board:
+        return None
+    have = {programs.BY_KEY[k].category for k in
+            list(game.char.library) + list(game.char.deck.loaded)
+            if k in programs.BY_KEY}
+
+    def equipped(c) -> bool:
+        need = OBJECTIVE_PROGRAM.get(c.objective)
+        return not need or need in have
+
+    # Posture is the difficulty, and gear you do not have yet is a shop
+    # trip rather than a wall: a soft job that wants a nine-hundred-credit
+    # payload beats a hard one that wants nothing.
+    return min(board, key=lambda c: (int(c.posture) + (0 if equipped(c) else 12),
+                                     -c.pay))
+
+
 def _warned_line(game) -> str:
     """Who has told you, in so many words, that next time they will not
     be asking (D65). On the sheet beside Integrity, because it is the one
@@ -1197,6 +1219,17 @@ def city_steps(game) -> list[tuple[str, str]]:
     from ..world.contracts import OBJECTIVE_PROGRAM
     contract = game.city.current
     steps: list[tuple[str, str]] = []
+    # An unspent budget is a step before anything else. `now` said so while
+    # the board was empty and then stopped the moment a job was taken,
+    # which is the moment it matters: a fresh runner who never spent their
+    # twelve experience fails every check in the network they just walked
+    # to, and nothing tells them why.
+    if game.char.points or game.char.xp >= 4:
+        steps.append(('spend',
+                      f'{game.char.points} attribute point'
+                      f'{"s" if game.char.points != 1 else ""} and '
+                      f'{game.char.xp} experience unspent: every check in '
+                      f'there reads them'))
     # Hurt is a step before any job (D65): the street hits harder when you
     # are, and a run starts with what you carry in.
     char = game.char
@@ -1214,6 +1247,20 @@ def city_steps(game) -> list[tuple[str, str]]:
                           f'{districts.BY_KEY[to].name} for '
                           f'{int(errand.get("pay", 0)):,}c'))
     if contract is None:
+        # Which job, not just "the board" (D64 c). A new runner takes the
+        # first row, which is as likely as not a corporate network they
+        # cannot open, and the run ends in a jack out with nothing. The
+        # recommendation is the softest thing they have the gear for, and
+        # it says the posture out loud, because posture is the difficulty
+        # and nothing on the board says so in those words.
+        pick = _suggest_contract(game)
+        if pick is not None:
+            shown = ', '.join(f'{p.title}' for p in [pick])
+            steps.append((f'take {pick.cid}',
+                          f'{shown}: {pick.target_data.short} at posture '
+                          f'{int(pick.posture)}, the softest thing on the '
+                          f'board you have the gear for'))
+            return steps
         return steps + [('board', 'work on offer')]
     need = OBJECTIVE_PROGRAM.get(contract.objective)
     if need and not game.char.deck.has_category(need):
@@ -1221,30 +1268,99 @@ def city_steps(game) -> list[tuple[str, str]]:
                  if k in programs.BY_KEY
                  and programs.BY_KEY[k].category == need]
         if owned:
-            steps.append((f'load {owned[0].name.lower()}',
-                          f'the job needs a {need} loaded, and you own one'))
+            want = min(owned, key=lambda p: (p.memory, -p.rating))
+            ok, _why = game.char.deck.can_load(want.key)
+            if ok:
+                steps.append((f'load {want.name.lower()}',
+                              f'the job needs a {need} loaded, and you own '
+                              f'one'))
+            else:
+                # Owned, and no room for it: the step is making room, and
+                # it names what to take off. Without this `now` said `load`
+                # for ever and the deck quietly refused every time.
+                deck = game.char.deck
+                loaded = [programs.BY_KEY[k] for k in deck.loaded
+                          if k in programs.BY_KEY]
+                spare = want.memory - deck.memory_free
+                drop = None
+                for p in sorted(loaded, key=lambda p: (p.category == need,
+                                                       p.rating, -p.memory)):
+                    if p.memory >= spare:
+                        drop = p
+                        break
+                if drop is not None:
+                    steps.append((f'unload {drop.name.lower()}',
+                                  f'{want.name} needs {want.memory} memory '
+                                  f'and the deck has {deck.memory_free}: '
+                                  f'{drop.name} is the least of what is on '
+                                  f'it'))
+                else:
+                    steps.append(('deck',
+                                  f'{want.name} needs {want.memory} memory '
+                                  f'and the deck has {deck.memory_free}. '
+                                  f'A bigger bank, or carry less'))
         else:
             cheapest = min((p for p in programs.by_category(need)
                             if not p.unique), key=lambda p: p.price, default=None)
-            if cheapest is not None:
-                shops = [d for d in districts.DISTRICTS
-                         if 'market' in d.services]
-                here = game.city.district
-                shop = here if 'market' in here.services else (
-                    min(shops, key=lambda d: game.city.shifts_to(d.key))
-                    if shops else here)
-                price = int(round(cheapest.price * shop.price_mult))
-                short = price - game.char.credits
-                how = (f'{cheapest.name} is about {price:,}c at the '
-                       f'{shop.name} market'
-                       + (f', which is {short:,}c more than you have: `borrow` '
-                          f'covers it' if short > 0 else ''))
-                steps.append((f'market program',
-                              f'the job needs a {need} loaded, and you own '
-                              f'none. {how}'))
-            else:
+            shops = [d for d in districts.DISTRICTS if 'market' in d.services]
+            here = game.city.district
+            shop = here if 'market' in here.services else (
+                min(shops, key=lambda d: game.city.shifts_to(d.key))
+                if shops else here)
+            price = (int(round(cheapest.price * shop.price_mult))
+                     if cheapest is not None else 0)
+            short = price - game.char.credits
+            if cheapest is None:
                 steps.append(('market program',
                               f'the job needs a {need} loaded, and you own none'))
+            elif short > 0:
+                # The dead end the first play test found: no payload, no
+                # money, and `now` saying `market program` forever. Money
+                # first, and the street pays without a deck.
+                doable = [c for c in game.city.board
+                          if not OBJECTIVE_PROGRAM.get(c.objective)
+                          and c.cid != contract.cid]
+                if game.city.errand:
+                    steps.append((game.city.walk_to(game.city.errand['to']),
+                                  f'{cheapest.name} is {price:,}c at the '
+                                  f'{shop.name} market and you are {short:,}c '
+                                  f'short: the package you are carrying pays '
+                                  f'{int(game.city.errand["pay"]):,}c'))
+                else:
+                    # Named, not listed: advice a player can type once.
+                    offers = street_world.errands_here(game)
+                    best = max(range(len(offers)),
+                               key=lambda i: offers[i]['pay']) if offers else -1
+                    take = (f'errands take {best + 1}' if best >= 0
+                            else 'errands')
+                    pays = (f' It pays {offers[best]["pay"]:,}c.'
+                            if best >= 0 else '')
+                    steps.append((take,
+                                  f'{cheapest.name} is {price:,}c at the '
+                                  f'{shop.name} market and you are {short:,}c '
+                                  f'short. Street work pays and needs no '
+                                  f'deck.{pays} `borrow` is the other way'))
+                if doable:
+                    steps.append((f'drop; take {doable[0].cid}',
+                                  f'or drop this one for {doable[0].title}, '
+                                  f'which needs no program you do not have'))
+            elif 'market' in here.services and any(
+                    l.kind == 'program' and l.key == cheapest.key
+                    for l in game.city.listings('program')):
+                # It is on the shelf here and you can pay for it: name the
+                # buy, not the shop. Advice you can type once.
+                steps.append((f'buy {cheapest.name.lower()}',
+                              f'the job needs a {need}, and {cheapest.name} '
+                              f'is here for about {price:,}c'))
+            elif 'market' in here.services:
+                steps.append(('market program',
+                              f'the job needs a {need} loaded, and you own '
+                              f'none. Something here will do it'))
+            else:
+                steps.append((game.city.walk_to(shop.key),
+                              f'the job needs a {need} and you own none. '
+                              f'{cheapest.name} is about {price:,}c at the '
+                              f'{shop.name} market, which is the nearest'))
     where = districts.BY_KEY[contract.district]
     hops = game.city.shifts_to(contract.district)
     if hops:

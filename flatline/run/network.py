@@ -406,7 +406,48 @@ def generate(rng: Stream, faction: str, posture: int,
 
     # -- objective ---------------------------------------------------------
     _place_objective(rng, net, objective)
+    _ensure_ladder(rng, net, scale)
     return net
+
+
+def _ensure_ladder(rng: Stream, net: Network, scale: float) -> None:
+    """A way up to the tier the job is behind (D64 c).
+
+    Access tiers are a penalty, not a wall: three points on every attempt
+    per tier you are short. Against a core objective that is nine, which no
+    fresh build passes, and the only route up is a full crack of an auth
+    server. A network whose only auth server sits at tier two therefore
+    has no ladder at all for somebody standing at tier zero: the brief
+    correctly says jack out, and it says it on every run.
+
+    So: any network whose objective is tier two or deeper has an auth
+    server at tier one, promoting an interior host if the roll did not
+    produce one. Interior rather than perimeter because that is where the
+    content says an auth server lives, and one tier short is three points,
+    which is a decision rather than a wall.
+    """
+    objective = net.node(net.objective_node)
+    if objective is None or objective.tier < 2:
+        return
+    if any(n.type == 'auth' and n.tier <= 1 for n in net.nodes.values()):
+        return
+    pool = [n for n in net.nodes.values()
+            if n.zone == 'interior' and n.uid != net.entry
+            and n.uid != net.objective_node and n.type != 'honeypot']
+    if not pool:
+        return
+    node = rng.pick(pool)
+    node.type = 'auth'
+    node.services = []
+    kinds = node_content.services_for('auth')
+    lo, hi = node_content.BY_KEY['auth'].services
+    count = min(len(kinds), rng.curve(lo, hi, 0.5))
+    for svc in rng.sample(kinds, count):
+        dlo, dhi = svc.difficulty
+        node.services.append(ServiceInstance(
+            key=svc.key,
+            difficulty=max(1, int(round(rng.int(dlo, dhi)
+                                        * (0.7 + 0.6 * scale))))))
 
 
 def _pick_shape(rng: Stream, fac: factions.Faction) -> str:

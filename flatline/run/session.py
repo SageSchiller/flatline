@@ -1701,14 +1701,19 @@ class RunState:
         badge. Only ones at or below your current tier: sending somebody at a
         locked door to open a locked door behind it is not advice.
         """
-        for node in self.net.nodes.values():
-            if node.type != 'auth' or not node.known or node.tier > self.tier:
-                continue
-            if not node.mapped:
-                return (f'probe {node.uid}',)
-            way = self._easiest(node)
-            if way:
-                return (f'crack {node.uid} {way}',)
+        # At or below your tier first; then one above, which is three
+        # points and the only rung there is. Two above is a wall, and
+        # sending somebody at it is not advice.
+        for reach in (0, 1):
+            for node in self.net.nodes.values():
+                if (node.type != 'auth' or not node.known
+                        or node.tier > self.tier + reach):
+                    continue
+                if not node.mapped:
+                    return (f'probe {node.uid}',)
+                way = self._easiest(node)
+                if way:
+                    return (f'crack {node.uid} {way}',)
         return None
 
     def _easiest(self, node) -> str:

@@ -1904,6 +1904,27 @@ heat, because they remember who ended it; past a bounty of sixty there is
 no arrangement, because they want the number. `rep` lists what stands and
 who has warned you.
 
+**(c) The advice is a chain that ends in a run.** An economy soak (a
+character that does exactly what `now` says, forty seeds, four hundred
+commands) found the loop the author hit and three more behind it: `now`
+said `market program` to somebody who could not afford one, for ever; then
+`buy` was not named, so the shop was the answer and never the purchase;
+then `load` was named with no memory free, and the deck refused it every
+time in silence; then a fresh runner with twelve unspent experience took
+whatever was first on the board and lost every run. So: the unspent budget
+is the first step there is, and it stays a step after a job is taken;
+short of money, the step is the best-paying errand, named, and `borrow`;
+with money, the step is `buy <name>` when it is on the shelf here and the
+walk to the nearest market when it is not; with no room, the step is
+`unload <the least of what is on the deck>`, named; and with nothing
+accepted, the step is `take <cid>` for the softest thing on the board the
+kit can do, posture said out loud, a shop trip counted as twelve posture
+rather than as a wall. And `_ensure_ladder`: a network whose objective is
+tier two or deeper always has an auth server at tier one, because the only
+route up is a full crack of one and a network whose only auth sat at tier
+two had no ladder at all; `_tier_steps` will now name an auth one rung
+above you, which is three points and a decision, rather than none.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -3146,3 +3167,12 @@ random answers to the street, random verbs inside runs. Zero crashes, 393
 encounters and 459 errands exercised, one flatline and nobody killed in the
 street, which is about right for characters answering at random. 29 traits,
 72 rice pieces. `test.py` green at **14,984 checks**.
+
+### 2026-08-21 (y): the chain that ends in a run
+
+D64 (c). Four dead ends in the advice, found by making a character do
+exactly what `now` says for four hundred commands and watching where it
+looped: the shop it could not afford, the buy nobody named, the load with
+no memory, and the board's first row. Plus the tier ladder in generation.
+A follower now goes take -> errand -> buy -> unload -> load -> travel ->
+jack in and finishes runs. `test.py` green at **15,074 checks**.

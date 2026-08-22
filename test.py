@@ -5517,7 +5517,10 @@ def test_guide() -> None:
     line, steps, also = guide.what_now(sess)
     T.ok(steps, 'with a contract there is a next step')
     first = steps[0][0]
-    T.ok(first.startswith(('travel', 'load', 'market')) or first == 'jack in',
+    T.ok(first.startswith(('travel', 'walk', 'load', 'market', 'errands',
+                           'rest', 'drop', 'spend', 'buy', 'unload', 'take',
+                           'deck'))
+         or first == 'jack in',
          f'and it is a real move ({first!r})')
     T.ok(first in out, 'which the panel prints')
     T.ok(all(REGISTRY.lookup(a.split()[0]) for a in also),
@@ -7513,9 +7516,19 @@ def test_catalogue() -> None:
                     None)
     if contract is not None:
         game.city.accepted = contract.cid
+        game.char.credits = 9000
         steps = city_cmd.city_steps(game)
-        T.ok(any('Siphon' in why and 'c at the' in why for _, why in steps),
-             'now names the cheapest payload and its price')
+        T.ok(any('Siphon' in why for _, why in steps),
+             f'now names the cheapest payload ({steps[:1]})')
+        T.ok(any(cmd.startswith(('buy', 'market', 'travel', 'walk'))
+                 for cmd, _ in steps),
+             'and how to get it')
+        # And with no money it does not loop on a shop you cannot buy in.
+        game.char.credits = 100
+        steps = city_cmd.city_steps(game)
+        T.ok(steps and steps[0][0] != 'market program',
+             f'now does not send a broke runner shopping ({steps[:1]})')
+        T.ok(any('short' in why for _, why in steps), 'and says why')
 
     # fit swaps a spare in and the old part out; sell takes components.
     game = Game.new(Character.from_origin('gutter', 'x'), seed=6)
