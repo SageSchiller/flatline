@@ -181,6 +181,9 @@ MARKS: dict[str, dict[str, str]] = {
               'node': '•', 'lock': '▰', 'open': '▱'},
     'medical': {'bullet': '▁', 'arrow': '⟩', 'check': '♥', 'cross': '⚕',
                 'node': '◉', 'lock': '▮', 'open': '▯'},
+    # What a courier chalks on a wall for the next courier (D65).
+    'kerbside': {'bullet': '⌐', 'arrow': '↳', 'check': '✓', 'cross': '⌗',
+                 'node': '⌂', 'lock': '⌷', 'open': '⌸'},
 }
 
 

@@ -161,13 +161,13 @@ The three ideas everything else hangs off:
 
 ## What is in it
 
-14 skills with 28 techniques, two of them for the street · 26 traits · 10 origins, each with a signature
+14 skills with 28 techniques, two of them for the street · 29 traits · 10 origins, each with a signature
 verb nobody else can use and its own starting face · 37 implants · 58 programs
 · 34 deck components · 21 of all of those one of a kind, never sold, found at a place at an hour or handed over by a decision, each with a history · 28 countermeasures · 9 pieces of bench work · 12 districts, each with a mark for the faction that
 holds it · 12 factions · 7 rival runners who decide about you, and one you can keep · 29 named characters who keep hours, hand out work, keep private stock and do favours on a tab · 32 storylines across 95 scenes and 110 decisions, every one of them read back by the world, with a spine through the middle that has four endings and one of them is a door ·
 102 appearance features · 12 districts, drawn, with a scene for every hour and 54 places in them to go and stand · 186 ambient city events, 80 of them consequences of something you decided and 12 of them rumours that stop when the thing is found · 41 manual topics · networks in six shapes · the street in four tiers and 14 ways it stops you ·
 12 drugs · 3 lenders · 2 games of chance in 5 rooms ·
-122 commands · 71 pieces of terminal across 7 axes.
+122 commands · 72 pieces of terminal across 7 axes.
 
 Every number on every one of those is read by the engine, and `validate.py`
 holds it to that: every modifier key and every rider string in the content

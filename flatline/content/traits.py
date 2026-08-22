@@ -304,6 +304,33 @@ TRAITS: tuple[Trait, ...] = (
                    'a little more intact.',
           penalty={'ice_dr': 1.15},
           excludes=('clean',)),
+    Trait('local', 'Local',
+          'You are from one of these streets and it is obvious to everybody '
+          'who is also from one of these streets, which is most people.',
+          'history',
+          effects={'skill_streetcraft': 1},
+          drawback='Being from here means being known here. The people '
+                   'looking for you start with the people who knew you.',
+          penalty={'cover': -2},
+          excludes=()),
+    Trait('carried', 'Carried Worse',
+          'Somebody put you back together once, badly, and you have been '
+          'walking on it since, and it has taught you what walking costs.',
+          'history',
+          effects={'skill_fieldcraft': 1, 'integrity': 2},
+          drawback='It aches in the cold and the cold is most of the year. '
+                   'You are slower than you were.',
+          penalty={'reflex': -1}),
+    Trait('unbothered', 'Unbothered',
+          'Somebody has held a knife on you and you thought about something '
+          'else until they had finished, and it worked, and it has worked '
+          'every time since.',
+          'temperament',
+          effects={'composure': 3},
+          drawback='It reads as contempt, which is what it is, and people '
+                   'who are being ignored find a way to be noticed.',
+          penalty={'pretext_bonus': -2}),
+
 )
 
 BY_KEY: dict[str, Trait] = {t.key: t for t in TRAITS}

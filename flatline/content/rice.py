@@ -77,6 +77,7 @@ COUNTERS: dict[str, str] = {
     'threads': 'threads_closed',
     'standing': 'best_standing',
     'characters': 'characters_created',
+    'errands': 'errands_done',
 }
 
 
@@ -319,6 +320,12 @@ COSMETICS: tuple[Cosmetic, ...] = (
              'Sharper. Points at things rather than sitting beside them.',
              needs=('runs', 3),
              hint='Three contracts.'),
+    Cosmetic('kerbside', 'marks', 'Kerbside',
+             'The marks a courier chalks on a wall for the next courier: '
+             'a corner, an arrow, a number. Nobody who has not carried '
+             'anything can read them.',
+             needs=('errands', 12),
+             hint='Twelve pieces of street work.'),
     Cosmetic('minimal', 'marks', 'Minimal',
              'ASCII marks in a Unicode terminal, which is a whole aesthetic '
              'and you know whether it is yours.',

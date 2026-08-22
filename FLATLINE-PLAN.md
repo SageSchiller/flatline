@@ -3135,3 +3135,14 @@ Standing arrangements with factions (`arrange`): a money sink that is a
 real decision against heat and bounties, collected on the shift tick,
 easing `arrival_risk` and capping the encounter tier. `now` says rest when
 you are hurt. `test.py` green at **14,970 checks**.
+
+### 2026-08-21 (x): the street pays back
+
+Three traits that are the street on a sheet (Local, Carried Worse,
+Unbothered), a rice mark set earned by street work (Kerbside: what a
+courier chalks on a wall for the next courier, at twelve errands), and a
+heavier offline soak: forty seeds, a hundred and fifty commands each,
+random answers to the street, random verbs inside runs. Zero crashes, 393
+encounters and 459 errands exercised, one flatline and nobody killed in the
+street, which is about right for characters answering at random. 29 traits,
+72 rice pieces. `test.py` green at **14,984 checks**.
