@@ -44,6 +44,11 @@ def cmd_look(sess, args) -> None:
     # district once on arrival and then never again, so a player who has been
     # somewhere for six shifts had nothing to look at.
     c.say(f'[dim]{district.blurb}[/]')
+    if district.scale:
+        # How big it is, in the terms the place itself uses (D67). The city
+        # is supposed to be more than you can hold, and a district that
+        # never says how many people are in it is one street with a name.
+        c.say(f'[dim]{district.scale}[/]')
     c.blank()
     # This district at this hour, when somebody wrote it; the city-wide
     # shift scene otherwise (D53). Then who is in the street (D58).
@@ -52,6 +57,10 @@ def cmd_look(sess, args) -> None:
     if street:
         c.blank()
         c.say(f'[dim]{street}[/]')
+    if district.quarters:
+        c.blank()
+        c.say(f'[dim]Quarters: {", ".join(district.quarters)}. '
+              f'`district` for what the place is and what it does.[/]')
 
     # What the clock is doing to you, in the two places it is doing it.
     parts = []
@@ -258,6 +267,82 @@ def cmd_visit(sess, args) -> None:
             c.say(f'[dim]{npc.name} is not here at the moment.[/]')
     _finds(sess, spot)
     _check_story(sess)
+
+
+@command('district', 'What this place is, what it is made of, what it does.',
+         group='info', contexts=('city',), aliases=('here', 'place'),
+         usage='district [name]',
+         detail='D67. The long read on a district: how big it is, what it is '
+                'built out of, what the people in it do for money, the '
+                'quarters it is made of, who holds it and who else has '
+                'people here, and what is past its edge. `look` is what is '
+                'in front of you this hour; this is the place itself. Any '
+                'district by name, from anywhere, because knowing what the '
+                'Row is before you walk into it is the whole of preparation.')
+def cmd_district(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    key = game.city.where
+    if len(args):
+        want = args.rest().lower().strip()
+        # Exact first, then the start of a name, then anywhere in one:
+        # `row` is Meridian Row and not Marrow, which contains it.
+        exact = [d for d in districts.DISTRICTS
+                 if want == d.key or want == d.name.lower()]
+        starts = [d for d in districts.DISTRICTS
+                  if d.name.lower().startswith(want)
+                  or d.name.lower().removeprefix('the ').startswith(want)
+                  or d.key.startswith(want)]
+        loose = [d for d in districts.DISTRICTS if want in d.name.lower()]
+        found = exact or starts or loose
+        if len(found) != 1:
+            raise CommandError('which district? '
+                               + ', '.join(d.key for d in districts.DISTRICTS))
+        key = found[0].key
+    d = districts.BY_KEY[key]
+    here = key == game.city.where
+    hops = game.city.shifts_to(key)
+    c.header(d.name, 'you are here' if here
+             else f'{hops} shift{"s" if hops != 1 else ""} away')
+    c.say(d.blurb)
+    c.blank()
+    if d.scale:
+        c.say(d.scale)
+        c.blank()
+    if d.built:
+        c.rule('what it is made of')
+        c.say(d.built)
+        c.blank()
+    if d.works:
+        c.rule('what it does')
+        c.say(d.works)
+        c.blank()
+    if d.quarters:
+        c.rule('quarters')
+        c.say(', '.join(d.quarters) + '.')
+        c.blank()
+    if d.beyond:
+        c.rule('past the edge')
+        c.say(d.beyond)
+        c.blank()
+    holder = factions.BY_KEY[d.controller]
+    rows = [('held by', f'{holder.name} [dim]{holder.doctrine.split(".")[0]}[/]')]
+    if d.presence:
+        rows.append(('also here', ', '.join(factions.BY_KEY[k].short
+                                            for k in d.presence)))
+    rows.append(('services', ', '.join(d.services) or 'nothing you can use'))
+    rows.append(('market', f'tier {d.max_tier} and below, prices '
+                           f'{"up" if d.price_mult > 1 else "down"} '
+                           f'{abs(d.price_mult - 1) * 100:.0f}%'))
+    rows.append(('security', str(d.security)))
+    places = spots.in_district(key)
+    if places:
+        rows.append(('places', ', '.join(s.name for s in places)))
+    neighbours = ', '.join(districts.BY_KEY[n].name for n in d.neighbours)
+    rows.append(('next to', neighbours))
+    c.kv(rows)
+    if not here:
+        c.blank()
+        c.say(f'[dim]`{game.city.walk_to(key)}` to go.[/]')
 
 
 @command('news', 'What the city did while you were not looking.',

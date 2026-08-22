@@ -1715,9 +1715,16 @@ def cmd_travel(sess, args) -> None:
             f'Otherwise `rest` until it cools, or `burn` the name.')
 
     known = target in game.city.visited
+    # What is between here and there (D67). The city is only as big as the
+    # distance you can feel, and a shift passing in silence feels like no
+    # distance at all.
+    between = districts.crossing(game.city.where, target, game.city.shift)
     game.city.where = target
     game.city.visited.add(target)
     district = districts.BY_KEY[target]
+    if between:
+        c.blank()
+        c.say(f'[dim]{between}[/]')
     free = known and 'streetwise' in game.char.riders()
     if free:
         # You have walked this one before. You know which stairwells connect.

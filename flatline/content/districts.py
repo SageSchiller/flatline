@@ -46,6 +46,19 @@ class District:
     neighbours: tuple[str, ...] = ()
     #: Factions with a presence beyond the controller. Affects who notices you.
     presence: tuple[str, ...] = ()
+    #: D67, the city as a place. How big it is, in the terms the place
+    #: itself would use: floors, people, streets, cranes.
+    scale: str = ''
+    #: What it is made of, and what that does to standing in it.
+    built: str = ''
+    #: What people here do for money, and who takes a cut of it.
+    works: str = ''
+    #: Named parts of it. A district is not one street, and naming six
+    #: corners of it that you will never visit is most of what makes a
+    #: place feel like it goes on past the bit you are standing in.
+    quarters: tuple[str, ...] = ()
+    #: What is past its edge. The city does not stop at the map.
+    beyond: str = ''
 
 
 DISTRICTS: tuple[District, ...] = (
@@ -57,6 +70,31 @@ DISTRICTS: tuple[District, ...] = (
         'at you yet, which in the Ninth is a decision rather than an accident.',
         services=('market', 'fence', 'workshop', 'safehouse'),
         security=25, price_mult=0.85, max_tier=1,
+        scale=(
+            'Nine blocks that were eleven before the water, and something '
+            'like forty thousand people in them, most of whom have never '
+            'been above the fourth floor of anything.'
+        ),
+        built=(
+            'Concrete poured in a hurry sixty years ago, walkways bolted on '
+            'ever since, and a tide mark at chest height on everything that '
+            'has not been replaced. Nothing in the Ninth was designed. All '
+            'of it was added, by somebody who needed it that week.'
+        ),
+        works=(
+            'Salvage. The Ninth takes apart what the rest of the city '
+            'throws out and sells it back in pieces, and the pieces are '
+            'good, because the people doing it have nothing else to be good '
+            'at. Under that the Sixes take their cut of everything, and '
+            'under that the pumps run on parts nobody is ever invoiced for.'
+        ),
+        quarters=('the Tideline', 'Pump Row', 'the Stalls', 'Lower Nine', 'the Drowned Arcade', 'Kettle Street'),
+        beyond=(
+            'Past the Tideline the water won. Those blocks are still '
+            'standing and still empty and nobody has ever counted them, and '
+            'the Sixes say people live out there, and say it in the voice '
+            'you use for something you would rather was a story.'
+        ),
         neighbours=('marrow', 'freeport', 'terraces', 'shambles', 'stacks'),
         presence=('carrion', 'fixers'),
     ),
@@ -70,6 +108,28 @@ DISTRICTS: tuple[District, ...] = (
         'landlines.',
         services=('market', 'fixer', 'safehouse', 'fence'),
         security=40, price_mult=1.0, max_tier=2,
+        scale=(
+            'Four thousand people live in a quarter mile of covered street, '
+            'and three times that pass through it on any given shift.'
+        ),
+        built=(
+            'A market that grew a roof, and then floors, and then more '
+            'roof. Six decks of it now, strung with cable and hung with '
+            'sheeting, and nobody alive can tell you which parts are load '
+            'bearing.'
+        ),
+        works=(
+            'Marrow makes nothing. It arranges things: work, credit, '
+            'silence, an introduction, and a cup of something at four in '
+            'the morning for whoever has just finished doing one of them. '
+            'Everybody here is somebody\'s second phone call.'
+        ),
+        quarters=('the Long Counter', 'Under Six', 'the Exchange', 'Landline Row', 'the Back Bar', 'the Transit Gate'),
+        beyond=(
+            'Every road out of Marrow goes somewhere that wants something. '
+            'That is the entire geography of the place and everybody '
+            'standing in it knows which road is theirs.'
+        ),
         neighbours=('ninth', 'vertical', 'glasshouse', 'freeport', 'precinct'),
         presence=('sixes', 'freeport', 'nightwatch'),
     ),
@@ -83,6 +143,30 @@ DISTRICTS: tuple[District, ...] = (
         'still.',
         services=('market', 'clinic'),
         security=80, price_mult=1.35, max_tier=3,
+        scale=(
+            'Ninety floors, eleven thousand on shift at any hour, and a '
+            'lobby that has logged every one of them walking in.'
+        ),
+        built=(
+            'One building, and then a city arranged around it afterwards. '
+            'Glass and steel and a service core you could drive a lorry '
+            'down, all of it cleaned nightly by people who are bussed in at '
+            'eleven and bussed out at four and never once appear on a floor '
+            'plan.'
+        ),
+        works=(
+            'Logistics. A third of the city\'s calories move through the '
+            'Vertical\'s schedules, and every person in the building is a '
+            'line on a spreadsheet about it, including the ones who write '
+            'the spreadsheets.'
+        ),
+        quarters=('the Lobby', 'Forty Through Sixty', 'the Service Core', 'the Loading Deck', 'Reception Seven', 'the Roof Farm'),
+        beyond=(
+            'Above sixty the lifts need a reason and below the lobby there '
+            'are four levels of plant that are on no public plan, and the '
+            'people who work down there are Kagawa staff with Kagawa badges '
+            'who have never been upstairs.'
+        ),
         neighbours=('marrow', 'green', 'terraces', 'precinct'),
         presence=('nightwatch',),
     ),
@@ -95,6 +179,29 @@ DISTRICTS: tuple[District, ...] = (
         'excellent, which is how they keep the rest of it quiet.',
         services=('clinic', 'market'),
         security=70, price_mult=1.25, max_tier=3,
+        scale=(
+            'A campus of nine buildings, four thousand staff, and a lawn '
+            'that costs more a year to keep than the Ninth spends on its '
+            'pumps.'
+        ),
+        built=(
+            'Low, curved, and pale, with real wood in the reception areas '
+            'and a filtration plant under the lawn that runs louder than '
+            'anything in the Ninth. Every corridor is the same width. That '
+            'is on purpose, and after an hour you can feel it.'
+        ),
+        works=(
+            'Chrome, and the research that produces it, and the aftercare '
+            'that keeps the research from being a scandal. Aoyama will put '
+            'anything in you that you can pay for, and their aftercare is '
+            'genuinely excellent, which is how the rest of it stays quiet.'
+        ),
+        quarters=('Reception', 'the Lawns', 'Aftercare', 'the Dispensary', 'Building Four', 'the Long Wing'),
+        beyond=(
+            'Building Nine has no reception and no signage and a car park '
+            'that is full at three in the morning, and the staff in the '
+            'other eight call it the Long Wing and change the subject.'
+        ),
         neighbours=('vertical', 'glasshouse'),
         presence=('nightwatch',),
     ),
@@ -107,6 +214,31 @@ DISTRICTS: tuple[District, ...] = (
         'staff talk to your deck rather than to you.',
         services=('market', 'workshop', 'clinic'),
         security=65, price_mult=1.15, max_tier=3,
+        scale=(
+            'Two hundred metres of frontage, forty of glass, and behind it '
+            'eleven floors of showroom, workshop and interface bar that '
+            'never entirely closes.'
+        ),
+        built=(
+            'Sendai built it to be looked at: a wall of glass with the '
+            'interface floor behind it, lit so that from Marrow at night it '
+            'reads as one enormous screen with people moving about inside. '
+            'The back of the building is breeze block, like everywhere '
+            'else.'
+        ),
+        works=(
+            'Interfaces, and the people who wear them. The Glasshouse sells '
+            'the fastest connection in the city and a room to use it in, '
+            'and buys, quietly, the recordings of what everybody does in '
+            'those rooms.'
+        ),
+        quarters=('the Floor', 'the Dark Room', 'the Bench', 'Interface Bar', 'the Bay', 'the Back Stair'),
+        beyond=(
+            'The dark room is on no plan of the building and the people who '
+            'use it came out of somewhere that does not appear on plans '
+            'either, and Sendai leave the lights off in there as a courtesy '
+            'they have never explained.'
+        ),
         neighbours=('marrow', 'green', 'freeport', 'row', 'hall',),
         presence=('nightwatch', 'freeport'),
     ),
@@ -119,6 +251,28 @@ DISTRICTS: tuple[District, ...] = (
         'is either community-printed or fell off something.',
         services=('market', 'workshop', 'fence', 'safehouse', 'fixer'),
         security=30, price_mult=0.92, max_tier=2,
+        scale=(
+            'A mile and a half of working dock, six thousand people on the '
+            'rota, and eleven cranes, of which nine move.'
+        ),
+        built=(
+            'Steel, salt, and forty years of repairs made by whoever was on '
+            'shift. Nothing here is branded. Everything here has been fixed '
+            'at least twice, by people who wrote down how, on a board, by '
+            'the gate, in pen.'
+        ),
+        works=(
+            'Cargo, and what comes off cargo. Freeport unloads the city\'s '
+            'imports and keeps a percentage in kind, and everybody agrees '
+            'not to call that what it is because the alternative is Kagawa '
+            'running the docks.'
+        ),
+        quarters=('the West Gate', 'the Crane Line', 'the Mess', 'Print Row', 'the Wall', 'Cold Store Three'),
+        beyond=(
+            'Past the last crane the quay keeps going for another half mile '
+            'into water nobody dredges, and there are boats tied up out '
+            'there that have not moved in years and are not empty.'
+        ),
         neighbours=('ninth', 'marrow', 'glasshouse', 'shambles', 'row',),
         presence=('carrion', 'fixers', 'sixes'),
     ),
@@ -133,6 +287,29 @@ DISTRICTS: tuple[District, ...] = (
         'nobody here is in a hurry.',
         services=('market', 'fence'),
         security=85, price_mult=0.9, max_tier=2,
+        scale=(
+            'Four streets, one building that matters, and eleven hundred '
+            'officers on the roster, of whom about four hundred are real.'
+        ),
+        built=(
+            'Municipal concrete with the windows too small, a yard behind '
+            'it with a wire fence, and a public counter designed by '
+            'somebody who had thought hard about queues and not at all '
+            'about people. The cells are older than the building and were '
+            'moved into it.'
+        ),
+        works=(
+            'Response. Nightwatch do not prevent anything: they arrive, '
+            'they file, and they keep. The Precinct is mostly a warehouse '
+            'for things taken off people, sorted by date, with a retention '
+            'schedule that is public and that nobody has ever asked to see.'
+        ),
+        quarters=('the Counter', 'the Yard', 'Lost Property', 'the Cells', 'Surplus', 'the Waiting Room'),
+        beyond=(
+            'The yard backs onto a lot where the vans that have stopped '
+            'working are parked in rows, and the rows are longer every '
+            'year, and the fence around them was put up facing inward.'
+        ),
         neighbours=('marrow', 'vertical'),
         presence=('kagawa',),
     ),
@@ -146,6 +323,31 @@ DISTRICTS: tuple[District, ...] = (
         'expensive, and there is a reason for that.',
         services=('clinic', 'fence', 'workshop'),
         security=15, price_mult=0.7, max_tier=2,
+        scale=(
+            'Six streets that used to be a hospital campus, and nobody '
+            'counts the people, because the people are the trade.'
+        ),
+        built=(
+            'A ward block with the wards taken out, a chapel with the pews '
+            'taken out, and a car park that has had four storeys of housing '
+            'grown into it. Every surface that can carry a handwritten sign '
+            'is carrying one, and about a third of them are directions to a '
+            'clinic.'
+        ),
+        works=(
+            'Bodies. Carrion buy what comes out of people and sell it to '
+            'whoever will have it, and the Blue Surgeon will put it back '
+            'into somebody else for a price that is always, precisely, what '
+            'you have. There is more clinical skill on this street than in '
+            'the Green and none of the paperwork.'
+        ),
+        quarters=('the Clinic', 'the Cabinets', 'the Yard', 'Chapel Row', 'the Night Counter', 'Ward Nine'),
+        beyond=(
+            'Ward Nine is boarded at both ends and the boards have been '
+            'rehung so many times that the current ones are new, and '
+            'Carrion keep it that way, and will tell you cheerfully that '
+            'they do not know why.'
+        ),
         neighbours=('ninth', 'freeport'),
         presence=('sixes',),
     ),
@@ -161,6 +363,30 @@ DISTRICTS: tuple[District, ...] = (
         'thing about the place.',
         services=('market', 'safehouse'),
         security=35, price_mult=0.95, max_tier=1,
+        scale=(
+            'Eighteen stairwells up the hill, nine thousand flats, and two '
+            'lifts, neither of which has worked in a year.'
+        ),
+        built=(
+            'Kagawa housing from the good decade: brick and balcony, built '
+            'to last and maintained until the maintenance contract was '
+            'deferred. The water towers at the top feed the whole hill by '
+            'gravity, and the whole hill knows exactly which step is '
+            'missing on which stair.'
+        ),
+        works=(
+            'The Terraces work everywhere else. Nine thousand flats of '
+            'people who go down the hill at six and come back up it at '
+            'eight, and carry their own water for the last four floors of '
+            'it, and know every neighbour by the sound of their door.'
+        ),
+        quarters=('the Stairwells', 'the Allotment', 'the Water Point', 'the Lifts', 'Upper Terrace', 'the Roof'),
+        beyond=(
+            'Above the top terrace the hill keeps going into the old '
+            'reservoir works, fenced, with a path worn through the fence, '
+            'and the view from up there takes in the whole city and is the '
+            'only free thing in it.'
+        ),
         neighbours=('vertical', 'ninth', 'stacks',),
         presence=('nightwatch', 'sixes'),
     ),
@@ -174,6 +400,30 @@ DISTRICTS: tuple[District, ...] = (
         'shutter and somebody else has painted over the date.',
         services=('market', 'fence'),
         security=20, price_mult=0.8, max_tier=1,
+        scale=(
+            'A quarter mile of tin roofs under the Terraces\' water towers, '
+            'eleven presses, and nobody will say how many relays.'
+        ),
+        built=(
+            'Sheds. Sheds against sheds, roofed in corrugate that the '
+            'towers drip on all year, with cable strung overhead in bundles '
+            'thick as an arm and a gantry between the two big roofs that is '
+            'the only dry place to talk.'
+        ),
+        works=(
+            'Printing, and broadcasting, and the difference between them, '
+            'which the Stacks will explain to you at length. Static run the '
+            'presses and the relays and the list of names, and everybody '
+            'here is either setting type, climbing a tower, or reading the '
+            'floor.'
+        ),
+        quarters=('the Press Room', 'the Towers', 'the Relay Shacks', 'the Ink Store', 'the Gantry', 'Correction Row'),
+        beyond=(
+            'The last three shacks on Correction Row have no dish, no press '
+            'and no lock, and what is in them is boxes of every edition '
+            'ever printed here, in order, and the Stacks will let anybody '
+            'in and watch them the whole time.'
+        ),
         neighbours=('terraces', 'ninth'),
         presence=('sixes', 'chorus'),
     ),
@@ -187,6 +437,29 @@ DISTRICTS: tuple[District, ...] = (
         'already decided you are not a customer.',
         services=('fixer', 'market'),
         security=85, price_mult=1.4, max_tier=3,
+        scale=(
+            'One street, eight hundred metres, four institutions, and a '
+            'silence that is maintained at considerable expense.'
+        ),
+        built=(
+            'Stone, because stone reads as permanent, over a steel frame, '
+            'because stone is not. Doors tall enough to be a statement, '
+            'windows lit from inside all night, and eleven steps down to a '
+            'vault door that is not a door, it is an argument about doors.'
+        ),
+        works=(
+            'Keys. Meridian hold things: money, contracts, identities, and '
+            'the cryptographic material that makes all three mean anything. '
+            'Nothing on the Row is for sale. Things on the Row are held, '
+            'and the holding is the business.'
+        ),
+        quarters=('the Counter Hall', 'the Colonnade', 'the Vault Steps', 'the Atrium', 'the Paper Archive', 'the Back Office'),
+        beyond=(
+            'The Row runs out at a set of gates that are always open onto a '
+            'street of ordinary offices that all, if you check the '
+            'registry, belong to the same four companies, and the check '
+            'takes eleven days and costs money.'
+        ),
         neighbours=('glasshouse', 'freeport', 'hall'),
         presence=('nightwatch', 'kagawa'),
     ),
@@ -200,6 +473,30 @@ DISTRICTS: tuple[District, ...] = (
         'nobody minds.',
         services=('clinic', 'fence'),
         security=35, price_mult=0.9, max_tier=1,
+        scale=(
+            'One concourse, six platforms, no trains, and between two and '
+            'four hundred people in it depending on the weather.'
+        ),
+        built=(
+            'A transit interchange from when the city had a plan, with the '
+            'tracks pulled up and the departure boards still lit. Iron '
+            'roof, tile floor, pigeons in the beams, and a clock that has '
+            'been four minutes wrong for six years.'
+        ),
+        works=(
+            'Soup, and a clinic that does not ask, and the singing. The '
+            'Chorus took the building when the trains stopped and have '
+            'never once explained what they want, and forty people a night '
+            'stand on the old platform and sing, and the queue for the soup '
+            'does not stop for it.'
+        ),
+        quarters=('the Concourse', 'the Old Platform', 'the Kitchens', 'the Side Chapel', 'the Bell Loft', 'Platform Six'),
+        beyond=(
+            'Platform six is behind a hoarding and the hoarding has a door '
+            'in it that the Chorus keep locked, and what is behind it is '
+            'the tunnel mouth, bricked, with something written on the brick '
+            'that is not in any language the Hall will name.'
+        ),
         neighbours=('glasshouse', 'row'),
         presence=('sixes', 'carrion'),
     ),
@@ -454,6 +751,16 @@ STREET: dict[str, tuple[str, ...]] = {
         'a van that has not moved in a year with a shop in the back of it',
         'water coming up the stairwell at the usual rate',
         'a man carrying a door, for reasons, with great care',
+        'a man on the Tideline steps counting something in a notebook, '
+        'out loud',
+        'four kids running a length of cable between two blocks at '
+        'second-floor height',
+        'a woman selling fried things from a pram with a car battery '
+        'under it',
+        'somebody\'s whole flat on a walkway while the water goes down '
+        'inside it',
+        'a Sixes lad who is fifteen and doing the standing-about very '
+        'seriously',
     ),
     'marrow': (
         'four thousand people keeping their voices down',
@@ -464,6 +771,14 @@ STREET: dict[str, tuple[str, ...]] = {
         'a handset held the way you hold a handset when describing somebody',
         'the up escalator not moving, with its following',
         'two people agreeing about a price at the volume of people who know the next table is listening',
+        'a queue at the exchange that has not moved and does not mind',
+        'two people doing a deal in the middle of the walkway while the '
+        'crowd goes round them like water',
+        'somebody carrying a deck case wrapped in a coat, badly',
+        'a landline ringing somewhere on Landline Row and nobody '
+        'hurrying',
+        'a fixer\'s runner going through with a paper bag and no eye '
+        'contact',
     ),
     'vertical': (
         'a lobby that has already decided about you',
@@ -474,6 +789,15 @@ STREET: dict[str, tuple[str, ...]] = {
         'a gait being logged',
         'a cleaner with clearance you do not have',
         'somebody coming out of a review saying the arithmetic was correct',
+        'a bus of night cleaners unloading at the service core, all of '
+        'them holding the same lanyard',
+        'a man on the loading deck reading a docket he has clearly read '
+        'already',
+        'two floors of the tower going dark at once, on a schedule',
+        'somebody being walked out through reception by two people '
+        'being kind about it',
+        'the lobby floor being polished by a machine with a person '
+        'walking behind it',
     ),
     'green': (
         'sprinklers',
@@ -484,6 +808,14 @@ STREET: dict[str, tuple[str, ...]] = {
         'somebody well, leaving, saying so',
         'a receptionist with a list, not cross',
         'the aftercare ward glowing at the back like a pilot light',
+        'a groundsman mowing a lawn that did not need it',
+        'two people in Aoyama blue eating lunch and not talking',
+        'a delivery of something refrigerated going in the back of '
+        'Building Four',
+        'somebody sitting on the aftercare steps holding a wrist and '
+        'looking at nothing',
+        'a car in the Building Nine car park with the engine running '
+        'and nobody in it',
     ),
     'glasshouse': (
         'a demonstrator reading from a card',
@@ -494,6 +826,16 @@ STREET: dict[str, tuple[str, ...]] = {
         'Sendai security not looking at you in a way that is logged',
         'the one dark room, with its door shut by arrangement',
         'a crate arriving with a behaviour policy printed on the side',
+        'the wall of glass showing the interface floor and forty people '
+        'in it not moving',
+        'a demonstrator running the same three minutes for a crowd of '
+        'six',
+        'somebody coming out of the dark room into the light and '
+        'stopping',
+        'a Sendai courier at the bay with a case that is chained to '
+        'them',
+        'two runners on the bench comparing decks and lying about the '
+        'prices',
     ),
     'freeport': (
         'the cranes, moving, with names',
@@ -504,6 +846,15 @@ STREET: dict[str, tuple[str, ...]] = {
         'the print shop queue, which cannot read the plans',
         'the tide doing what the tide does',
         'the losing side buying',
+        'the rota being argued about at the west gate, publicly, with '
+        'numbers',
+        'a crane going over with something under it that nobody will '
+        'name',
+        'somebody chalking a repair onto the board by the gate',
+        'the mess doing a shift change: forty people out, forty in, no '
+        'words',
+        'a print run of the week\'s prices going up on the wall while '
+        'people read it over the printer\'s shoulder',
     ),
     'precinct': (
         'a queue that has not moved',
@@ -514,6 +865,15 @@ STREET: dict[str, tuple[str, ...]] = {
         'a clerk pulling a closed file at random',
         'the cloth, behind the counter, not being mentioned',
         'Nightwatch hitting a target and visibly stopping',
+        'a queue at the public counter that has learned to stand very '
+        'still',
+        'a van backing into the yard with the back doors already open',
+        'somebody at Lost Property describing a coat, in detail, to a '
+        'sergeant writing none of it down',
+        'two officers walking the four streets slowly, which here is '
+        'the whole of the job',
+        'a lot behind the fence with eleven vans in it that have '
+        'stopped working',
     ),
     'shambles': (
         'the clinic queue, since four',
@@ -524,6 +884,16 @@ STREET: dict[str, tuple[str, ...]] = {
         'a crate outside the clinic with something left on it',
         'bins being emptied by people nobody asks about',
         'chrome going in, chrome coming out',
+        'a handwritten sign directing you to a clinic that is two signs '
+        'further on',
+        'somebody outside the cabinets holding a cool bag and not going '
+        'in yet',
+        'two of Carrion\'s carrying something between them wrapped in '
+        'sheeting',
+        'a queue at the night counter of people who are all looking at '
+        'the ground',
+        'a chapel doorway with three mattresses in it and nobody on '
+        'them',
     ),
     'terraces': (
         'eleven thousand people on four stairwells',
@@ -534,6 +904,16 @@ STREET: dict[str, tuple[str, ...]] = {
         'the farms humming under the floor',
         'a lift with preferences',
         'somebody saying good evening without checking who you are',
+        'a chain of people passing cans up a stairwell without being '
+        'asked',
+        'somebody on the fourth landing sitting down halfway, on '
+        'purpose',
+        'the allotment being watered from a can somebody carried up '
+        'eight floors',
+        'two lifts with the doors open and a notice on both that has '
+        'faded',
+        'a woman at the water point who knows what everybody on the '
+        'hill is called',
     ),
     'stacks': (
         'a handcart of bundles under a dripping tower, nobody pushing it yet',
@@ -543,6 +923,15 @@ STREET: dict[str, tuple[str, ...]] = {
         'a press running behind a wall, felt more than heard',
         'two of the Sixes buying a paper they cannot read, for the pictures',
         'a dish on a shack roof pointed at the Vertical, which is rude',
+        'the presses going behind a wall, felt in the feet before it is '
+        'heard',
+        'a bundle of the morning edition going past on a handcart, '
+        'still warm',
+        'somebody up a tower with a spanner and no harness',
+        'a knot of people under the gantry, in the dry, arguing about a '
+        'headline',
+        'ink on the puddles making colours that are not in anything '
+        'else here',
     ),
     'row': (
         'a man in a good coat, standing where he stood this morning',
@@ -552,6 +941,14 @@ STREET: dict[str, tuple[str, ...]] = {
         'a Nightwatch pair walking slowly, which on the Row is a courtesy',
         'nobody selling anything, at all, anywhere',
         'a window lit from inside with nobody behind it',
+        'a clerk crossing the street with a folder held flat against '
+        'the rain',
+        'the colonnade with a coat at every sixtieth pace, all of them '
+        'not looking at you',
+        'a car pulling up and nobody getting out of it for a long '
+        'moment',
+        'the only litter on the street being picked up by somebody paid '
+        'to',
     ),
     'hall': (
         'the soup queue, the length of the old platform, nobody taking names',
@@ -561,6 +958,13 @@ STREET: dict[str, tuple[str, ...]] = {
         'a kettle on the concourse that has never been off',
         'a pigeon coming down out of the roof changed by the singing',
         'a child asleep on a bench under a blanket that says SENDAI',
+        'somebody sleeping under the departure boards in the warm light',
+        'a pigeon coming down out of the roof and everybody ducking '
+        'except the Chorus',
+        'two of Carrion\'s at the back, not in the queue, being looked '
+        'at',
+        'a child running the length of platform six\'s hoarding, hand '
+        'on it, all the way',
     ),
 }
 
@@ -701,3 +1105,92 @@ def factions_posture(key: str) -> float:
     from . import factions
     fac = factions.BY_KEY.get(key)
     return float(fac.posture) if fac else 0.0
+
+
+#: What is between two districts (D67). Travel prints one of these on the
+#: way, keyed on the pair, so that crossing the city is a thing that
+#: happens rather than a shift that passes. Unordered: the walk reads the
+#: same in both directions, because the walk is the same walk.
+CROSSINGS: dict[frozenset, tuple[str, ...]] = {
+    frozenset(('ninth', 'marrow')): (
+        'Up out of the wet on the old freight ramp, past the tide marks '
+        'getting lower and then stopping, into a street with a roof on it.',
+        'The walkway from Kettle Street runs above the water for a quarter '
+        'mile and then joins Marrow at the third deck, and you go from '
+        'seeing the sky to not.',),
+    frozenset(('ninth', 'freeport')): (
+        'Along the dock road with the water on your left the whole way and '
+        'the cranes getting bigger ahead until they are the only thing.',
+        'Past the boat yards, where four men are taking something apart that '
+        'was a hull, in the rain, without hurrying.',),
+    frozenset(('ninth', 'terraces')): (
+        'Up the hill. The lift shaft at the bottom has been out for a year '
+        'and the stair beside it is nine flights, and everybody on it is '
+        'carrying something.',),
+    frozenset(('ninth', 'shambles')): (
+        'Through the arches where the old hospital laundry was, which smells '
+        'of the old hospital laundry, and out into signage.',),
+    frozenset(('ninth', 'stacks')): (
+        'Under the towers, in the drip, on planks laid over the wet ground '
+        'by whoever needed to cross last, and the presses get louder for '
+        'twenty minutes and then you are in them.',),
+    frozenset(('marrow', 'vertical')): (
+        'Out from under the roof and into the shadow of the tower, which '
+        'starts four streets before the tower does.',
+        'The approach is a boulevard nobody walks on, with the Vertical at '
+        'the end of it doing what it was built to do, which is be seen from '
+        'four streets away.',),
+    frozenset(('marrow', 'glasshouse')): (
+        'East along the cable run, past the point where the sheeting stops '
+        'and the lit wall of the Glasshouse starts being the reason you can '
+        'see where you are going.',),
+    frozenset(('marrow', 'freeport')): (
+        'Down the ramp to the dock road, where the crowd thins and the '
+        'people in it start being people who are on a rota.',),
+    frozenset(('marrow', 'precinct')): (
+        'Four streets that get quieter each one, and then a building with '
+        'the windows too small and a queue outside it in the weather.',),
+    frozenset(('vertical', 'green')): (
+        'The link road, which is a private road, which nobody stops you '
+        'walking down and everybody notices you walking down.',),
+    frozenset(('vertical', 'terraces')): (
+        'Down the back of the hill through the service estate that Kagawa '
+        'built for the people who worked in the tower, when they still '
+        'housed them.',),
+    frozenset(('vertical', 'precinct')): (
+        'Past the loading deck and the vans, over the yard wall, or round '
+        'it like everybody else, and the two buildings look at each other '
+        'the whole way.',),
+    frozenset(('green', 'glasshouse')): (
+        'Through the landscaping, which stops at a line you can see from '
+        'either side, and then it is frontage and glass and people looking '
+        'at their own reflections.',),
+    frozenset(('glasshouse', 'freeport')): (
+        'Along the cut, past the bay doors, where the difference between the '
+        'two districts is that one of them polishes the glass.',),
+    frozenset(('glasshouse', 'row')): (
+        'Two streets, and the noise stops. That is the whole of the '
+        'crossing: you notice the silence before you notice the stone.',),
+    frozenset(('glasshouse', 'hall')): (
+        'East past the last of the frontage and into the approach roads for '
+        'a station that has not run a train in eleven years, and the '
+        'singing carries further than you expect.',),
+    frozenset(('freeport', 'shambles')): (
+        'Through the gate the dockers use to get to the clinic, which is the '
+        'shortest road between anywhere and Carrion, and is well worn.',),
+    frozenset(('freeport', 'row')): (
+        'Up from the water into the money, in about four hundred metres, '
+        'past two sets of gates that are open and one that is not.',),
+    frozenset(('terraces', 'stacks')): (
+        'Down the water-tower stairs with the drip on your neck the whole '
+        'way and the roofs of the Stacks coming up under you.',),
+    frozenset(('row', 'hall')): (
+        'Along the back of the institutions to the old concourse, where the '
+        'pavement stops being swept about halfway.',),
+}
+
+
+def crossing(a: str, b: str, shift: int) -> str:
+    """What is between two districts, or '' if nobody wrote it."""
+    lines = CROSSINGS.get(frozenset((a, b)), ())
+    return lines[shift % len(lines)] if lines else ''

@@ -8326,12 +8326,70 @@ def test_scale() -> None:
     T.ok('league' in ui.plain(city_cmd.readiness(weak, 72)),
          'and a bare one is out of its league against Deepwater')
 
+
+def test_place() -> None:
+    """D67: the city is a place, and it goes on past the street you are in."""
+    T.section('the city as a place')
+    from flatline.content import districts as dist
+
+    # Every district knows how big it is and what it is for.
+    for d in dist.DISTRICTS:
+        for field in ('scale', 'built', 'works', 'beyond'):
+            T.ok(len(getattr(d, field)) >= 90, f'{d.key} has a {field}')
+        T.ok(len(d.quarters) >= 4, f'{d.key} has quarters')
+    quarters = [q for d in dist.DISTRICTS for q in d.quarters]
+    T.ok(len(quarters) >= 48, f'the city has {len(quarters)} named quarters')
+
+    # Standing somewhere says how big it is and what its parts are called.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=4)
+    game.city.where = 'ninth'
+    _, out = play(['look'], game=game)
+    plain = ' '.join(ui.plain(out).split())
+    T.ok('forty thousand' in plain, 'look says how many people are here')
+    T.ok('Quarters:' in plain and 'the Tideline' in plain,
+         'and what the parts of it are called')
+
+    # `district` reads the place, here or anywhere.
+    _, out = play(['district'], game=game)
+    plain = ui.plain(out)
+    for heading in ('what it is made of', 'what it does', 'quarters',
+                    'past the edge'):
+        T.ok(heading in plain, f'district reads {heading}')
+    T.ok('held by' in plain and 'next to' in plain, 'and who holds it')
+    _, out = play(['district row'], game=game)
+    plain = ' '.join(ui.plain(out).split())
+    T.ok('Meridian Row' in plain and 'shift' in plain,
+         'and any district from anywhere, with the walk')
+    T.ok('Keys.' in plain, 'with what that one does for money')
+
+    # Crossing the city is something you pass through.
+    T.eq(set(dist.CROSSINGS),
+         {frozenset((a, b)) for a, bs in dist.GRAPH.items() for b in bs},
+         'every road has something on it and nothing else does')
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=4)
+    game.city.where = 'marrow'
+    _, out = play(['travel ninth'], game=game)
+    plain = ' '.join(ui.plain(out).split())
+    T.ok(any(' '.join(line.split()) in plain
+             for line in dist.CROSSINGS[frozenset(('ninth', 'marrow'))]),
+         'travel says what is between here and there')
+
+    # The street does not repeat itself.
+    for d in dist.DISTRICTS:
+        lines = dist.STREET[d.key]
+        T.ok(len(lines) >= 10, f'{d.key} has {len(lines)} things in the street')
+        seen = set()
+        for shift in range(24):
+            seen.add(dist.street_line(d.key, shift))
+        T.ok(len(seen) >= 8, f'{d.key} street reads differently over a week '
+                             f'({len(seen)} of 24)')
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
     test_intrusion, test_catalogue, test_money, test_relics, test_street,
-    test_soak, test_advice, test_scale,
+    test_soak, test_advice, test_scale, test_place,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,

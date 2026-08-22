@@ -1240,6 +1240,25 @@ def check_districts(rep: Report) -> None:
         for p in d.presence:
             rep.check(p in factions.BY_KEY, where, f'unknown faction {p!r}')
         rep.check(bool(d.arrival), where, 'has no arrival text')
+        # D67: the city is a place. Every district says how big it is, what
+        # it is made of, what the people in it do for money, what its parts
+        # are called, and what is past its edge, because a district that
+        # says none of those is a name with services attached.
+        for field in ('scale', 'built', 'works', 'beyond'):
+            text = getattr(d, field)
+            rep.check(len(text) >= 90, where,
+                      f'{field} is {len(text)} characters; a district needs '
+                      f'more than a phrase of it')
+            rep.check(text.rstrip().endswith(('.', '!', '?')), where,
+                      f'{field} does not end in a full stop')
+        rep.check(len(d.quarters) >= 4, where,
+                  f'only {len(d.quarters)} quarters; a district is not one '
+                  f'street')
+        for quarter in d.quarters:
+            rep.check(quarter == quarter.strip() and len(quarter) > 3, where,
+                      f'quarter {quarter!r} is not a name')
+        rep.check(len(set(d.quarters)) == len(d.quarters), where,
+                  'two quarters with the same name')
         rep.check(1 <= d.max_tier <= 3, where, f'max_tier {d.max_tier}')
         for n in d.neighbours:
             if n not in districts.BY_KEY:
@@ -3697,8 +3716,23 @@ def check_city_texture(rep: Report) -> None:
     from flatline import citymap
     from flatline.game import Game
     from flatline.model.character import Character
+    # D67: every road between two districts has something on it, and
+    # nothing has a road that the map does not draw.
     graph_edges = {frozenset((a, b)) for a, bs in districts.GRAPH.items()
                    for b in bs}
+    for edge in graph_edges:
+        a, b = sorted(edge)
+        rep.check(edge in districts.CROSSINGS, f'districts/{a}',
+                  f'nothing is between {a} and {b}')
+    for edge in districts.CROSSINGS:
+        a, b = sorted(edge)
+        rep.check(edge in graph_edges, 'districts/crossings',
+                  f'{a} to {b} is written and is not a road')
+        for line in districts.CROSSINGS[edge]:
+            rep.check(len(line) >= 60, 'districts/crossings',
+                      f'{a} to {b} is too short to be a walk')
+            rep.check(line.rstrip().endswith(('.', '!', '?')),
+                      'districts/crossings', f'{a} to {b} has no full stop')
     rep.check(citymap.MAP_EDGES == graph_edges, 'citymap',
               f'the drawing and the city disagree about the joins: '
               f'{sorted(map(sorted, citymap.MAP_EDGES ^ graph_edges))}')

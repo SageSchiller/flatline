@@ -690,10 +690,20 @@ TOPICS: tuple[Topic, ...] = (
         'you were not looking, most of which printed once and scrolled away.'
         '\n\n'
         '[warn]The decision:[/] doing nothing is a real strategy with a real '
-        'price, and knowing when to pay it is most of the city layer.',
+        'price, and knowing when to pay it is most of the city layer.'
+        '\n\n'
+        'The city is bigger than the twelve names on the map. Every '
+        'district is built of something, works at something, and is '
+        'made of quarters, and [fg]district[/] reads the whole of one '
+        'from anywhere: how many people, what it is made of, what they '
+        'do for money, what its corners are called, who holds it, who '
+        'else has people in it, and what is past its edge. [fg]look[/] '
+        'is what is in front of you this hour; district is the place '
+        'itself. Crossing between two of them takes a shift, and says '
+        'what you went through to get there.',
         see=('heat', 'rivals', 'contracts', 'reading', 'clock', 'relics'),
-        commands=('travel', 'walk', 'map', 'rest', 'board', 'look', 'visit',
-                  'news'),
+        commands=('travel', 'walk', 'map', 'district', 'rest', 'board',
+                  'look', 'visit', 'news'),
         covers=('districts', 'shifts', 'spots'),
         terms=('moving around', 'getting about',),
         group='city'),
