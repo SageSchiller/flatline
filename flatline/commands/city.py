@@ -26,6 +26,7 @@ from .. import save as save_mod
 from .. import ui
 from ..shell import Args, CommandError, command
 from ..world import city as city_mod
+from ..world import contracts as contract_mod
 from ..world import debt as debt_mod
 from ..world import fallout
 from ..world import street as street_world
@@ -1074,6 +1075,9 @@ def _show_contract(sess, contract) -> None:
             else ' [dim](you are here)[/]')),
         ('expires', 'held for you, and it will keep' if contract.held
                     else f'in {contract.expires - game.city.shift} shifts'),
+        ('size', f'{contract_mod.SIZE_WORDS[contract.size_mod][0]} [dim]'
+                 f'{contract_mod.SIZE_WORDS[contract.size_mod][1]}[/]'),
+        ('reads as', readiness(game.char, int(contract.posture))),
         ('posture', f'{int(contract.posture)} [dim]'
                     f'{contract.target_data.doctrine}[/]'
                     + (f' [accent2]({factions.style_line(contract.target_data)})[/]'
@@ -1174,6 +1178,43 @@ def city_job(sess) -> None:
         c.raw(f'  [fg]{step}[/]')
 
 
+#: What a posture reads as against a build, by the chance its middling
+#: services give you. Said before you take the job, because posture is the
+#: difficulty and a number between twenty and seventy-two tells a new
+#: player nothing at all.
+READS = ((0.80, 'ok', 'comfortable'),
+         (0.60, 'ok', 'workable'),
+         (0.40, 'warn', 'even money, and the clock is the other half'),
+         (0.20, 'warn', 'long odds: expect to fail things twice'),
+         (0.0, 'err', 'out of your league with what you carry'))
+
+
+def readiness(char, posture: int) -> str:
+    """How this target's middling services read against this build (D66).
+
+    Priced with the same sum `crack_check` uses, against a service of
+    average difficulty for the posture, so the line and the run cannot
+    disagree.
+    """
+    from ..run.checks import Check, DIE, OFFSET
+    difficulty = max(1, round(3.5 * (0.7 + 0.6 * posture / 50.0)))
+    breaker = programs.best(char.deck.loaded, 'breaker')
+    rank = char.skill('intrusion')
+    power = rank * 2 + char.attr('logic') + char.bonus('crack_bonus')
+    if breaker:
+        power += programs.held(breaker, rank) * 2
+    else:
+        power -= 6
+    need = difficulty * 2 + OFFSET - power
+    chance = max(0.0, min(1.0, (DIE - need + 1) / DIE))
+    for floor, role, words in READS:
+        if chance >= floor:
+            break
+    tail = (breaker.name if breaker else 'no breaker loaded')
+    return (f'[{role}]{words}[/] [dim]({chance:.0%} on a middling service '
+            f'with {tail})[/]')
+
+
 def _suggest_contract(game):
     """The job to take next: the lowest posture whose program you carry or
     own, ties to the better pay. None when the board is empty."""
@@ -1263,10 +1304,12 @@ def city_steps(game) -> list[tuple[str, str]]:
         pick = _suggest_contract(game)
         if pick is not None:
             shown = ', '.join(f'{p.title}' for p in [pick])
+            words = contract_mod.SIZE_WORDS[pick.size_mod][0]
             steps.append((f'take {pick.cid}',
                           f'{shown}: {pick.target_data.short} at posture '
-                          f'{int(pick.posture)}, the softest thing on the '
-                          f'board you have the gear for'))
+                          f'{int(pick.posture)}, {words}, '
+                          f'{pick.pay:,}c. The softest thing on the board '
+                          f'you have the gear for'))
             return steps
         return steps + [('board', 'work on offer')]
     need = OBJECTIVE_PROGRAM.get(contract.objective)

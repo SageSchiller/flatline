@@ -72,6 +72,31 @@ ALERT_BLURB = {
 #: Per-level multipliers applied to trace advance and ICE aggression.
 ALERT_TRACE_MULT = {'green': 1.0, 'amber': 1.25, 'red': 1.7, 'lockdown': 2.4}
 
+#: Ticks without anything new being filed against you, after which a
+#: network stands down one level (D66). Cooling on silence rewarded sitting
+#: still, which is not what this game is about; cooling on *not being
+#: caught* rewards playing well, which is. Every escalation resets it.
+COOL_AFTER = 9
+
+#: Consecutive quiet ticks that stand a network down one level (D66).
+#: Nothing here used to come back down, which meant one bad break in the
+#: first five ticks decided the other thirty: the trace ran at 1.7x for the
+#: rest of the evening and no play of any kind could answer it. A response
+#: desk that has found nothing for a while does stand down, and giving the
+#: player a way to buy that with the only currency they have, which is
+#: time, turns a spiral into a decision.
+QUIET_TO_COOL = 6
+
+#: What it looks like when a network decides it was nothing.
+COOLING = (
+    'Somewhere above you a shift supervisor closes a ticket that has had '
+    'nothing in it for a while, and the pressure on the segment eases.',
+    'The sweep that has been going over this segment goes over it once more '
+    'and then goes somewhere else.',
+    'Whatever was watching this hard has stopped watching this hard. It has '
+    'not stopped watching.',
+)
+
 #: What each level costs you and what answers it, printed at the moment the
 #: network escalates. The blurb above is the fiction; this is the decision.
 #:

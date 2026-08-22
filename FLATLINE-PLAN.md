@@ -1938,6 +1938,59 @@ was recommended for ever. `test_advice` holds all of it: every step the
 advice names is a command the shell knows, says why, and is not a walk
 into a district above the incident floor.
 
+### D66: Size, the clock, and the fee
+
+The author asked whether networks should be authored or random, unique to
+the group, and larger and more complicated as the money goes up. The answer
+to the first is that they already are both, and should stay both: authored
+zones and shapes, random fill. The rest was measured rather than argued,
+by running two dozen networks per band with the same build and counting.
+
+**What the measurement said.** A large job at corporate posture finished
+nought times in twenty-four. Successful runs finished at trace 67 to 90 out
+of a hundred, so there was no margin anywhere, and 17 to 21 of every 24
+failures were the trace filling. Size was doing one thing only: adding a
+fifth of the run to the walk. And a corporate job paid half again what a
+gang job paid while finishing about a third as often, which meant the board
+was quietly telling every player to stay in the Ninth for ever.
+
+**Size is breadth** (`SIZE_REACH`). A bigger contract widens the front
+(perimeter and interior scale fully with it) and barely deepens the back
+(restricted at two fifths, core not at all). More ways in, more hosts that
+are not the job, more to carry out; the same number of hops to the thing
+you came for. Depth is a countdown; breadth is choices. A fourth size,
+`1.7`, is a sprawl.
+
+**The size is cover** (`Network.crowd`). Trace per tick scales with how
+much traffic there is to be lost in: a twenty-host network runs the clock
+about a fifth slower than an eight-host one. The manual has said for
+months that ten thousand legitimate sessions is the best mask money cannot
+buy; this is the number under it.
+
+**The clock reads what you do** (`IDLE_TRACE`). `TRACE_PER_TICK` has always
+carried a comment saying the pressure should come from what the player does
+rather than from the clock alone, and the clock was flat, which made it
+exactly the opposite. A working tick costs 1.1 and a quiet one 0.45, which
+is what makes `ghost`, `sidechannel`, `--quiet` and the new `wait` worth
+the time they cost.
+
+**The room can be won back** (`COOL_AFTER`, `QUIET_TO_COOL`, `cool()`).
+Alert only ever went up, so one bad break in the first five ticks decided
+the other thirty at one and seven tenths. Now a ticket nobody adds to ages
+out after nine ticks, and six consecutive silent ticks do it too; every
+escalation resets both. `wait` is the verb that buys silence with the only
+currency a run has.
+
+**The fee reads the difficulty** (`PAY_BASE`, `PAY_PIVOT`, `PAY_CURVE`,
+`SIZE_PAY`). The old linear rate is a curve now: a gang job is about 1,600c,
+a corporate one about 3,200c, a Meridian sprawl about 10,000c. Size pays
+0.82 / 1.0 / 1.5 / 2.1 rather than 0.8 / 1.0 / 1.25.
+
+**And the board says so before you take it.** `board <id>` carries the size
+in words, and a `reads as` line pricing the target's middling services
+against the breaker you are carrying with the same sum `crack_check` uses:
+comfortable, workable, even money, long odds, out of your league.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -3228,3 +3281,12 @@ ink store stopping an edition. 20 encounters now. The street also stops
 waiting: three non-answers and it takes the one you were giving it by
 standing there (`PATIENCE`), and the re-ask keeps its own prompt instead of
 degrading to a bare question mark. `test.py` green at **15,320 checks**.
+
+### 2026-08-22 (a): size, the clock, and the fee
+
+D66, measured rather than guessed: `scratchpad/sizes.py` ran 24 networks
+per band across four factions and three sizes before and after each
+change. Size is breadth now, the size itself is cover, quiet ticks are
+cheap, the alert can come back down, `wait` exists, and the fee curve
+matches what the attempt is actually worth. `test_scale` holds the lot.
+`test.py` green at **15,350 checks**.

@@ -43,6 +43,7 @@ COST = {
     'overload': (1, 22, 6),
     'mask': (1, 0, 0),
     'sidechannel': (3, 0, 1),
+    'wait': (1, 0, 0),
     'jack out': (1, 2, 1),
 }
 
@@ -1754,6 +1755,30 @@ def cmd_falsify(sess, args) -> None:
         c.err('The story does not hang together.')
         c.say(check.explain())
         state.leave_residue(4)
+
+
+@command('wait', 'Do nothing, on purpose, for as long as you can stand.',
+         group='defence', contexts=('run',), aliases=('hold', 'sit'),
+         usage='wait [ticks]',
+         detail='D66. The only verb in the run that makes no noise at all, '
+                'and it is the one that buys the room back. A network that '
+                'has found nothing for six consecutive quiet ticks stands '
+                'down one alert level, and an alert level is the difference '
+                'between the trace running at nominal and at one and seven '
+                'tenths. The cost is the clock itself: every tick you sit '
+                'still is a tick of trace you paid for nothing else. It is '
+                'the plainest trade in the game and at red it is usually '
+                'correct.')
+def cmd_wait(sess, args) -> None:
+    state, c = sess.require_run(), sess.console
+    ticks = max(1, min(8, args.int_at(0, 1, 'a number of ticks')))
+    need = ice_content.QUIET_TO_COOL - state.quiet_ticks
+    if state.alert != ice_content.ALERT_LEVELS[0] and ticks < need:
+        c.say(f'[dim]{need} quiet tick{"s" if need != 1 else ""} would stand '
+              f'them down a level. This is {ticks}.[/]')
+    c.say('[dim]You do nothing, deliberately, and it is the loudest silence '
+          'you have ever sat in.[/]')
+    _act(sess, 'wait', ticks=ticks)
 
 
 @command('mask', 'Spend a tick making yourself harder to follow.',

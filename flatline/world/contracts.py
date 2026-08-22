@@ -66,6 +66,27 @@ OBJECTIVE_PROGRAM = {
     'escort': '',
 }
 
+#: The fee curve against posture. `PAY_BASE` is what nothing at all is
+#: worth, and the rest is how steeply difficulty is priced.
+PAY_BASE = 900
+PAY_PIVOT = 25.0
+PAY_CURVE = 1.6
+
+#: What a job's size is worth, against the standard one. Measured rather
+#: than picked (D66): a large network is about a third more hosts at the
+#: front, which is a third more of the evening and a good deal more to
+#: carry out of it, and the old figure of a quarter more did not cover the
+#: hours. A sprawl is the top of the range and it is a night's work.
+SIZE_PAY = {0.75: 0.82, 1.0: 1.0, 1.35: 1.5, 1.7: 2.1}
+
+#: What the board calls each size, and the one-line warning under it.
+SIZE_WORDS = {
+    0.75: ('small', 'a handful of hosts and one way in'),
+    1.0: ('ordinary', 'the usual shape of a job'),
+    1.35: ('large', 'a wide front and a long evening'),
+    1.7: ('a sprawl', 'somebody\'s whole operation, and a night to walk it'),
+}
+
 #: Payout multiplier per objective, applied to the base rate.
 OBJECTIVE_PAY = {
     'exfiltrate': 1.0, 'implant': 1.15, 'corrupt': 1.1,
@@ -277,16 +298,29 @@ def make_one(rng: Stream, cid: int, patron: str, target: str, shift: int,
 
     target_posture = int(posture.get(target, tfac.posture))
     # Pay tracks difficulty first, then the patron's opinion of you.
-    base = 900 + target_posture * 34
+    #
+    # The curve is measured rather than picked (D66). It used to be linear,
+    # nine hundred and thirty-four a point, which made a corporate network
+    # pay half again what a gang's did; running two dozen of each with the
+    # same build put the completion rates at about two thirds and about one
+    # in six. A job you finish once in six for half again the money is not
+    # a harder job, it is a worse one, and the board was quietly telling
+    # every player to stay in the Ninth for ever. This pays roughly what
+    # the attempt is worth: three times a gang job at corporate posture,
+    # nearly four at Deepwater's.
+    base = PAY_BASE * (1.0 + (target_posture / PAY_PIVOT) ** PAY_CURVE)
     base *= OBJECTIVE_PAY[objective]
     base *= 1.0 + alias.reputation(patron) / 150.0
     pay = rng.spread(base, 0.18)
 
-    size_mod = rng.weighted({0.75: 1.0, 1.0: 2.5, 1.35: 1.0})
-    if size_mod > 1.2:
-        pay = int(pay * 1.25)
-    elif size_mod < 0.9:
-        pay = int(pay * 0.8)
+    # Size, and what size is worth (D66). A bigger network is more ways in,
+    # more that is not the job, and more hours: the fee has to say so, and
+    # the board has to say so before you take it. Hardened targets run
+    # bigger operations, so posture leans the roll.
+    heavy = 1.0 + (target_posture / 100.0)
+    size_mod = rng.weighted({0.75: 1.2, 1.0: 2.5, 1.35: 1.0 * heavy,
+                             1.7: 0.35 * heavy})
+    pay = int(pay * SIZE_PAY[size_mod])
 
     district = _where(rng, target)
     free = [w for w in _JOB_WORDS if w not in (used or ())]

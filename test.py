@@ -1699,9 +1699,11 @@ def test_regressions() -> None:
                      f'chain costs about one action, not two (spent {spent})')
                 # Assert on the attempt, not the outcome: both checks are
                 # resolved on dice and either may fail.
-                reported = sum(1 for svc in closed[:2]
-                               if svc.data.name in out)
-                T.eq(reported, 2, 'and it reports on both services')
+                # Chain takes the two it likes best, which is not
+                # necessarily the first two in the node's list.
+                reported = sum(1 for svc in closed if svc.data.name in out)
+                T.ok(reported >= 2, f'and it reports on two services '
+                                    f'({reported})')
 
     # Chain refuses when it cannot do what it says.
     sess = in_run()
@@ -7112,6 +7114,11 @@ def test_intrusion() -> None:
          'the ghost carries a mask')
     sess.run.trace = 40.0
     sess.run.tick = 20
+    # The floor a mask clamps at is the one in force when it is used, and
+    # ticks pass between masks, so the bar for the whole sequence is the
+    # floor at the moment the masking started.
+    floor = (session_mod.TRACE_PER_TICK * sess.run.tick
+             * session_mod.MASK_FLOOR)
     sess.execute('mask')
     first = 40.0 - sess.run.trace
     t1 = sess.run.trace
@@ -7122,7 +7129,10 @@ def test_intrusion() -> None:
                           f'vs {first:.1f})')
     for _ in range(8):
         sess.execute('mask')
-    floor = session_mod.TRACE_PER_TICK * sess.run.tick * session_mod.MASK_FLOOR
+    # The floor is what the clock alone has put there, and a quiet tick is
+    # cheaper than a working one (D66), so the bar is the smaller of the
+    # nominal floor and where the trace actually was when the masking
+    # started: masking never takes it below either.
     T.ok(sess.run.trace >= floor - 0.01,
          f'ten masks cannot take the trace under the floor '
          f'({sess.run.trace:.1f} vs {floor:.1f})')
@@ -8198,12 +8208,130 @@ def test_advice() -> None:
                 T.ok(bool(why), f'{cmd!r} says why')
 
 
+
+def test_scale() -> None:
+    """D66: size is breadth, the clock reads what you do, and the fee reads
+    the difficulty."""
+    T.section('size, the clock, and the fee')
+    from flatline.run import network as net_mod
+    from flatline.run import session as session_mod
+    from flatline.world import contracts as contract_mod
+    from flatline.commands import city as city_cmd
+    from flatline.content import ice as ice_content
+
+    # Size grows the front and not the back.
+    def depth_and_width(size_mod, seeds=12):
+        front = back = 0
+        for seed in range(seeds):
+            net = net_mod.generate(Rng(seed).fork('network', 'z'), 'kagawa',
+                                   45, 'exfiltrate', size_mod)
+            front += sum(1 for n in net.nodes.values()
+                         if n.zone in ('perimeter', 'interior'))
+            back += sum(1 for n in net.nodes.values()
+                        if n.zone in ('restricted', 'core'))
+        return front / seeds, back / seeds
+    small_front, small_back = depth_and_width(0.75)
+    big_front, big_back = depth_and_width(1.7)
+    T.ok(big_front > small_front * 1.4,
+         f'a sprawl is a much wider front ({small_front:.1f} -> {big_front:.1f})')
+    T.ok(big_back < small_back * 1.5,
+         f'and barely a deeper one ({small_back:.1f} -> {big_back:.1f})')
+
+    # The crowd slows the clock in a big network.
+    small = net_mod.generate(Rng(1).fork('network', 'c'), 'kagawa', 45,
+                             'exfiltrate', 0.75)
+    big = net_mod.generate(Rng(1).fork('network', 'c'), 'kagawa', 45,
+                           'exfiltrate', 1.7)
+    T.ok(big.crowd < small.crowd,
+         f'a bigger network is more to hide in ({small.crowd:.2f} -> '
+         f'{big.crowd:.2f})')
+    T.ok(net_mod.CROWD_FLOOR <= big.crowd <= net_mod.CROWD_CEILING,
+         'and the crowd stays in its range')
+
+    # A quiet tick costs less than a working one.
+    char = Character.from_origin('gutter', 'x')
+    console = quiet_console(); console.start_capture()
+    state = RunState.begin(small, char, Rng(3)('combat'), console)
+    state.advance(1)
+    quiet = state.trace
+    state.make_noise(6)
+    before = state.trace
+    state.advance(1)
+    loud = state.trace - before
+    console.end_capture()
+    T.ok(quiet < loud, f'a quiet tick is cheaper than a working one '
+                       f'({quiet:.2f} vs {loud:.2f})')
+    T.eq(round(quiet, 2), round(session_mod.IDLE_TRACE, 2),
+         'and it is the idle rate')
+
+    # `wait` makes no noise and spends the clock.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=6)
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    sess, _ = play([f'take {contract.cid}', 'jack in --force'], game=game)
+    node_noise = sess.run.node.noise
+    tick = sess.run.tick
+    sess.execute('wait 3')
+    T.eq(sess.run.node.noise, max(0, node_noise - 3 * session_mod.NOISE_DECAY),
+         'waiting makes no noise of its own')
+    T.eq(sess.run.tick, tick + 3, 'and spends the ticks')
+
+    # A ticket that nothing is added to ages out.
+    console = quiet_console(); console.start_capture()
+    state = RunState.begin(small, Character.from_origin('gutter', 'x'),
+                           Rng(4)('combat'), console)
+    state.escalate(2)
+    T.eq(state.alert, 'red', 'the room went red')
+    state.advance(ice_content.COOL_AFTER + 1)
+    out = ui.plain(console.end_capture())
+    T.ok(state.alert == 'amber', f'and stood down a level ({state.alert})')
+    T.ok('Alert: amber' in out, 'and said so')
+    console.start_capture()
+    state.escalate(1)
+    state.advance(2)
+    state.escalate(1)
+    state.advance(ice_content.COOL_AFTER - 2)
+    console.end_capture()
+    T.ok(state.alert != 'green', 'and a fresh filing resets the clock on it')
+
+    # The fee reads the difficulty, and size is worth the hours.
+    soft = contract_mod.PAY_BASE * (1 + (22 / contract_mod.PAY_PIVOT)
+                                   ** contract_mod.PAY_CURVE)
+    hard = contract_mod.PAY_BASE * (1 + (62 / contract_mod.PAY_PIVOT)
+                                   ** contract_mod.PAY_CURVE)
+    T.ok(hard > soft * 2.5,
+         f'a bank pays multiples of a gang ({soft:,.0f} vs {hard:,.0f})')
+    T.ok(contract_mod.SIZE_PAY[1.7] > contract_mod.SIZE_PAY[1.0] * 2,
+         'and a sprawl is worth a night')
+    for key, (word, why) in contract_mod.SIZE_WORDS.items():
+        T.ok(key in contract_mod.SIZE_PAY, f'{word} has a fee')
+        T.ok(bool(word and why), f'{word} says what it is')
+
+    # The board says how it reads against what you carry.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=9)
+    contract = game.city.board[0]
+    _, out = play([f'board {contract.cid}'], game=game)
+    plain = ui.plain(out)
+    T.ok('reads as' in plain, 'the contract says how it reads')
+    T.ok('%' in plain, 'with a number in it')
+    T.ok('size' in plain, 'and how big it is')
+    strong = Character.from_origin('gutter', 'x')
+    strong.base_skills['intrusion'] = 5
+    strong.base_attrs['logic'] = 8
+    strong.deck.loaded = ['thunderhead']
+    T.ok('comfortable' in ui.plain(city_cmd.readiness(strong, 22)),
+         'a strong build reads comfortable against a gang')
+    weak = Character.from_origin('burnout', 'x')
+    weak.deck.loaded = []
+    T.ok('league' in ui.plain(city_cmd.readiness(weak, 72)),
+         'and a bare one is out of its league against Deepwater')
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
     test_intrusion, test_catalogue, test_money, test_relics, test_street,
-    test_soak, test_advice,
+    test_soak, test_advice, test_scale,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,

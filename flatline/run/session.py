@@ -46,6 +46,14 @@ TRACE_MAX = 100.0
 #: Trace added per tick before any modifier. Deliberately small: most of the
 #: pressure should come from what the player does, not from the clock alone.
 TRACE_PER_TICK = 1.1
+#: What a tick costs when you made no noise in it (D66). The comment above
+#: has always said the pressure should come from what the player does
+#: rather than from the clock alone, and the clock was flat, which made it
+#: exactly the opposite: a run was a countdown you could not affect except
+#: by finishing early. Now a working tick is dear and a quiet one is cheap,
+#: which is what makes `wait`, `ghost`, `sidechannel` and every `--quiet`
+#: in the game worth the time they cost.
+IDLE_TRACE = 0.45
 #: How many ticks of trace history `status` keeps for its sparkline. Sixty is
 #: comfortably longer than any run has ever lasted and short enough that it is
 #: never worth thinking about.
@@ -250,6 +258,14 @@ class RunState:
     previous: str = ''
     #: Times `mask` has been used tonight. See `MASK_DECAY`.
     masked: int = 0
+    #: Consecutive ticks in which you have made no noise anywhere. At
+    #: `QUIET_TO_COOL` the network stands down a level (D66).
+    quiet_ticks: int = 0
+    #: Ticks since anything new was filed against you. At `COOL_AFTER` the
+    #: ticket ages out and the room stands down a level.
+    since_filed: int = 0
+    #: Set by `make_noise` and cleared each tick, so the tick knows.
+    noisy_tick: bool = False
     #: Assets pulled shut, without the decrypt (D63 b). Worth less, and the
     #: patron pays less for the one they wanted open.
     sealed: set = field(default_factory=set)
@@ -337,6 +353,8 @@ class RunState:
     def make_noise(self, amount: float, node: Node | None = None) -> int:
         """Local suspicion, and the slice of it that becomes trace."""
         node = node or self.node
+        if amount > 0:
+            self.noisy_tick = True
         # The character's own noise_mult already carries chrome riders like the
         # Threadpuller's doubling, because those are declared as penalties.
         amount *= self.char.mult('noise_mult') * node.data_type.noise_mult
@@ -356,6 +374,9 @@ class RunState:
         # Cover traffic. At peak there are ten thousand legitimate sessions to
         # sort you out of, and at three in the morning there is one.
         amount *= shifts.phase(self.phase).trace
+        # And the size of the place is itself cover (D66): a session in a
+        # network of twenty hosts is one of a great many more.
+        amount *= self.net.crowd
         # Tonight (D61): a maintenance window logs more, dead hours less.
         if self.condition is not None:
             amount *= self.condition.trace
@@ -433,6 +454,22 @@ class RunState:
             base = max(2, base + self.condition.wake)
         return base
 
+    def cool(self) -> None:
+        """The network stands down one level. Never below green, and the
+        quiet has to be earned again for the next one."""
+        levels = ice_content.ALERT_LEVELS
+        i = levels.index(self.alert)
+        if i <= 0:
+            return
+        self.alert = levels[i - 1]
+        self.quiet_ticks = 0
+        self.since_filed = 0
+        self.console.blank()
+        self.console.say(f'[ok]{self.rng.pick(ice_content.COOLING)}[/]')
+        self.console.raw(f'[ok]Alert: {self.alert}.[/] '
+                         f'[dim]{ice_content.ALERT_BLURB[self.alert]}[/]')
+        self.log(f'alert cooled -> {self.alert}')
+
     def escalate(self, steps: int = 1, why: str = '') -> None:
         levels = ice_content.ALERT_LEVELS
         i = levels.index(self.alert)
@@ -445,6 +482,7 @@ class RunState:
         if new == i:
             return
         self.alert = levels[new]
+        self.since_filed = 0
         self.console.blank()
         self.console.raw(f'[err][bold]ALERT: {self.alert.upper()}[/][/]  '
                          f'[dim]{ice_content.ALERT_BLURB[self.alert]}[/]')
@@ -505,12 +543,25 @@ class RunState:
                 return
             self.tick += 1
             was = self.trace_pct
-            self.add_trace(TRACE_PER_TICK)
+            self.add_trace(TRACE_PER_TICK if self.noisy_tick else IDLE_TRACE)
             self.trace_history.append(round(self.trace, 2))
             del self.trace_history[:-TRACE_HISTORY]
             # The clock made physical. One line at most, and only on a
             # threshold, because narrating every point of trace would turn
             # the tensest number in the game into wallpaper.
+            # Quiet buys the room back (D66). A tick in which you made no
+            # noise anywhere counts; enough of them in a row and whatever
+            # was watching this hard stands down a level.
+            if self.noisy_tick:
+                self.quiet_ticks = 0
+                self.noisy_tick = False
+            else:
+                self.quiet_ticks += 1
+            self.since_filed += 1
+            if self.alert != ice_content.ALERT_LEVELS[0] and (
+                    self.quiet_ticks >= ice_content.QUIET_TO_COOL
+                    or self.since_filed >= ice_content.COOL_AFTER):
+                self.cool()
             felt = cyberspace.pressure(was, self.trace_pct)
             if felt:
                 self.console.blank()

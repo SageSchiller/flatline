@@ -191,6 +191,13 @@ class Network:
     entry: str = ''
     #: Which of `SHAPES` this one is.
     shape: str = 'layered'
+
+    @property
+    def crowd(self) -> float:
+        """Trace multiplier from the size of the place (D66)."""
+        n = len(self.nodes)
+        return max(CROWD_FLOOR,
+                   min(CROWD_CEILING, 1.0 - (n - CROWD_AT) * CROWD_PER_HOST))
     #: uid of the asset the contract is about, when there is one.
     objective_asset: str = ''
     objective_node: str = ''
@@ -222,6 +229,30 @@ ZONE_SIZE = {
     'restricted': (2, 4),
     'core': (1, 2),
 }
+
+#: How much of a contract's size reaches each zone (D66). A bigger job is a
+#: bigger *front*: more ways in, more hosts that are not the job, more to
+#: find. It is not a deeper one. Depth is ticks and ticks are trace, and
+#: measuring it showed what that costs: a large job at corporate posture
+#: finished nought times in twenty-four, because the only thing size did
+#: was add a fifth of the run to the walk. Breadth is choices; depth is a
+#: countdown.
+SIZE_REACH = {
+    'perimeter': 1.0,
+    'interior': 1.0,
+    'restricted': 0.4,
+    'core': 0.0,
+}
+
+#: Trace per tick is scaled by how much traffic there is to be lost in
+#: (D66). Ten thousand legitimate sessions is the best mask money cannot
+#: buy, and the manual has said so for months; this is the number under it.
+#: A twenty-host network runs the clock about a fifth slower than an
+#: eight-host one, which is what makes a big job worth the walk.
+CROWD_AT = 10
+CROWD_PER_HOST = 0.018
+CROWD_FLOOR = 0.78
+CROWD_CEILING = 1.10
 
 
 def generate(rng: Stream, faction: str, posture: int,
@@ -257,7 +288,9 @@ def generate(rng: Stream, faction: str, posture: int,
     by_zone: dict[str, list[Node]] = {}
     for zone in node_content.ZONES:
         lo, hi = ZONE_SIZE[zone]
-        count = max(1, int(round(rng.curve(lo, hi, 0.5) * size_mod
+        # Size reaches the front of a network and barely reaches the back.
+        reach = 1.0 + (size_mod - 1.0) * SIZE_REACH[zone]
+        count = max(1, int(round(rng.curve(lo, hi, 0.5) * reach
                                  * (0.85 + 0.3 * scale))))
         candidates = [n for n in node_content.NODE_TYPES if zone in n.zones]
         zone_nodes: list[Node] = []
