@@ -214,8 +214,16 @@ THREES_RESISTANCE = 12
 #: the obvious shortcut and is wrong: several origins start disliked by the
 #: Switchboard, and a table that had already learned how somebody plays before
 #: they sat down is not a table, it is a bad mood.
-THREES_LEARNS_PER = 9000
-THREES_LEARNS_MAX = 4
+THREES_LEARNS_PER = 6000
+THREES_LEARNS_MAX = 6
+
+#: Credits of stake per point of resistance (D63 d). The bigger the hand,
+#: the closer they watch it: at the twelve-thousand cap the table is eight
+#: points harder than at a hundred. Without this a Guile 8 build read every
+#: table at a hundred percent at the cap, and the card room was an income
+#: with a floor. With it, and the learning above, a specialist takes a few
+#: good evenings off each table and then the table is closed to them.
+THREES_PER_STAKE = 1500
 
 #: Below this chance, the room says so and will not take your money. Threes is
 #: a game for a build, and somebody without one is not being kept out, they

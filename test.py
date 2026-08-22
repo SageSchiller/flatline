@@ -7451,11 +7451,73 @@ def test_catalogue() -> None:
          'forger notes say what pretext does')
 
 
+
+def test_money() -> None:
+    """D63 d: the vices and the money."""
+    T.section('vices and money')
+    from flatline.commands import city as city_cmd
+    from flatline.content import games, drugs as drug_content
+    from flatline.world import debt as debt_mod
+
+    # Threes: the stake is a term, and the table learns faster.
+    char = Character.from_origin('protege', 'x')
+    char.base_attrs['guile'] = 7
+    char.base_skills['subterfuge'] = 4
+    venue = next(v for v in games.VENUES if v.game == 'cards')
+    small = city_cmd._threes_check(char, venue, 0, 100)
+    big = city_cmd._threes_check(char, venue, 0, games.THREES_MAX)
+    T.ok(big.chance < small.chance,
+         f'a twelve-thousand hand is harder to read than a hundred '
+         f'({big.chance:.0%} vs {small.chance:.0%})')
+    T.ok(any('stake' in t.label for t in big.terms), 'and the sum says why')
+    learned = city_cmd._threes_check(char, venue, games.THREES_LEARNS_PER
+                                     * games.THREES_LEARNS_MAX, games.THREES_MAX)
+    T.ok(learned.chance < 0.35,
+         f'a table that has learned you and a big hand is a bad evening '
+         f'({learned.chance:.0%})')
+
+    # Carrion's collections outpace Carrion's interest.
+    for lender in ('fixers', 'sixes', 'carrion'):
+        from flatline.content import lenders
+        terms = lenders.BY_KEY[lender]
+        debt = debt_mod.Debt(amount=10000, lender=lender, opened=0,
+                             rate=terms.rate, grace=terms.grace)
+        grown = 10000 * (1 + terms.rate) ** debt_mod.COLLECT_EVERY
+        taken = debt.collect(debt_mod.COLLECT_EVERY)
+        T.ok(taken > grown - 10000,
+             f'{lender}: a visit takes more than six shifts of interest '
+             f'put on ({taken} vs {grown - 10000:.0f})')
+
+    # A first dose of a hook-4 drug asks first.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+    game.char.stash['grave_salt'] = 1
+    _, out = play(['dose grave_salt'], game=game)
+    T.ok('--sure' in ui.plain(out), 'Grave Salt asks before the first dose')
+    T.eq(game.char.stash.get('grave_salt'), 1, 'and nothing was taken')
+    _, out = play(['dose grave_salt --sure'], game=game)
+    T.ok('grave_salt' not in game.char.stash, '--sure takes it')
+
+    # Ash Tea names what it did to the other habits.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+    game.char.stash['wick'] = 1
+    game.char.stash['ash_tea'] = 1
+    game.char.chem = drug_content.dose({}, 'wick')
+    # push the high through to a comedown
+    for _ in range(3):
+        game.char.chem, _ = drug_content.advance(game.char.chem)
+    T.ok(drug_content.normalise(game.char.chem)['down'], 'Wick is coming down')
+    _, out = play(['dose ash_tea'], game=game)
+    T.ok('comedown cleared, habit now' in ui.plain(out),
+         'the cure names the habit it moved')
+    _, out = play(['chem ash_tea'], game=game)
+    T.ok('the cure is the habit' in ui.plain(out), 'chem says what the cure costs')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
-    test_intrusion, test_catalogue,
+    test_intrusion, test_catalogue, test_money,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,

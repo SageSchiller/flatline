@@ -3645,6 +3645,10 @@ def cmd_cards(sess, args) -> None:
     if stake > char.credits:
         raise CommandError(f'you have {char.credits:,}c')
 
+    # D63 d: the table watches a big hand more closely. Rebuilt with the
+    # stake now that there is one; the odds printed above were for sitting
+    # down, and `cards <stake>` prints these.
+    check = _threes_check(char, venue, game.city.tables.get(venue.key, 0), stake)
     stream = game.rng('games')
     check.resolve(stream)
     c.blank()
@@ -3673,7 +3677,7 @@ def cmd_cards(sess, args) -> None:
     _advance(sess, games.THREES_SHIFTS)
 
 
-def _threes_check(char, venue, taken: int):
+def _threes_check(char, venue, taken: int, stake: int = 0):
     """Reading a table, itemised, per D14. The same shape as every other check.
 
     Deliberately built from the social half of a character sheet and nothing
@@ -3694,6 +3698,8 @@ def _threes_check(char, venue, taken: int):
                   int(taken // games.THREES_LEARNS_PER))
     if learned:
         check.add('they have learned how you play', -learned)
+    if stake >= games.THREES_PER_STAKE:
+        check.add('the size of the stake', -(stake // games.THREES_PER_STAKE))
     if 'no_social' in char.riders():
         check.add('a process cannot read a room', -8)
     return check
@@ -3860,6 +3866,11 @@ def cmd_chem(sess, args) -> None:
             c.say(f'[dim]Once your body expects it, which is habit '
                   f'{drug_content.WITHDRAWAL_AT}, not having it costs you: [/]'
                   + _effect_line(drug.withdrawal))
+        if drug.cures_crash:
+            c.blank()
+            c.say('[warn]It clears every comedown in progress, and every '
+                  'drug it clears gains a habit point. On something already '
+                  'at three, the cure is the habit.[/]')
         return
 
     carrying = {k: v for k, v in char.stash.items() if v > 0}
@@ -3934,11 +3945,31 @@ def cmd_dose(sess, args) -> None:
                            f'already doing.')
 
     before = drug_content.habit(char.chem, drug.key)
+    if (drug.hook >= drug_content.WITHDRAWAL_AT and before == 0
+            and not args.has('sure')):
+        # D63 d: said before the dose, not after. One dose of this is a
+        # habit, and the only warning used to come with the habit.
+        raise CommandError(
+            f'one dose of {drug.name} is a habit: hook {drug.hook}, and '
+            f'{drug_content.WITHDRAWAL_AT} is where your body starts keeping '
+            f'its own accounts. `dose {drug.key} --sure` if you mean it.')
+    was_down = set(drug_content.normalise(char.chem)['down'])
     char.stash[drug.key] -= 1
     if char.stash[drug.key] <= 0:
         del char.stash[drug.key]
     char.chem = drug_content.dose(char.chem, drug.key)
     after = drug_content.habit(char.chem, drug.key)
+    if drug.cures_crash and was_down:
+        # What the cure cost the other habits, named, because the one it
+        # tips over into withdrawal is the one you will not see coming.
+        now = drug_content.normalise(char.chem)
+        for other in sorted(was_down):
+            level = now['habit'].get(other, 0)
+            name = drug_content.BY_KEY[other].name if other in drug_content.BY_KEY else other
+            role = 'err' if level >= drug_content.WITHDRAWAL_AT else 'dim'
+            c.say(f'[{role}]{name}: comedown cleared, habit now {level}'
+                  + (' and that is withdrawal territory'
+                     if level >= drug_content.WITHDRAWAL_AT else '') + '.[/]')
 
     c.blank()
     c.say(f'[accent]{drug.onset}[/]')

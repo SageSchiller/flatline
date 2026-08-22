@@ -80,8 +80,16 @@ class Debt:
         return since >= COLLECT_EVERY
 
     def collect(self, shift: int) -> int:
-        """What they are taking. The debt drops by it either way."""
-        take = max(COLLECT_MIN, int(self.amount * COLLECT_FRACTION))
+        """What they are taking. The debt drops by it either way.
+
+        The fraction rises with the rate (D63 d): a visit has to take more
+        than the interest put on since the last one, or the help text's
+        promise that this is survivable is false for exactly the lender a
+        desperate character ends up with. Carrion at 6.2% a shift outgrew a
+        quarter every six shifts; now a visit from them is nearly half."""
+        rate, _ = self.terms
+        fraction = max(COLLECT_FRACTION, rate * COLLECT_EVERY * 1.2)
+        take = max(COLLECT_MIN, int(self.amount * fraction))
         take = min(take, self.amount)
         self.amount -= take
         self.last_collected = shift

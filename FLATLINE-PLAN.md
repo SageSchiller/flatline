@@ -12,7 +12,7 @@ updated: 2026-08-21
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **14,022 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. Then **D54** (six lines and four topics per person, in seventeen voices; hours, so the clock is a reason to be somewhere) and **D55** (nine threads rooted in the districts, twenty-two decisions, four postings). Then **D56**: a decision at each rival's bond latch (fourteen scenes, twenty-eight decisions, read by the hire price, the shift boundary, four events and the epilogue), and the wire carrying scenes, decisions and what a run did to the city. Then **D57** (the city drawn, `walk`) and **D58** (forty-five places, twenty-two people, the street, a hundred and fifty-four events). Then **D59**, the readout: one dim line after every tick spent in a run, as the seventh rice axis (`hud`: line, bar, terse, quiet). Then **D60**, the tutorial's second half: nine more steps, past the door into what the city does. Then **D61**, tonight inside: eight run conditions drawn at the door, every field read, in the sum where they touch a check. Then **D62**, the rest of the list: the journal as a log, previously on resume, `odds` for strike and for what any verb costs tonight, ICE portraits, attribute bars and a build label, the end-of-run card, scripts discoverable, naming the deck and the safehouse. **Every Phase 7 item is done.** What is next is whatever playing it turns up. Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
+> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **14,034 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. Then **D54** (six lines and four topics per person, in seventeen voices; hours, so the clock is a reason to be somewhere) and **D55** (nine threads rooted in the districts, twenty-two decisions, four postings). Then **D56**: a decision at each rival's bond latch (fourteen scenes, twenty-eight decisions, read by the hire price, the shift boundary, four events and the epilogue), and the wire carrying scenes, decisions and what a run did to the city. Then **D57** (the city drawn, `walk`) and **D58** (forty-five places, twenty-two people, the street, a hundred and fifty-four events). Then **D59**, the readout: one dim line after every tick spent in a run, as the seventh rice axis (`hud`: line, bar, terse, quiet). Then **D60**, the tutorial's second half: nine more steps, past the door into what the city does. Then **D61**, tonight inside: eight run conditions drawn at the door, every field read, in the sum where they touch a check. Then **D62**, the rest of the list: the journal as a log, previously on resume, `odds` for strike and for what any verb costs tonight, ICE portraits, attribute bars and a build label, the end-of-run card, scripts discoverable, naming the deck and the safehouse. **Every Phase 7 item is done.** What is next is whatever playing it turns up. Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
@@ -1742,8 +1742,26 @@ says.
   is a trade and the Short Whip is not a strict downgrade; Longwire is two
   legwork. Anodyne is two memory at 6,900c; Skeleton is 5,200c.
 
-Parts (d) and (e) follow in this decision: the vices and the money, and
-the relics.
+**(d) The vices and the money.**
+
+- **Threes has a ceiling.** The stake is a term (`THREES_PER_STAKE`: a
+  point of resistance per 1,500c, eight at the cap) and the table learns
+  faster (a point per 6,000c taken, to six). A Guile 8 specialist used to
+  read every table at a hundred percent at the cap, which was an income
+  with a floor; now they take a few good evenings off each table and then
+  that table is closed to them.
+- **Collections outpace interest for every lender.** `Debt.collect` takes
+  the larger of a quarter and `rate x 6 x 1.2`: Carrion at 6.2% a shift
+  outgrew a quarter every six shifts, which made the help text's promise
+  that debt is survivable false for exactly the lender a desperate
+  character ends up with.
+- **A first dose of a hook-4 drug asks.** `dose grave_salt` says one dose
+  is a habit and wants `--sure`; the only warning used to arrive with the
+  habit. Ash Tea names each comedown it cleared and the habit it moved,
+  and `chem` says the cure is the habit. `help chemistry` says Focus is
+  counted at the door.
+
+Part (e) follows in this decision: the relics.
 
 ### D17: The finish line
 
@@ -2864,3 +2882,12 @@ notes said, honest notes everywhere else, six mid-tier parts, and an
 antenna trade with two real ends.
 
 `validate.py` clean, `test.py` green at **14,022 checks**.
+
+### 2026-08-21 (o): the mechanics read back, part four
+
+**D63 (d)**, the vices: Threes gets a stake term and faster learning, so
+the card room is a few evenings for a build rather than an income; every
+lender's visit now takes more than its interest put on; a hook-4 drug asks
+before the first dose; Ash Tea says what it cost the other habits.
+
+`validate.py` clean, `test.py` green at **14,034 checks**.
