@@ -92,6 +92,9 @@ class Encounter:
     requires: tuple[str, ...] = ()
     #: Phases it can happen in. Empty means any.
     phases: tuple[str, ...] = ()
+    #: Districts it belongs to. Empty means anywhere in the city; a named
+    #: one is the street of that place and nowhere else.
+    districts: tuple[str, ...] = ()
 
 
 ENCOUNTERS: tuple[Encounter, ...] = (
@@ -524,13 +527,189 @@ ENCOUNTERS: tuple[Encounter, ...] = (
                    Outcome('')),
         ),
         requires=('bond:vesper:nemesis', 'not:paid_vesper')),
+    # -- streets that are only one street (D65 depth) -------------------------
+    Encounter(
+        'lobby_gait', 'The lobby has decided about you', 2, 'faction', 'grim',
+        'The Vertical\'s lobby logs your gait, and something about the way '
+        'you walked in has come up as a mismatch, and two of {fac}\'s '
+        'building people are already crossing the floor at the angle that '
+        'means they have been told which one you are. Nobody raises a voice '
+        'in this lobby. That is not the same as nobody doing anything.',
+        (
+            Option('talk', 'Be somebody with an appointment', 'talk',
+                   Outcome('You have an appointment. You say whose, and the '
+                           'floor, and the time, and one of them checks a '
+                           'tablet and the other has already stopped '
+                           'walking, and the lobby goes back to logging '
+                           'everybody else.'),
+                   Outcome('You have an appointment and it is not on the '
+                           'system, and the room the conversation finishes '
+                           'in is off the lobby and has no window.',
+                           hurt=(2, 5), heat=-6, mark='bounty_mark')),
+            Option('careful', 'Walk out the way somebody who belongs walks out',
+                   'careful',
+                   Outcome('You turn, unhurried, and cross the floor at the '
+                           'speed of somebody who has finished, and the doors '
+                           'do what doors do, and the gait model files you as '
+                           'staff leaving early.'),
+                   Outcome('You turn, and hurry, which is the one thing the '
+                           'model is looking for, and they have you at the '
+                           'doors.', hurt=(2, 4), credits=0.2)),
+            Option('pay', 'Have a reason in your hand', 'pay',
+                   Outcome('You have a docket, or something that passes for '
+                           'one, and a note in it, and the building takes '
+                           'both and loses interest in the difference.'),
+                   Outcome('')),
+        ),
+        districts=('vertical',)),
+    Encounter(
+        'colonnade_coat', 'A man in a good coat', 1, 'street', 'wry',
+        'One of the coats on the Row has stopped being sixty paces away and '
+        'is now beside you, matching your pace under the colonnade, saying '
+        'nothing, for a hundred yards, with the rain on the roof and the '
+        'couriers going past. Eventually: "You are not a customer."',
+        (
+            Option('talk', 'Explain what you are', 'talk',
+                   Outcome('You explain, mostly truthfully, and he listens the '
+                           'way a man listens who is paid to have already '
+                           'decided, and then peels off, and the next coat '
+                           'sixty paces on does not look up.'),
+                   Outcome('You explain and he is not listening, he is '
+                           'timing, and at the end of the hundred yards there '
+                           'are two more of them and a door.',
+                           hurt=(1, 3), credits=0.2)),
+            Option('careful', 'Walk to the end and out', 'careful',
+                   Outcome('You walk to the end of the colonnade at exactly '
+                           'the pace you were walking, and out, and he stops '
+                           'at the last pillar the way a dog stops at a line '
+                           'in the grass.'),
+                   Outcome('You get to the end and the end is where he wanted '
+                           'you.', hurt=(1, 4))),
+        ),
+        districts=('row',)),
+    Encounter(
+        'queue_jumper', 'Somebody in the queue', 1, 'street', 'grim',
+        'A man in the soup queue at the Hall says your handle. Not loudly. '
+        'He says it the way you say a thing to see whether it lands, and '
+        'when it lands he does not look pleased, he looks tired, and he says '
+        'the name of somebody who is not here any more, and waits.',
+        (
+            Option('talk', 'Say the name back to him', 'talk',
+                   Outcome('You say it back, and the rest of what you know '
+                           'about it, which is not much and is honest, and he '
+                           'nods, and takes his soup, and eats it beside you '
+                           'without saying anything else, and that is the '
+                           'whole of it.'),
+                   Outcome('You say it back wrong, or say the wrong thing '
+                           'about it, and the queue is suddenly a room with '
+                           'forty people in it who heard.',
+                           hurt=(1, 3), heat=6)),
+            Option('stand', 'Wait for him to say the rest', 'none',
+                   Outcome('You wait. He waits. The queue moves. At the '
+                           'counter he takes his soup and goes and sits with '
+                           'his back to you, and you have learned something '
+                           'about what your name is worth in this building.'),
+                   Outcome('')),
+        ),
+        districts=('hall',)),
+    Encounter(
+        'checkpoint', 'A checkpoint that was not there yesterday', 2, 'faction',
+        'grim',
+        'Two of {fac}\'s at a folding table across the pavement in '
+        '{district}, with a terminal and a queue, checking whatever it is '
+        'they check today. The queue is moving. Everybody in it is being '
+        'polite. That is what a checkpoint is for.',
+        (
+            Option('talk', 'Queue, and be ordinary', 'talk',
+                   Outcome('You queue. You are ordinary. The terminal says '
+                           'whatever it says about ordinary people and you '
+                           'are through it in four minutes and nobody has '
+                           'looked at you twice.'),
+                   Outcome('You queue and the terminal does not like you, and '
+                           'the four minutes become a van, briefly, and a '
+                           'conversation, and a lighter pocket.',
+                           hurt=(1, 4), credits=0.3, heat=-5)),
+            Option('careful', 'Go round it', 'careful',
+                   Outcome('You go round: a service door, a yard, a fence '
+                           'that is a suggestion, and out on the far side of '
+                           'the table with nothing to declare.'),
+                   Outcome('You go round and there is a reason the yard was '
+                           'empty, which is that they put the second pair '
+                           'there.', hurt=(2, 5))),
+            Option('pay', 'Have the right thing to show', 'pay',
+                   Outcome('You have the right thing, or something with the '
+                           'right shape and a note folded into it, and the '
+                           'table takes it and waves you on.'),
+                   Outcome('')),
+        ),
+        districts=('precinct', 'vertical', 'green', 'row')),
+    Encounter(
+        'stairs_crowd', 'The stairwell at shift change', 1, 'street', 'grim',
+        'Six floors of people coming down while you are going up, in a '
+        'stairwell built for two abreast, and every one of them has been on '
+        'their feet for ten hours, and somewhere in the middle of it '
+        'somebody\'s hand is going through your coat.',
+        (
+            Option('careful', 'Let it happen and watch which way they go',
+                   'careful',
+                   Outcome('You let it happen, and watch, and on the third '
+                           'landing you take back what was yours and a little '
+                           'that was not, and nobody in the stairwell has '
+                           'broken step.'),
+                   Outcome('You let it happen and lose them at the second '
+                           'landing, because they do this every shift change '
+                           'and you do not.', credits=0.2)),
+            Option('stand', 'Take hold of the wrist', 'stand',
+                   Outcome('You take the wrist and hold it up where the '
+                           'stairwell can see it, and the stairwell, which '
+                           'knows exactly whose wrist it is, makes a sound '
+                           'that is not laughter, and the coat is returned.'),
+                   Outcome('You take a wrist and it is the wrong wrist, and '
+                           'six floors of tired people have an opinion about '
+                           'that.', hurt=(2, 4), credits=0.15)),
+        ),
+        districts=('terraces', 'ninth'), phases=('afternoon',)),
+    Encounter(
+        'wet_press', 'Somebody wants the edition stopped', 2, 'faction', 'grim',
+        'Three of {fac}\'s in the ink store, which is not their ink store, '
+        'talking to a printer who has both hands where they can be seen. '
+        'They are here to stop an edition. You are here, which was not the '
+        'plan, and one of them has already decided you are part of it.',
+        (
+            Option('talk', 'Be nobody, loudly', 'talk',
+                   Outcome('You are nobody, at volume, with detail, and it is '
+                           'boring enough to be true, and they go back to the '
+                           'printer and you go out past the drums.'),
+                   Outcome('You are nobody and one of them has seen you '
+                           'before, in a paper, above the fold.',
+                           hurt=(2, 5), heat=-6)),
+            Option('stand', 'Stand with the printer', 'stand',
+                   Outcome('You stand where the printer can see you standing '
+                           'and so can they, and it is three against two now '
+                           'rather than three against one, and three against '
+                           'two in a room with a drain in the floor is not '
+                           'worth the paperwork. They go.',
+                           heat=-4),
+                   Outcome('You stand with the printer and they do the '
+                           'printer first and you second, and the edition '
+                           'does not run.', hurt=(3, 7))),
+            Option('run', 'Not your edition', 'run',
+                   Outcome('It is not your edition. You are out past the '
+                           'drums and into the rain before anybody has '
+                           'finished deciding about you.'),
+                   Outcome('It is not your edition and you are out of the '
+                           'door into somebody who was posted on the door.',
+                           hurt=(2, 5))),
+        ),
+        districts=('stacks',)),
 )
 
 BY_KEY: dict[str, Encounter] = {e.key: e for e in ENCOUNTERS}
 
 
-def pool(tier: int, who: str, phase: str) -> list[Encounter]:
-    """Encounters of at most this tier for this kind of trouble, now."""
+def pool(tier: int, who: str, phase: str, district: str = '') -> list[Encounter]:
+    """Encounters of at most this tier for this kind of trouble, now, here."""
     return [e for e in ENCOUNTERS
             if e.tier <= tier and e.who == who
-            and (not e.phases or phase in e.phases)]
+            and (not e.phases or phase in e.phases)
+            and (not e.districts or district in e.districts)]

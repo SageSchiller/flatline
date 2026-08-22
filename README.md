@@ -165,7 +165,7 @@ The three ideas everything else hangs off:
 verb nobody else can use and its own starting face · 38 implants · 60 programs
 · 34 deck components · 24 of all of those one of a kind, never sold, found at a place at an hour or handed over by a decision, each with a history · 28 countermeasures · 9 pieces of bench work · 12 districts, each with a mark for the faction that
 holds it · 12 factions · 7 rival runners who decide about you, and one you can keep · 29 named characters who keep hours, hand out work, keep private stock and do favours on a tab · 32 storylines across 95 scenes and 110 decisions, every one of them read back by the world, with a spine through the middle that has four endings and one of them is a door ·
-102 appearance features · 12 districts, drawn, with a scene for every hour and 60 places in them to go and stand · 189 ambient city events, 80 of them consequences of something you decided and 12 of them rumours that stop when the thing is found · 41 manual topics · networks in six shapes · the street in four tiers and 14 ways it stops you ·
+102 appearance features · 12 districts, drawn, with a scene for every hour and 60 places in them to go and stand · 189 ambient city events, 80 of them consequences of something you decided and 12 of them rumours that stop when the thing is found · 41 manual topics · networks in six shapes · the street in four tiers and 20 ways it stops you, six of them written for one street only ·
 12 drugs · 3 lenders · 2 games of chance in 5 rooms ·
 122 commands · 72 pieces of terminal across 7 axes.
 

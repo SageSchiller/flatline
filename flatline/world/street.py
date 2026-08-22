@@ -52,11 +52,15 @@ def choose(rng, game, who: str, tier: int, faction: str = ''):
     nothing fits, which callers treat as the street having let you pass.
     """
     phase = game.city.phase
-    pool = [e for e in street_content.pool(tier, who, phase)
+    here = game.city.where
+    pool = [e for e in street_content.pool(tier, who, phase, here)
             if all(game.story.satisfied(r, game) for r in e.requires)]
     if not pool:
         return None
-    weights = {e.key: (3.0 if e.tier == tier else 1.0) for e in pool}
+    # Something written for this street beats something written for any
+    # street, at the same rung.
+    weights = {e.key: ((3.0 if e.tier == tier else 1.0)
+                       * (2.5 if e.districts else 1.0)) for e in pool}
     key = rng.weighted(weights)
     return street_content.BY_KEY[key]
 
@@ -137,13 +141,25 @@ def begin(sess, enc, faction: str = '', danger: int = 0,
     c.blank()
     c.say('[dim]Type one. They are not going to wait, and an empty line is '
           'standing there.[/]')
+    _wait(sess, enc, faction, danger, keys)
+
+
+def _wait(sess, enc, faction: str, danger: int, keys, tries: int = 0) -> None:
+    """Ask, and keep the same prompt when the answer was not one of them."""
     tier_word = street_content.TIER_NAMES[enc.tier]
     sess.ask(f'{tier_word}, {", ".join(keys)}? ',
-             lambda s, text: _answer(s, enc, faction, danger, text),
+             lambda s, text: _answer(s, enc, faction, danger, text, tries),
              on_cancel='', choices=tuple(keys), must_answer=True)
 
 
-def _answer(sess, enc, faction: str, danger: int, text: str) -> None:
+#: Non-answers before the street stops waiting for one. It is not a
+#: conversation: standing there is an answer and eventually it is the one
+#: you have given.
+PATIENCE = 3
+
+
+def _answer(sess, enc, faction: str, danger: int, text: str,
+            tries: int = 0) -> None:
     game, c = sess.game, sess.console
     low = text.strip().lower()
     if not low:
@@ -155,25 +171,29 @@ def _answer(sess, enc, faction: str, danger: int, text: str) -> None:
               'having already left, and it works once a day.[/]')
         sess.autosave()
         return
+    keys = [o.key for o in enc.options]
+    if can_bolt(game, enc):
+        keys.append('bolt')
     opt = next((o for o in enc.options if o.key == low
                 or o.key.startswith(low)), None)
     if opt is None:
-        c.err(f'{text!r} is not one of the answers: '
-              + ', '.join(o.key for o in enc.options) + '.')
-        sess.ask(sess.pending.prompt if sess.pending else '? ',
-                 lambda s, t: _answer(s, enc, faction, danger, t),
-                 on_cancel='', choices=tuple(o.key for o in enc.options),
-                 must_answer=True)
-        return
+        if tries + 1 >= PATIENCE:
+            c.err(f'{text!r} is not one of the answers, and they have '
+                  f'stopped waiting for one.')
+            opt = next((o for o in enc.options if o.key == 'stand'),
+                       enc.options[-1])
+        else:
+            c.err(f'{text!r} is not one of the answers: '
+                  + ', '.join(keys) + '.')
+            _wait(sess, enc, faction, danger, keys, tries + 1)
+            return
     rng = game.rng('events')
     if opt.check == 'pay':
         cost = pay_cost(game, enc)
         if game.char.credits < cost:
             c.err(f'You do not have {cost:,}c. Something else.')
-            sess.ask(sess.pending.prompt if sess.pending else '? ',
-                     lambda s, t: _answer(s, enc, faction, danger, t),
-                     on_cancel='', choices=tuple(o.key for o in enc.options),
-                     must_answer=True)
+            _wait(sess, enc, faction, danger,
+                  [o.key for o in enc.options if o.check != 'pay'], tries)
             return
         game.char.credits -= cost
         c.blank()

@@ -3827,7 +3827,9 @@ def check_street(rep: Report) -> None:
         rep.check(1 <= e.tier <= 4, where, f'tier {e.tier}')
         rep.check(e.who in ('faction', 'street'), where, f'who {e.who!r}')
         rep.check(e.tone in events.TONES, where, f'tone {e.tone!r}')
-        rep.check('{district}' in e.setup, where, 'setup never names the district')
+        rep.check('{district}' in e.setup or bool(e.districts), where,
+                  'setup never names the district, and it can happen in any '
+                  'of them')
         if e.who == 'faction':
             rep.check('{fac}' in e.setup, where, 'a faction encounter never '
                                                  'names the faction')
@@ -3859,6 +3861,9 @@ def check_street(rep: Report) -> None:
                       'the kind that kills takes money, which is a lower rung')
         for hour in e.phases:
             rep.check(hour in shifts.PHASE_KEYS, where, f'hour {hour!r}')
+        for key in e.districts:
+            rep.check(key in districts.BY_KEY, where,
+                      f'happens in {key!r}, which is not a district')
         for rule in e.requires:
             inner = rule[4:] if rule.startswith('not:') else rule
             kind = inner.split(':')[0]

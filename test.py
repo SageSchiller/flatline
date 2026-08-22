@@ -7950,6 +7950,29 @@ def test_street() -> None:
     play(['rest'], game=game)
     T.ok(before - game.char.hurt > plain_heal, 'Scar Tissue heals more per rest')
 
+    # The street stops waiting for an answer it is not getting.
+    from flatline.world import street as street_world
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=12)
+    sess = Session(console=quiet_console(), slot='streettest')
+    sess.game = game
+    sess.console.start_capture()
+    street_world.begin(sess, street_content.BY_KEY['toll'], 'sixes', 40)
+    for _ in range(street_world.PATIENCE):
+        T.ok(sess.pending is not None, 'still waiting')
+        sess.execute('marmalade')
+    out = ui.plain(sess.console.end_capture())
+    T.ok(sess.pending is None, 'and then it stops waiting')
+    T.ok('stopped waiting' in out, 'and says so')
+    T.ok('is not one of the answers' in out, 'having said why each time')
+
+    # A district encounter only happens on its own street.
+    lobby = street_content.BY_KEY['lobby_gait']
+    T.ok(lobby.districts == ('vertical',), 'the lobby is the Vertical')
+    T.ok(lobby not in street_content.pool(4, 'faction', 'morning', 'ninth'),
+         'and never happens in the Ninth')
+    T.ok(lobby in street_content.pool(4, 'faction', 'morning', 'vertical'),
+         'and does happen in the Vertical')
+
     # Errands: a courier is paid on arrival; a watch pays on the spot.
     game = Game.new(Character.from_origin('gutter', 'x'), seed=7)
     offers = street_world.errands_here(game)

@@ -3215,3 +3215,16 @@ rests, buys and pays) turned up three more advice loops behind the four
 from (c): the refusing `spend`, the refused `travel`, and the multi-hop
 walk whose danger was only checked one hop in. All closed, with
 `test_advice` to keep them closed. `test.py` green at **15,293 checks**.
+
+### 2026-08-21 (ac): streets that are only one street
+
+Six encounters written for one district each (`Encounter.districts`, and
+weighted at two and a half times an anywhere one when it fits): the
+Vertical's lobby deciding about your gait, a coat on the Row walking
+beside you for a hundred yards, somebody in the Hall's queue saying a name,
+a checkpoint that was not there yesterday in the guarded districts, the
+Terraces stairwell at shift change, and three of somebody's in the Stacks'
+ink store stopping an edition. 20 encounters now. The street also stops
+waiting: three non-answers and it takes the one you were giving it by
+standing there (`PATIENCE`), and the re-ask keeps its own prompt instead of
+degrading to a bare question mark. `test.py` green at **15,320 checks**.
