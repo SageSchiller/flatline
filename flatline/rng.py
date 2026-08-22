@@ -160,6 +160,9 @@ class Rng:
         # from a shared stream would mean an evening's gambling silently
         # reshuffled the contract board and every network in the city.
         'games',
+        # Street work on offer (D65). Forked on district and shift so the
+        # two errands in a district are the same two every time you look.
+        'errands',
     )
 
     def __init__(self, seed: int) -> None:

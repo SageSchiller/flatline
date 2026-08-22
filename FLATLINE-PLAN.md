@@ -12,7 +12,7 @@ updated: 2026-08-21
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is closed; D63 is the mechanics deep dive.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **14,814 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. The latest work is **D63**, in five parts, all landed 2026-08-21: (a) every declared number and rider has a reader, guarded by `check_reads`; (b) the intrusion layer's holes closed (`mask` decays, sealed records, armour wears, faction style knobs, the soft warden route); (c) `inspect`, a bare `load`, `fit`, passives counting once, program riders, six mid-tier parts; (d) Threes capped, collections outpace interest, hook-4 drugs ask; (e) fifteen relics with histories, nine found at places and six given by decisions, with rumours that stop. Then **D64**, the play test: networks in six shapes by doctrine, the brief reading the sums, and the city grown to twelve districts (the Stacks, Meridian Row, the Hall) with people, places, threads and a sixteenth relic; plus the leftovers, one at a time, and `reset`. Before that, D50 through D62 on the same day: the onboarding layer, decisions that are read, the Deepwater spine, the city deeper, voices and hours, district arcs, the rival bond, the drawn map, the HUD, the tutorial's second half, run conditions, and the rest of the Phase 7 list. **Every Phase 7 item is done.** What is next is whatever playing it turns up. Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
+> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is closed; D63 is the mechanics deep dive.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **14,896 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. The latest work is **D63**, in five parts, all landed 2026-08-21: (a) every declared number and rider has a reader, guarded by `check_reads`; (b) the intrusion layer's holes closed (`mask` decays, sealed records, armour wears, faction style knobs, the soft warden route); (c) `inspect`, a bare `load`, `fit`, passives counting once, program riders, six mid-tier parts; (d) Threes capped, collections outpace interest, hook-4 drugs ask; (e) fifteen relics with histories, nine found at places and six given by decisions, with rumours that stop. Then **D64**, the play test: networks in six shapes by doctrine, the brief reading the sums, and the city grown to twelve districts (the Stacks, Meridian Row, the Hall) with people, places, threads and a sixteenth relic; plus the leftovers, one at a time, and `reset`. Then **D65**, the street is real: encounters in four tiers answered by run, talk, pay or stand, two street skills, a warning-then-lethal rule under the black-ICE contract, and errands. Before that, D50 through D62 on the same day: the onboarding layer, decisions that are read, the Deepwater spine, the city deeper, voices and hours, district arcs, the rival bond, the drawn map, the HUD, the tutorial's second half, run conditions, and the rest of the Phase 7 list. **Every Phase 7 item is done.** What is next is whatever playing it turns up. Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
@@ -1841,6 +1841,60 @@ favour between them. Fifteen events: six weather, nine consequences. The
 map is redrawn for twelve and the walk rule is four shifts corner to
 corner, because a bigger city takes longer to cross.
 
+### D65: The street is real
+
+The author's direction, 2026-08-21: the game should be split evenly between
+the danger of being jacked in and the danger of the physical world, with
+real harm and real skill out there; the idea that nothing can end you
+unless you are jacked in works against the setting. So the street is real.
+
+**What stays.** No guns in your hands, no street fights, no combat verbs:
+the locked direction holds. You do not fight the street. You survive it the
+way people who live here do: you run, you talk, you pay, or you stand there
+and take it.
+
+**Encounters** (`content/street.py`, `world/street.py`). A ladder of four
+tiers: a lean (two on a kerb naming a price; somebody behind you), a press
+(three in a doorway with a photograph; kids with a knife; a dark
+stairwell), a taking (four and a van), and the kind that kills (people who
+have stopped asking; somebody you crossed). Somebody's people, filled with
+the faction, or nobody's. Each is a `Question` (D50) with `must_answer`:
+the answers are printed with their odds, an empty line is standing there,
+and each checked answer is a printed sum like every other check in the
+game (Reflex, Fieldcraft x2, Streetcraft to run; Guile, Streetcraft x2,
+Subterfuge to talk; Grit, Fieldcraft x2, Nerve to stand; money to pay).
+Outcomes land on Integrity (the same number the net spends), credits,
+heat, the deck, and the marks.
+
+**The warning rule.** Only tier 4 can kill, and only after a warning: the
+first time a lethal blow would land it leaves you at one Integrity and
+sets `warned:<faction>` with the sentence "next time they will not be
+asking"; with the flag set, the next one can end the character (`killed in
+the street`, the flatline's epilogue and bequests, a roster line). Same
+contract as black ICE (D6): telegraphed, then absolute. Non-lethal
+outcomes cannot kill, whatever the dice.
+
+**Where it happens.** The incident roll at travel is an encounter three
+times in five (the old ladder stays for the rest); the close-call band
+below it gets a small thing in the street sometimes (the tail, the woman
+with a pot, who heals you two); a rough night's rest somewhere dangerous
+without a safehouse; a watch errand. Never inside a run.
+
+**Two skills** (fourteen lines now): Streetcraft (Guile: Bolt at 2 leaves
+before it starts, once a day, not from the top rung; A Face at 4 makes
+talking four easier and paying half) and Fieldcraft (Grit: Scar Tissue at
+2 heals a point more per shift of rest, two somewhere safe; Shrug at 4
+halves the first hit). `check_street` holds every technique key to a
+`has_technique` reader and every encounter to the ladder's rules.
+
+**Errands.** `errands`: two pieces of street work per district per shift,
+deterministic in (district, shift): carry a package one to three shifts
+away and get paid on arrival (a warm one is worth stopping you for), or
+stand a shift on watch somewhere here. No deck, no trace, the street in the
+way. `now` carries the package; the wire remembers it.
+
+`help street`; the death topic's ladder has the street on it.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -3024,3 +3078,11 @@ three threads, fifteen events and a relic. `validate.py` clean, `test.py`
 green at **14,814 checks**. Next, by the author's direction: physical
 danger and skill in the real world (D65), then more to explore, meet, find
 and do.
+
+### 2026-08-21 (s): the street is real
+
+**D65.** The street can hurt you, cost you, and at the top of its ladder
+kill you, after it has told you so in as many words; you get out of it by
+running, talking, paying or standing there, each a printed check on two
+new skills; errands are the work that needs no deck. `validate.py` clean,
+`test.py` green at **14,896 checks**.

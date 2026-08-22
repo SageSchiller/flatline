@@ -58,6 +58,10 @@ class Question:
     on_cancel: str = ''
     #: Tab-completion candidates while waiting, where readline exists.
     choices: tuple[str, ...] = ()
+    #: The street does not wait (D65). An empty line or a back-out word is
+    #: handed to the handler as '' rather than cancelling, so standing
+    #: there is an answer. `quit` still quits.
+    must_answer: bool = False
 
 
 #: Words that back out of a question, besides an empty line.
@@ -191,12 +195,13 @@ class Session:
     # ------------------------------------------------------------------
 
     def ask(self, prompt: str, handler: Callable, on_cancel: str = '',
-            choices: tuple[str, ...] = ()) -> None:
+            choices: tuple[str, ...] = (), must_answer: bool = False) -> None:
         """Wait for the next line and hand it to `handler`. See `Question`."""
         if self.run is not None:
             raise CommandError('not while you are in a run.')
         self.pending = Question(prompt=prompt, handler=handler,
-                                on_cancel=on_cancel, choices=choices)
+                                on_cancel=on_cancel, choices=choices,
+                                must_answer=must_answer)
 
     def cancel_question(self, say: bool = True) -> None:
         q, self.pending = self.pending, None
@@ -207,9 +212,11 @@ class Session:
         """The next line typed while a question was waiting."""
         q, self.pending = self.pending, None
         text = line.strip()
-        if not text or text.lower() in BACK_OUT:
+        if (not text or text.lower() in BACK_OUT) and not q.must_answer:
             self.console.say(f'[dim]{q.on_cancel or "Left it there."}[/]')
             return
+        if q.must_answer and text.lower() in BACK_OUT:
+            text = ''
         # Somebody who types `quit` at a question wants out of the game, not
         # out of the question, and keeping them in a conversation they have
         # asked to leave is the thing every wizard ever built gets wrong.

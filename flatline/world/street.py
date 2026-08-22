@@ -1,0 +1,406 @@
+"""The street as an engine (D65): encounters, the checks, the warning, the
+end, and the work that has nothing to do with a deck.
+
+The content is in `content/street.py`. This is what makes it happen: which
+encounter fits this much danger at this hour, the printed sums behind
+`run`, `talk`, `stand` and `careful`, what an outcome does to a body, a
+bag and a name, and the one rule that matters most, which is that nothing
+here kills anybody who was not told first.
+
+Errands are the other half: courier work and a shift on watch, paid in
+credits, priced by how far and how dangerous, with the same street in the
+way. They need no deck. They are what a runner does between runs, and what
+a character who is not a runner at all might do instead.
+"""
+
+from __future__ import annotations
+
+from ..content import districts, factions, spots
+from ..content import street as street_content
+from ..run.checks import Check
+
+#: Danger to tier: below 45 a lean, below 60 a press, below 75 a taking,
+#: and past that the kind that kills (once you have been warned).
+TIER_AT = ((75, 4), (60, 3), (45, 2), (0, 1))
+
+#: How much of the incident roll at travel is an encounter rather than the
+#: old ladder (shakedown, beating, deck, chrome, burn). Both are the street.
+ENCOUNTER_SHARE = 0.6
+
+#: Chance of a tier-1 street encounter in the close-call band on arrival,
+#: and of a lean on a rough night's rest somewhere dangerous.
+TEXTURE_CHANCE = 0.18
+ROUGH_NIGHT_CHANCE = 0.3
+
+#: Errands: courier pay per hop, and a watch's base.
+COURIER_PER_HOP = 180
+WATCH_BASE = 260
+
+
+def tier_for(danger: int) -> int:
+    for floor, tier in TIER_AT:
+        if danger >= floor:
+            return tier
+    return 1
+
+
+def choose(rng, game, who: str, tier: int, faction: str = ''):
+    """An encounter of at most this tier for this kind of trouble, now.
+
+    Prefers the tier asked for; lower ones fill in. Story rules on an
+    encounter are read with the game's own `satisfied`. Returns None when
+    nothing fits, which callers treat as the street having let you pass.
+    """
+    phase = game.city.phase
+    pool = [e for e in street_content.pool(tier, who, phase)
+            if all(game.story.satisfied(r, game) for r in e.requires)]
+    if not pool:
+        return None
+    weights = {e.key: (3.0 if e.tier == tier else 1.0) for e in pool}
+    key = rng.weighted(weights)
+    return street_content.BY_KEY[key]
+
+
+def check_for(game, enc, option, faction: str, danger: int) -> Check | None:
+    """The printed sum behind an answer, or None for pay and none."""
+    kind = option.check
+    if kind not in street_content.CHECKS:
+        return None
+    attr, skill, second = street_content.CHECKS[kind]
+    char = game.char
+    check = Check(name=f'{option.key} ({enc.name.lower()})',
+                  resistance=street_content.RESISTANCE[enc.tier]
+                  + (danger // 20 if faction else 0))
+    check.add(attr, char.attr(attr))
+    check.add(skill, char.skill(skill) * 2)
+    check.add(second, char.skill(second))
+    if kind == 'talk' and char.has_technique('face'):
+        check.add('a face', 4)
+    if faction and kind == 'talk':
+        hot = game.alias.attention(faction)
+        if hot >= 50:
+            check.add('they know exactly who you are', -(hot // 25))
+    if char.integrity <= char.integrity_max // 3 and kind in ('run', 'stand'):
+        check.add('you are hurt', -2)
+    return check
+
+
+def pay_cost(game, enc) -> int:
+    cost = street_content.PAY[enc.tier]
+    if game.char.has_technique('face'):
+        cost //= 2
+    return cost
+
+
+def can_bolt(game, enc) -> bool:
+    """Bolt: leave before it starts, once a day, not from tier 4."""
+    return (game.char.has_technique('bolt') and enc.tier < 4
+            and game.city.bolted != game.city.shift)
+
+
+# --------------------------------------------------------------------------
+# the encounter, as a question
+# --------------------------------------------------------------------------
+
+
+def begin(sess, enc, faction: str = '', danger: int = 0,
+          why: str = '') -> None:
+    """Print the setup and the answers, and wait for the next line."""
+    game, c = sess.game, sess.console
+    fac = factions.BY_KEY.get(faction)
+    fill = {'fac': fac.short if fac else 'nobody\'s',
+            'district': game.city.district.name}
+    c.blank()
+    c.rule('the street', role='warn')
+    if why:
+        c.say(f'[dim]{why}[/]')
+    c.say(f'[warn]{enc.setup.format(**fill)}[/]')
+    c.blank()
+    keys = []
+    for opt in enc.options:
+        check = check_for(game, enc, opt, faction, danger)
+        if opt.check == 'pay':
+            cost = pay_cost(game, enc)
+            can = game.char.credits >= cost
+            tail = (f'[credit]{cost:,}c[/]' if can
+                    else f'[dim]{cost:,}c, which you do not have[/]')
+        elif check is None:
+            tail = ''
+        else:
+            tail = f'[dim]{check.summary()}[/]'
+        keys.append(opt.key)
+        c.raw(f'  [accent]{opt.key:<8}[/] {opt.label}  {tail}')
+    if can_bolt(game, enc):
+        keys.append('bolt')
+        c.raw(f'  [accent]{"bolt":<8}[/] Leave before it starts  '
+              f'[dim]Streetcraft 2, once a day[/]')
+    c.blank()
+    c.say('[dim]Type one. They are not going to wait, and an empty line is '
+          'standing there.[/]')
+    tier_word = street_content.TIER_NAMES[enc.tier]
+    sess.ask(f'{tier_word}, {", ".join(keys)}? ',
+             lambda s, text: _answer(s, enc, faction, danger, text),
+             on_cancel='', choices=tuple(keys), must_answer=True)
+
+
+def _answer(sess, enc, faction: str, danger: int, text: str) -> None:
+    game, c = sess.game, sess.console
+    low = text.strip().lower()
+    if not low:
+        low = 'stand'
+        c.say('[dim]You stand there.[/]')
+    if low == 'bolt' and can_bolt(game, enc):
+        game.city.bolted = game.city.shift
+        c.say('[ok]You were never there.[/] [dim]It is not a trick. It is '
+              'having already left, and it works once a day.[/]')
+        sess.autosave()
+        return
+    opt = next((o for o in enc.options if o.key == low
+                or o.key.startswith(low)), None)
+    if opt is None:
+        c.err(f'{text!r} is not one of the answers: '
+              + ', '.join(o.key for o in enc.options) + '.')
+        sess.ask(sess.pending.prompt if sess.pending else '? ',
+                 lambda s, t: _answer(s, enc, faction, danger, t),
+                 on_cancel='', choices=tuple(o.key for o in enc.options),
+                 must_answer=True)
+        return
+    rng = game.rng('events')
+    if opt.check == 'pay':
+        cost = pay_cost(game, enc)
+        if game.char.credits < cost:
+            c.err(f'You do not have {cost:,}c. Something else.')
+            sess.ask(sess.pending.prompt if sess.pending else '? ',
+                     lambda s, t: _answer(s, enc, faction, danger, t),
+                     on_cancel='', choices=tuple(o.key for o in enc.options),
+                     must_answer=True)
+            return
+        game.char.credits -= cost
+        c.blank()
+        c.say(f'[credit]{cost:,}c[/] gone.')
+        _apply(sess, enc, faction, opt.win, rng, won=True)
+        return
+    check = check_for(game, enc, opt, faction, danger)
+    if check is None:
+        _apply(sess, enc, faction, opt.win, rng, won=True)
+        return
+    check.resolve(rng)
+    c.blank()
+    c.say(f'[dim]{check.explain()}[/]')
+    _apply(sess, enc, faction, opt.win if check.success else opt.lose, rng,
+           won=check.success)
+
+
+def _apply(sess, enc, faction: str, outcome, rng, won: bool) -> None:
+    """What an outcome does to you. The warning rule lives here."""
+    game, c = sess.game, sess.console
+    char = game.char
+    fac = factions.BY_KEY.get(faction)
+    who = faction or 'street'
+    if outcome.text:
+        c.blank()
+        c.say(f'[{"ok" if won else "err"}]{outcome.text}[/]')
+    told = []
+    lo, hi = outcome.hurt
+    hurt = rng.int(lo, hi) if hi >= lo else 0
+    if hurt < 0:
+        heal = min(-hurt, char.hurt)
+        char.hurt -= heal
+        if heal:
+            told.append(f'[ok]Integrity +{heal}.[/]')
+        hurt = 0
+    if hurt > 0 and char.has_technique('shrug'):
+        hurt = max(1, hurt // 2)
+        told.append('[dim]Shrug: half of it.[/]')
+    killed = False
+    if hurt > 0:
+        left = char.integrity - hurt
+        warned = f'warned:{who}' in game.story.flags
+        if outcome.lethal and enc.tier == 4 and warned and left <= 0:
+            char.hurt = char.integrity_max
+            killed = True
+        else:
+            if outcome.lethal and enc.tier == 4 and left <= 0:
+                # The warning. The blow lands and leaves you at one, and
+                # the next one will not (D6: telegraphed, then absolute).
+                hurt = max(0, char.integrity - 1)
+                game.story.flags.add(f'warned:{who}')
+                told.append(f'[err]That was the warning. Next time '
+                            f'{fac.short if fac else "they"} will not be '
+                            f'asking, and you will not be getting up.[/]')
+            else:
+                hurt = min(hurt, max(0, char.integrity - 1))
+            char.hurt += hurt
+            if hurt:
+                told.append(f'[err]Integrity -{hurt}[/] [dim]'
+                            f'({char.integrity}/{char.integrity_max})[/]')
+    if outcome.credits > 0 and char.credits > 0:
+        take = min(char.credits, max(50, int(char.credits * outcome.credits)))
+        char.credits -= take
+        told.append(f'[credit]{take:,}c[/] gone.')
+    if outcome.heat and fac is not None:
+        game.alias.add_heat(faction, outcome.heat)
+        told.append(f'[dim]{fac.short} heat {outcome.heat:+d}.[/]')
+    if outcome.mark:
+        got = char.mark(outcome.mark)
+        if got is not None:
+            told.append(f'[dim]It leaves a mark: {got.name.lower()}.[/]')
+    if outcome.deck:
+        from ..content import hardware
+        working = [s for s in hardware.SLOTS if char.deck.working(s)]
+        if working:
+            slot = rng.pick(working)
+            level = char.deck.hurt(slot, 1)
+            comp = char.deck.component(slot)
+            told.append(f'[dim]{comp.name if comp else slot} damaged '
+                        f'({level}/3).[/]')
+    for line in told:
+        c.say(line)
+    game.city.news.append(
+        f'[warn]{enc.name}[/] in {game.city.district.name}: '
+        + ('you got clear.' if won else 'it cost you.'))
+    game.story.flags.add(f'street:{enc.key}')
+    if killed:
+        _die(sess, enc, faction)
+        return
+    sess.record_progress()
+    sess.autosave()
+
+
+def _die(sess, enc, faction: str) -> None:
+    """The street ends a character. Same shape as the flatline."""
+    from ..commands.core import end_character
+    game, c = sess.game, sess.console
+    fac = factions.BY_KEY.get(faction)
+    c.blank()
+    c.raw('[err][bold]It does not stop.[/][/]')
+    c.say(f'You were told. {fac.short if fac else "Somebody"} told you, in '
+          f'{game.city.district.name}, in so many words, and you went back, '
+          f'or you never left, and this is the part after the telling.')
+    game.city.news.append(f'[err]{game.char.handle} died in '
+                          f'{game.city.district.name}.[/]')
+    end_character(sess, 'killed in the street')
+
+
+# --------------------------------------------------------------------------
+# hooks: where the street happens
+# --------------------------------------------------------------------------
+
+
+def on_arrival(sess, faction: str, danger: int) -> bool:
+    """The incident roll at travel, as an encounter some of the time.
+    Returns True if an encounter began (and the caller should not also run
+    the old ladder)."""
+    game = sess.game
+    rng = game.rng('events')
+    if not rng.chance(ENCOUNTER_SHARE):
+        return False
+    tier = tier_for(danger)
+    enc = choose(rng, game, 'faction', tier, faction)
+    if enc is None:
+        return False
+    begin(sess, enc, faction, danger,
+          why=f'{factions.BY_KEY[faction].short} have people here and a '
+              f'reason.')
+    return True
+
+
+def texture(sess, danger: int) -> bool:
+    """Below the ladder: a small thing in the street, sometimes."""
+    game = sess.game
+    rng = game.rng('events')
+    if not rng.chance(TEXTURE_CHANCE):
+        return False
+    enc = choose(rng, game, 'street', 1)
+    if enc is None:
+        return False
+    begin(sess, enc, '', danger)
+    return True
+
+
+def rough_night(sess) -> bool:
+    """Sleeping somewhere dangerous without a safehouse."""
+    game = sess.game
+    danger, who = game.city.danger(game.alias, game.city.where,
+                                   flags=game.story.flags)
+    if danger < 40 or game.city.phase != 'night':
+        return False
+    rng = game.rng('events')
+    if not rng.chance(ROUGH_NIGHT_CHANCE):
+        return False
+    if who:
+        enc = choose(rng, game, 'faction', min(2, tier_for(danger)), who)
+    else:
+        enc = choose(rng, game, 'street', 2)
+    if enc is None:
+        return False
+    begin(sess, enc, who or '', danger, why='You did not sleep well, and '
+                                             'somebody noticed where.')
+    return True
+
+
+# --------------------------------------------------------------------------
+# errands
+# --------------------------------------------------------------------------
+
+
+def errands_here(game) -> list[dict]:
+    """Two pieces of street work on offer in this district this shift,
+    deterministic in (district, shift) so looking twice shows the same two."""
+    city = game.city
+    stream = game.rng.fork('errands', f'{city.where}:{city.shift // 3}')
+    here = city.district
+    out = []
+    # Courier: somewhere one to three shifts away.
+    far = [d for d in districts.DISTRICTS
+           if d.key != city.where and 1 <= city.shifts_to(d.key) <= 3]
+    if far:
+        target = stream.pick(far)
+        hops = city.shifts_to(target.key)
+        danger, _ = city.danger(game.alias, target.key, flags=game.story.flags)
+        hot = stream.chance(0.3)
+        pay = COURIER_PER_HOP * hops + danger * 3 + (200 if hot else 0)
+        out.append({'kind': 'courier', 'to': target.key, 'pay': int(pay),
+                    'hot': hot, 'from': city.where,
+                    'what': stream.pick(COURIER_PACKAGES)})
+    # Watch: a shift standing somewhere here.
+    places = spots.in_district(city.where)
+    where = stream.pick(places).name if places else here.name
+    pay = WATCH_BASE + here.security * 2
+    out.append({'kind': 'watch', 'at': where, 'pay': int(pay),
+                'from': city.where})
+    return out
+
+
+COURIER_PACKAGES = (
+    'a case that is not heavy enough', 'a paper bag, stapled shut',
+    'a deck bag with no deck in it', 'a box of printed things, still warm',
+    'something in a cool bag that needs to stay cool',
+    'an envelope you are not to bend',
+)
+
+
+def deliver(sess) -> None:
+    """Called on arrival: if the package was for here, it is delivered."""
+    game, c = sess.game, sess.console
+    errand = game.city.errand
+    if not errand or errand.get('kind') != 'courier':
+        return
+    if errand.get('to') != game.city.where:
+        return
+    pay = int(errand.get('pay', 0))
+    game.char.credits += pay
+    game.earned += pay
+    game.city.errand = {}
+    game.city.errands_done += 1
+    controller = game.city.district.controller
+    game.alias.adjust_rep(controller, 3)
+    c.blank()
+    c.rule('delivered', role='ok')
+    c.say(f'Somebody is waiting for {errand.get("what", "it")} at the agreed '
+          f'place, and takes it, and does not look inside, and pays.')
+    c.say(f'[credit]{pay:,}c[/]. [dim]{factions.BY_KEY[controller].short} '
+          f'warmer, a little.[/]')
+    game.city.news.append(f'Delivered {errand.get("what", "a package")} to '
+                          f'{game.city.district.name}: {pay:,}c.')
+    sess.record_progress()

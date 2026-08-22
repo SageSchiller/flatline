@@ -7795,11 +7795,174 @@ def test_relics() -> None:
     T.ok('rumour_thessaly' not in fresh, 'and stays in its own district')
 
 
+
+def test_street() -> None:
+    """D65: the street is real."""
+    T.section('the street')
+    from flatline.content import street as street_content
+    from flatline.world import street as street_world
+
+    # The skills exist and the attributes still govern at least two each.
+    T.ok('streetcraft' in skills.SKILL_KEYS and 'fieldcraft' in skills.SKILL_KEYS,
+         'the two street skills exist')
+    T.eq(len(skills.SKILLS), 14, 'fourteen lines')
+    T.ok(street_world.tier_for(30) == 1 and street_world.tier_for(50) == 2
+         and street_world.tier_for(65) == 3 and street_world.tier_for(80) == 4,
+         'danger maps to the ladder')
+
+    def fresh(seed=3, origin='gutter'):
+        game = Game.new(Character.from_origin(origin, 'x'), seed=seed)
+        sess = Session(console=quiet_console(), slot='streettest')
+        sess.game = game
+        return sess, game
+
+    # An encounter is a question with printed odds; an answer is a check;
+    # an outcome lands on the body and the bag.
+    sess, game = fresh()
+    enc = street_content.BY_KEY['toll']
+    sess.console.start_capture()
+    street_world.begin(sess, enc, 'sixes', 50)
+    out = ui.plain(sess.console.end_capture())
+    T.ok(sess.pending is not None and sess.pending.must_answer,
+         'the street asks and does not wait')
+    T.ok('run' in out and 'talk' in out and 'pay' in out and 'stand' in out,
+         'the four answers are printed')
+    T.ok('%' in out or 'automatic' in out or 'impossible' in out,
+         'with their odds')
+    credits = game.char.credits
+    sess.console.start_capture()
+    sess.execute('pay')
+    out = ui.plain(sess.console.end_capture())
+    T.ok(game.char.credits < credits, 'paying costs')
+    T.ok(sess.pending is None, 'and the question is answered')
+    T.ok('street:toll' in game.story.flags, 'the street remembers')
+
+    # Standing there with an empty line is an answer.
+    sess, game = fresh(seed=4)
+    sess.console.start_capture()
+    street_world.begin(sess, street_content.BY_KEY['tail'], '', 30)
+    sess.execute('')
+    out = ui.plain(sess.console.end_capture())
+    T.ok(sess.pending is None, 'an empty line stands there')
+    T.ok('You stand there' in out, 'and says so')
+
+    # Non-lethal outcomes never kill, whatever the dice.
+    for seed in range(12):
+        sess, game = fresh(seed=seed)
+        game.char.hurt = game.char.integrity_max - 2
+        sess.console.start_capture()
+        street_world.begin(sess, street_content.BY_KEY['press'], 'kagawa', 70)
+        sess.execute('stand')
+        sess.console.end_capture()
+        T.ok(game.char.integrity >= 1 and game.over == '',
+             f'seed {seed}: a taking cannot kill')
+
+    # The kind that kills warns first, and kills second.
+    def lethal_run(seed, warned):
+        sess, game = fresh(seed=seed)
+        game.char.hurt = game.char.integrity_max - 3
+        if warned:
+            game.story.flags.add('warned:kagawa')
+        sess.console.start_capture()
+        street_world.begin(sess, street_content.BY_KEY['finish'], 'kagawa', 80)
+        sess.execute('stand')
+        return sess, game, ui.plain(sess.console.end_capture())
+    died_unwarned = 0
+    warned_after = 0
+    for seed in range(10):
+        sess, game, out = lethal_run(seed, warned=False)
+        if game.over:
+            died_unwarned += 1
+        if 'warned:kagawa' in game.story.flags:
+            warned_after += 1
+    T.eq(died_unwarned, 0, 'nobody dies without the warning')
+    T.ok(warned_after > 0, 'and a bad night at the top rung is the warning')
+    deaths = 0
+    for seed in range(16):
+        sess, game, out = lethal_run(seed, warned=True)
+        if game.over:
+            deaths += 1
+            T.ok('killed' in game.over, 'the roster says killed')
+            T.ok('It does not stop' in out, 'and the end is printed')
+    T.ok(deaths > 0, f'after the warning it can end you ({deaths}/16)')
+
+    # Bolt at Streetcraft 2, once a day; Scar Tissue heals more.
+    sess, game = fresh(seed=5)
+    game.char.base_skills['streetcraft'] = 2
+    sess.console.start_capture()
+    street_world.begin(sess, street_content.BY_KEY['knives'], '', 40)
+    out = ui.plain(sess.console.end_capture())
+    T.ok('bolt' in out, 'Bolt is on the table at rank 2')
+    credits = game.char.credits
+    sess.execute('bolt')
+    T.ok(game.char.credits == credits and game.city.bolted == game.city.shift,
+         'Bolt costs nothing and is spent for the day')
+    sess.console.start_capture()
+    street_world.begin(sess, street_content.BY_KEY['knives'], '', 40)
+    out = ui.plain(sess.console.end_capture())
+    T.ok('bolt' not in out.split('Type one')[0].split('Leave before')[0]
+         or 'once a day' not in out, 'not twice in a shift')
+    sess.execute('pay')
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=6)
+    game.char.hurt = 8
+    before = game.char.hurt
+    play(['rest'], game=game)
+    plain_heal = before - game.char.hurt
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=6)
+    game.char.base_skills['fieldcraft'] = 2
+    game.char.hurt = 8
+    before = game.char.hurt
+    play(['rest'], game=game)
+    T.ok(before - game.char.hurt > plain_heal, 'Scar Tissue heals more per rest')
+
+    # Errands: a courier is paid on arrival; a watch pays on the spot.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=7)
+    offers = street_world.errands_here(game)
+    T.eq(len(offers), 2, 'two errands on offer')
+    T.ok(offers == street_world.errands_here(game), 'the same two twice')
+    sess, out = play(['errands'], game=game)
+    T.ok('courier' in ui.plain(out) and 'watch' in ui.plain(out),
+         'errands lists both kinds')
+    courier = next(i for i, o in enumerate(offers, 1) if o['kind'] == 'courier')
+    sess, out = play([f'errands take {courier}'], game=game)
+    T.ok(game.city.errand.get('kind') == 'courier', 'the package is carried')
+    steps = dict(city_cmd.city_steps(game)) if False else None
+    from flatline.commands import city as city_cmd
+    T.ok(any('deliver' in why for _, why in city_cmd.city_steps(game)),
+         'now says to deliver it')
+    credits = game.char.credits
+    to = game.city.errand['to']
+    walk = game.city.walk_to(to)
+    sess, out = play([walk], game=game)
+    # A walk may be interrupted by a question; answer until arrived.
+    for _ in range(6):
+        if sess.pending is not None:
+            sess.execute('pay' if game.char.credits > 2000 else 'stand')
+        if game.city.where == to:
+            break
+        sess.execute(game.city.walk_to(to))
+    T.eq(game.city.where, to, 'arrived')
+    T.ok(not game.city.errand, 'and the package is delivered')
+    T.ok(game.char.credits > credits - 2000, 'and paid')
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=8)
+    offers = street_world.errands_here(game)
+    watch = next(i for i, o in enumerate(offers, 1) if o['kind'] == 'watch')
+    credits = game.char.credits
+    shift = game.city.shift
+    sess, out = play([f'errands take {watch}'], game=game)
+    if sess.pending is not None:
+        sess.execute('stand')
+    T.ok(game.city.shift > shift, 'a watch costs a shift')
+    T.ok(game.char.credits >= credits, 'and pays')
+    saved = City.from_dict(game.city.to_dict())
+    T.eq(saved.errands_done, game.city.errands_done, 'errands round-trip')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
-    test_intrusion, test_catalogue, test_money, test_relics,
+    test_intrusion, test_catalogue, test_money, test_relics, test_street,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,

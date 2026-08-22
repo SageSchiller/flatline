@@ -508,7 +508,8 @@ def end_character(sess, how: str) -> None:
     game.over = how
     _bequeath(sess, 'flatlined')
     sess.record_progress()
-    save_mod.bump_meta(went_under=1)
+    save_mod.bump_meta(killed=1 if how.startswith('killed') else 0,
+                       went_under=0 if how.startswith('killed') else 1)
     sess.autosave()
     c.blank()
     c.say('[dim]`new` when you want to be somebody else. Something of this '

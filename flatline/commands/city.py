@@ -28,6 +28,7 @@ from ..shell import Args, CommandError, command
 from ..world import city as city_mod
 from ..world import debt as debt_mod
 from ..world import fallout
+from ..world import street as street_world
 from ..world import rivals as rival_world
 from ..world import market as market_mod
 
@@ -1181,9 +1182,18 @@ def city_steps(game) -> list[tuple[str, str]]:
     """
     from ..world.contracts import OBJECTIVE_PROGRAM
     contract = game.city.current
-    if contract is None:
-        return [('board', 'work on offer')]
     steps: list[tuple[str, str]] = []
+    # A package in the bag is a step wherever the job is (D65).
+    errand = game.city.errand
+    if errand and errand.get('kind') == 'courier':
+        to = errand.get('to', '')
+        if to in districts.BY_KEY and to != game.city.where:
+            steps.append((game.city.walk_to(to),
+                          f'deliver {errand.get("what", "the package")} to '
+                          f'{districts.BY_KEY[to].name} for '
+                          f'{int(errand.get("pay", 0)):,}c'))
+    if contract is None:
+        return steps + [('board', 'work on offer')]
     need = OBJECTIVE_PROGRAM.get(contract.objective)
     if need and not game.char.deck.has_category(need):
         owned = [programs.BY_KEY[k] for k in game.char.library
@@ -1507,6 +1517,8 @@ def cmd_travel(sess, args) -> None:
     if free:
         c.info('You know the way. It does not cost you a shift.')
 
+    # A package for here is delivered before anything else happens (D65).
+    street_world.deliver(sess)
     if danger >= fallout.INCIDENT_FLOOR:
         _resolve_incident(sess, who, danger)
     elif danger >= 25:
@@ -1522,6 +1534,10 @@ def cmd_travel(sess, args) -> None:
         else:
             c.warn(f'{factions.BY_KEY[who].short} have people here and they '
                    f'are looking for your name. Do not linger.')
+    elif sess.pending is None:
+        # Below that: the street as texture (D65). Somebody behind you,
+        # somebody with a pot. Small, and not every time.
+        street_world.texture(sess, danger)
     here_you_can(sess, district)
 
 
@@ -1572,6 +1588,10 @@ def _resolve_incident(sess, faction: str, danger: int) -> None:
         c.blank()
         c.warn('You get most of the way across before somebody looks twice, '
                'and you are around a corner before they finish looking.')
+        return
+    # D65: more often than not it is people, not a ladder. The ladder stays
+    # for the rest: shakedown, beating, deck, chrome, burn.
+    if street_world.on_arrival(sess, faction, danger):
         return
     incident = fallout.pick_up(stream, game.char, game.alias, game.city,
                                faction)
@@ -1644,6 +1664,9 @@ def cmd_rest(sess, args) -> None:
     safe = 'safehouse' in game.city.district.services
     before = game.char.hurt
     heal = (2 if safe else 1) * shifts
+    if game.char.has_technique('scar'):
+        # Scar Tissue (D65): a point more per shift, two more somewhere safe.
+        heal += (2 if safe else 1) * shifts
     riders = game.char.riders()
     # Whatever they used to restart you has never entirely stopped, and three
     # hours a night for eleven years is not rest.
@@ -1661,6 +1684,8 @@ def cmd_rest(sess, args) -> None:
     _advance(sess, shifts)
     if not safe:
         c.info('No safehouse here. You did not sleep well.')
+        if sess.pending is None and sess.game is not None:
+            street_world.rough_night(sess)
     if 'slow_healing' in game.char.riders():
         c.info('You heal the way you have healed since the table.')
     elif 'poor_rest' in game.char.riders():
@@ -1670,6 +1695,103 @@ def cmd_rest(sess, args) -> None:
 # --------------------------------------------------------------------------
 # identity
 # --------------------------------------------------------------------------
+
+
+@command('errands', 'Street work: carry something, or stand somewhere.',
+         contexts=('city',), group='city', aliases=('errand', 'odd'),
+         usage='errands [take <n>|drop]',
+         detail='D65. The half of the game that is not a deck. Two pieces of '
+                'work on offer in every district every shift: carry a '
+                'package to a district one to three shifts away and get paid '
+                'on arrival, or stand a shift on watch at a place here. Paid '
+                'in credits, priced by how far and how dangerous, with the '
+                'street in the way: a courier with a hot package is somebody '
+                'worth stopping. No program, no deck, no trace. `errands '
+                'take <n>` to take one, `errands drop` to put a package down '
+                'unpaid. Only one package at a time; a watch is done on the '
+                'spot.')
+def cmd_errands(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    verb = (args.get(0) or '').lower()
+    if verb == 'drop':
+        if not game.city.errand:
+            raise CommandError('you are not carrying anything.')
+        what = game.city.errand.get('what', 'the package')
+        game.city.errand = {}
+        c.ok(f'You put {what} down somewhere it will be found, unpaid.')
+        return
+    offers = street_world.errands_here(game)
+    if verb in ('take', 'accept'):
+        if game.city.errand:
+            raise CommandError(f'you are already carrying '
+                               f'{game.city.errand.get("what", "something")} '
+                               f'to {districts.BY_KEY[game.city.errand["to"]].name}. '
+                               f'`errands drop` to put it down.')
+        token = sess.pick('errands', args.get(1) or '', fallback=['1', '2'],
+                          what='errand', again='errands')
+        n = int(token) if str(token).isdigit() else 0
+        if not 1 <= n <= len(offers):
+            raise CommandError(f'which one? 1 to {len(offers)}.')
+        job = offers[n - 1]
+        if job['kind'] == 'courier':
+            game.city.errand = dict(job)
+            to = districts.BY_KEY[job['to']]
+            c.ok(f'You take {job["what"]}. {to.name}, '
+                 f'{game.city.shifts_to(to.key)} shift'
+                 f'{"s" if game.city.shifts_to(to.key) != 1 else ""} away, '
+                 f'[credit]{job["pay"]:,}c[/] on arrival.')
+            if job.get('hot'):
+                c.warn('It is warm. Whoever wants it wants it badly enough '
+                       'that somebody else might too.')
+            c.say(f'[dim]`{game.city.walk_to(to.key)}`. The wire remembers '
+                  f'what you are carrying.[/]')
+            game.city.news.append(f'Carrying {job["what"]} to {to.name}.')
+            sess.autosave()
+            return
+        # watch: a shift, here, now
+        pay = job['pay']
+        c.say(f'You stand a shift at {job["at"]}. Nothing is asked of you '
+              f'but to be there and to notice.')
+        _advance(sess, 1)
+        if sess.game is None or not game.char.integrity:
+            return
+        game.char.credits += pay
+        game.earned += pay
+        game.city.errands_done += 1
+        c.ok(f'[credit]{pay:,}c[/] for the shift.')
+        danger, who = game.city.danger(game.alias, game.city.where,
+                                       flags=game.story.flags)
+        if sess.pending is None:
+            if not street_world.texture(sess, danger) and who \
+                    and danger >= 30:
+                street_world.on_arrival(sess, who, danger)
+        sess.autosave()
+        return
+    c.header('Errands', game.city.district.name)
+    rows = []
+    for n, job in enumerate(offers, 1):
+        if job['kind'] == 'courier':
+            to = districts.BY_KEY[job['to']]
+            hops = game.city.shifts_to(to.key)
+            rows.append((str(n), 'courier',
+                         f'{job["what"]} to {to.name} '
+                         f'({hops} shift{"s" if hops != 1 else ""})'
+                         + (' [warn]warm[/]' if job.get('hot') else ''),
+                         f'{job["pay"]:,}c'))
+        else:
+            rows.append((str(n), 'watch', f'a shift at {job["at"]}',
+                         f'{job["pay"]:,}c'))
+    c.table(('#', 'kind', 'what', 'pay'), rows,
+            roles=('accent', 'dim', 'fg', 'credit'))
+    sess.remember('errands', ['1', '2'][:len(offers)])
+    if game.city.errand:
+        e = game.city.errand
+        c.blank()
+        c.say(f'[dim]Carrying {e.get("what", "something")} to '
+              f'{districts.BY_KEY[e["to"]].name} for {int(e["pay"]):,}c.[/]')
+    c.blank()
+    c.say('[dim]`errands take <n>`. No deck needed. The street is still the '
+          'street.[/]')
 
 
 @command('alias', 'The name you are running under, and what it carries.',

@@ -118,6 +118,12 @@ class City:
     #: tab, not a gift: they mention it every `TAB_NAG` shifts it stands,
     #: and the mentioning costs you their opinion. `ask <name> repay`.
     tabs: dict = field(default_factory=dict)
+    #: The street (D65): the shift Bolt was last used, the errand being
+    #: carried (`{kind, to, pay, hot, from, what}` or `{}`), and how many
+    #: have been done.
+    bolted: int = -1
+    errand: dict = field(default_factory=dict)
+    errands_done: int = 0
     next_cid: int = 1
     #: district -> listings, and the shift they were rolled.
     stock: dict = field(default_factory=dict)
@@ -797,6 +803,8 @@ class City:
             'crew': dict(self.crew),
             'tables': dict(self.tables),
             'tabs': {k: list(v) for k, v in self.tabs.items()},
+            'bolted': self.bolted, 'errand': dict(self.errand),
+            'errands_done': self.errands_done,
             'next_cid': self.next_cid,
             'stock': {k: [l.to_dict() for l in v] for k, v in self.stock.items()},
             'stock_shift': self.stock_shift,
@@ -824,6 +832,9 @@ class City:
             tabs={k: [int(v[0]), int(v[1])]
                   for k, v in (d.get('tabs') or {}).items()
                   if isinstance(v, (list, tuple)) and len(v) == 2},
+            bolted=int(d.get('bolted', -1)),
+            errand=dict(d.get('errand') or {}),
+            errands_done=int(d.get('errands_done', 0)),
             next_cid=int(d.get('next_cid', 1)),
             stock={k: [Listing.from_dict(l) for l in v]
                    for k, v in (d.get('stock') or {}).items()},

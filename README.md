@@ -161,7 +161,7 @@ The three ideas everything else hangs off:
 
 ## What is in it
 
-12 skills with 24 techniques · 26 traits · 10 origins, each with a signature
+14 skills with 28 techniques, two of them for the street · 26 traits · 10 origins, each with a signature
 verb nobody else can use and its own starting face · 37 implants · 55 programs
 · 32 deck components · 16 of all of those one of a kind, never sold, found at a place at an hour or handed over by a decision, each with a history · 28 countermeasures · 9 pieces of bench work · 12 districts, each with a mark for the faction that
 holds it · 12 factions · 7 rival runners who decide about you, and one you can keep · 26 named characters who keep hours, hand out work, keep private stock and do favours on a tab · 31 storylines across 93 scenes and 107 decisions, every one of them read back by the world, with a spine through the middle that has four endings and one of them is a door ·
@@ -173,6 +173,13 @@ Every number on every one of those is read by the engine, and `validate.py`
 holds it to that: every modifier key and every rider string in the content
 has to appear in the code that is not content, or the build fails. `inspect`
 anything before you pay for it.
+
+The street is real. Walk into a district where your name is worth money and
+some of them are waiting: a price on a kerb, a photograph in a doorway, a
+van, and, at the top of the ladder, people who have stopped asking. You run,
+talk, pay, or stand there, each a printed check on two street skills, and the
+street can kill you, after it has warned you in so many words. `errands` is
+the work that needs no deck.
 
 Footnotes are a real feature of the console. `{{like this}}` in any content
 string gets lifted out and printed under the block, and they nest, because the

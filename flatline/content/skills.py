@@ -1,4 +1,4 @@
-"""The twelve skill lines and the techniques they unlock.
+"""The fourteen skill lines and the techniques they unlock.
 
 The design rule for this file: **a rank must change what you can type, not
 just what you roll.** Ranks 2 and 4 of every line unlock a technique, which is
@@ -293,6 +293,49 @@ SKILLS: tuple[Skill, ...] = (
                       'at all. Once per run. It is the only counter to a '
                       'Coffin that does not involve killing it, and the deck '
                       'pays for all of it.'),
+        )),
+    # -- the street (D65) ----------------------------------------------------
+    Skill(
+        'streetcraft', 'Streetcraft', 'guile',
+        'Reading a street, and being read by it the way you intended.',
+        'The net is half the game and the street is the other half, and the '
+        'street has people in it. Streetcraft is knowing which corner to take, '
+        'who to pay and how much, what to say to two people in somebody\'s '
+        'colours who have stepped off the kerb, and when to have already '
+        'left. It never throws a punch. It is the skill of not needing to.',
+        (
+            Technique('bolt', 'Bolt', 2, '',
+                      'Leave before it starts. Once a day.',
+                      'When the street stops you, an extra answer is on the '
+                      'table: you were never there. No check, no cost, once a '
+                      'day, and it does not work on anybody who has already '
+                      'got hold of you.'),
+            Technique('face', 'A Face', 4, '',
+                      'The street reads you as somebody\'s.',
+                      'Talking your way out is four points easier and paying '
+                      'your way out costs half, because the people stopping '
+                      'you are no longer sure whose you are, and in this city '
+                      'that is the question.'),
+        )),
+    Skill(
+        'fieldcraft', 'Fieldcraft', 'grit',
+        'The body on the street: carrying hurt, walking far, staying up.',
+        'Integrity is what you have left when something goes through you, and '
+        'on the street things go through you slower and more often than in '
+        'the net. Fieldcraft is the trade of being a body in this city: '
+        'taking a hit and still walking, healing on a floor, not missing the '
+        'step in the dark stairwell.',
+        (
+            Technique('scar', 'Scar Tissue', 2, '',
+                      'Rest heals a point more per shift.',
+                      'You have done this before. A shift of rest puts back one '
+                      'more than it used to, anywhere, and two more in a '
+                      'safehouse of your own.'),
+            Technique('shrug', 'Shrug', 4, '',
+                      'The first hit in an encounter lands at half.',
+                      'Once per encounter, the first thing that reaches you on '
+                      'the street takes half what it would have. It is not '
+                      'armour. It is having been hit before.'),
         )),
 )
 

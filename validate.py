@@ -3809,6 +3809,79 @@ def check_conditions(rep: Report) -> None:
 
 
 # --------------------------------------------------------------------------
+# the street (D65)
+# --------------------------------------------------------------------------
+
+
+def check_street(rep: Report) -> None:
+    """D65: every encounter is answerable, every answer is a real check or a
+    real price, only the top tier can kill and only after a warning, and
+    every technique key the skills declare has a reader in the engine."""
+    from flatline.content import street as street_content
+    from flatline.world import story as story_mod
+    seen: set[str] = set()
+    for e in street_content.ENCOUNTERS:
+        where = f'street/{e.key}'
+        rep.check(e.key not in seen, where, 'duplicate key')
+        seen.add(e.key)
+        rep.check(1 <= e.tier <= 4, where, f'tier {e.tier}')
+        rep.check(e.who in ('faction', 'street'), where, f'who {e.who!r}')
+        rep.check(e.tone in events.TONES, where, f'tone {e.tone!r}')
+        rep.check('{district}' in e.setup, where, 'setup never names the district')
+        if e.who == 'faction':
+            rep.check('{fac}' in e.setup, where, 'a faction encounter never '
+                                                 'names the faction')
+        rep.check(len(e.options) >= 2, where, 'fewer than two answers')
+        keys = [o.key for o in e.options]
+        rep.check(len(keys) == len(set(keys)), where, 'duplicate answers')
+        for o in e.options:
+            ow = f'{where}/{o.key}'
+            rep.check(o.check in street_content.CHECKS or o.check in ('pay', 'none'),
+                      ow, f'check {o.check!r} is not a thing anybody can roll')
+            rep.check(bool(o.label), ow, 'has no label')
+            if o.check not in ('pay', 'none'):
+                rep.check(bool(o.win.text) and bool(o.lose.text), ow,
+                          'a checked answer needs both outcomes written')
+            for out in (o.win, o.lose):
+                lo, hi = out.hurt
+                rep.check(lo <= hi, ow, f'hurt range {out.hurt} is backwards')
+                rep.check(0.0 <= out.credits <= 1.0, ow,
+                          f'credits share {out.credits} out of range')
+                if out.lethal:
+                    rep.check(e.tier == 4, ow,
+                              'can kill below the top of the ladder')
+                    rep.check(out.hurt[0] >= 8, ow,
+                              'lethal and does not hit hard enough to be')
+        if e.tier == 4:
+            rep.check(any(o.lose.lethal for o in e.options), where,
+                      'the kind that kills cannot')
+            rep.check(all(o.check != 'pay' for o in e.options), where,
+                      'the kind that kills takes money, which is a lower rung')
+        for hour in e.phases:
+            rep.check(hour in shifts.PHASE_KEYS, where, f'hour {hour!r}')
+        for rule in e.requires:
+            inner = rule[4:] if rule.startswith('not:') else rule
+            kind = inner.split(':')[0]
+            rep.check(':' not in inner or kind in thread_content.CONDITIONS
+                      or kind in ('met', 'ran'), where,
+                      f'{rule!r} is not a rule anything can evaluate')
+    tiers = {e.tier for e in street_content.ENCOUNTERS}
+    rep.check(tiers == {1, 2, 3, 4}, 'street',
+              f'the ladder has rungs {sorted(tiers)}; wanted all four')
+    for who in ('faction', 'street'):
+        rep.check(any(e.who == who and e.tier >= 3 for e in street_content.ENCOUNTERS),
+                  'street', f'{who} trouble never gets serious')
+    # Every technique has a reader.
+    source = _wide_source()
+    for sk in skills.SKILLS:
+        for t in sk.techniques:
+            rep.check(f"has_technique('{t.key}')" in source, f'skills/{sk.key}/{t.key}',
+                      'technique is declared and nothing reads has_technique '
+                      'for it')
+
+
+
+# --------------------------------------------------------------------------
 # relics (D63 e)
 # --------------------------------------------------------------------------
 
@@ -3964,7 +4037,7 @@ CHECKS = (
     check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_offers, check_legacy, check_bonds, check_safehouses, check_crew, check_mods, check_commands,
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_palette_separation, check_markup, check_balance,
-    check_heat, check_guile, check_roster, check_reads, check_relics,
+    check_heat, check_guile, check_roster, check_reads, check_relics, check_street,
 )
 
 

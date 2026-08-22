@@ -341,7 +341,7 @@ TOPICS: tuple[Topic, ...] = (
         terms=('stats',),
         group='character'),
     Topic(
-        'skills', 'The twelve skill lines',
+        'skills', 'The fourteen skill lines',
         'What each buys, and why ranks 2 and 4 are the ones that matter.',
         '  [accent]Intrusion[/]     breaking services. The bread and butter.\n'
         '  [accent]Cryptography[/]  encrypted stores and key material.\n'
@@ -971,6 +971,47 @@ TOPICS: tuple[Topic, ...] = (
         terms=('loanshark', 'shark', 'interest', 'creditor', 'repay'),
         group='city'),
     Topic(
+        'street', 'The street is real',
+        'The half of the danger that happens with the deck in the bag.',
+        'The net is half the game and the street is the other half, and the '
+        'street has people in it. Walk into a district where a faction has a '
+        'number on your name and some of them will be waiting: two on a '
+        'kerb naming a price, three in a doorway with a photograph, four and '
+        'a van, and, at the top of the ladder, people who have stopped '
+        'asking. Nobody\'s people are out there too: somebody behind you for '
+        'three streets, four kids in a walkway with one knife held wrong, a '
+        'stairwell in the dark with a step missing.\n\n'
+        'You do not fight. You [accent]run[/], you [accent]talk[/], you '
+        '[accent]pay[/], or you [accent]stand[/] there, and each is a printed '
+        'check like every other check in the game: Reflex and Fieldcraft to '
+        'run, Guile and Streetcraft to talk, Grit and Fieldcraft to stand. '
+        'Two skills are the street\'s: [fg]streetcraft[/] (Bolt at rank 2 '
+        'leaves before it starts, once a day; A Face at rank 4 makes talking '
+        'easier and paying cheaper) and [fg]fieldcraft[/] (Scar Tissue at 2 '
+        'heals a point more per rest; Shrug at 4 halves the first hit).\n\n'
+        'What it costs is Integrity, the same number the net spends, and '
+        'credits, and heat, and sometimes the deck or a mark. At the top of '
+        'the ladder it can cost everything: [err]the street can kill you[/], '
+        'and it warns first, every time, in so many words. A night that ends '
+        'with you at one Integrity and the sentence "next time they will not '
+        'be asking" is the telegraph. Go back with the number still on your '
+        'name and it is the strike.\n\n'
+        'The street has work, too: [fg]errands[/]. Carry a package a few '
+        'shifts across the city and get paid on arrival, or stand a shift on '
+        'watch somewhere. No deck, no trace, the same street in the way. It '
+        'is how a runner eats between runs, and how somebody who is not a '
+        'runner at all might eat instead.\n\n'
+        '[warn]The decision:[/] the city remembers, and the street is where '
+        'it collects. `rep` and the map\'s x marks say where your name is '
+        'worth money. Going anyway is a choice; so is `rest`, and so is '
+        '`burn`.',
+        see=('death', 'heat', 'skills', 'city'),
+        commands=('errands', 'travel', 'rest', 'rep'),
+        covers=('street',),
+        terms=('mugging', 'ambush', 'encounter', 'beating', 'physical',
+               'courier', 'odd jobs', 'violence'),
+        group='city'),
+    Topic(
         'relics', 'Things there is one of',
         'What is not for sale, where it might be, and why it is worth having.',
         'Most of what you will ever carry came off a shelf, and the shelf '
@@ -1167,19 +1208,28 @@ TOPICS: tuple[Topic, ...] = (
         '  [err]bounty[/]          a faction is paying for you now\n'
         '  [err]chrome damage[/]   something comes out of you in a room you '
         'did not choose\n'
-        '  [err]FLATLINE[/]        black ICE. This one ends the character.\n\n'
-        'Everything except the last is a change of circumstances, not a game '
-        'over. A runner who has been caught twice is playing a different, '
-        'worse, more interesting character than the one they built.\n\n'
-        '[err]Only black ICE can kill you[/], it only guards cores and vaults, '
-        'it always telegraphs, and it gives you a Composure check before the '
-        'end. If you are somewhere a Coffin lives, you were told.\n\n'
+        '  [err]the street[/]      somebody\'s people, or nobody\'s, and a '
+        'choice: run, talk, pay, stand\n'
+        '  [err]FLATLINE[/]        black ICE. This one ends the character.\n'
+        '  [err]KILLED[/]          the street, after it warned you. So does '
+        'this.\n\n'
+        'Everything except the last two is a change of circumstances, not a '
+        'game over. A runner who has been caught twice is playing a '
+        'different, worse, more interesting character than the one they '
+        'built.\n\n'
+        '[err]Two things can kill you[/], and both tell you first. Black ICE '
+        'only guards cores and vaults, it always telegraphs, and it gives you '
+        'a Composure check before the end: if you are somewhere a Coffin '
+        'lives, you were told. The street kills only at the top of its '
+        'ladder, only people with a number on their name, and only after a '
+        'night that ends with you at one Integrity and a sentence you will '
+        'remember: next time they will not be asking. `help street`.\n\n'
         '[warn]The decision:[/] because failure is survivable, the correct '
         'play is often to attempt things you will probably lose. A burned run '
         'costs a night. Not trying costs the campaign.',
-        see=('ice', 'heat', 'triangle', 'legacy'),
+        see=('ice', 'heat', 'triangle', 'legacy', 'street'),
         commands=('status', 'jack out'),
-        terms=('dying', 'killed', 'permadeath',),
+        terms=('dying', 'permadeath',),
         group='city'),
 
     Topic(
