@@ -332,7 +332,14 @@ def generate(rng: Stream, faction: str, posture: int,
         count = min(len(pool), rng.curve(lo, hi, 0.5))
         for svc in rng.sample(pool, count):
             dlo, dhi = svc.difficulty
-            diff = rng.int(dlo, dhi) * (0.7 + 0.6 * scale)
+            # D67: posture decides how well the thing is actually built,
+            # and the old curve barely bent. At a gang's posture it came
+            # out at 0.96, so the Sixes' vault ran the same signing
+            # service as Kagawa's, which is not what "a phone tree with
+            # delusions" means and made the first job in the game one a
+            # starting deck could not open. Now a gang is genuinely soft
+            # and a bank is genuinely not.
+            diff = rng.int(dlo, dhi) * (0.45 + 0.78 * scale)
             if svc.family == 'crypto':
                 # Meridian's doctrine: the keys are the thing (D63 b).
                 diff *= fac.style.get('crypto', 1.0)

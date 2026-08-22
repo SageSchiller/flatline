@@ -1512,6 +1512,11 @@ class RunState:
 
         where = self._objective_where(target, found)
         steps = self._objective_steps(kind, target, found)
+        # Why there is nothing to try, when there is nothing to try (D67).
+        if steps == ('jack out',) and not self.objective_met():
+            why = self._hopeless_where()
+            if why:
+                where = f'{where} {why}'.strip()
         # The brief reads the same sums the verbs do (D64 a). Advice that
         # says `wipe` forever against a check that cannot land tonight is
         # a loop with a friendly voice; if the thing cannot be done with
@@ -1722,6 +1727,24 @@ class RunState:
             return (f'connect {step} --present',)
         return (f'connect {step}',)
 
+    def _hopeless_where(self) -> str:
+        """Why there is nothing to try, in the terms of the loadout."""
+        node = self.node
+        shut = [s for s in node.services if not s.cracked]
+        if not shut:
+            return ''
+        best = 0.0
+        for svc in shut:
+            _, category = node_content.FAMILIES[svc.family]
+            program = programs.best(self.char.deck.loaded, category)
+            best = max(best, crack_check(self, node, svc, program).chance)
+        hardest = min(shut, key=lambda s: s.difficulty)
+        _, category = node_content.FAMILIES[hardest.family]
+        return (f'Nothing on {node.uid} opens for what you are carrying: the '
+                f'best of it is {best:.0%} on {hardest.data.name}. A better '
+                f'{category}, or the rank to drive one, is the difference. '
+                f'This one is not tonight.')
+
     def _nothing_left(self) -> tuple[str, ...]:
         """No way on that you can see. Look once more, then go.
 
@@ -1767,6 +1790,11 @@ class RunState:
                     return (f'crack {node.uid} {way}',)
         return None
 
+    #: Below this chance the brief stops calling something a way in. A long
+    #: shot is a decision and the player can price it with `odds`; a one in
+    #: ten is a hundred and fifty identical ticks with a countdown running.
+    HOPELESS = 0.16
+
     def _easiest(self, node) -> str:
         """The best way into a host: the shut service with the best odds.
 
@@ -1792,7 +1820,11 @@ class RunState:
             chance = crack_check(self, node, svc, program).chance
             if chance > best_chance:
                 best, best_chance = svc.key, chance
-        return best
+        # And a one in ten is not a way in. Naming it produced runs that
+        # were forty identical attempts at the same locked door with a
+        # countdown running, which is the game wasting somebody's evening
+        # politely. Say nothing instead, and let the caller say leave.
+        return best if best_chance >= self.HOPELESS else ''
 
     def _finish_steps(self, kind: str) -> tuple[str, ...]:
         """You are standing on it. Do the thing you came to do."""

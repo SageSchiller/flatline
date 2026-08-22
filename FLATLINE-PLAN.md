@@ -1991,6 +1991,55 @@ in words, and a `reads as` line pricing the target's middling services
 against the breaker you are carrying with the same sum `crack_check` uses:
 comfortable, workable, even money, long odds, out of your league.
 
+### D67: The city is a place, and the difficulty is a ladder
+
+Two things the author asked for on 2026-08-22: the city should feel
+overwhelming and sprawling rather than thin, and the districts should each
+be somewhere, from the flooded blocks the gangs run to the glass the banks
+sit behind.
+
+**Every district is a place now.** Four new fields on `District`, written
+for all twelve: `scale` (how big it is, in the terms the place itself uses:
+forty thousand people, ninety floors, eleven cranes of which nine move),
+`built` (what it is made of and what that does to standing in it),
+`works` (what the people here do for money and who takes a cut), and
+`beyond` (what is past its edge, because the city does not stop at the
+map). Plus `quarters`: six named corners each, seventy-two in all, most of
+which you will never visit, which is most of what makes a place feel like
+it goes on.
+
+**`look` says how big it is and what its parts are called.** **`district`**
+(also `here`, `place`) is the long read, from anywhere: the scale, what it
+is made of, what it does, the quarters, what is past the edge, who holds
+it, who else has people in it, what it sells and at what tier, and the
+walk. Sixty more things in the street, to thirteen a district, with a
+validate rule against two lines being the same thing twice.
+
+**Twenty written crossings.** Every road between two districts has what is
+on it: the freight ramp out of the Ninth, the boulevard nobody walks down
+that the Vertical is at the end of, the two streets where the noise stops
+and the Row starts. Travel prints one. A shift of walking is somewhere you
+went through rather than a number going up.
+
+**The map says why the city is that shape** (`citymap.LAYOUT`): water west
+and south, the hill north with the towers on it, Marrow in the middle
+because a market goes where the roads cross, the new money east.
+
+**And the difficulty is a ladder rather than a wall.** Measuring the first
+job in the game found the early-game trap the author had been feeling: a
+gang's vault ran the same signing service as a bank's, because the service
+scale was 0.7 + 0.6 x posture/50, which comes out at 0.96 for the Sixes.
+A starting deck could not open the thing it had been sent for, anywhere,
+at any posture, and the brief kept telling it to try. Now the curve is
+0.45 + 0.78 x scale, so a phone tree with delusions is one, and a bank is
+a bank. The brief will not name a door under `HOPELESS` (one in six), and
+when there is nothing to try it says what would change that: a better
+program, or the rank to drive one.
+
+Measured after, twenty-four networks a band: a mid build takes 17 to 21 of
+24 gang jobs and 3 to 9 corporate ones; an end-game build takes 21 of 24 at
+Kagawa, 24 of 24 at Meridian and 20 of 24 at Deepwater. That is a ladder.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -3290,3 +3339,12 @@ change. Size is breadth now, the size itself is cover, quiet ticks are
 cheap, the alert can come back down, `wait` exists, and the fee curve
 matches what the attempt is actually worth. `test_scale` holds the lot.
 `test.py` green at **15,350 checks**.
+
+### 2026-08-22 (b): the city is a place
+
+D67. Twelve districts written out with what they are built of, what they
+work at, their quarters and what is past their edge; `district`; sixty
+more street lines; twenty crossings; the map's own logic; and the service
+difficulty curve fixed so the first job in the game is one a starting deck
+can open. `test_place` and `test_ladder`. `test.py` green at **15,360
+checks**.

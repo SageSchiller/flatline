@@ -8384,12 +8384,108 @@ def test_place() -> None:
         T.ok(len(seen) >= 8, f'{d.key} street reads differently over a week '
                              f'({len(seen)} of 24)')
 
+
+def test_ladder() -> None:
+    """D67: the difficulty is a ladder, and the brief never sends anybody up
+    a wall."""
+    T.section('the ladder')
+    from flatline.run import network as net_mod
+
+    def build(rank, breaker, attrs=5, mask=''):
+        char = Character.from_origin('gutter', 'l')
+        char.base_skills.update({k: rank for k in
+                                 ('intrusion', 'cryptography', 'subterfuge',
+                                  'stealth', 'forensics', 'signal')})
+        char.base_attrs.update({k: attrs for k in attr_content.ATTR_KEYS})
+        char.deck.parts['memory'] = 'mem_cascade'
+        char.deck.loaded = [breaker, 'siphon'] + ([mask] if mask else [])
+        char.library = list(char.deck.loaded)
+        return char
+
+    def finishes(char, faction, posture, seeds=12):
+        done = 0
+        for seed in range(seeds):
+            net = net_mod.generate(Rng(seed).fork('network', 'lad'), faction,
+                                   posture, 'exfiltrate')
+            console = quiet_console(); console.start_capture()
+            sess = Session(console=console, slot='ladder')
+            sess.game = Game.new(char, seed=seed)
+            state = RunState.begin(net, char, Rng(seed)('combat'), console,
+                                   contract={'objective': 'exfiltrate',
+                                             'title': 'T'})
+            sess.run = state
+            for _ in range(300):
+                if sess.run is None or not state.running:
+                    break
+                brief = state.brief()
+                if brief.done:
+                    done += 1
+                    break
+                step = brief.steps[0] if brief.steps else 'jack out'
+                if step == 'jack out':
+                    break
+                sess.execute(step)
+            console.end_capture()
+        return done
+
+    starting = finishes(build(2, 'crowbar', attrs=4), 'sixes', 22)
+    T.ok(starting >= 4, f'a starting build can finish gang work '
+                        f'({starting}/12)')
+    mid_soft = finishes(build(4, 'sable'), 'sixes', 22)
+    T.ok(mid_soft >= starting, f'and a better one does better ({mid_soft}/12)')
+    mid_hard = finishes(build(4, 'sable'), 'kagawa', 45)
+    T.ok(mid_hard < mid_soft, f'a corporate network is a step up '
+                              f'({mid_hard}/12 against {mid_soft}/12)')
+    # Lattice rather than Thunderhead on purpose: the loudest breaker in
+    # the game is not the answer to a corporate network, and the catalogue
+    # is supposed to make that true rather than say it.
+    top_hard = finishes(build(5, 'lattice', attrs=7, mask='mirrorbox'),
+                        'kagawa', 45)
+    T.ok(top_hard > mid_hard, f'and the answer to it is the build '
+                              f'({top_hard}/12 against {mid_hard}/12)')
+    loud = finishes(build(5, 'thunderhead', attrs=7), 'kagawa', 45)
+    T.ok(loud <= top_hard,
+         f'and the loudest breaker in the game is not that answer '
+         f'({loud}/12 against {top_hard}/12)')
+
+    # A gang's vault is genuinely softer than a bank's.
+    def hardest(faction, posture):
+        worst = 0
+        for seed in range(8):
+            net = net_mod.generate(Rng(seed).fork('network', 'v'), faction,
+                                   posture, 'exfiltrate')
+            for node in net.nodes.values():
+                for svc in node.services:
+                    worst = max(worst, svc.difficulty)
+        return worst
+    T.ok(hardest('sixes', 22) < hardest('meridian', 62),
+         f'a phone tree is not a bank ({hardest("sixes", 22)} vs '
+         f'{hardest("meridian", 62)})')
+
+    # The brief will not name a door this build cannot open.
+    char = build(1, 'crowbar', attrs=3)
+    net = net_mod.generate(Rng(5).fork('network', 'wall'), 'meridian', 62,
+                           'exfiltrate')
+    console = quiet_console(); console.start_capture()
+    state = RunState.begin(net, char, Rng(5)('combat'), console,
+                           contract={'objective': 'exfiltrate', 'title': 'T'})
+    node = state.node
+    for svc in node.services:
+        svc.cracked = False
+        svc.difficulty = 9
+    node.mapped = True
+    T.eq(state._easiest(node), '',
+         'nothing is named when nothing is passable')
+    T.ok('opens for what you are carrying' in state._hopeless_where(),
+         'and the brief says why')
+    console.end_capture()
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
     test_intrusion, test_catalogue, test_money, test_relics, test_street,
-    test_soak, test_advice, test_scale, test_place,
+    test_soak, test_advice, test_scale, test_place, test_ladder,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,
