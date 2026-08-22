@@ -636,7 +636,7 @@ DISTRICT_THREADS: tuple[Thread, ...] = (
         'presses', 'The List',
         'Names, read out at the top of every hour, from a list nobody will '
         'say the source of.',
-        crosses=('pumps',),
+        crosses=('pumps', 'stoplist'),
         stages=(
             Stage('floor', 'Ines reads you the floor',
                   'Ines Vale walks you across the floor of the press room, '
@@ -817,7 +817,7 @@ DISTRICT_THREADS: tuple[Thread, ...] = (
         'soup', 'The Tin',
         'Every name that ever put money in the Hall\'s tin, and the people '
         'who would like the list.',
-        crosses=('listener',),
+        crosses=('listener', 'tin_debt'),
         stages=(
             Stage('kettle', 'The Cantor tells you about the tin',
                   'You are carrying the kettle again. The Cantor walks beside '

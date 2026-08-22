@@ -557,6 +557,27 @@ EPILOGUE: tuple[tuple[str, str], ...] = (
      'You told the Notary about the woman who does not sing, and a courier '
      'sat beside her every morning after, and she stopped listening, or '
      'started listening to something else.'),
+    # D70: the two origins from the new districts
+    ('stoplist_sold',
+     'You sold the plate of your own correction to somebody who buys pages, '
+     'and the water board settled something quietly, and the Ninth never '
+     'heard about it.'),
+    ('stoplist_reprinted',
+     'You set your own correction again and ran four hundred, and Kagawa\'s '
+     'stop list got one item longer with your name in the header of it.'),
+    ('stoplist_melted',
+     'You melted the plate, and nobody could quote what does not exist, and '
+     'Ines asked you once and believed you.'),
+    ('tin_boiler',
+     'You bought the Hall a boiler part and nothing else, and the east wing '
+     'was warm by the weekend, and nobody outside the kitchen ever knew.'),
+    ('tin_spent',
+     'You spent the Hall\'s authorisation for eleven days on everything it '
+     'would carry, and when it stopped there was a list at Kagawa with the '
+     'Hall\'s name at the top of it.'),
+    ('tin_sold',
+     'You sold the Hall\'s authorisation, and told the woman on the rota it '
+     'had not worked, and she said right and went back to stirring.'),
 )
 
 EPILOGUE_BY_FLAG: dict[str, str] = {flag: line for flag, line in EPILOGUE}

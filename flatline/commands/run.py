@@ -659,6 +659,10 @@ def cmd_probe(sess, args) -> None:
         check.add('forensics', state.char.skill('forensics') * 2)
         if hunter:
             check.add(hunter.name, hunter.rating)
+        if 'reads_the_floor' in state.char.riders():
+            # A corrected edition does not look like an original to
+            # somebody who has set both.
+            check.add('you have set a corrected edition before', 4)
         if 'policy_reader' in state.char.riders():
             check.add('you have read the standard', 3)
         check.resolve(state.rng)
@@ -3082,3 +3086,56 @@ def cmd_backway(sess, args) -> None:
         c.say('[dim]There is always a way through that is not on the plan, '
               'and you have spent nine years learning which.[/]')
         state.check_traps(node)
+
+
+@command('correction', 'Publish a correction: it was somebody else.',
+         group='defence', contexts=('run',), ticks=1, usage='correction',
+         detail='Compositor only, once per run. Everything the network has '
+                'filed about you this evening is amended to be about a '
+                'plausible other person: the alert drops a level and the '
+                'trace goes back to roughly where it was ten ticks ago. It '
+                'does not clean the nodes you touched. A correction is a '
+                'thing you publish, not a thing you do.')
+def cmd_correction(sess, args) -> None:
+    state = _signature(sess, 'correction')
+    c = sess.console
+    before = state.trace
+    state.trace = max(0.0, state.trace - session_mod.TRACE_PER_TICK * 10)
+    if state.alert != ice_content.ALERT_LEVELS[0]:
+        state.cool()
+    _act(sess, 'wait', ticks=1)
+    if state.running:
+        c.blank()
+        c.ok('The correction goes out.')
+        c.say(f'[dim]Somewhere a system amends what it thought it knew, in a '
+              f'font somebody chose, and the amendment is more plausible '
+              f'than the original because you set them both. Trace '
+              f'{int(before)} to {int(state.trace)}.[/]')
+        state.log('published a correction')
+
+
+@command('hymn', 'Go through it, all of it, the way you were taught.',
+         group='defence', contexts=('run',), ticks=1, usage='hymn',
+         detail='Chorister only, once per run. Composure comes back, every '
+                'lock-on breaks, and the tick costs nothing, because '
+                'standing still and going through a thing you have known '
+                'since you were four is not an action anybody can file.')
+def cmd_hymn(sess, args) -> None:
+    state = _signature(sess, 'hymn')
+    c = sess.console
+    broke = len(state.locked)
+    for construct in list(state.locked):
+        construct.state = 'awake'
+        construct.telegraphed = False
+    state.locked.clear()
+    state.hurt = max(0, state.hurt - state.char.composure // 3)
+    _act(sess, 'wait', ticks=1)
+    if state.running:
+        c.blank()
+        c.ok('You hold still and go through it, all of it.')
+        c.say('[dim]Forty people did this every night of your childhood '
+              'under a board that said the wrong time, and the part of you '
+              'that is in here knows it start to finish.[/]')
+        if broke:
+            c.say(f'[ok]{broke} lock-on{"s" if broke != 1 else ""} broken.[/]')
+        state.log('sang it through')

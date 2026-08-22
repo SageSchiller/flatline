@@ -8639,13 +8639,100 @@ def test_breadth() -> None:
     T.ok(len({tuple(sorted(i.effects)) for i in starters}) >= 3,
          'and they do different things')
 
+
+def test_new_origins() -> None:
+    """D70: two more ways to be somebody, from the districts that grew."""
+    T.section('the new origins')
+    from flatline.content import origins as origin_mod
+    from flatline.content import threads as thread_mod
+
+    T.eq(len(origin_mod.ORIGINS), 12, 'twelve origins')
+    for key in ('printer', 'chorister'):
+        o = origin_mod.BY_KEY[key]
+        T.ok(o.signature in origin_mod.SIGNATURES, f'{key} has a signature')
+        T.ok(REGISTRY.lookup(o.signature) is not None,
+             f'{key}\'s signature is a verb')
+        T.ok(o.rider in origin_mod.RIDERS, f'{key} has a rider')
+        T.ok(any(f'origin:{key}' in st.requires
+                 for t in thread_mod.THREADS for st in t.stages),
+             f'{key} has a story of its own')
+
+    # The Compositor reads a structure for free and reads it better.
+    game = Game.new(Character.from_origin('printer', 'x'), seed=5)
+    game.char.credits = 4000
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    before = game.char.credits
+    sess, out = play([f'take {contract.cid}', 'legwork perimeter'], game=game)
+    T.eq(game.char.credits, before, 'topology legwork is free for a compositor')
+    plain = ' '.join(ui.plain(out).split())
+    T.ok('shape of it' in plain, 'and it still says the shape')
+
+    # The Chorister cools twice as fast and is stopped less.
+    plain_char = Character.from_origin('gutter', 'x')
+    chorister = Character.from_origin('chorister', 'x')
+    T.ok('vouched_for' in chorister.riders(), 'somebody will vouch')
+    a = Game.new(plain_char, seed=6)
+    b = Game.new(chorister, seed=6)
+    for game, char in ((a, plain_char), (b, chorister)):
+        game.alias.add_heat('sixes', 60)
+        game.city.advance(game.rng, game.alias, 4, char=char,
+                          satisfied=lambda r: game.story.satisfied(r, game),
+                          flags=game.story.flags)
+    T.ok(b.alias.attention('sixes') < a.alias.attention('sixes'),
+         f'a chorister cools faster ({b.alias.attention("sixes")} vs '
+         f'{a.alias.attention("sixes")})')
+    hot = Game.new(chorister, seed=7)
+    hot.alias.add_heat('sixes', 80)
+    hot.city.bounties['sixes'] = 40
+    with_vouch, _ = hot.city.danger(hot.alias, 'ninth',
+                                    flags=hot.story.flags,
+                                    riders=chorister.riders())
+    without, _ = hot.city.danger(hot.alias, 'ninth', flags=hot.story.flags,
+                                 riders=())
+    T.ok(with_vouch < without,
+         f'and the street stops them less ({with_vouch} vs {without})')
+
+    # Both signature verbs do what they say.
+    net = net_mod.generate(Rng(2).fork('network', 'sig'), 'kagawa', 45)
+    console = quiet_console(); console.start_capture()
+    game = Game.new(Character.from_origin('printer', 'x'), seed=2)
+    sess = Session(console=console, slot='sig')
+    sess.game = game
+    state = RunState.begin(net, game.char, Rng(2)('combat'), console)
+    sess.run = state
+    state.trace = 40.0
+    state.escalate(2)
+    sess.execute('correction')
+    out = ui.plain(console.end_capture())
+    T.ok(state.trace < 40.0, 'a correction takes the trace back')
+    T.ok(state.alert != 'red', 'and stands the room down')
+    T.ok('correction goes out' in out, 'and says so')
+
+    console = quiet_console(); console.start_capture()
+    game = Game.new(Character.from_origin('chorister', 'x'), seed=2)
+    sess = Session(console=console, slot='sig2')
+    sess.game = game
+    state = RunState.begin(net, game.char, Rng(3)('combat'), console)
+    sess.run = state
+    hunter = net_mod.IceInstance(uid='k-9', key='kestrel', rating=5,
+                                 state='locked')
+    state.node.ice.append(hunter)
+    state.locked.append(hunter)
+    state.hurt = 6
+    sess.execute('hymn')
+    out = ui.plain(console.end_capture())
+    T.ok(not state.locked, 'the hymn breaks every lock-on')
+    T.ok(state.hurt < 6, 'and puts something back')
+    T.ok('go through it' in out, 'and says so')
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
     test_intrusion, test_catalogue, test_money, test_relics, test_street,
     test_soak, test_advice, test_scale, test_place, test_ladder,
-    test_signatures, test_breadth,
+    test_signatures, test_breadth, test_new_origins,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,

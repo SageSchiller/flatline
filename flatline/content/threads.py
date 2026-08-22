@@ -1178,6 +1178,156 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
                              sets=('package_burned',)),
                   )),
         )),
+    Thread(
+        'stoplist', 'Your Name In The Header',
+        'Forty thousand pages carry it, and one of them was the edition '
+        'Kagawa asked the Watch to stop.',
+        crosses=('presses',),
+        stages=(
+            Stage('filed', 'Somebody has the edition',
+                  'Ines Vale finds you on the floor with a sheet she has '
+                  'clearly been holding for a while, and does not hand it '
+                  'over, she just turns it round.\n\n'
+                  'It is a page you set. Nine years ago, a Tuesday, a '
+                  'correction that ran under a story about the water board, '
+                  'and your name is in the header because you set it, and '
+                  'the whole page has been photographed by somebody standing '
+                  'over it with the light wrong. "This came back to us," she '
+                  'says. "From a person who buys things. They wanted to know '
+                  'if the compositor still worked here."',
+                  requires=('origin:printer',),
+                  sets=('stoplist_filed',),
+                  where='stacks'),
+            Stage('buyer', 'The person who buys things',
+                  'They are not from Kagawa and they say so before you ask, '
+                  'in the way people say a thing they have practised. They '
+                  'buy pages. Specifically, they buy the plates: the metal a '
+                  'page was set in, which the Stacks keep, because the '
+                  'Stacks keep everything.\n\n'
+                  '"The plate for that correction is in the last shack on '
+                  'Correction Row," they say. "You know it is. I would like '
+                  'it, and I will pay a number that will surprise you, and '
+                  'you should ask yourself why."',
+                  requires=('stoplist_filed',),
+                  any_of=('runs:2', 'presses_floor'),
+                  sets=('stoplist_offer',),
+                  choices=(
+                      Choice('sell', 'Sell them the plate',
+                             'You go down Correction Row at an hour when '
+                             'nobody is on it and take a piece of metal out '
+                             'of a box of every edition ever printed here, in '
+                             'order, and nobody stops you because nobody in '
+                             'the Stacks has ever locked that door.\n\n'
+                             'The number does surprise you. A month later '
+                             'the correction is quoted in a filing you will '
+                             'never read, and the water board settles '
+                             'something, and the Ninth does not hear about '
+                             'it, and Ines does not mention the gap in the '
+                             'box.',
+                             sets=('stoplist_sold',),
+                             credits=3400,
+                             rep={'static': -20, 'meridian': 10}),
+                      Choice('print', 'Print it again instead',
+                             'You set it again, from the plate, on the small '
+                             'press, and run four hundred, and they go out '
+                             'with the morning edition folded inside it '
+                             'where the shutters go up.\n\n'
+                             'Ines watches you do the whole thing and says '
+                             'nothing at all, which from Ines is the loudest '
+                             'she gets. Kagawa\'s stop list gets one item '
+                             'longer, and everybody who reads it knows the '
+                             'name in the header.',
+                             sets=('stoplist_reprinted',),
+                             rep={'static': 25, 'kagawa': -25}),
+                      Choice('melt', 'Melt the plate',
+                             'The ink store has a drum and the drum has a '
+                             'burner under it, and metal is metal. It takes '
+                             'a while. You stand and watch it because '
+                             'leaving would be worse.\n\n'
+                             'Nobody can quote what does not exist, on '
+                             'either side. The buyer stops answering. Ines '
+                             'finds the gap in the box within a week, and '
+                             'asks you once, and believes you, and that is '
+                             'somehow the worst part.',
+                             sets=('stoplist_melted',)),
+                  ),
+                  where='stacks'),
+        )),
+    Thread(
+        'tin_debt', 'The Debt With No Number',
+        'The Hall fed you for twenty years and has never asked for anything.',
+        crosses=('soup',),
+        stages=(
+            Stage('asked', 'Somebody finally asks',
+                  'Not the Cantor. A woman on the kitchen rota you have known '
+                  'since you were both eight, who stirs while she talks so '
+                  'that it is not a conversation you are having face to '
+                  'face.\n\n'
+                  '"The boiler," she says. "Not the kettle, the boiler, the '
+                  'one that does the whole east wing. Kagawa will not sell '
+                  'us the part. It is on a list. Everything is on a list." '
+                  'She stops stirring. "You do the thing you do. Nobody has '
+                  'asked you. I am asking you."',
+                  requires=('origin:chorister',),
+                  any_of=('runs:2', 'soup_kettle'),
+                  sets=('tin_asked',),
+                  posts=Posting(
+                      patron='chorus', target='kagawa', objective='exfiltrate',
+                      title='The Part',
+                      blurb='A part number, a supplier, and the authorisation '
+                            'that would let the Hall buy a boiler component '
+                            'Kagawa have put on a list. The Chorus are not '
+                            'offering much. They are asking.',
+                      label='the supply authorisation',
+                      pay=1400),
+                  where='hall'),
+            Stage('boiler', 'What the authorisation is worth',
+                  'It is not a part number. It is an authorisation, and it '
+                  'is general: it would let the Hall buy the boiler part, and '
+                  'it would let anybody buy anything on that list, from any '
+                  'Kagawa supplier, until somebody notices.\n\n'
+                  'The woman on the rota wants a boiler. What is in your hand '
+                  'is a year of anything.',
+                  requires=('did:tin_debt.asked',),
+                  sets=('tin_held',),
+                  choices=(
+                      Choice('boiler', 'Buy the boiler part and stop',
+                             'One part, one supplier, one invoice that reads '
+                             'exactly like nine thousand other invoices, and '
+                             'the east wing is warm by the weekend.\n\n'
+                             'Nobody thanks you, because nobody outside the '
+                             'kitchen knows, because you asked her not to '
+                             'say. She stirs. The Hall is warm. That is the '
+                             'whole of it, and it turns out to be enough.',
+                             sets=('tin_boiler',),
+                             rep={'chorus': 25}),
+                      Choice('spend', 'Spend it while it lasts',
+                             'You buy the boiler part. Then you buy the '
+                             'things the clinic has been going without, and '
+                             'the things the kitchen has, and then, because '
+                             'the authorisation is still good, a few things '
+                             'that are worth money elsewhere.\n\n'
+                             'It lasts eleven days. When it stops, it stops '
+                             'in the middle of an order, and somebody at '
+                             'Kagawa has a list of everything bought under it '
+                             'with the Hall\'s name at the top.',
+                             sets=('tin_spent',),
+                             credits=2600,
+                             rep={'chorus': -10, 'kagawa': -20}),
+                      Choice('sell', 'Sell the authorisation',
+                             'A man in Marrow pays for it the way you pay for '
+                             'something you intend to use badly, which is '
+                             'promptly and without questions.\n\n'
+                             'The east wing is not warm. You tell her the '
+                             'authorisation did not work, and she says, '
+                             '"Right," and goes back to stirring, and does '
+                             'not ask you anything else, that week or after.',
+                             sets=('tin_sold',),
+                             credits=3800,
+                             rep={'chorus': -30, 'fixers': 10}),
+                  ),
+                  where='hall'),
+        )),
 )
 
 #: Origin threads live in the same registry as everything else: they are just

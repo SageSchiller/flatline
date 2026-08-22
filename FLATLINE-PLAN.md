@@ -2100,6 +2100,37 @@ gear could train to gear that trains it, every chrome location to an early
 pair and an endgame piece, and every tier-two-and-up component to costing
 something.
 
+### D70: Two more ways to be somebody
+
+The city grew three districts in D67 and nobody could be from them. Two
+origins, each with the full apparatus: a shape, a passive the engine reads,
+a complication, a signature verb nobody else can type, and a story of its
+own that crosses the district thread it came out of.
+
+**The Compositor** set type in the Stacks for eleven years and reads a
+network the way a compositor reads a page, which is as a structure somebody
+chose. Topology legwork is free for them and comes back better, and a
+corrected edition does not look like an original to somebody who has set
+both, which in a network is a honeypot. Their verb is **`correction`**:
+once a run, everything the network has filed about you this evening is
+amended to be about a plausible other person, the alert drops a level and
+the trace goes back about ten ticks. Their thread is the plate of a nine
+year old correction with their name in the header, and somebody who buys
+pages: sell it, print it again, or melt it.
+
+**The Chorister** was raised in the Hall, under a departure board showing a
+hymn, in a building where the answer to most questions was soup. Forty
+people will say they were at the soup and mean it: heat cools half again as
+fast and the street stops them a third less often. Their verb is
+**`hymn`**: hold still and go through all of it, which restores Composure,
+breaks every lock-on, and costs a tick that files as nothing, because
+standing still and singing is not an action anybody can log. Their thread
+is the debt with no number on it: the Hall fed them for twenty years and
+has never asked for anything, and then somebody on the kitchen rota asks.
+
+Six decisions between them, each with an epilogue line and an ambient
+consequence, because D51 still holds.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -3415,3 +3446,23 @@ D69. Eight programs, nine chrome, two icons, and the end of three pure
 upgrades, all from an audit against the twelve playstyles. 68 programs,
 47 chrome, 10 icons, 24 of everything one of a kind. `test.py` green at
 **15,510 checks**.
+
+### 2026-08-22 (d): help, breadth, and two more ways to be somebody
+
+**D68**, the help: eleven stale claims corrected (the alert page still said
+it never came down), a `networks` topic for the words `board` and `map`
+print, an owned search word opens its own page, sub-headings drawn from the
+prose's own shape, detail for twenty-five bare verbs, and the game's nouns
+rendered in the game's colours. The board's table now carries size and a
+`reads` column that says doors and room, because measuring showed the
+doors open at corporate posture and the clock is what kills you.
+
+**D69**, breadth: eight programs and nine chrome filling the gaps an audit
+found (daemonology had no tier-one program at all; the two street skills
+had no gear whatsoever; four declared skill keys were granted by nothing),
+two icons wearable at zero drift, and the end of three pure upgrades.
+
+**D70**, two origins from the new districts, with signature verbs, riders,
+and origin threads that cross their districts' own.
+
+`validate.py` clean, `test.py` green at **15,641 checks**.

@@ -1548,7 +1548,7 @@ def city_steps(game) -> list[tuple[str, str]]:
         riders = game.char.riders()
         for hop in game.city.route(contract.district):
             danger, who = game.city.danger(game.alias, hop,
-                                           flags=game.story.flags)
+                                           flags=game.story.flags, riders=game.char.riders())
             if 'streetwise' in riders:
                 danger = int(danger * 0.6)
             if 'findable' in riders:
@@ -1779,7 +1779,7 @@ def _district_label(sess, key: str, walked: set, goal: str) -> str:
         # think of you is not news when you are already standing in it, and
         # it costs the row the width that the useful half needs.
         danger, who = game.city.danger(game.alias, key,
-                                       flags=game.story.flags)
+                                       flags=game.story.flags, riders=game.char.riders())
         if danger >= fallout.INCIDENT_FLOOR:
             marks.append(f'[err]{factions.BY_KEY[who].short} want you[/]')
         elif danger >= 25:
@@ -1816,7 +1816,7 @@ def cmd_travel(sess, args) -> None:
         for n, key in enumerate(game.city.district.neighbours, 1):
             d = districts.BY_KEY[key]
             danger, who = game.city.danger(game.alias, key,
-                                           flags=game.story.flags)
+                                           flags=game.story.flags, riders=game.char.riders())
             risk = ('[ok]quiet[/]' if danger < 20
                     else '[warn]watched[/]' if danger < 45
                     else f'[err]dangerous ({factions.BY_KEY[who].short})[/]')
@@ -1842,7 +1842,7 @@ def cmd_travel(sess, args) -> None:
         raise CommandError(why)
 
     danger, who = game.city.danger(game.alias, target, game.rng,
-                                   flags=game.story.flags)
+                                   flags=game.story.flags, riders=game.char.riders())
     riders = game.char.riders()
     if 'streetwise' in riders:
         # Knows the streets: you move through this city like your own flat.
@@ -2239,7 +2239,7 @@ def cmd_errands(sess, args) -> None:
         game.city.errands_done += 1
         c.ok(f'[credit]{pay:,}c[/] for the shift.')
         danger, who = game.city.danger(game.alias, game.city.where,
-                                       flags=game.story.flags)
+                                       flags=game.story.flags, riders=game.char.riders())
         if sess.pending is None:
             if not street_world.texture(sess, danger) and who \
                     and danger >= 30:
@@ -2469,6 +2469,10 @@ def cmd_legwork(sess, args) -> None:
         raise CommandError(why)
 
     cost, _, gives = LEGWORK[key]
+    if gives == 'topology' and 'reads_the_floor' in game.char.riders():
+        # A compositor reads a structure somebody chose for a living, and
+        # a network is one. The shape costs them nothing to work out.
+        cost = 0
     if cost > game.char.credits:
         raise CommandError(f'that costs {cost:,}c and you have '
                            f'{game.char.credits:,}c')
@@ -2480,6 +2484,8 @@ def cmd_legwork(sess, args) -> None:
                            contract.objective, contract.size_mod)
 
     bonus = game.char.bonus('legwork_bonus')
+    if gives == 'topology' and 'reads_the_floor' in game.char.riders():
+        bonus += 2
     if key == 'resonance':
         bonus += 1  # you are not looking at it, you are listening to it
         c.blank()

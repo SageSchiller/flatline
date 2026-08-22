@@ -206,8 +206,10 @@ class City:
         self.ambient = []
         for _ in range(max(1, shifts)):
             self.shift += 1
+            riders = char.riders() if char is not None else ()
             alias.decay_heat(
-                1.4 if (char is not None and 'no_history' in char.riders())
+                1.4 if 'no_history' in riders
+                else 1.5 if 'vouched_for' in riders
                 else 1.0,
                 cover=char.cover if char is not None else 0)
             self._decay_posture()
@@ -732,7 +734,7 @@ class City:
         return f'walk {target}' if route else ''
 
     def danger(self, alias: Alias, target: str, rng: Rng | None = None,
-               flags=None):
+               flags=None, riders=None):
         """How risky arriving in a district is, given who is looking for you.
 
         Lives in `world/fallout.py` so that travel, legwork, and anything else
@@ -747,7 +749,7 @@ class City:
             from ..rng import Rng as _Rng
             stream = _Rng(0)('events')
         return fallout_mod.arrival_risk(stream, alias, self, target,
-                                        flags or ())
+                                        flags or (), riders=riders or ())
 
     # -- consequences --------------------------------------------------
 

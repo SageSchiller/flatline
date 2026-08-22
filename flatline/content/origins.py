@@ -388,6 +388,80 @@ ORIGINS: tuple[Origin, ...] = (
             'Once per run, take a route you already knew about. Move to any '
             'node you have seen, from anywhere, in one tick and in silence.'),
         look=dict(build='rangy', face='lopsided', eyes='mismatched', hair='braided', marks='clinic', dress='salvage', bearing='restless', voice='fast')),
+    Origin(
+        'printer', 'Compositor',
+        'Set type in the Stacks. Reads a system the way you read a page.',
+        'Eleven years on the floor under the water towers, setting other '
+        'people\'s words in somebody else\'s font and correcting both. You '
+        'learned networks the way compositors always have, which is by '
+        'noticing that everything published is a structure somebody chose, '
+        'and that people who choose structures are people, and tired.',
+        attrs={'logic': 2, 'guile': 1, 'grit': 1, 'reflex': -2},
+        skills={'architecture': 2, 'forensics': 1, 'streetcraft': 1},
+        credits=1300,
+        cyberware=('optic_lattice',),
+        programs=('sable', 'blink', 'housecall'),
+        deck='midline',
+        icon='meter',
+        standing={'static': 25, 'freeport': 10, 'kagawa': -15, 'meridian': -5},
+        passive='Reads the floor',
+        passive_detail=(
+            'Everything published is a structure somebody chose. Legwork on '
+            'the shape of a network is free for you and comes back better, '
+            'and you can tell a corrected edition from an original at a '
+            'glance, which in a network means a honeypot.'),
+        complication=(
+            'Your name is in the header of forty thousand pages, and one of '
+            'them was the edition Kagawa asked the Watch to stop. Nobody has '
+            'come about it. Somebody filed it.'),
+        rider='reads_the_floor',
+        signature='correction',
+        signature_name='Correction',
+        signature_detail=(
+            'Once per run, publish a correction: everything a network has '
+            'filed about you this evening is amended to be about a plausible '
+            'other person. The alert drops a level and the trace goes back '
+            'to where it was ten ticks ago.'),
+        look=dict(build='slight', face='worn', eyes='grey', hair='cropped',
+                  marks='ink', dress='workwear', bearing='still',
+                  voice='flat')),
+    Origin(
+        'chorister', 'Chorister',
+        'Raised in the Hall. Fed people for a living before this.',
+        'The Chorus took the interchange when the trains stopped and you '
+        'were four, and you grew up under a departure board showing a hymn, '
+        'in a building where the answer to most questions was soup. You '
+        'know every stairwell in the east of this city and everybody who '
+        'sleeps in them, and you have never once been alone in a room.',
+        attrs={'nerve': 2, 'guile': 1, 'grit': 1, 'logic': -2},
+        skills={'psyche': 2, 'streetcraft': 1, 'subterfuge': 1},
+        credits=900,
+        cyberware=(),
+        programs=('crowbar', 'quietcastle', 'housecall'),
+        deck='scrapdeck',
+        icon='plain',
+        standing={'chorus': 30, 'sixes': 10, 'carrion': -10, 'meridian': -10},
+        passive='Somebody will vouch',
+        passive_detail=(
+            'Forty people will say you were at the soup, and mean it. Heat '
+            'cools half again as fast for you, and the street stops you less '
+            'often, because somebody in the queue always knows your face and '
+            'says so out loud.'),
+        complication=(
+            'The Hall fed you for twenty years and the Chorus have never '
+            'asked you for anything, which is a debt with no number on it '
+            'and no way to pay it down.'),
+        rider='vouched_for',
+        signature='hymn',
+        signature_name='The hymn',
+        signature_detail=(
+            'Once per run, hold still and go through it, all of it, the way '
+            'you were taught. Composure is restored, every lock-on breaks, '
+            'and the tick costs nothing because you were not doing anything '
+            'anybody could file.'),
+        look=dict(build='blocky', face='kind', eyes='brown', hair='shaved',
+                  marks='religious', dress='devotional', bearing='open',
+                  voice='warm')),
 )
 
 ORIGIN_KEYS: tuple[str, ...] = tuple(o.key for o in ORIGINS)
@@ -403,13 +477,13 @@ BASE_ATTR = 3
 #: else, and refused to anybody who is not that origin.
 SIGNATURES: frozenset[str] = frozenset({
     'policy', 'jury', 'vouch', 'firstprinciples', 'playbook', 'native',
-    'requisition', 'remember', 'nobody', 'backway',
+    'requisition', 'remember', 'nobody', 'backway', 'correction', 'hymn',
 })
 
 RIDERS: frozenset[str] = frozenset({
     'policy_reader', 'known_quantity', 'first_principles',
     'read_the_room', 'native', 'veteran_eye',
-    'no_history', 'streetwise',
+    'no_history', 'streetwise', 'reads_the_floor', 'vouched_for',
 })
 
 #: The Chromed origin's opening Dissonance. Named rather than inline because

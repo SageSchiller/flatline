@@ -1357,6 +1357,48 @@ GROWTH: tuple[Event, ...] = (
           'not ask, and the kettle in the Hall is still on, as far as you '
           'know, which is not very far.',
           requires=('soup_left',), weight=CONSEQUENCE_WEIGHT),
+    Event('stoplist_quoted', 'grim',
+          'A filing nobody in this district will ever read quotes a nine '
+          'year old correction about the water board, and the water board '
+          'settles something, and the settlement is not mentioned in the '
+          'Ninth, where the water is.',
+          districts=('stacks', 'ninth'), requires=('stoplist_sold',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('stoplist_folded', 'wry',
+          'Four hundred copies of a nine year old correction go out folded '
+          'inside the morning edition, and the shutters go up on people '
+          'reading the inside page first, which has not happened here in '
+          'living memory.',
+          districts=('stacks',), requires=('stoplist_reprinted',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('stoplist_gap', 'grim',
+          'There is a gap in the box in the last shack on Correction Row, '
+          'between two plates that are nine years old, and Ines Vale has '
+          'looked at it twice this week and has not said anything either '
+          'time.',
+          districts=('stacks',), requires=('stoplist_melted',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('tin_warm', 'wry',
+          'The east wing of the Hall is warm for the first time in two '
+          'winters, and forty people have noticed and none of them have been '
+          'told why, and the woman on the kitchen rota stirs and says '
+          'nothing when it comes up.',
+          districts=('hall',), requires=('tin_boiler',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('tin_list', 'grim',
+          'Somebody from Kagawa supply is at the Hall with a printed list '
+          'and a polite manner, going through eleven days of orders line by '
+          'line with the Cantor, who is answering every question honestly '
+          'and does not know the answers.',
+          districts=('hall',), requires=('tin_spent',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('tin_cold', 'grim',
+          'The east wing of the Hall is still cold, and the woman on the '
+          'kitchen rota has moved two of the beds into the concourse where '
+          'the boards are, because the boards give off a little heat, and '
+          'she has stopped asking anybody for anything.',
+          districts=('hall',), requires=('tin_sold',),
+          weight=CONSEQUENCE_WEIGHT),
 )
 
 RUNNER_CONSEQUENCES: tuple[Event, ...] = (

@@ -347,7 +347,7 @@ def rough_night(sess) -> bool:
     """Sleeping somewhere dangerous without a safehouse."""
     game = sess.game
     danger, who = game.city.danger(game.alias, game.city.where,
-                                   flags=game.story.flags)
+                                   flags=game.story.flags, riders=game.char.riders())
     if danger < 40 or game.city.phase != 'night':
         return False
     rng = game.rng('events')
@@ -382,7 +382,7 @@ def errands_here(game) -> list[dict]:
     if far:
         target = stream.pick(far)
         hops = city.shifts_to(target.key)
-        danger, _ = city.danger(game.alias, target.key, flags=game.story.flags)
+        danger, _ = city.danger(game.alias, target.key, flags=game.story.flags, riders=game.char.riders())
         hot = stream.chance(0.3)
         pay = COURIER_PER_HOP * hops + danger * 3 + (200 if hot else 0)
         out.append({'kind': 'courier', 'to': target.key, 'pay': int(pay),
@@ -396,7 +396,7 @@ def errands_here(game) -> list[dict]:
     if local == 'escort' and far:
         target = stream.pick(far)
         hops = city.shifts_to(target.key)
-        danger, _ = city.danger(game.alias, target.key, flags=game.story.flags)
+        danger, _ = city.danger(game.alias, target.key, flags=game.story.flags, riders=game.char.riders())
         out.append({'kind': 'escort', 'to': target.key,
                     'pay': int(ESCORT_PER_HOP * hops + danger * 4 + 150),
                     'hot': True, 'from': city.where,
