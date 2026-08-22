@@ -6334,6 +6334,39 @@ def test_arcs() -> None:
     _, out = play(['talk halvard'], game=game)
     T.ok('"' in out, 'and talks')
 
+    # D59: a line of readout after anything that spends a tick, and the four
+    # ways to have it.
+    from flatline.content import rice
+    T.ok('hud' in rice.KINDS and len(rice.BY_KIND['hud']) == 4,
+         'the hud is a rice axis with four states')
+    game = Game.new(Character.from_origin('gutter', 'Hud'), seed=4242)
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    sess, _ = play([f'take {contract.cid}', 'jack in --force'], game=game)
+    T.ok(sess.run is not None, 'in a run')
+    sess.console.start_capture()
+    sess.execute('scan')
+    out = sess.console.end_capture()
+    T.ok('trace' in out and 'tick' in out and 'alert' in out,
+         'a scan is followed by the readout')
+    sess.hud = 'quiet'
+    sess.console.start_capture()
+    sess.execute('scan')
+    out = sess.console.end_capture()
+    T.ok('alert' not in out, 'and `quiet` silences it')
+    sess.hud = 'bar'
+    sess.console.start_capture()
+    sess.execute('probe ' + next(iter(sess.run.net.neighbours(sess.run.here))).uid)
+    out = sess.console.end_capture()
+    T.ok('trace' in out and 'alert' not in out, '`bar` is the bar alone')
+    # Set through the shell, it survives apply_shell.
+    sess.console.start_capture()
+    sess.execute('rice hud terse')
+    sess.console.end_capture()
+    T.eq(sess.hud, 'terse', '`rice hud terse` sets it')
+    sess.execute('rice hud line')
+    T.eq(sess.hud, 'line', 'and back')
+
     # The wire carries scenes, choices and what a run did to the city.
     game = Game.new(Character.from_origin('gutter', 'Wire'), seed=4242)
     game.char.runs = 4

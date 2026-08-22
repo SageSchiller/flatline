@@ -12,7 +12,7 @@ updated: 2026-08-21
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,387 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. Then **D54** (six lines and four topics per person, in seventeen voices; hours, so the clock is a reason to be somewhere) and **D55** (nine threads rooted in the districts, twenty-two decisions, four postings). Then **D56**: a decision at each rival's bond latch (fourteen scenes, twenty-eight decisions, read by the hire price, the shift boundary, four events and the epilogue), and the wire carrying scenes, decisions and what a run did to the city. Then **D57** (the city drawn, `walk`) and **D58** (forty-five places, twenty-two people, the street, a hundred and fifty-four events). **Phase 7** items 1 to 6, 18 and 19 are done; the open ones are 7 to 17, of which the HUD line (8), the tutorial's second half (10) and run conditions (15) are the ones that would move play most. Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
+> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,387 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. Then **D54** (six lines and four topics per person, in seventeen voices; hours, so the clock is a reason to be somewhere) and **D55** (nine threads rooted in the districts, twenty-two decisions, four postings). Then **D56**: a decision at each rival's bond latch (fourteen scenes, twenty-eight decisions, read by the hire price, the shift boundary, four events and the epilogue), and the wire carrying scenes, decisions and what a run did to the city. Then **D57** (the city drawn, `walk`) and **D58** (forty-five places, twenty-two people, the street, a hundred and fifty-four events). Then **D59**, the readout: one dim line after every tick spent in a run, as the seventh rice axis (`hud`: line, bar, terse, quiet). **Phase 7** items 1 to 6, 8, 18 and 19 are done; **next, in the author's order: the tutorial's second half (10), then run conditions (15).** Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
@@ -1484,6 +1484,25 @@ stayed; Halvard, who sells what came out of somebody and tells you whose.
 **Eighteen more weather events**, two a district, and the budget holds at
 52 / 33 / 15.
 
+### D59: The readout
+
+The prompt has carried the trace since D2, and D38 made that the one thing
+no prompt style may drop. A new player does not read the prompt. They read
+the last thing printed. So after anything that spends a tick inside a run,
+the last thing printed is now one dim line: the trace as a bar, the noise
+on this node, the tick, the alert. It is a readout and not advice: it says
+where you are, `job` says what to do about it, and it costs nothing.
+
+It is a seventh rice axis, `hud`, with four states all available from the
+start (`line`, `bar`, `terse`, `quiet`), because it is a preference about
+how much the stream tells you and not a reward, and because the catalogue's
+own rule is that an axis with fewer than four options is not a choice. It
+lives in meta with the rest of the shell, so it survives a flatline like
+everything else that is the player's. `Session.hud` caches it so an action
+does not read the meta file. Nothing here touches a number: the prompt
+carries the trace whichever state you choose, and `validate.py` still
+holds every prompt style to that.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -1738,9 +1757,8 @@ More districts, factions, chrome, and programs. Content, not systems.
 
 **Accessibility and understanding**
 
-8. **A HUD line after every tick-costing run action** (trace, noise, tick,
-   alert), in the stream, with a rice toggle. Newcomers do not read the
-   prompt.
+8. ~~A HUD line after every tick-costing run action.~~ Done: D59, as the
+   `hud` rice axis.
 9. **"Previously" on resume**: five lines when you `switch` or continue.
 10. **Tutorial, second half**: heat arriving a shift later, `talk` and
     `choose`, `rep`, the door (`retire`). The tutorial stops before the city
@@ -2509,3 +2527,15 @@ picture would otherwise have rendered as markup soup for exactly the people
 whose terminals cannot draw the Unicode one.
 
 `validate.py` clean, `test.py` green at **13,757 checks**. 120 commands.
+
+### 2026-08-21 (h): the readout
+
+**D59.** One dim line after anything that spends a tick inside a run: the
+trace as a bar, the noise here, the tick, the alert. The prompt has always
+carried the trace and new players do not read the prompt. It is the seventh
+rice axis, because the shell is the right place for a preference about how
+much the stream says, and the catalogue's own rule (an axis with fewer than
+four options is not a choice) is why there are four states and not two.
+
+`validate.py` clean, `test.py` green at **13,766 checks**. 71 pieces across
+7 axes.

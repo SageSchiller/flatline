@@ -12,7 +12,7 @@ putting it here rather than in `Character`: you lose everything else, and the
 terminal you spent a week getting right is still yours when you sit down with
 somebody new. The city takes the runner. It does not get the shell.
 
-Six axes, sixty-seven pieces:
+Seven axes, seventy-one pieces:
 
 - **palette** is the colour scheme, and the one people care about most.
 - **frame** is the box-drawing: rules, headers, table lines.
@@ -25,6 +25,10 @@ Six axes, sixty-seven pieces:
   shift, the shadow is an offset copy in a second character, the glitch is a
   fixed tear, and the braille one repacks the same pixels at two by four
   dots per cell.
+- **hud** is whether a line of readout follows every action that spends a
+  tick inside a run (D59). Four states, all yours from the start: it is a
+  preference about how much the stream tells you, not a reward, and the
+  prompt carries the trace whichever you choose.
 
 **Nothing here is allowed to affect play**, and `validate.py` enforces it in
 two directions: no cosmetic carries an effects dict, and no unlock condition
@@ -50,7 +54,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 #: The axes. Order is the order `rice` lists them in.
-KINDS = ('palette', 'prompt', 'frame', 'bars', 'marks', 'banner')
+KINDS = ('palette', 'prompt', 'frame', 'bars', 'marks', 'banner', 'hud')
+
+#: The two states of the run readout (D59). A table rather than two
+#: literals, so `validate.py` can hold the catalogue to it.
+HUD_MODES = ('line', 'bar', 'terse', 'quiet')
 
 #: Every condition kind, and the meta counter it reads. Declared as a table so
 #: `validate.py` can check that the engine actually maintains each one: an
@@ -400,6 +408,22 @@ COSMETICS: tuple[Cosmetic, ...] = (
              'No wordmark. Straight to the tagline and the prompt.',
              needs=('runs', 18),
              hint='Eighteen contracts. By then you know what it says.'),
+
+    # -------------------------------------------------------------------- hud
+    Cosmetic('line', 'hud', 'Readout',
+             'One dim line after anything that spends a tick: the trace as a '
+             'bar, the noise here, the tick, the alert. For anybody who does '
+             'not read the prompt, which is most people, at first.'),
+    Cosmetic('bar', 'hud', 'Bar',
+             'The trace as a bar and nothing else. The one number that ends '
+             'the character, on its own line, after every tick.'),
+    Cosmetic('terse', 'hud', 'Terse',
+             'The numbers without the bar: trace, noise, tick, alert, in one '
+             'dim line. For a narrow terminal, or a wide one you would rather '
+             'keep for the network.'),
+    Cosmetic('quiet', 'hud', 'Quiet',
+             'No readout. The prompt still carries the trace, because it '
+             'always does; everything else is one `status` away.'),
 )
 
 BY_KEY: dict[tuple[str, str], Cosmetic] = {(c.kind, c.key): c for c in COSMETICS}
@@ -410,7 +434,7 @@ BY_KIND: dict[str, tuple[Cosmetic, ...]] = {
 #: What a fresh install is wearing.
 DEFAULTS: dict[str, str] = {
     'palette': 'cyberpunk-neon', 'prompt': 'classic', 'frame': 'single',
-    'bars': 'blocks', 'marks': 'plain', 'banner': 'block',
+    'bars': 'blocks', 'marks': 'plain', 'banner': 'block', 'hud': 'line',
 }
 
 

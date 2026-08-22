@@ -122,8 +122,8 @@ The three ideas everything else hangs off:
   somebody having a worse day than you in a way nobody records. About one
   event in six comes up for air, because unrelenting bleakness stops landing
   after an hour. The ratio is enforced by `validate.py`, not hoped for.
-- **The shell is yours and the city does not get it.** Six axes of terminal
-  customisation, sixty-seven pieces, most of them earned by playing. It is
+- **The shell is yours and the city does not get it.** Seven axes of terminal
+  customisation, seventy-one pieces, most of them earned by playing. It is
   stored outside the save, so it survives a flatline: you lose everything
   else, and the terminal you spent a week getting right is still there when
   you sit down with somebody new. None of it touches a single number.
@@ -163,7 +163,7 @@ verb nobody else can use and its own starting face · 34 implants · 46 programs
 holds it · 12 factions · 7 rival runners who decide about you, and one you can keep · 22 named characters who keep hours, hand out work, keep private stock and do favours on a tab · 28 storylines across 81 scenes and 100 decisions, every one of them read back by the world, with a spine through the middle that has four endings and one of them is a door ·
 102 appearance features · 9 districts, drawn, with a scene for every hour and 45 places in them to go and stand · 154 ambient city events, 71 of them consequences of something you decided · 38 manual topics ·
 10 drugs · 3 lenders · 2 games of chance in 5 rooms ·
-120 commands · 67 unlockable pieces of terminal across 6 axes.
+120 commands · 71 pieces of terminal across 7 axes.
 
 Footnotes are a real feature of the console. `{{like this}}` in any content
 string gets lifted out and printed under the block, and they nest, because the

@@ -1250,17 +1250,20 @@ TOPICS: tuple[Topic, ...] = (
 
     Topic(
         'shell', 'Ricing the shell',
-        'Six axes of terminal, earned by playing, and yours to keep.',
+        'Seven axes of terminal, earned by playing, and yours to keep.',
         'Everything else in this game costs you something. Chrome costs '
         'Dissonance, work costs heat, a face worth remembering costs '
         'anonymity. This costs nothing and takes nothing, and it is here for '
         'exactly that reason.\n\n'
-        '`rice` shows six axes: [accent]palette[/] is the colour scheme, '
+        '`rice` shows seven axes: [accent]palette[/] is the colour scheme, '
         '[accent]prompt[/] is the shape of the line you type at, '
         '[accent]frame[/] is the box-drawing, [accent]bars[/] is what a meter '
         'is made of, [accent]marks[/] is bullets and ticks and crosses, and '
-        '[accent]banner[/] is the wordmark on the cold start. Sixty-seven '
-        'pieces across the six, most of them earned.\n\n'
+        '[accent]banner[/] is the wordmark on the cold start, and '
+        '[accent]hud[/] is the line of readout that follows every tick '
+        'you spend in a run, which you can have as a bar, as numbers, '
+        'or not at all. Seventy-one pieces across the seven, most of '
+        'them earned.\n\n'
         '[warn]It lives outside the save.[/] The deck\'s interface belongs to '
         'you and not to the character, so it survives a flatline. You lose '
         'everything else and the terminal you spent a week getting right is '

@@ -1360,6 +1360,18 @@ def _rice_kind(sess, kind: str) -> None:
         elif kind == 'banner':
             for row in anim.banner_preview(item.key, c.caps):
                 c.raw('   ' + row)
+        elif kind == 'hud':
+            bullet = c.caps.g('bullet')
+            tail = (f' [dim]{bullet} noise 6 {bullet} tick 9 {bullet} '
+                    f'alert green[/]')
+            if item.key == 'line':
+                c.raw('   ' + c.bar(0.23, 'trace', 12, 'trace 23/100') + tail)
+            elif item.key == 'bar':
+                c.raw('   ' + c.bar(0.23, 'trace', 12, 'trace 23/100'))
+            elif item.key == 'terse':
+                c.raw('   [trace]trace 23/100[/]' + tail)
+            else:
+                c.raw('   [dim](nothing; the prompt carries the trace)[/]')
     c.blank()
     c.say(f'[dim]`rice {kind} <name>` to wear one.[/]')
 

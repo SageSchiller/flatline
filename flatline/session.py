@@ -92,6 +92,10 @@ class Session:
     prompt_style: str = 'classic'
     #: A question waiting on the next line, or None. See `Question`.
     pending: Question | None = None
+    #: Which readout follows every tick-costing run action (D59): one of
+    #: `rice.HUD_MODES`. Read from the shell (`rice hud`), cached here so an
+    #: action does not read the meta file.
+    hud: str = 'line'
     #: The last list of each kind the player was shown, as the keys that were
     #: printed, in printed order. `take 2` means the second row of the board
     #: you last read, which is the only thing a row number can honestly
@@ -336,6 +340,7 @@ class Session:
         """Rebuild the console's capabilities from the saved preferences."""
         look = self.shell
         self.prompt_style = look.get('prompt', prompt_mod.DEFAULT)
+        self.hud = look.get('hud', 'line')
         caps = self.console.caps
         self.console.caps = Caps(
             color=caps.color, glyphs=caps.glyphs, width=caps.width,

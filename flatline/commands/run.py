@@ -1865,6 +1865,34 @@ def _act(sess, verb: str, node=None, ticks: int | None = None,
         # point of the window silently protected nothing.
         if state.nullsig > 0:
             state.nullsig = max(0, state.nullsig - 1)
+        _hud(sess)
+
+
+def _hud(sess) -> None:
+    """One dim line after anything that spent a tick: where the clock is.
+
+    D59. The prompt has always carried the trace, and a new player does not
+    read the prompt; they read the last thing printed. So the last thing
+    printed after a tick is spent is the trace, as a bar, with the noise on
+    this node, the tick, and the alert. It is a readout and not advice: it
+    says where you are, and `job` says what to do about it. `rice hud quiet`
+    turns it off, for anybody who has learned to read the prompt.
+    """
+    state, c = sess.run, sess.console
+    mode = sess.hud
+    if state is None or mode == 'quiet':
+        return
+    bullet = c.caps.g('bullet')
+    label = f'trace {state.trace_label()}'
+    if state.blind_trace or mode == 'terse':
+        trace = f'[trace]{label}[/]'
+    else:
+        trace = c.bar(state.trace_pct, 'trace', 12, label)
+    if mode == 'bar':
+        c.raw(f'  {trace}')
+        return
+    c.raw(f'  {trace} [dim]{bullet} noise {state.node.noise} {bullet} '
+          f'tick {state.tick} {bullet} alert {state.alert}[/]')
     _escalation_check(sess)
     # A run can end *inside* advance(): the trace completing, black ICE, the
     # deck dying. If it did, settle up here. Without this the session stays in
