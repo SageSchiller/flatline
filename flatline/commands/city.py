@@ -641,7 +641,36 @@ def cmd_load(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     if sess.run is not None:
         raise CommandError('the loadout is fixed once you are inside.')
-    key = _find_program(args.get(0), game.char.library)
+    owned = [k for k in game.char.library if k in programs.BY_KEY]
+    if not len(args):
+        # D63 c: the bag, numbered, with what each thing is. `load` with
+        # nothing after it used to be an error, and the only other place the
+        # bag was listed was nowhere.
+        deck = game.char.deck
+        c.header('The bag', f'memory {deck.memory_used}/{deck.memory}')
+        if not owned:
+            c.say('[dim]Nothing. `market program` to buy one.[/]')
+            return
+        keys = []
+        rows = []
+        for key in owned:
+            p = programs.BY_KEY[key]
+            keys.append(key)
+            loaded = key in deck.loaded and keys.count(key) <= deck.loaded.count(key)
+            rows.append((str(len(keys)), p.name, p.category, f'{p.memory}',
+                         f'{p.rating}', f'{p.signature:g}',
+                         ('loaded' if loaded else
+                          'fits' if p.memory <= deck.memory_free else 'no room')))
+        c.table(('#', 'program', 'kind', 'mem', 'r', 'sig', 'deck'), rows,
+                roles=('accent', 'accent', 'dim', 'dim', 'dim', 'dim', 'info'))
+        sess.remember('load', keys)
+        c.blank()
+        c.say('[dim]`load <name>` or `load <row number>`. `inspect <name>` '
+              'for what one does. `unload <name>` to make room.[/]')
+        return
+    token = sess.pick('load', args.get(0), fallback=owned, what='program',
+                      again='load')
+    key = _find_program(token, game.char.library)
     ok, why = game.char.deck.can_load(key)
     if not ok:
         raise CommandError(why)
@@ -860,6 +889,54 @@ def cmd_buy(sess, args) -> None:
          f'[dim]{game.char.credits:,}c left.[/]')
 
 
+@command('fit', 'Fit a component you own. The old one goes in the bag.',
+         contexts=('city',), group='prep', usage='fit <component>',
+         detail='D63 c. Buying a part fits it; this fits one you already '
+                'have, which until now only Hotswap could do and only at '
+                'Hardware 4, mid-run. A spare in the bag is a loadout '
+                'decision, not a souvenir.',
+         complete=lambda sess, prefix: [
+             hardware.BY_KEY[k].name.lower() for k in sess.game.char.library
+             if k in hardware.BY_KEY] if sess.game else [])
+def cmd_fit(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    if not len(args):
+        spares = [hardware.BY_KEY[k] for k in game.char.library
+                  if k in hardware.BY_KEY]
+        if not spares:
+            raise CommandError('nothing in the bag fits a deck. `market '
+                               'component` where there is a workshop.')
+        c.header('Spare parts', f'{len(spares)} in the bag')
+        for comp in spares:
+            c.raw(f'  [accent]{comp.name}[/]  [dim]{comp.slot}[/]')
+        c.blank()
+        c.say('[dim]`fit <name>`. `inspect <name>` for what one does.[/]')
+        return
+    query = args.rest().lower()
+    key = next((k for k in game.char.library if k in hardware.BY_KEY
+                and (query == k or query in hardware.BY_KEY[k].name.lower())),
+               None)
+    if key is None:
+        raise CommandError(f'nothing in the bag is called {query!r}.')
+    comp = hardware.BY_KEY[key]
+    old = game.char.deck.parts.get(comp.slot)
+    if old == key:
+        raise CommandError(f'{comp.name} is already fitted.')
+    game.char.deck.fit(key)
+    game.char.library.remove(key)
+    if old:
+        game.char.library.append(old)
+    c.ok(f'{comp.name} is in'
+         + (f'. [dim]{hardware.BY_KEY[old].name} came out and went in the '
+            f'bag.[/]' if old else '.'))
+    deck = game.char.deck
+    c.info(f'Memory {deck.memory_used}/{deck.memory}, heat {deck.heat}/'
+           f'{deck.heat_cap}.')
+    if deck.memory_used > deck.memory:
+        c.warn('The deck is over memory now. `unload` something before you '
+               'jack in.')
+
+
 @command('sell', 'Sell something. Needs a fence or a market.',
          contexts=('city',), group='city', usage='sell <name>')
 def cmd_sell(sess, args) -> None:
@@ -871,10 +948,12 @@ def cmd_sell(sess, args) -> None:
     query = args.rest().lower()
 
     for key in list(game.char.library):
-        item = programs.BY_KEY.get(key) or cyberware.BY_KEY.get(key)
+        item = (programs.BY_KEY.get(key) or cyberware.BY_KEY.get(key)
+                or hardware.BY_KEY.get(key))
         if not item or query not in item.name.lower():
             continue
-        kind = 'program' if key in programs.BY_KEY else 'ware'
+        kind = ('program' if key in programs.BY_KEY
+                else 'ware' if key in cyberware.BY_KEY else 'component')
         value = market_mod.sale_value(kind, key)
         game.char.library.remove(key)
         game.char.credits += value
@@ -1880,13 +1959,210 @@ def _item(listing):
 
 def _listing_detail(listing, item) -> str:
     if listing.kind == 'program':
-        return f'{item.category}, {item.memory}mem, rating {item.rating}'
+        return (f'{item.category}, {item.memory}mem, r{item.rating}, '
+                f'sig {item.signature:g}')
     if listing.kind == 'ware':
         return f'{item.location}, {item.bandwidth}bw, {item.dissonance}dis'
     if listing.kind == 'drug':
         return (f'{item.up} up, {item.down} down, '
                 + ('no hook' if not item.hook else f'hook {item.hook}'))
-    return f'{item.slot}'
+    first = next(iter(item.effects.items()), None)
+    return (f'{item.slot}: {SHORT_KEY.get(first[0], first[0])} '
+            f'{_brief_value(*first)}' if first else f'{item.slot}')
+
+
+#: Effect keys as the two or three words a table column has room for.
+SHORT_KEY = {
+    'memory': 'memory', 'heat_cap': 'heat cap', 'tick_mult': 'tick cost',
+    'trace_mult': 'trace', 'noise_mult': 'noise', 'residue_mult': 'residue',
+    'legwork_bonus': 'legwork', 'tempo': 'tempo', 'heat_mult': 'heat',
+    'repair_mult': 'repairs', 'pretext_bonus': 'pretext',
+}
+
+
+def _brief_value(key: str, value) -> str:
+    if key in fx.MULTIPLICATIVE:
+        pct = (value - 1.0) * 100
+        return f'{pct:+.0f}%'
+    return f'{value:+g}'
+
+
+def signature_word(sig: float) -> str:
+    """Signature as a word (D63 c): the number is a multiplier on the noise
+    a verb makes, and nobody new can feel a multiplier."""
+    if sig <= 0:
+        return 'silent, passive'
+    if sig < 0.5:
+        return 'near silent'
+    if sig < 0.9:
+        return 'quiet'
+    if sig <= 1.1:
+        return 'ordinary'
+    if sig < 1.6:
+        return 'loud'
+    return 'deafening'
+
+
+def find_item(query: str):
+    """A catalogue item by key or name, any kind (D63 c). Returns
+    (kind, item) or None; prefers an exact key, then an exact name, then a
+    prefix, then a substring."""
+    q = query.strip().lower()
+    if not q:
+        return None
+    tables = (('program', programs.BY_KEY), ('ware', cyberware.BY_KEY),
+              ('component', hardware.BY_KEY), ('drug', drug_content.BY_KEY))
+    for kind, table in tables:
+        if q in table:
+            return kind, table[q]
+    for kind, table in tables:
+        for item in table.values():
+            if item.name.lower() == q:
+                return kind, item
+    for kind, table in tables:
+        for item in table.values():
+            if item.name.lower().startswith(q) or item.key.startswith(q):
+                return kind, item
+    for kind, table in tables:
+        for item in table.values():
+            if q in item.name.lower():
+                return kind, item
+    return None
+
+
+def describe_item(sess, kind: str, item) -> None:
+    """Everything a player can know about a thing before they pay for it,
+    load it, or have it put in them (D63 c). The market used to print a
+    category and a rating beside a four-figure price; the blurb, the note,
+    the numbers and the drawback were shown nowhere."""
+    c = sess.console
+    game = sess.game
+    tier = f'tier {item.tier}' if hasattr(item, 'tier') else ''
+    c.header(item.name, f'{kind}{", " + tier if tier else ""}')
+    c.say(item.blurb)
+    c.blank()
+    rows = []
+    if kind == 'program':
+        what, verbs = programs.CATEGORIES.get(item.category, ('', ()))
+        rows.append(('kind', f'{item.category} [dim]{what} '
+                             f'({", ".join(verbs)})[/]'))
+        rows.append(('memory', str(item.memory)))
+        rows.append(('rating', f'{item.rating} [dim]counts double on a check[/]'))
+        rows.append(('signature', f'{item.signature:g} [dim]'
+                                  f'{signature_word(item.signature)}[/]'))
+        if item.jobs:
+            rows.append(('built for', ', '.join(item.jobs)))
+    elif kind == 'ware':
+        rows.append(('maker', item.maker))
+        rows.append(('where', item.location))
+        rows.append(('bandwidth', str(item.bandwidth)))
+        rows.append(('dissonance', f'+{item.dissonance} [dim]and it stays[/]'))
+    elif kind == 'component':
+        rows.append(('slot', item.slot))
+        rows.append(('heat', str(item.heat)))
+    elif kind == 'drug':
+        rows.append(('up', f'{item.up} shift{"s" if item.up != 1 else ""}'))
+        rows.append(('down', f'{item.down} shift{"s" if item.down != 1 else ""}'))
+        rows.append(('hook', 'none' if not item.hook else str(item.hook)))
+    if getattr(item, 'unique', False):
+        rows.append(('one of a kind', '[accent2]not sold anywhere[/]'))
+    c.kv(rows)
+    # the numbers, good and bad, under two headings
+    good = getattr(item, 'effects', {}) or {}
+    bad = getattr(item, 'penalty', {}) or {}
+    if kind == 'drug':
+        good, bad = item.high, item.crash
+    if good:
+        c.blank()
+        c.raw('[ok]gives[/]' if kind != 'drug' else '[ok]while it is in you[/]')
+        for key, value in good.items():
+            c.say(f'  {fx.describe(key, value)}')
+    if bad:
+        c.raw('[err]costs[/]' if kind != 'drug' else '[err]when it turns[/]')
+        for key, value in bad.items():
+            c.say(f'  {fx.describe(key, value)}')
+    if kind == 'drug' and item.withdrawal:
+        c.raw('[err]without it, once your body expects it[/]')
+        for key, value in item.withdrawal.items():
+            c.say(f'  {fx.describe(key, value)}')
+    note = getattr(item, 'note', '') or getattr(item, 'drawback', '')
+    if note:
+        c.blank()
+        c.say(f'[warn]{note}[/]')
+    lore = getattr(item, 'lore', '')
+    if lore:
+        c.blank()
+        for para in lore.split('\n\n'):
+            c.say(f'[accent2]{para}[/]')
+            c.blank()
+    # where it is, for you
+    if game is not None:
+        where = []
+        char = game.char
+        if kind == 'program':
+            if item.key in char.deck.loaded:
+                where.append('loaded')
+            spare = char.library.count(item.key) - (1 if item.key in char.deck.loaded else 0)
+            if spare > 0:
+                where.append(f'in the bag{" x" + str(spare) if spare > 1 else ""}')
+        elif kind == 'ware':
+            if item.key in char.installed:
+                where.append('fitted in you')
+            if item.key in char.library:
+                where.append('in the bag, not fitted')
+        elif kind == 'component':
+            if char.deck.parts.get(item.slot) == item.key:
+                where.append('fitted in the deck')
+            if item.key in char.library:
+                where.append('in the bag')
+        elif kind == 'drug':
+            n = char.stash.get(item.key, 0)
+            if n:
+                where.append(f'{n} in the bag')
+        for listing in game.city.listings():
+            if listing.kind == kind and listing.key == item.key:
+                price, _ = market_mod.quote(listing, game.city.where, game.alias,
+                                            char.dissonance,
+                                            char.mult('price_mult'),
+                                            game.city.phase, char.attr('guile'))
+                where.append(f'for sale here at [credit]{price:,}c[/]')
+                break
+        c.blank()
+        c.say('[dim]' + ('; '.join(where) if where else 'not yours, and not '
+                                                      'for sale here') + '.[/]')
+
+
+@command('inspect', 'Everything about a thing: what it does, what it costs you.',
+         group='info', aliases=('examine', 'what'), bare=True,
+         usage='inspect <name|row number>',
+         detail='Any program, chrome, component or drug, by name, by key, or '
+                'by the row number of the last market, load or chrome list. '
+                'The blurb, the numbers it gives and the numbers it takes, '
+                'the note, and whether it is in your bag, on your deck, in '
+                'you, or for sale here and at what. Before you buy, before '
+                'you load, before you have it put in you.',
+         complete=lambda sess, prefix: [
+             i.key for table in (programs.BY_KEY, cyberware.BY_KEY,
+                                 hardware.BY_KEY, drug_content.BY_KEY)
+             for i in table.values()])
+def cmd_inspect(sess, args) -> None:
+    if not len(args):
+        raise CommandError('inspect what? A name, a key, or a row number '
+                           'from the last list.')
+    token = args.rest().strip()
+    if token.isdigit() and sess.game is not None:
+        for kind in ('market', 'load', 'chrome', 'bag'):
+            shown = sess.listed.get(kind)
+            if shown and 1 <= int(token) <= len(shown):
+                token = shown[int(token) - 1]
+                break
+    hit = find_item(token)
+    if hit is None:
+        raise CommandError(f'nothing in any catalogue is called {token!r}. '
+                           f'`market`, `load`, `chrome` list what is around.')
+    kind, item = hit
+    describe_item(sess, kind, item)
+
 
 
 def _find_program(query: str | None, pool: list[str]) -> str:

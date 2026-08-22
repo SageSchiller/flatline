@@ -7320,11 +7320,142 @@ def test_intrusion() -> None:
             T.eq(sess.run.previous, start, 'connect remembers the host you left')
 
 
+
+def test_catalogue() -> None:
+    """D63 c: what a player can learn about a thing, and the catalogue's
+    honesty."""
+    T.section('catalogue')
+    from flatline.commands import city as city_cmd
+    from flatline.commands import run as run_cmd
+    from flatline.model.deck import Deck
+
+    # inspect: by name, by key, by row; and help falls through to it.
+    _, out = play(['inspect wiretap'])
+    plain = ui.plain(out)
+    T.ok('Wiretap' in plain and 'signature' in plain and 'near silent' in plain,
+         'inspect prints the signature as a word')
+    T.ok('Ticks of advance warning' in plain, 'and describes its effects')
+    _, out = play(['inspect deadman_grip'])
+    T.ok('grip' in ui.plain(out).lower() and 'dissonance' in ui.plain(out).lower(),
+         'inspect reads chrome by key')
+    _, out = play(['inspect cold block'])
+    T.ok('Cold Block' in ui.plain(out) and 'costs' in ui.plain(out),
+         'a component shows what it takes as well as what it gives')
+    _, out = play(['inspect kick'])
+    T.ok('when it turns' in ui.plain(out), 'a drug shows its comedown')
+    _, out = play(['inspect nothing_like_this'])
+    T.ok('nothing in any catalogue' in ui.plain(out), 'a miss says so')
+    _, out = play(['help sable'])
+    T.ok('Sable' in ui.plain(out) and 'help programs' in ui.plain(out),
+         'help <item> opens the page and names the topic')
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=4)
+    game.city.where = next(d.key for d in districts.DISTRICTS
+                           if 'market' in d.services)
+    _, out = play(['market', 'inspect 1'], game=game)
+    T.ok('signature' in ui.plain(out) or 'dissonance' in ui.plain(out)
+         or 'slot' in ui.plain(out) or 'hook' in ui.plain(out),
+         'inspect takes a market row number')
+    T.eq(city_cmd.signature_word(0.0), 'silent, passive', 'zero is passive')
+    T.eq(city_cmd.signature_word(2.2), 'deafening', 'Thunderhead is deafening')
+
+    # load with nothing lists the bag, and a row number loads.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=5)
+    game.char.library.append('sable')
+    game.char.deck.loaded = []
+    sess, out = play(['load'], game=game)
+    plain = ui.plain(out)
+    T.ok('The bag' in plain and 'Sable' in plain and 'Crowbar' in plain,
+         'a bare load lists the bag')
+    row = next((n for n, k in enumerate(sess.listed.get('load', []), 1)
+                if k == 'sable'), None)
+    T.ok(row is not None, 'the bag is numbered')
+    sess, out = play([f'load {row}'], game=game)
+    T.ok('sable' in game.char.deck.loaded, 'load by row number works')
+
+    # fit swaps a spare in and the old part out; sell takes components.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=6)
+    game.char.library.append('cool_block')
+    old = game.char.deck.parts['cooling']
+    sess, out = play(['fit cold block'], game=game)
+    T.eq(game.char.deck.parts['cooling'], 'cool_block', 'fit puts the part in')
+    T.ok(old in game.char.library, 'and the old one in the bag')
+    T.ok('cool_block' not in game.char.library, 'and the new one out of it')
+    game.city.where = next(d.key for d in districts.DISTRICTS
+                           if 'market' in d.services)
+    credits = game.char.credits
+    sess, out = play([f'sell {hardware.BY_KEY[old].name.lower()}'], game=game)
+    T.ok(game.char.credits > credits, 'a component sells')
+    T.ok(old not in game.char.library, 'and leaves the bag')
+
+    # Passives: only the strongest of a category counts.
+    deck = Deck.from_preset('scrapdeck')
+    deck.loaded = ['quietcastle', 'mirrorbox']
+    fxs = deck.effects()
+    T.ok(abs(fxs.get('trace_mult', 1.0) - 0.7) < 1e-6,
+         f'two masks count as the stronger one ({fxs.get("trace_mult"):.2f})')
+    deck.loaded = ['bulwark', 'sump']
+    T.ok(abs(deck.effects().get('ice_dr', 1.0) - 0.7) < 1e-6,
+         'two armours count as the stronger one')
+    deck.loaded = ['quietcastle', 'bulwark']
+    got = deck.effects()
+    T.ok(got.get('trace_mult') and got.get('ice_dr'),
+         'different categories both count')
+
+    # Program riders read: Shrike's edge, Banshee's alarm, the hunters' eyes.
+    char = Character.from_origin('gutter', 'x')
+    char.deck.loaded = ['shrike']
+    char.library.append('shrike')
+    net = net_mod.generate(Rng(9).fork('network', 'r'), 'sixes', 30)
+    console = quiet_console()
+    console.start_capture()
+    state = RunState.begin(net, char, Rng(9)('combat'), console)
+    small = net_mod.IceInstance(uid='s', key='watchman', rating=2)
+    big = net_mod.IceInstance(uid='b', key='coffin', rating=7)
+    T.ok(run_cmd.strike_damage(state, small) > run_cmd.strike_damage(state),
+         'Shrike bites harder against small things')
+    T.ok(run_cmd.strike_damage(state, big) < run_cmd.strike_damage(state),
+         'and not at all against big ones')
+    console.end_capture()
+    T.ok('banshee_alarm' in programs.BY_KEY['banshee'].rider, 'Banshee declares')
+    for key in ('ledgerhand', 'tidemark', 'dowser'):
+        T.ok(programs.BY_KEY[key].rider, f'{key} declares its eye')
+    char = Character.from_origin('gutter', 'x')
+    char.library += ['ledgerhand', 'tidemark', 'dowser']
+    char.deck.loaded = ['ledgerhand']
+    game = Game.new(char, seed=12)
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    sess, out = play([f'take {contract.cid}', 'jack in --force', 'scan'], game=game)
+    T.ok('worth' in ui.plain(out), 'Ledgerhand adds a worth column to scan')
+    char = Character.from_origin('gutter', 'x')
+    char.library += ['dowser']
+    char.deck.loaded = ['dowser']
+    game = Game.new(char, seed=12)
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    sess, out = play([f'take {contract.cid}', 'jack in --force', 'scan'], game=game)
+    T.ok('boundary' in ui.plain(out), 'Dowser adds a boundary column to scan')
+
+    # The hardware catalogue: a part per slot in the mid range, and the
+    # antenna trade is real at both ends.
+    for slot in hardware.SLOTS:
+        prices = sorted(c.price for c in hardware.by_slot(slot) if c.price > 0)
+        T.ok(any(1500 <= p <= 3600 for p in prices),
+             f'{slot} has something to buy between 1,500c and 3,600c')
+    T.ok(hardware.BY_KEY['ant_none'].penalty.get('legwork_bonus', 0) < 0,
+         'going hardline costs you the city\'s gossip')
+    T.ok(all(c.key in hardware.BY_KEY for c in hardware.COMPONENTS),
+         'every component is indexed')
+    T.ok(programs.BY_KEY['anodyne'].memory == 2, 'Anodyne is light now')
+    T.ok(programs.BY_KEY['handshake'].note.startswith('Opens a door'),
+         'forger notes say what pretext does')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
-    test_intrusion,
+    test_intrusion, test_catalogue,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,

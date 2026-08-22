@@ -539,7 +539,7 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] do legwork first. Knowing what is in there is '
         'what turns the loadout from a guess into a choice.',
         see=('bench', 'programs', 'contracts'),
-        commands=('deck', 'load', 'unload', 'buy', 'repair'),
+        commands=('deck', 'load', 'unload', 'fit', 'buy', 'repair', 'inspect'),
         covers=('hardware',),
         terms=('rig', 'computer',),
         group='character'),
@@ -594,12 +594,17 @@ TOPICS: tuple[Topic, ...] = (
         'Verbs take your best loaded program of the right kind by default. '
         '[fg]--quiet[/] swaps to your lowest-signature one and takes a '
         'penalty, which is exactly why carrying both is a real loadout.\n\n'
+        'Passive effects, the numbers a mask or an armour gives while it is '
+        'merely loaded, count for [warn]the strongest program of each kind '
+        'only[/]. Two masks are not twice the mask. An armour program is '
+        'good for as many saves a run as its rating, and then it is gone. '
+        '[fg]inspect <name>[/] reads any program before you pay for it.\n\n'
         '[warn]The decision:[/] every slot spent on insurance is a slot not '
         'spent on capability. Armour and masks are invisible until the run '
         'they save, and a build that never carries them wins more often and '
         'loses harder.',
         see=('deck', 'triangle'),
-        commands=('load', 'deck', 'market'),
+        commands=('load', 'deck', 'market', 'inspect'),
         covers=('programs',),
         terms=('software', 'tools',),
         group='character'),

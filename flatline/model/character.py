@@ -413,6 +413,7 @@ class Character:
             if trait and trait.rider:
                 out.add(trait.rider)
         out |= drugs.riders(self.chem)
+        out |= self.deck.riders()
         return out
 
     # ------------------------------------------------------------------

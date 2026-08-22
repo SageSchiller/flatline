@@ -12,7 +12,7 @@ updated: 2026-08-21
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,973 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. Then **D54** (six lines and four topics per person, in seventeen voices; hours, so the clock is a reason to be somewhere) and **D55** (nine threads rooted in the districts, twenty-two decisions, four postings). Then **D56**: a decision at each rival's bond latch (fourteen scenes, twenty-eight decisions, read by the hire price, the shift boundary, four events and the epilogue), and the wire carrying scenes, decisions and what a run did to the city. Then **D57** (the city drawn, `walk`) and **D58** (forty-five places, twenty-two people, the street, a hundred and fifty-four events). Then **D59**, the readout: one dim line after every tick spent in a run, as the seventh rice axis (`hud`: line, bar, terse, quiet). Then **D60**, the tutorial's second half: nine more steps, past the door into what the city does. Then **D61**, tonight inside: eight run conditions drawn at the door, every field read, in the sum where they touch a check. Then **D62**, the rest of the list: the journal as a log, previously on resume, `odds` for strike and for what any verb costs tonight, ICE portraits, attribute bars and a build label, the end-of-run card, scripts discoverable, naming the deck and the safehouse. **Every Phase 7 item is done.** What is next is whatever playing it turns up. Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
+> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **14,022 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. Then **D54** (six lines and four topics per person, in seventeen voices; hours, so the clock is a reason to be somewhere) and **D55** (nine threads rooted in the districts, twenty-two decisions, four postings). Then **D56**: a decision at each rival's bond latch (fourteen scenes, twenty-eight decisions, read by the hire price, the shift boundary, four events and the epilogue), and the wire carrying scenes, decisions and what a run did to the city. Then **D57** (the city drawn, `walk`) and **D58** (forty-five places, twenty-two people, the street, a hundred and fifty-four events). Then **D59**, the readout: one dim line after every tick spent in a run, as the seventh rice axis (`hud`: line, bar, terse, quiet). Then **D60**, the tutorial's second half: nine more steps, past the door into what the city does. Then **D61**, tonight inside: eight run conditions drawn at the door, every field read, in the sum where they touch a check. Then **D62**, the rest of the list: the journal as a log, previously on resume, `odds` for strike and for what any verb costs tonight, ICE portraits, attribute bars and a build label, the end-of-run card, scripts discoverable, naming the deck and the safehouse. **Every Phase 7 item is done.** What is next is whatever playing it turns up. Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
@@ -1706,8 +1706,44 @@ says.
   armour, so a Coroner and a Kestrel are different constructs. (Landed in
   (a).)
 
-Parts (c) through (e) follow in this decision: the catalogue and what a
-player can learn about it, the vices and the money, and the relics.
+**(c) The catalogue, and what a player can learn about it.**
+
+- **`inspect <thing>`** (also `examine`, `what`, a row number from the last
+  market or bag list, and `help <exact name>` falls through to it): the
+  blurb, the numbers it gives and the numbers it takes under two headings,
+  the signature as a word (silent, near silent, quiet, ordinary, loud,
+  deafening), the note or the drawback, and where it is for you: loaded,
+  in the bag, fitted, in you, for sale here and at what. The market used
+  to print a category and a rating beside a four-figure price and the
+  blurb was shown nowhere. The market column now carries the signature.
+- **A bare `load` lists the bag**, numbered, with memory, rating, signature
+  and whether it is loaded, fits, or will not; `load 2` works. It used to
+  be an error.
+- **`fit <component>`** in the city: a spare in the bag goes in and the
+  old part comes out. Until now only `hotswap` at Hardware 4 could, and
+  only mid-run. `sell` takes components.
+- **Passives count once per kind.** `Deck.passives`: the strongest loaded
+  program of each category contributes its passive effects and the rest
+  do not. Six armours were a damage reduction of 0.07; Mirrorbox's note
+  about stacking poorly was a wish and is now the rule.
+- **Program riders** (`Program.rider`, `RIDERS`, `Deck.riders` folded into
+  `Character.riders`): Shrike bites double against rating 3 and under and
+  not at all against 6 and up; Banshee escalates the alert on every
+  strike; Ledgerhand, Tidemark and Dowser each add a column to `scan`
+  (worth, traffic, boundary). Their notes always said so.
+- **Honest notes.** Forgers say what `pretext` does rather than "grants
+  tier-1 access"; Glacier no longer refuses daemons it never refused;
+  Needle and Copper say what they are; payload notes say what they are
+  built for.
+- **The hardware catalogue.** A mid-tier part in every slot (Refitted
+  Core, Stacked Bank, Coax Trunk, Cold Block, Foil Wrap, Window Dish) in
+  the 1,500c to 3,600c gap nothing sat in; Hardline Only costs a legwork
+  point (you hear nothing of the city on the wire), so the free antenna
+  is a trade and the Short Whip is not a strict downgrade; Longwire is two
+  legwork. Anodyne is two memory at 6,900c; Skeleton is 5,200c.
+
+Parts (d) and (e) follow in this decision: the vices and the money, and
+the relics.
 
 ### D17: The finish line
 
@@ -2818,3 +2854,13 @@ and the run read. The soft-warden rule and the escort fallback close the
 two ways a run could be generated unfinishable for a particular build.
 
 `validate.py` clean, `test.py` green at **13,973 checks**.
+
+### 2026-08-21 (n): the mechanics read back, part three
+
+**D63 (c)**, the catalogue: `inspect` for any thing in any catalogue, a
+bare `load` that lists the bag, `fit` in the city, components that sell,
+passives that count once per kind, five program riders that do what their
+notes said, honest notes everywhere else, six mid-tier parts, and an
+antenna trade with two real ends.
+
+`validate.py` clean, `test.py` green at **14,022 checks**.

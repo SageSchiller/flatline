@@ -52,6 +52,9 @@ class Program:
     #: a penalty on the check and drags on the pull, and `jack in` says so at
     #: the door. Empty for every other category.
     jobs: tuple[str, ...] = ()
+    #: Engine-implemented special behaviour while loaded (D63 c). Must be in
+    #: `RIDERS`, and `validate.check_reads` holds the engine to reading it.
+    rider: str = ''
 
 
 PROGRAMS: tuple[Program, ...] = (
@@ -71,7 +74,7 @@ PROGRAMS: tuple[Program, ...] = (
     Program('thunderhead', 'Thunderhead', 'breaker', 4, 6, 2.2, 9600, 3,
             'Nothing survives it. Everything hears it.',
             note='Highest rating in the game. Signature to match.'),
-    Program('skeleton', 'Skeleton', 'breaker', 3, 3, 0.5, 6800, 3,
+    Program('skeleton', 'Skeleton', 'breaker', 3, 3, 0.5, 5200, 3,
             'A key shaped like the absence of a lock. Freeport built it, and '
             'they will not say from what.',
             effects={'noise_mult': 0.9},
@@ -95,7 +98,8 @@ PROGRAMS: tuple[Program, ...] = (
     Program('ledgerhand', 'Ledgerhand', 'hunter', 2, 3, 0.55, 2200, 2,
             'Finds the money. Locates data assets by value rather than by '
             'location, which is how a professional decides what to steal.',
-            note='Marks the highest-value asset on any mapped node.'),
+            note='`scan` shows what each host is worth. Finds the money before you walk to it.',
+            rider='ledger_eye'),
 
     # -- masks -------------------------------------------------------------
     Program('quietcastle', 'Quietcastle', 'mask', 2, 3, 0.0, 1800, 1,
@@ -107,7 +111,7 @@ PROGRAMS: tuple[Program, ...] = (
             'Reflects the trace back along a path that terminates in somebody '
             'else\'s subnet.',
             effects={'trace_mult': 0.7},
-            note='Passive. Stacks poorly with other masks by design.'),
+            note='Passive. Only the strongest mask loaded counts: two are not twice the mask.'),
     Program('nullsuit', 'Nullsuit', 'mask', 4, 6, 0.0, 11200, 3,
             'You are not there. This is expensive to be true.',
             effects={'trace_mult': 0.55, 'noise_mult': 0.8},
@@ -118,12 +122,12 @@ PROGRAMS: tuple[Program, ...] = (
             'Manufactures a credential that is plausible for about ninety '
             'seconds, which is generally ninety seconds more than you need.',
             effects={'pretext_bonus': 2},
-            note='Grants tier-1 access without a crack.'),
+            note='Opens a door by talking: `pretext` with it loaded. Forges the argument, not the key.'),
     Program('provenance', 'Provenance', 'forger', 3, 5, 0.6, 6100, 3,
             'Does not forge a credential. Forges the history that would have '
             'issued one.',
             effects={'pretext_bonus': 4},
-            note='Grants tier-2 access. Survives audit.'),
+            note='Forges the history behind a credential. Holds up to a warden\'s check.'),
 
     # -- weapons -----------------------------------------------------------
     Program('cudgel', 'Cudgel', 'weapon', 2, 3, 1.6, 900, 1,
@@ -139,7 +143,8 @@ PROGRAMS: tuple[Program, ...] = (
             'Kills anything short of black ICE in one pass and puts the entire '
             'network into alert while it does.',
             effects={'ice_damage': 6},
-            note='Escalates the alert level on use, guaranteed.'),
+            note='Every strike with it escalates the alert a level. Guaranteed.',
+            rider='banshee_alarm'),
 
     # -- armour ------------------------------------------------------------
     Program('bulwark', 'Bulwark', 'armour', 2, 3, 0.0, 2100, 1,
@@ -195,12 +200,12 @@ PROGRAMS: tuple[Program, ...] = (
             'Writes a badge that is wrong in ways only an auditor would '
             'catch, and auditors are not on shift at four in the morning.',
             effects={'pretext_bonus': 3},
-            note='Quiet. Grants tier-1 access and does not survive review.'),
+            note='Quiet. Opens a door by talking and leaves no paper.'),
     Program('nom_de_guerre', 'Nom de Guerre', 'forger', 4, 6, 0.9, 9700, 3,
             'Does not forge a person. Retires one, and gives you what they '
             'left behind, which the network has no reason to question.',
             effects={'pretext_bonus': 5, 'residue_mult': 0.85},
-            note='Four memory. Grants tier-2 access and holds under audit.'),
+            note='Four memory. The best argument in the catalogue, and it tidies after itself.'),
     Program('lethe', 'Lethe', 'wiper', 3, 4, 0.6, 4900, 2,
             'Does not remove the record. Removes the index, and lets the '
             'record sit there being unfindable for as long as anybody cares.',
@@ -238,7 +243,8 @@ PROGRAMS: tuple[Program, ...] = (
             'Reads what a node has been doing rather than what it is. Finds '
             'the busy ones, which are the ones with something on them.',
             effects={'legwork_bonus': 1},
-            note='Marks nodes by traffic, not by type.'),
+            note='`scan` shows how busy each host is: services and data, not type.',
+            rider='tide_eye'),
 
     # -- third wave: gear that speaks to the newer skill lines -------------
     Program('plumbline', 'Plumbline', 'hunter', 3, 5, 0.4, 6200, 3,
@@ -250,7 +256,8 @@ PROGRAMS: tuple[Program, ...] = (
             'Finds the boundary between zones without touching either side '
             'of it. Cheap, quiet, and it will not tell you what is guarding '
             'the boundary.',
-            note='Marks chokepoints. Says nothing about what is on them.'),
+            note='`scan` marks the chokepoints: hosts on a boundary, where wardens stand.',
+            rider='dowse_eye'),
     Program('wiretap', 'Wiretap', 'hunter', 2, 4, 0.2, 4100, 2,
             'Reads what two hosts are saying to each other. Neither of them '
             'encrypted it, because neither of them imagined you.',
@@ -278,7 +285,7 @@ PROGRAMS: tuple[Program, ...] = (
             'stops the hit being a surprise.',
             effects={'tell_lead': 1, 'ice_dr': 0.9},
             note='Passive. Trades absorption for warning.'),
-    Program('anodyne', 'Anodyne', 'armour', 3, 5, 0.0, 8200, 3,
+    Program('anodyne', 'Anodyne', 'armour', 2, 5, 0.0, 6900, 3,
             'Sits between your nervous system and the interface and lies to '
             'both of them about how much of this is happening.',
             effects={'ice_dr': 0.6, 'composure': 5},
@@ -292,7 +299,8 @@ PROGRAMS: tuple[Program, ...] = (
             'Kills small things instantly and large things not at all. '
             'Sentries and probes evaporate; a hunter does not notice.',
             effects={'ice_damage': 2},
-            note='Devastating against low-rating ICE, useless above it.'),
+            note='Twice the bite against rating 3 and under. Nothing at all against 6 and up.',
+            rider='shrike_edge'),
 )
 
 
@@ -324,3 +332,10 @@ def quietest(loaded: list[str], category: str) -> Program | None:
     """
     have = [BY_KEY[k] for k in loaded if k in BY_KEY and BY_KEY[k].category == category]
     return min(have, key=lambda p: (p.signature, -p.rating)) if have else None
+
+
+#: Program riders (D63 c). Each is read by the run layer while the program
+#: is loaded; see `Deck.riders`.
+RIDERS: frozenset[str] = frozenset({
+    'shrike_edge', 'banshee_alarm', 'ledger_eye', 'tide_eye', 'dowse_eye',
+})

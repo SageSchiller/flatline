@@ -231,6 +231,12 @@ def check_programs(rep: Report) -> None:
         rep.check(p.category in programs.CATEGORIES, where,
                   f'unknown category {p.category!r}')
         rep.check(p.memory > 0, where, 'takes no memory')
+        if p.rider:
+            rep.check(p.rider in programs.RIDERS, where,
+                      f'rider {p.rider!r} is not in RIDERS')
+        if p.jobs:
+            rep.check(p.category == 'payload', where,
+                      'declares jobs and is not a payload')
         rep.check(1 <= p.rating <= 6, where, f'rating {p.rating} out of range')
         rep.check(p.signature >= 0, where, 'negative signature')
         rep.check(p.price > 0, where, 'is free')
@@ -3848,6 +3854,7 @@ def check_reads(rep: Report) -> None:
     riders |= set(icons.RIDERS)
     riders |= set(origins.RIDERS)
     riders |= {d.rider for d in drugs.DRUGS if d.rider}
+    riders |= set(programs.RIDERS)
     for rider in sorted(riders):
         rep.check(f"'{rider}'" in source, 'reads',
                   f'rider {rider!r} is declared and nothing outside content '

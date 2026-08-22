@@ -96,12 +96,33 @@ class Deck:
             # off it.
             parts.append(comp.penalty)
             parts.append(worked)
-        # Programs contribute their passive effects only while loaded.
+        # Programs contribute their passive effects only while loaded, and
+        # only the strongest of each category (D63 c). Before this every
+        # loaded armour multiplied into every other: six of them were a
+        # damage reduction of 0.07, and Mirrorbox's note about stacking
+        # poorly with other masks was a wish. Now it is the rule: two masks
+        # are not twice the mask, and the second slot is a second slot.
+        for prog in self.passives():
+            parts.append(prog.effects)
+        return fx.merge(*parts)
+
+    def passives(self) -> list:
+        """The one program per category whose passive effects count: the
+        highest rating, ties to the first loaded."""
+        best: dict[str, programs.Program] = {}
         for key in self.loaded:
             prog = programs.BY_KEY.get(key)
-            if prog and prog.effects:
-                parts.append(prog.effects)
-        return fx.merge(*parts)
+            if prog is None or not prog.effects:
+                continue
+            have = best.get(prog.category)
+            if have is None or prog.rating > have.rating:
+                best[prog.category] = prog
+        return list(best.values())
+
+    def riders(self) -> set[str]:
+        """Program riders active while loaded (D63 c)."""
+        return {programs.BY_KEY[k].rider for k in self.loaded
+                if k in programs.BY_KEY and programs.BY_KEY[k].rider}
 
     # -- budgets -----------------------------------------------------------
 

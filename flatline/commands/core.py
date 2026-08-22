@@ -322,6 +322,22 @@ def _help_search(sess, word: str) -> None:
     if not word:
         raise CommandError('search for what?')
 
+    # D63 c: `help sable` is a question about a thing, and the thing has a
+    # page. Exact key or name only; a topic that happens to mention a word
+    # still wins the search below.
+    from .city import find_item, describe_item
+    hit = find_item(word)
+    if hit is not None and (hit[1].key == word
+                            or hit[1].name.lower() == word):
+        describe_item(sess, *hit)
+        module = {'program': 'programs', 'ware': 'cyberware',
+                  'component': 'hardware', 'drug': 'drugs'}.get(hit[0], '')
+        pointers = [t for t in manual.TOPICS if module in t.covers]
+        if pointers:
+            c.say('[dim]How it works: '
+                  + ', '.join(f'`help {t.key}`' for t in pointers) + '.[/]')
+        return
+
     topics: list[tuple[int, str, str]] = []
     for topic in manual.TOPICS:
         score = 0

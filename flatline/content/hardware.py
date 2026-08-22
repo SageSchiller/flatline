@@ -68,12 +68,19 @@ COMPONENTS: tuple[Component, ...] = (
               drawback='Runs hot enough that a stock cooler cannot hold it '
                        'through a long run.',
               penalty={}),
+    Component('cpu_refit', 'Refitted Core', 'cpu', 2, 2400,
+              'Somebody else\'s Hotrod, after the somebody else. Re-lidded, '
+              're-pasted, and honest about its second life.',
+              effects={'tick_mult': 0.9}, heat=5,
+              drawback='It runs warm for what it does, and nobody will say '
+                       'how many owners it has had.',
+              penalty={}),
     Component('cpu_glacier', 'Sendai Glacier', 'cpu', 3, 9800,
               'Fast and cold, because Sendai solved the problem rather than '
               'moving it. Priced accordingly.',
               effects={'tempo': 1, 'tick_mult': 0.82}, heat=3,
-              drawback='Sendai firmware is signed and closed. It will not run '
-                       'unsigned daemons.',
+              drawback='Sendai firmware is signed and closed, and the price '
+                       'is the price.',
               penalty={},
               ),
 
@@ -84,6 +91,12 @@ COMPONENTS: tuple[Component, ...] = (
     Component('mem_standard', 'Standard Bank', 'memory', 1, 1500,
               'Six slots, which is enough to have a plan.',
               effects={'memory': 6}, heat=2),
+    Component('mem_stacked', 'Stacked Bank', 'memory', 2, 2900,
+              'Two standard banks on one carrier, sharing a bus that was '
+              'designed for one. It holds more than it should and it knows.',
+              effects={'memory': 7}, heat=3,
+              drawback='The shared bus chatters, and chatter is trace.',
+              penalty={'trace_mult': 1.04}),
     Component('mem_wide', 'Wide Bank', 'memory', 2, 5200,
               'Nine slots. Enough to bring the answer to a question you have '
               'not asked yet.',
@@ -103,7 +116,8 @@ COMPONENTS: tuple[Component, ...] = (
               'Physical, slow, and impossible to intercept without being in '
               'the room.',
               effects={}, heat=1,
-              drawback='Physical means present. No remote runs at all.',
+              drawback='It is a wire. It does what a wire does and nothing '
+                       'more, and nothing about it is fast.',
               penalty={}),
     Component('io_standard', 'Standard Bus', 'io', 1, 1200,
               'What everybody has.',
@@ -114,11 +128,18 @@ COMPONENTS: tuple[Component, ...] = (
               effects={'tick_mult': 0.85}, heat=4,
               drawback='It is a wide, obvious pipe.',
               penalty={'noise_mult': 1.15}),
+    Component('io_coax', 'Coax Trunk', 'io', 2, 2600,
+              'Building-grade cable, liberated. Wider than copper and it '
+              'remembers everything that went down it.',
+              effects={'tick_mult': 0.9}, heat=3,
+              drawback='It keeps a buffer, and buffers are evidence.',
+              penalty={'residue_mult': 1.08}),
     Component('io_needle', 'Needlecast', 'io', 3, 10900,
               'Narrow, fast, and pointed. The connection is a line rather than '
               'a cloud, which is as hard to find as it is to widen.',
               effects={'tick_mult': 0.8, 'trace_mult': 0.9}, heat=3,
-              drawback='Narrow is narrow. Bulk payloads take twice as long.',
+              drawback='Narrow is narrow. It does one thing, and the thing '
+                       'costs what a flat costs.',
               penalty={}),
 
     # -- cooling -----------------------------------------------------------
@@ -131,6 +152,13 @@ COMPONENTS: tuple[Component, ...] = (
               drawback='Audible. Physical infiltration is harder with a deck '
                        'that whines.',
               penalty={'pretext_bonus': -1}),
+    Component('cool_block', 'Cold Block', 'cooling', 2, 1900,
+              'A machined heatsink the size of a brick, bolted where the '
+              'case was never meant to take one.',
+              effects={'heat_cap': 14}, heat=0,
+              drawback='It needs a fan to be worth the weight, and the fan '
+                       'is not quiet.',
+              penalty={'noise_mult': 1.05}),
     Component('cool_loop', 'Closed Loop', 'cooling', 2, 3900,
               'Liquid, sealed, silent. The point at which overclocking becomes '
               'a tactic rather than a gamble.',
@@ -149,6 +177,12 @@ COMPONENTS: tuple[Component, ...] = (
     Component('mask_stock', 'Stock Scrambler', 'masking', 1, 900,
               'Defeats casual attribution and nothing else.',
               effects={'trace_mult': 0.92}, heat=1),
+    Component('mask_foil', 'Foil Wrap', 'masking', 2, 2200,
+              'A second skin of junk traffic. Cheap to be wrong about who you '
+              'are, and it rustles.',
+              effects={'trace_mult': 0.86}, heat=1,
+              drawback='The junk is itself a noise, on every host you touch.',
+              penalty={'noise_mult': 1.06}),
     Component('mask_shroud', 'Shroud Layer', 'masking', 2, 4100,
               'Real masking, at the cost of a memory slot the layer keeps for '
               'itself.',
@@ -164,14 +198,24 @@ COMPONENTS: tuple[Component, ...] = (
     # -- antenna -----------------------------------------------------------
     Component('ant_none', 'Hardline Only', 'antenna', 1, 0,
               'No radio. You go where the cable is.',
-              effects={'trace_mult': 0.9}),
+              effects={'trace_mult': 0.9},
+              drawback='You hear nothing of the city while you are on the '
+                       'wire, and legwork is mostly hearing.',
+              penalty={'legwork_bonus': -1}),
     Component('ant_short', 'Short Whip', 'antenna', 1, 600,
-              'Enough range to work from the building rather than the room.',
+              'Enough range to work from the building rather than the room, '
+              'and to hear what the building is saying.',
               effects={}, heat=1),
+    Component('ant_dish', 'Window Dish', 'antenna', 2, 1900,
+              'A flat panel taped to the inside of a window. Block range, '
+              'and the block talks.',
+              effects={'legwork_bonus': 1}, heat=1,
+              drawback='Anything pointed can be pointed at.',
+              penalty={'trace_mult': 1.06}),
     Component('ant_long', 'Longwire', 'antenna', 2, 3600,
               'District range. You can run a job from a bar on the other side '
               'of it, which is exactly as good an alibi as it sounds.',
-              effects={'legwork_bonus': 1}, heat=2,
+              effects={'legwork_bonus': 2}, heat=2,
               drawback='A signature that carries district-wide carries to the '
                        'people looking for it as well.',
               penalty={'trace_mult': 1.18}),

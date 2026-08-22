@@ -587,13 +587,39 @@ def cmd_scan(sess, args) -> None:
         c.info('Nothing new.')
         return
     c.blank()
+    # The hunter's eye (D63 c): Ledgerhand shows what a host is worth,
+    # Tidemark how busy it is, Dowser whether it is a boundary. Each is a
+    # column, and each is the whole reason to carry that program.
+    riders = state.char.riders()
+    heads = ['host', 'type', 'zone', 'access']
+    roles = ['accent', 'dim', 'info', 'warn']
+    if 'ledger_eye' in riders:
+        heads.append('worth')
+        roles.append('credit')
+    if 'tide_eye' in riders:
+        heads.append('traffic')
+        roles.append('info')
+    if 'dowse_eye' in riders:
+        heads.append('boundary')
+        roles.append('ice')
     rows = []
     for uid in found:
         node = state.net.nodes[uid]
-        rows.append((uid, node.display_type, node.zone,
-                     'open' if node.open else f'tier {node.tier}'))
-    c.table(('host', 'type', 'zone', 'access'), rows,
-            roles=('accent', 'dim', 'info', 'warn'))
+        row = [uid, node.display_type, node.zone,
+               'open' if node.open else f'tier {node.tier}']
+        if 'ledger_eye' in riders:
+            worth = max((a.value for a in node.data if not a.taken), default=0)
+            row.append(f'{worth:,}c' if worth else 'nothing')
+        if 'tide_eye' in riders:
+            busy = len(node.services) + len(node.data)
+            row.append('busy' if busy >= 4 else 'quiet' if busy <= 1 else 'some')
+        if 'dowse_eye' in riders:
+            deeper = any(state.net.nodes[e].tier > node.tier
+                         for e in node.edges if e in state.net.nodes)
+            warded = any(i.behaviour == 'warden' and i.alive for i in node.ice)
+            row.append('chokepoint' if (deeper or warded) else '')
+        rows.append(tuple(row))
+    c.table(tuple(heads), rows, roles=tuple(roles))
 
 
 @command('probe', 'Enumerate a node: services, data, and what is watching.',
@@ -1368,9 +1394,20 @@ def strike_check(state, target, weapon) -> Check:
     return check
 
 
-def strike_damage(state) -> int:
-    """What a landed strike takes off a construct, before a critical."""
-    return 4 + state.char.skill('warfare') + state.char.bonus('ice_damage')
+def strike_damage(state, target=None) -> int:
+    """What a landed strike takes off a construct, before a critical.
+
+    Shrike (D63 c): twice the weapon's bite against rating 3 and under, and
+    none of it against 6 and up. The note always said so."""
+    bonus = state.char.bonus('ice_damage')
+    if target is not None and 'shrike_edge' in state.char.riders():
+        weapon = programs.best(state.char.deck.loaded, 'weapon')
+        edge = int(weapon.effects.get('ice_damage', 0)) if weapon else 0
+        if target.rating <= 3:
+            bonus += edge
+        elif target.rating >= 6:
+            bonus -= edge
+    return 4 + state.char.skill('warfare') + bonus
 
 
 @command('strike', 'Attack a countermeasure directly.',
@@ -1391,8 +1428,11 @@ def cmd_strike(sess, args) -> None:
     if not state.running:
         return
     c.blank()
+    if 'banshee_alarm' in state.char.riders():
+        # Banshee (D63 c): it announces you. Guaranteed, as the note says.
+        state.escalate(1, 'Banshee announced you to the whole network.')
     if check.success:
-        damage = strike_damage(state)
+        damage = strike_damage(state, target)
         if check.critical:
             damage *= 2
         target.damage_taken += damage
