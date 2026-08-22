@@ -871,6 +871,51 @@ def cmd_delete(sess, args) -> None:
             c.say('[dim]Nobody left. `new` to see the origins.[/]')
 
 
+@command('reset', 'Start over: every character gone, the meta layer too.',
+         group='character', bare=True,
+         usage='reset --confirm [--keep-career]',
+         detail='For testing, and for the rare evening you want the city to '
+                'have never heard of you. Deletes every save slot and resets '
+                'the meta layer (career counters, rice unlocks, what the '
+                'departed left) to new. `--keep-career` deletes the '
+                'characters and keeps the meta, which is the terminal you '
+                'earned and the estates waiting to be claimed. Without '
+                '`--confirm` it only says what would go. There is no undo: '
+                '`save --export` first if any of them matter.')
+def cmd_reset(sess, args) -> None:
+    c = sess.console
+    entries = save_mod.roster()
+    meta = save_mod.read_meta()
+    keep = args.has('keep-career')
+    if not args.has('confirm'):
+        c.header('Reset', 'what would go')
+        if entries:
+            c.say(f'{len(entries)} character{"s" if len(entries) != 1 else ""}: '
+                  + ', '.join(e.handle for e in entries) + '.')
+        else:
+            c.say('[dim]No characters.[/]')
+        c.say('[dim]The meta layer: '
+              f'{int(meta.get("characters_created", 0))} created, '
+              f'{int(meta.get("runs_completed", 0))} runs, the shell you have '
+              f'earned, and anything the departed left.[/]'
+              if not keep else '[dim]The meta layer stays (--keep-career).[/]')
+        c.blank()
+        c.say('[warn]`reset --confirm` to do it, `reset --confirm '
+              '--keep-career` to keep the terminal and the estates. No undo; '
+              '`save --export` first if any of them matter.[/]')
+        return
+    for slot in save_mod.slots():
+        save_mod.delete(slot)
+    if not keep:
+        save_mod.write_meta(dict(save_mod.META_DEFAULT))
+    sess.game = None
+    sess.run = None
+    sess.slot = 'default'
+    sess.apply_shell()
+    c.ok('Fresh. The city has never heard of you.')
+    c.say('[dim]`new` to start.[/]')
+
+
 @command('history', 'What you have typed this session.',
          group='session', bare=True, usage='history [count]')
 def cmd_history(sess, args) -> None:

@@ -3192,7 +3192,8 @@ def check_roster(rep: Report) -> None:
             if 'save' not in getattr(func.value, 'id', ''):
                 continue
             fn = _enclosing_def(ast.parse(src), node)
-            rep.check(fn == 'cmd_delete', f'{path.name}:{node.lineno}',
+            rep.check(fn in ('cmd_delete', 'cmd_reset'),
+                      f'{path.name}:{node.lineno}',
                       f'{fn or "something"} deletes a save. Only `delete` may '
                       f'do that, and only after --confirm')
 

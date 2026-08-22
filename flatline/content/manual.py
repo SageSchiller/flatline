@@ -184,8 +184,9 @@ TOPICS: tuple[Topic, ...] = (
         'one disk failure from gone, and the only thing standing between '
         'those two states is you having typed `save --export` once.',
         see=('death', 'basics', 'shell'),
-        commands=('save', 'restore', 'characters', 'switch', 'delete'),
-        terms=('backup', 'savegame', 'load game', 'roster',
+        commands=('save', 'restore', 'characters', 'switch', 'delete', 'reset'),
+        terms=('backup', 'savegame', 'load game', 'roster', 'start over',
+               'fresh', 'wipe',
                'multiple characters', 'slots', 'another character'),
         group='start'),
     # -- how a run works --------------------------------------------------

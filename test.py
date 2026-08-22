@@ -7417,6 +7417,24 @@ def test_catalogue() -> None:
     sess, out = play([f'load {row}'], game=game)
     T.ok('sable' in game.char.deck.loaded, 'load by row number works')
 
+    # reset wipes the roster and the meta, or just the roster.
+    sess, out = play(['new One --origin gutter', 'reset'])
+    T.ok('would go' in ui.plain(out) and 'One' in ui.plain(out),
+         'reset without --confirm only says what would go')
+    T.ok(save_mod.roster(), 'and deletes nothing')
+    sess, out = play(['reset --confirm'])
+    T.ok(not save_mod.roster(), 'reset --confirm empties the roster')
+    T.eq(save_mod.read_meta().get('characters_created'), 0,
+         'and the meta layer is new')
+    T.ok(sess.game is None, 'and nobody is loaded')
+    sess, _ = play(['new Two --origin gutter'])
+    save_mod.bump_meta(runs_completed=3)
+    sess, out = play(['reset --confirm --keep-career'])
+    T.ok(not save_mod.roster(), '--keep-career still empties the roster')
+    T.ok(save_mod.read_meta().get('runs_completed', 0) >= 3,
+         'and keeps the career')
+    save_mod.write_meta(dict(save_mod.META_DEFAULT))
+
     # unload by row number, and a bare unload lists.
     game = Game.new(Character.from_origin('gutter', 'x'), seed=5)
     sess, out = play(['unload'], game=game)
