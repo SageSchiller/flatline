@@ -1399,6 +1399,27 @@ GROWTH: tuple[Event, ...] = (
           'she has stopped asking anybody for anything.',
           districts=('hall',), requires=('tin_sold',),
           weight=CONSEQUENCE_WEIGHT),
+    Event('collector_fifty_one', 'wry',
+          'The man with the bad knee does the east side on a Tuesday and '
+          'tells somebody on a doorstep that the round is fifty-one now, '
+          'two of them moved, and writes it in the notebook with the pen '
+          'tied to it, and there is something in how he says it.',
+          requires=('collector_told',), weight=CONSEQUENCE_WEIGHT),
+    Event('collector_younger', 'grim',
+          'Somebody younger is doing the collection round on this street '
+          'now, and does not write anything down, and does not know what '
+          'anybody is called, and is quicker about all of it.',
+          requires=('collector_traded',), weight=CONSEQUENCE_WEIGHT),
+    Event('collector_tuesday', 'grim',
+          'The man with the bad knee comes for the number, writes it down, '
+          'and says the round is fifty-three now, and does not say anything '
+          'else, and neither do you.',
+          requires=('collector_kept',), weight=CONSEQUENCE_WEIGHT),
+    Event('collector_backway', 'wry',
+          'The back of the laundry opens onto a yard, and the yard onto a '
+          'stair, and the stair comes out two streets over. An old man told '
+          'you that and then said he had not.',
+          requires=('collector_warned',), weight=CONSEQUENCE_WEIGHT),
 )
 
 RUNNER_CONSEQUENCES: tuple[Event, ...] = (

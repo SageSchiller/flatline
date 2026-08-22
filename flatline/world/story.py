@@ -102,6 +102,10 @@ class Story:
             return value in game.char.traits
         if kind == 'debt':
             return game.debt.amount >= int(value)
+        if kind == 'arranged':
+            # Arrangements standing with factions (D70). World state rather
+            # than a decision, so it is a rule kind and not a flag.
+            return len(game.city.arrangements) >= int(value)
         return False
 
     def available(self, game) -> list[tuple[str, thread_content.Stage]]:

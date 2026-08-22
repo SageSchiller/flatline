@@ -2131,6 +2131,19 @@ has never asked for anything, and then somebody on the kitchen rota asks.
 Six decisions between them, each with an epilogue line and an ambient
 consequence, because D51 still holds.
 
+D65 gave the street arrangements and nobody a face, so D70 also adds **the
+collector**: the man who comes for the number you agreed is sixty eight,
+has a bad knee, does the whole east side on a Tuesday, and writes it in a
+notebook with the pen tied to it. The rota he walks is a file on somebody's
+network, and he wants to read it before he is on it rather than walking it.
+Three answers: tell him what it says about him, sell the sheet to a woman
+in Marrow who reorganises three rounds inside a month, or tell him you
+could not get it and let him keep coming. It waits on `arranged:1`, which
+is world state rather than a decision, so it is a rule kind in
+`world/story.py` and not a flag anything sets: an arrangement standing on
+the street is a fact about the world, and the man is the face D65 was
+missing.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.

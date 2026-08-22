@@ -7841,6 +7841,29 @@ def test_relics() -> None:
 
 
 
+def test_collector() -> None:
+    """D70: an arrangement is world state a thread can read."""
+    T.section('the collector')
+    from flatline.world import story as story_world
+    from flatline.content import threads as thread_content
+
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=4)
+    rules = story_world.Story()
+    T.ok(not rules.satisfied('arranged:1', game),
+         'nobody is collecting from you on day one')
+    game.city.arrangements['sixes'] = {'rate': 120, 'due': 6}
+    T.ok(rules.satisfied('arranged:1', game),
+         'an arrangement satisfies the rule')
+    T.ok(not rules.satisfied('arranged:2', game),
+         'one arrangement is not two')
+
+    thread = [t for t in thread_content.THREADS if t.key == 'collector'][0]
+    T.eq(thread.stages[0].requires, ('arranged:1',),
+         'the man with the bad knee waits on the arrangement')
+    ends = {c.key for st in thread.stages for c in (st.choices or ())}
+    T.eq(ends, {'tell', 'trade', 'nothing'}, 'three ways to answer him')
+
+
 def test_street() -> None:
     """D65: the street is real."""
     T.section('the street')
@@ -8493,7 +8516,7 @@ def test_ladder() -> None:
     console.end_capture()
 
 
-def test_signatures() -> None:
+def test_net_signatures() -> None:
     """D67: a faction's network is its own, structurally."""
     T.section('what each lot builds')
     from flatline.run import network as net_mod
@@ -8731,15 +8754,44 @@ SUITES = (
     test_consequences, test_spine, test_texture, test_arcs,
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
     test_intrusion, test_catalogue, test_money, test_relics, test_street,
+    test_collector,
     test_soak, test_advice, test_scale, test_place, test_ladder,
-    test_signatures, test_breadth, test_new_origins,
+    test_net_signatures, test_breadth, test_new_origins,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,
 )
 
 
+def check_registry() -> None:
+    """Every suite in this file runs exactly once.
+
+    Two suites once shared a name, so the later `def` shadowed the earlier
+    one and sixty-three checks quietly stopped running for weeks. Nothing
+    failed; the count just did not go up. This reads the source rather than
+    the module so a shadowed definition is still visible.
+    """
+    import re as _re
+    defined = _re.findall(r'^def (test_[a-z_0-9]+)\(', open(__file__).read(),
+                          _re.M)
+    seen: set[str] = set()
+    for name in defined:
+        if name in seen:
+            T.failures.append(f'two suites are called {name}(): the second '
+                              f'shadows the first and it never runs')
+        seen.add(name)
+    registered = [s.__name__ for s in SUITES]
+    for name in registered:
+        if registered.count(name) > 1:
+            T.failures.append(f'{name}() is registered more than once')
+            break
+    for name in sorted(seen - set(registered)):
+        T.failures.append(f'{name}() is defined but not in SUITES: it never '
+                          f'runs')
+
+
 def main() -> int:
+    check_registry()
     for suite in SUITES:
         try:
             suite()

@@ -1169,6 +1169,108 @@ MORE_THREADS: tuple[Thread, ...] = (
                   ),
                   where='hall'),
         )),
+
+    # -- what an arrangement is, once you are paying one (D70) ---------------
+    Thread(
+        'collector', 'The Man Who Comes For It',
+        'Somebody collects the number you agreed, every six shifts, and he '
+        'has a name and a route and a bad knee.',
+        crosses=('lender',),
+        stages=(
+            Stage('rota', 'The same man every time',
+                  'It is the same man every time. Sixties, bad knee, a coat '
+                  'that was good once, and a notebook he writes in with the '
+                  'pen tied to it.\n\n'
+                  '"You are on my rota," he says, the fourth time, as though '
+                  'you had asked. "Forty-one of you. I do the whole east side '
+                  'on a Tuesday." He takes the number, writes it down, and '
+                  'then stands there a moment too long before saying: "They '
+                  'have put the rota up. Fifty-three next month. I am sixty '
+                  'eight."',
+                  requires=('arranged:1',),
+                  any_of=('runs:3', 'shift:12'),
+                  sets=('collector_met',)),
+            Stage('overlap', 'The other rota',
+                  'He does not knock. He waits on the step until you come '
+                  'out, which is new, and says it without looking up from '
+                  'the notebook.\n\n'
+                  '"There is a man asking after you at the corner. Not one '
+                  'of mine, the other kind, the ones who do not write it '
+                  'down." He turns a page, turns it back. "I have been on '
+                  'this street since before you were on it. If you go out '
+                  'the back of the laundry and up, you come out two streets '
+                  'over and he will not see you go." A pause. "I did not '
+                  'tell you that."',
+                  requires=('collector_met', 'lender_angry'),
+                  sets=('collector_warned',)),
+            Stage('ask', 'What he wants',
+                  'He asks on the doorstep, without preamble, the way people '
+                  'ask when they have rehearsed it and know it is too big.\n\n'
+                  '"The rota is a file. It is on their network, it says who '
+                  'pays and how much and which of us collects it, and I have '
+                  'seen it once, on a screen, over somebody\'s shoulder." He '
+                  'shifts his weight off the bad knee. "I do not want it '
+                  'destroyed. I want to know what I am on. Whether the round '
+                  'is fifty-three because somebody died or because somebody '
+                  'is skimming, and which of those I can survive."',
+                  requires=('collector_met',),
+                  sets=('collector_asked',),
+                  posts=Posting(
+                      patron='fixers', target='sixes', objective='exfiltrate',
+                      title='The Rota',
+                      blurb='A collection rota: who pays, how much, and which '
+                            'collector walks which round. The man who walks '
+                            'yours would like to read it before it is his '
+                            'turn to be on it.',
+                      label='the collection rota',
+                      pay=1900)),
+            Stage('rota_read', 'What the rota says',
+                  'It is a spreadsheet, and it is worse than that, because '
+                  'it is a good one.\n\n'
+                  'Forty-one names on his round and fifty-three next month, '
+                  'and the twelve new ones are transfers from a round that '
+                  'has no collector against it any more. There is a column '
+                  'nobody would notice unless they were on the sheet, which '
+                  'is a per-collector percentage, and his is the lowest on '
+                  'the page, and has been for nine years.',
+                  requires=('did:collector.ask',),
+                  sets=('collector_read',),
+                  choices=(
+                      Choice('tell', 'Tell him what it says',
+                             'You tell him on the doorstep, all of it, and '
+                             'he listens the way people listen to something '
+                             'they already suspected.\n\n'
+                             '"Nine years," he says. Then: "Right." He writes '
+                             'something in the notebook with the pen tied to '
+                             'it, and does not say what, and the next time he '
+                             'comes for your number he takes it and says, '
+                             '"Fifty-one. Two of them moved," and there is '
+                             'something in how he says it.',
+                             sets=('collector_told',),
+                             rep={'sixes': -5, 'fixers': 10}),
+                      Choice('trade', 'Sell it to somebody who collects rounds',
+                             'A woman in Marrow buys the whole sheet without '
+                             'reading past the first column, which is how '
+                             'you know she already had most of it.\n\n'
+                             'Three rounds are reorganised inside a month. '
+                             'The man with the bad knee is not on any of '
+                             'them, and somebody younger does your street '
+                             'now, and does not write anything down.',
+                             sets=('collector_traded',),
+                             credits=2200,
+                             rep={'fixers': 15, 'sixes': -10}),
+                      Choice('nothing', 'Tell him you could not get it',
+                             'You tell him you could not get it. He nods, '
+                             'and says that is all right, and that it was a '
+                             'lot to ask, and takes the number, and writes '
+                             'it down.\n\n'
+                             'He comes for it every six shifts after that, '
+                             'and the round is fifty-three, and he does the '
+                             'whole east side on a Tuesday, and neither of '
+                             'you mentions it again.',
+                             sets=('collector_kept',)),
+                  )),
+        )),
 )
 
 

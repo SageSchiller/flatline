@@ -33,7 +33,7 @@ from dataclasses import dataclass, field
 #: finished, see `Posting`).
 CONDITIONS = ('runs', 'diss', 'shift', 'credits', 'heat', 'met', 'rep',
               'ran', 'origin', 'debt', 'trait', 'did', 'bond', 'found',
-              'street', 'warned', 'heard')
+              'street', 'warned', 'heard', 'arranged')
 
 
 @dataclass(frozen=True, slots=True)
@@ -910,7 +910,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
     Thread(
         'lender', 'The Lender',
         'The loan on the deck is real and it is not a bank.',
-        crosses=(),
+        crosses=('collector',),
         stages=(
             Stage('visit', 'They stop sending messages',
                   'The department stopped answering. The lender did not. '

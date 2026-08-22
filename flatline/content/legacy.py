@@ -578,6 +578,18 @@ EPILOGUE: tuple[tuple[str, str], ...] = (
     ('tin_sold',
      'You sold the Hall\'s authorisation, and told the woman on the rota it '
      'had not worked, and she said right and went back to stirring.'),
+    ('collector_told',
+     'You told the man with the bad knee what the rota said about him, and '
+     'he wrote something in the notebook with the pen tied to it, and the '
+     'round was fifty-one the next time he came.'),
+    ('collector_traded',
+     'You sold the collection rota to a woman in Marrow, and three rounds '
+     'were reorganised inside a month, and somebody younger did your street '
+     'and did not write anything down.'),
+    ('collector_kept',
+     'You told the man with the bad knee you could not get the rota, and he '
+     'said that was all right, and came for the number every six shifts '
+     'after that.'),
 )
 
 EPILOGUE_BY_FLAG: dict[str, str] = {flag: line for flag, line in EPILOGUE}
