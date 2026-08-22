@@ -143,7 +143,19 @@ SPOTS: tuple[Spot, ...] = (
          night='At night the lobby goes to its night setting, which is '
                'brighter, and the desk is staffed by somebody reading a '
                'screen angled so the camera can read it too.',
-         who=('auditor',)),
+         who=('auditor',),
+         finds=(Find('boxstep', requires=('met:tailor', 'runs:5'),
+                     hours=('morning',),
+                     text='Mrs Achterberg is in the lobby with the tape round '
+                          'her neck, not fitting anybody, watching the floor '
+                          'the way you watch a thing you built. She hands you '
+                          'a chip without looking at you. "It walks like '
+                          'somebody who is allowed to be here. So do I."',
+                     rumour='They say the Vertical\'s lobby learned what a '
+                            'person who belongs there walks like from the '
+                            'person it watches most, and that she has never '
+                            'once been logged.',
+                     tone='wry'),)),
     Spot('walkways', 'the walkways', 'vertical',
          'Glass bridges between the towers at the twelfth floor, full of '
          'people allowed to be on them, moving at the building\'s pace. From '
@@ -436,7 +448,17 @@ SPOTS: tuple[Spot, ...] = (
          'Four thousand items behind a counter and one under a cloth. Every '
          'officer on the shift knows what you mean when you ask about the '
          'cloth and every one of them changes the subject with the same '
-         'sentence, which is very well designed.'),
+         'sentence, which is very well designed.',
+         finds=(Find('lostproperty', requires=('met:desk', 'rep:nightwatch:15'),
+                     text='The desk sergeant puts a form on the counter, '
+                          'turned round, already filled in, and taps the box '
+                          'that says DUE FOR DISPOSAL. "That is the schedule. '
+                          'It is public. Nobody has ever asked me for it."',
+                     rumour='Somebody says the Watch\'s retention schedule is '
+                            'public, technically, and that nobody has ever '
+                            'asked the desk for it, and that the desk would '
+                            'quite like somebody to.',
+                     tone='wry'),)),
     Spot('waiting', 'the waiting room', 'precinct',
          'A room for waiting in, lit at the level somebody costed, with '
          'chairs bolted down and a screen showing the queue number, which '
@@ -464,7 +486,18 @@ SPOTS: tuple[Spot, ...] = (
          'A tap on the fourth landing with a rota beside it, handwritten, '
          'with eleven thousand people on it in principle and forty in '
          'practice, and the forty keep the rota, and the rota is the nearest '
-         'thing the Terraces has to a government.'),
+         'thing the Terraces has to a government.',
+         finds=(Find('waterbearer', requires=('met:widow',), hours=('afternoon',),
+                     text='She stops on the fourth landing, puts both cans '
+                          'down, and works something off her shoulder under '
+                          'the coat, and puts it in your hands, and picks the '
+                          'cans back up. "It was his. Then it was mine. Sixth '
+                          'floor. Mind the seventh step."',
+                     rumour='The old woman at the water point is said to have '
+                            'carried two cans up six floors every day for '
+                            'forty years, and to have had help with it, and '
+                            'to be looking for somebody to give the help to.',
+                     tone='tragic' if False else 'grim'),)),
     # -- The Stacks (D64 b) -------------------------------------------------
     Spot('presses', 'the presses', 'stacks',
          'Four machines older than anybody working them, behind a wall that '
@@ -572,6 +605,46 @@ SPOTS: tuple[Spot, ...] = (
                             'like, and to keep the recording under it for '
                             'somebody, and not to say for whom.',
                      tone='grim'),)),
+
+    # -- more places (D65 depth) ---------------------------------------------
+    Spot('ink', 'the ink store', 'stacks',
+         'Drums of it, stacked two high, in a room with a drain in the floor '
+         'and a smell that gets into clothes and stays. Somebody has written '
+         'the delivery dates on the wall in the ink, which is either a joke '
+         'or the only pen anybody had.',
+         who=('printer',)),
+    Spot('gantry', 'the gantry', 'stacks',
+         'A walkway between two roofs, tin under a tin roof, where the rain '
+         'is loud and nobody can hear a conversation from either end. Half '
+         'the district\'s business happens up here, in the rain, at volume.',
+         night='At night the gantry is the only place in the Stacks where '
+               'you can see the whole of it lit: the presses, the towers, '
+               'the shacks, and the Terraces above it all, dripping.'),
+    Spot('atrium', 'the atrium', 'row',
+         'Glass to the roof and a floor you can hear yourself on, with three '
+         'chairs nobody sits in and a plant that is not real and is very '
+         'good. The lift arrives without being called, which means somebody '
+         'upstairs is watching who is standing here.',
+         who=('notary',)),
+    Spot('archive_row', 'the paper archive', 'row',
+         'Two floors down, cold, and full of things Meridian keep on paper '
+         'because paper cannot be read remotely. A clerk pushes a trolley '
+         'along a row and does not look up, and the row goes further than '
+         'the light does.'),
+    Spot('boards', 'the departure boards', 'hall',
+         'Eleven of them, all lit, none of them showing a train. Somebody in '
+         'the Chorus updates them by hand from a keyboard behind the '
+         'concourse, and the eleventh has shown the same hymn for six years '
+         'because the keyboard has a dead key.',
+         night='At night the boards are the light in the Hall, and people '
+               'sleep under them because the light is warm, and the eleventh '
+               'still says what it has always said.'),
+    Spot('side_chapel', 'the side chapel', 'hall',
+         'What used to be the ticket office, with the window bricked and a '
+         'bench in it and room for four. People come in here to say things '
+         'they do not want the platform to hear, and the Chorus have never '
+         'once put a door on it.',
+         who=('cantor',)),
 
 )
 

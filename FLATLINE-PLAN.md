@@ -3176,3 +3176,13 @@ looped: the shop it could not afford, the buy nobody named, the load with
 no memory, and the board's first row. Plus the tier ladder in generation.
 A follower now goes take -> errand -> buy -> unload -> load -> travel ->
 jack in and finishes runs. `test.py` green at **15,074 checks**.
+
+### 2026-08-21 (z): something in every district
+
+Three relics for the three districts that had nothing to find (Boxstep,
+the Vertical's own gait model, from the tailor; Lost Property, the Watch's
+retention schedule, from the desk; The Water Bearer, a shoulder brace that
+has been up six floors every day for forty years, from the Widow), six
+more places to stand in the new districts, and a validate rule that every
+district has something in it to find. 24 relics, 60 places.
+`test.py` green at **15,077 checks**.

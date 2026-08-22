@@ -514,6 +514,42 @@ RELICS: tuple[Program, ...] = (
                  'afford the shelf and wrote it in a stairwell. Moth gave it '
                  'to you the way Moth gives anything, which is by leaving it '
                  'where you would find it and denying it later.'),
+    Program('boxstep', 'Boxstep', 'daemon', 2, 4, 0.55, 5100, 3,
+            'The gait model the Vertical\'s lobby runs, taken out of the '
+            'lobby. It knows what a person walking somewhere they are '
+            'allowed to be looks like, and it walks like that, all night, '
+            'wherever you put it.',
+            effects={'trace_mult': 0.9},
+            note='A daemon that holds a node by belonging there.',
+            unique=True,
+            lore='Ninety floors and a lobby that logs your gait, and every '
+                 'one of the people who matter has stood in their socks on '
+                 'Mrs Achterberg\'s box while she read their shoulders. She '
+                 'has been fitting the building for thirty years and she has '
+                 'never once been logged, because the lobby learned its idea '
+                 'of a person who belongs there from the people it watches '
+                 'most, and the person it watches most is a small woman with '
+                 'pins in her mouth. She gave you the model. She did not say '
+                 'how she got it and you did not ask, and neither of you has '
+                 'mentioned it since.'),
+    Program('lostproperty', 'Lost Property', 'wiper', 1, 4, 0.5, 4300, 3,
+            'The Watch\'s own retention schedule, which says what gets '
+            'destroyed and when. Run it over what you left behind and the '
+            'network files it as due for disposal.',
+            effects={'residue_mult': 0.6},
+            note='One memory. It does not delete anything. It reclassifies.',
+            unique=True,
+            lore='Nightwatch keep a lost property office because the Watch '
+                 'keeps everything, and everything includes the things they '
+                 'took off people who did not come back for them, and the '
+                 'schedule that says when the shelf gets cleared. The desk '
+                 'sergeant has worked that counter for eleven years and has '
+                 'watched the shelf clear twice, and both times it was '
+                 'people, not property. What they gave you is not a program '
+                 'anybody wrote: it is the schedule, and a network that '
+                 'reads it agrees that what you left is due for disposal, '
+                 'because the network has no opinion about a form that is '
+                 'correctly filled in.'),
     Program('survey', 'The Survey', 'hunter', 1, 3, 0.6, 1900, 1,
             'Tuck\'s map of every cable in the Ninth, on something that is '
             'not paper. It is a map of a district, and it turns out a '

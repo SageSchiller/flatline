@@ -3937,6 +3937,12 @@ def check_relics(rep: Report) -> None:
             for k, _tier, _price in market_mod._catalogue('drug', service):
                 rep.check(k != key, where, f'can be rolled by a {service}')
 
+    # D65 depth: every district has something in it to find, so that
+    # exploring anywhere is worth the hour it costs.
+    covered = {spot_content.spot_of(f).district for f in spot_content.FINDS}
+    for d in districts.DISTRICTS:
+        rep.check(d.key in covered, f'relics/{d.key}',
+                  'nothing in this district can be found')
     phases = set(shifts.PHASE_KEYS)
     for f in spot_content.FINDS:
         where = f'spots/finds/{f.item}'

@@ -421,6 +421,25 @@ RELICS: tuple[Ware, ...] = (
               'drifting already, in them, and has nothing left to do in '
               'anybody else. You found it on a night when the room was empty '
               'and you were far enough gone yourself to think of looking.'),
+    Ware('waterbearer', 'The Water Bearer', 'unbranded, older than most',
+         'limb', 1, 2, 2100, 2,
+         'A shoulder brace off somebody who carried cans up stairwells for '
+         'forty years, adjusted by somebody who did the same, and it '
+         'remembers the stairs better than you do.',
+         effects={'grit': 1, 'skill_fieldcraft': 1},
+         drawback='It was fitted to somebody else and it has opinions about '
+                  'the angle of your arm.',
+         penalty={'reflex': -1},
+         unique=True,
+         lore='The Widow at the water point has outlived a husband, two '
+              'children and most of a stairwell, and has carried two cans up '
+              'six floors every day of it, and this is what let her. It came '
+              'out of her husband, who did not need it any more, and she '
+              'wore it for thirty years, and she took it off and put it in '
+              'your hands on a landing on the way up because you had carried '
+              'the third can without being asked twice. It is not good '
+              'chrome. It is the best-worn piece of anything in this city, '
+              'and it knows exactly how far it is to the sixth floor.'),
     Ware('lark_piece', 'What Came Out of Lark', 'Aoyama, second-hand',
          'neural', 2, 9, 2400, 2,
          'A reflex shunt, load-bearing by the end. It was keeping Lark '
