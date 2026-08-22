@@ -12,7 +12,7 @@ updated: 2026-08-21
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,387 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. Then **D54** (six lines and four topics per person, in seventeen voices; hours, so the clock is a reason to be somewhere) and **D55** (nine threads rooted in the districts, twenty-two decisions, four postings). Then **D56**: a decision at each rival's bond latch (fourteen scenes, twenty-eight decisions, read by the hire price, the shift boundary, four events and the epilogue), and the wire carrying scenes, decisions and what a run did to the city. Then **D57** (the city drawn, `walk`) and **D58** (forty-five places, twenty-two people, the street, a hundred and fifty-four events). Then **D59**, the readout: one dim line after every tick spent in a run, as the seventh rice axis (`hud`: line, bar, terse, quiet). **Phase 7** items 1 to 6, 8, 18 and 19 are done; **next, in the author's order: the tutorial's second half (10), then run conditions (15).** Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
+> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,387 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. Then **D54** (six lines and four topics per person, in seventeen voices; hours, so the clock is a reason to be somewhere) and **D55** (nine threads rooted in the districts, twenty-two decisions, four postings). Then **D56**: a decision at each rival's bond latch (fourteen scenes, twenty-eight decisions, read by the hire price, the shift boundary, four events and the epilogue), and the wire carrying scenes, decisions and what a run did to the city. Then **D57** (the city drawn, `walk`) and **D58** (forty-five places, twenty-two people, the street, a hundred and fifty-four events). Then **D59**, the readout: one dim line after every tick spent in a run, as the seventh rice axis (`hud`: line, bar, terse, quiet). Then **D60**, the tutorial's second half: nine more steps, past the door into what the city does. **Phase 7** items 1 to 6, 8, 10, 18 and 19 are done; **next: run conditions (15).** Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
@@ -1503,6 +1503,27 @@ does not read the meta file. Nothing here touches a number: the prompt
 carries the trace whichever state you choose, and `validate.py` still
 holds every prompt style to that.
 
+### D60: The tutorial goes past the door
+
+Sixteen steps took a new player from `new` to `jack out`, and stopped. The
+thesis of the game is what happens after the door, and the one reader with
+no way to tell the tutorial was incomplete was the person reading it.
+
+Nine more steps, on the same mechanism (an instruction, a reason, a
+condition checked after every command, a payoff): spend a shift and watch
+the residue land; `rep`; `look`, and the hour, the street, the people and
+the places it shows; `talk` and `who is`, because talking is how threads
+start; `visit`; `journal`, and `choose`; Enter on an empty line, which is
+the answer to being lost; `retire`, so the door is discovered at the start
+of the campaign and not by accident at the end; and a second contract,
+because the second run is the one where the city remembers the first. The
+closing points at `map`, `walk` and `news` as well as the manual.
+
+The conditions stay total and cheap, `validate.py` still runs every one
+against an empty session, and the second half arrives for anybody who
+asks for the tutorial late: the first half is satisfied by having played,
+and the tutorial starts at the first step that is not.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -1760,9 +1781,7 @@ More districts, factions, chrome, and programs. Content, not systems.
 8. ~~A HUD line after every tick-costing run action.~~ Done: D59, as the
    `hud` rice axis.
 9. **"Previously" on resume**: five lines when you `switch` or continue.
-10. **Tutorial, second half**: heat arriving a shift later, `talk` and
-    `choose`, `rep`, the door (`retire`). The tutorial stops before the city
-    remembers anything.
+10. ~~Tutorial, second half.~~ Done: D60, nine more steps.
 11. **`odds` for connect, pull, scrub and strike.** D14 says no hidden dice
     and one verb answers.
 
@@ -2539,3 +2558,19 @@ four options is not a choice) is why there are four states and not two.
 
 `validate.py` clean, `test.py` green at **13,766 checks**. 71 pieces across
 7 axes.
+
+### 2026-08-21 (i): the tutorial goes past the door
+
+**D60.** Nine more steps after `jack out`: the residue landing, `rep`,
+`look`, `talk`, `visit`, `journal`, the empty line, `retire`, and a second
+contract. Same mechanism, same rules, and the closing now points at the
+map, the walk and the wire.
+
+**One thing the test taught.** A walk through the steps by `tutorial skip`
+has to expect the steps that are already true to complete themselves on
+the way past: `out` and `settle` are both satisfied for a character who has
+run once and left nothing pending, so skipping toward `settle` lands on
+`rep`. The tutorial was right and the first draft of the test was not.
+
+`validate.py` clean, `test.py` green at **13,788 checks**. 25 tutorial
+steps.

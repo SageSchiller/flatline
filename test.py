@@ -6386,9 +6386,68 @@ def test_arcs() -> None:
     T.ok('will not' in out, 'the Surgeon will not, once the ledger is taken')
 
 
+def test_tutorial_second_half() -> None:
+    """D60: the tutorial goes on past the door, into what the city does."""
+    T.section('tutorial')
+    from flatline.content import tutorial as tut
+    keys = [s.key for s in tut.STEPS]
+    T.ok(keys.index('out') < keys.index('settle') < keys.index('again'),
+         'the second half follows the first, in order')
+    for key in ('settle', 'rep', 'look', 'talk', 'visit', 'journal', 'now',
+                'door', 'again'):
+        T.ok(key in keys, f'there is a {key} step')
+
+    # A character who has run once and is standing in the city gets the
+    # second half, step by step, however they get there.
+    game = Game.new(Character.from_origin('gutter', 'Taught'), seed=4242)
+    game.char.runs = 1
+    sess, out = play(['tutorial'], game=game)
+    T.ok(sess.tutorial_step >= 0, 'the tutorial starts')
+    # Everything up to `out` is satisfied or skippable; walk into the second
+    # half. `out` and `settle` are both already true for a character who has
+    # run once and left nothing pending, so the walk lands on `rep`.
+    for _ in range(30):
+        if sess.tutorial_step < 0:
+            break
+        if tut.STEPS[sess.tutorial_step].key in ('settle', 'rep'):
+            break
+        sess.execute('tutorial skip')
+    T.ok(sess.tutorial_step >= 0
+         and tut.STEPS[sess.tutorial_step].key in ('settle', 'rep'),
+         'and reaches the second half')
+    if tut.STEPS[sess.tutorial_step].key == 'settle':
+        sess.console.start_capture()
+        sess.execute('rest 1')
+        out = sess.console.end_capture()
+        T.ok('landed' in out, 'a shift completes settle')
+    step = tut.STEPS[sess.tutorial_step].key
+    T.eq(step, 'rep', 'and the next step is rep')
+    sess.execute('rep')
+    T.eq(tut.STEPS[sess.tutorial_step].key, 'look', 'then look')
+    sess.execute('look')
+    T.eq(tut.STEPS[sess.tutorial_step].key, 'talk', 'then talk')
+    sess.execute('talk mara')
+    T.eq(tut.STEPS[sess.tutorial_step].key, 'visit', 'then visit')
+    sess.execute('visit exchange')
+    T.eq(tut.STEPS[sess.tutorial_step].key, 'journal', 'then journal')
+    sess.execute('journal')
+    T.eq(tut.STEPS[sess.tutorial_step].key, 'now', 'then the empty line')
+    sess.execute('')
+    T.eq(tut.STEPS[sess.tutorial_step].key, 'door', 'then the door')
+    sess.execute('retire')
+    T.eq(tut.STEPS[sess.tutorial_step].key, 'again', 'then another contract')
+    sess.console.start_capture()
+    sess.execute(f'take {game.city.board[0].cid}')
+    out = sess.console.end_capture()
+    T.ok(sess.tutorial_step < 0, 'and taking one ends the tutorial')
+    T.ok('done all of it once' in out and 'news' in out,
+         'with a closing that points at the wire and the map')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
+    test_tutorial_second_half,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,

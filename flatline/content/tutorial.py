@@ -226,6 +226,111 @@ STEPS: tuple[Step, ...] = (
         payoff='Out. Look at the residue line in that summary: it is the only '
                'number that follows you home.',
         topic='heat'),
+
+    # -- the second half: the city remembers (D60) ------------------------------
+    #
+    # The tutorial used to stop at the door. The thesis of the game is what
+    # happens after the door, and the one player with no way to tell that the
+    # tutorial was incomplete was the one reading it.
+    Step(
+        'settle',
+        'Spend a shift: `rest 1`. The residue you left is about to become '
+        'somebody\'s attention.',
+        'Residue does not follow you out of the network as heat. It follows '
+        'you out as evidence, and a shift later somebody has read it, and '
+        'then it is heat. That gap is the only reason getting out quietly '
+        'ever feels like getting away with it.',
+        done=lambda s: _has_game(s) and s.game.char.runs > 0
+        and not s.game.city.pending,
+        payoff='It has landed. Whatever you left behind is a number on a '
+               'faction\'s side of the ledger now.',
+        topic='heat'),
+    Step(
+        'rep',
+        'Type `rep` to see how the city feels about you.',
+        'Standing is what people will pay you; attention is how hard they '
+        'are looking for you. They are different numbers and they move for '
+        'different reasons, and past a threshold attention becomes a bounty, '
+        'which is a faction paying for your name.',
+        done=lambda s: 'rep' in getattr(s, 'seen', set()),
+        payoff='Every number on that screen came from something you did, or '
+               'something you were seen doing.',
+        topic='heat'),
+    Step(
+        'look',
+        'Type `look` to see where you are standing, who is about, and the '
+        'places you can go and stand.',
+        'A district is more than its market. There are people here who hand '
+        'out work, keep private stock, do favours on a tab, and have opinions '
+        'about what you are doing, and they keep hours. `look` says who is '
+        'here now and who keeps other hours.',
+        done=lambda s: 'look' in getattr(s, 'seen', set()),
+        payoff='That is the city in one screen: the hour, the street, the '
+               'people, the places.',
+        topic='city'),
+    Step(
+        'talk',
+        'Type `talk <name>` to somebody here, and `who is <name>` for what '
+        'you know about them.',
+        'Talking is how threads start. Meeting somebody sets a flag, and '
+        'scenes arrive when their conditions hold, in whatever order the '
+        'world produced them. Nobody here is a shop with a face on it.',
+        done=lambda s: 'talk' in getattr(s, 'seen', set()),
+        payoff='They have an opinion about you now. So will the story.',
+        topic='people'),
+    Step(
+        'visit',
+        'Type `visit <place>` to go and stand somewhere in the district. It '
+        'costs nothing.',
+        'The places are texture, and texture is most of what makes a city '
+        'feel like it goes on when you are not looking. Some of the people '
+        'are easier to find at their place than in the street.',
+        done=lambda s: 'visit' in getattr(s, 'seen', set()),
+        payoff='Every place in a scene is a place you can go and stand in '
+               'afterwards.',
+        topic='city'),
+    Step(
+        'journal',
+        'Type `journal` to see what you have got yourself into.',
+        'Threads, not quest chains: several are running at once, none of '
+        'them waits for you, and advancing one changes the shape of another. '
+        'The journal is where they are, and `choose` is how you answer one '
+        'that is waiting on you.',
+        done=lambda s: 'journal' in getattr(s, 'seen', set()),
+        payoff='Every decision in there is read by the world, and every one '
+               'has a line in the ending.',
+        topic='threads'),
+    Step(
+        'now',
+        'Press Enter on an empty line.',
+        'That is `now`: the next real move, the reason, and the verbs that '
+        'matter where you are standing. It is the answer to being lost, in '
+        'the city and inside a run, and it never costs a thing.',
+        done=lambda s: 'now' in getattr(s, 'seen', set()),
+        payoff='Whenever you do not know what to type, that.',
+        topic='basics'),
+    Step(
+        'door',
+        'Type `retire` to see how far off the door is.',
+        'There is a way out you choose, and it wants four things: nothing '
+        'owed, nothing in you that you need, nobody paying for your name, '
+        'and enough put away. None of them is hard alone. All four at once '
+        'is the campaign.',
+        done=lambda s: 'retire' in getattr(s, 'seen', set()),
+        payoff='The door has been there since the first shift. Every system '
+               'in this city is quietly making it further away.',
+        topic='death'),
+    Step(
+        'again',
+        'Take another contract: `board`, then `take <row>`.',
+        'That is the loop. The second run is the one where the city '
+        'remembers the first: the faction you hit is harder, the people who '
+        'noticed you are looking, and the other runners have taken the work '
+        'you did not.',
+        done=lambda s: _has_game(s) and s.game.char.runs > 0
+        and bool(s.game.city.accepted),
+        payoff='Good. Everything from here is yours.',
+        topic='firstrun'),
 )
 
 STEP_KEYS: tuple[str, ...] = tuple(s.key for s in STEPS)
@@ -237,17 +342,21 @@ OPENING = (
 )
 
 CLOSING = (
-    'That is the loop, and you have now done all of it once.\n\n'
+    'That is the loop, and you have now done all of it once, and seen what '
+    'the city does with it.\n\n'
     'What the tutorial did not cover, and what to read when you want it:\n'
     '  [fg]help triangle[/]   the three numbers, properly\n'
     '  [fg]help heat[/]       what the residue you left is about to become\n'
     '  [fg]help skills[/]     where your experience should go\n'
     '  [fg]help rivals[/]     the other people doing this job\n'
-    '  [fg]help money[/]      what things cost and what a run is worth\n\n'
+    '  [fg]help money[/]      what things cost and what a run is worth\n'
+    '  [fg]map[/]             the city, drawn, and `walk` to anywhere on it\n'
+    '  [fg]news[/]            what the city did while you were not looking\n\n'
     'The residue from that run becomes heat in a shift or so. Everything '
     'else in this city follows from that one fact.'
 )
 
 #: Commands whose mere use satisfies a step. Tracked because "did they look at
 #: it" is a legitimate teaching goal and is not otherwise visible in state.
-WATCHED = ('char', 'board', 'deck', 'odds', 'status')
+WATCHED = ('char', 'board', 'deck', 'odds', 'status', 'rep', 'look',
+           'talk', 'visit', 'journal', 'now', 'retire')
