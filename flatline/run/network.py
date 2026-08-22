@@ -448,6 +448,7 @@ def generate(rng: Stream, faction: str, posture: int,
     _place_objective(rng, net, objective, size_mod, posture)
     _ensure_ladder(rng, net, scale)
     _openable_route(rng, net, scale)
+    _populate_route(rng, net, scale, faction, objective)
     _signature(rng, net, fac)
     return net
 
@@ -945,6 +946,74 @@ def _soften_route(net: Network) -> None:
             # fresh build's own face can carry.
             if node.tier <= SOFT_TIER:
                 construct.rating = min(construct.rating, SOFT_DOORMAN)
+
+
+#: The behaviours that belong on a soft route: things that act and can be
+#: answered by going quiet, moving, or leaving. Not wardens, which guard
+#: the door rather than the room and are the one kind a fresh build cannot
+#: get past (D72).
+ROUTE_BEHAVIOURS = ('sentry', 'probe', 'trap')
+
+
+def _populate_route(rng: Stream, net: Network, scale: float,
+                    faction: str, objective: str = '') -> None:
+    """Put something on the route that is worth reacting to (D72).
+
+    ICE is rolled per host, deeper zones are meaner, and the entry never
+    gets any: three reasonable rules that together produced a first night
+    with a median of zero constructs on the hosts a player actually walks
+    through. The network had three of them and they were all somewhere
+    else. Nothing telegraphed, nothing struck, nothing had to be answered,
+    and the run was eight ticks of typing the word the brief printed.
+
+    D6 is telegraphed-then-absolute: everything gets a tell and a tick to
+    answer it. That contract is worth nothing on a route with nothing on
+    it. So the walked route carries a floor of live constructs, scaled by
+    posture, and at a gang that floor is one. It is a floor and not a
+    quota: a corporate route already runs seven and this does nothing to
+    it.
+
+    In front of the desk the choice is restricted to the things that can
+    be answered without a badge or a weapon, which is the D71 promise and
+    the reason this cannot quietly undo it.
+    """
+    objective_node = net.objective_node
+    if not objective_node or objective_node not in net.nodes:
+        return
+    walls = {uid for uid, node in net.nodes.items() if _is_wall(node)}
+    route = [u for u in (_route(net, objective_node, avoid=walls)
+                         or _route(net, objective_node))
+             if u != net.entry]
+    if objective == 'surveil':
+        # A residency job is the one objective you cannot answer by being
+        # quick about it: eight clean ticks on a host with something awake
+        # on it is not a hard job, it is an arithmetic impossibility, and
+        # the danger belongs on the way in rather than on the chair.
+        route = [u for u in route if u != objective_node]
+    if not route:
+        return
+    floor = max(1, int(round(3.0 * scale)))
+    live = sum(1 for u in route for c in net.nodes[u].ice if c.alive)
+    fac = factions.BY_KEY[faction]
+    made = 0
+    while live < floor and made < 4:
+        # The emptiest host on the route, so this thickens the thin part
+        # rather than piling a third construct onto the one that rolled two.
+        node = min((net.nodes[u] for u in route),
+                   key=lambda n: (len(n.ice), n.uid))
+        behaviour = rng.pick(ROUTE_BEHAVIOURS)
+        pool = (ice_content.available(behaviour, faction)
+                or ice_content.by_behaviour(behaviour))
+        if not pool:
+            return
+        it = rng.pick(pool)
+        lo, hi = it.rating
+        rating = max(1, int(round(rng.int(lo, hi) * (0.75 + 0.5 * scale)
+                                  * fac.style.get('density', 1.0))))
+        made += 1
+        live += 1
+        node.ice.append(IceInstance(uid=f'{it.key}-r{made}', key=it.key,
+                                    rating=rating))
 
 
 def _openable_route(rng: Stream, net: Network, scale: float) -> None:

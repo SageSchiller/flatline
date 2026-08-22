@@ -1086,6 +1086,22 @@ class RunState:
         if construct.known or lead > 0:
             self.console.say(f'[dim]that reads as {name}.[/]')
             construct.known = True
+        if 'first_tell' not in self.spent and data.behaviour != 'black':
+            # Said once a run, the first time anything winds up at all. The
+            # tell buys you a tick, and a tick is only worth something to
+            # somebody who knows what can be done with one. The black
+            # warning below has always existed; ordinary countermeasures
+            # had the same fairness contract and nothing that explained it
+            # (D72).
+            self.spent.add('first_tell')
+            self.console.say('[warn]It moves next tick. A tell is a tick to '
+                             'answer it in: `connect` to another host and it '
+                             'is somebody else\'s problem, `strike` it if you '
+                             'brought something that hits, or `mask` and go '
+                             'quiet and hope it settles.[/]')
+            self.console.say('[dim]`here` says what is on this host. Standing '
+                             'still is also an answer, and sometimes the '
+                             'right one.[/]')
         if data.behaviour == 'black' and 'black_tell' not in self.spent:
             # Said once a run, the first time something lethal winds up. The
             # tell system is fair in the letter only if the correct response
@@ -1642,9 +1658,22 @@ class RunState:
 
     def _objective_progress(self, kind: str, asset_name: str) -> str:
         if kind == 'surveil':
+            if self.observed_enough:
+                return (f'{self.observed} of {self.SURVEIL_TICKS} clean ticks '
+                        f'banked, which is enough')
+            # What to do about it, not just where it stands. A bar that
+            # counts to eight without ever saying what banks one, or what
+            # empties the lot, is a number somebody watches and does not
+            # understand.
+            if self.here != self.net.objective_node:
+                where = f'nothing banks until you are on {self.net.objective_node}'
+            elif self.alert in ('red', 'lockdown'):
+                where = ('nothing banks while the room is red; go quiet and '
+                         'let it stand down')
+            else:
+                where = '`observe` banks one, and red empties the lot'
             return (f'{self.observed} of {self.SURVEIL_TICKS} clean ticks '
-                    f'banked' + (', which is enough' if self.observed_enough
-                                 else ''))
+                    f'banked: {where}')
         if kind == 'escort' and self.escort:
             return (f'{self.escort["name"]} is on {self.escort["node"]}, '
                     f'{self.escort["state"]}'
@@ -1929,12 +1958,17 @@ class RunState:
         }.get(kind, ('pull',))
 
     def _something_hunting(self) -> bool:
-        """Whether anything alive is keeping the room loud. Quiet ticks
-        are what cools an alert, and a construct that acts every tick is
-        noise that no amount of standing still will out-wait."""
-        return any(c.alive and c.behaviour in ('hunter', 'sentry')
-                   for node in self.net.nodes.values() for c in node.ice
-                   if node.known)
+        """Whether anything is keeping *this room* loud.
+
+        Quiet ticks cool an alert, so waiting is the answer to a room that
+        went red on its own. It is not the answer to something awake on
+        the host you are standing on, or something locked on to you, which
+        acts every tick wherever you go. Anything dormant, or awake three
+        hosts away, is not a reason to give up on standing still.
+        """
+        here = [c for c in self.node.ice if c.alive
+                and c.state in ('awake', 'locked')]
+        return bool(here or [c for c in self.locked if c.alive])
 
     def _huntable(self) -> str:
         """The name of something worth striking, if striking is a thing

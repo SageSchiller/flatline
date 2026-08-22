@@ -2233,6 +2233,63 @@ prove it: a mid build still finishes 18-24 of 24 against a gang, 4-9
 against Kagawa, 4-10 against Meridian and 2-4 against Deepwater. Posture
 is still the difficulty. It is the first hour that was lying.
 
+### D72: Something in the room, and a word about what it means
+
+Play-test report, unprompted and exactly right: *"There doesn't seem to be
+anything tricky or dangerous going on. It's rather boring really."*
+
+Measured, and it was true. **The median number of live countermeasures on
+the hosts a player actually walks through was zero.** A first-night
+network had about three constructs on it and all of them were somewhere
+else. ICE is rolled per host, deeper zones are meaner and the entry never
+gets any, which are three reasonable rules that together empty the one
+path anybody takes. D71 had made it worse by stripping the unanswerable
+wardens out of the front of the route without putting anything answerable
+back.
+
+D6 is telegraphed-then-absolute: everything gets a tell and a tick to
+answer it. That contract is worth nothing on a route with nothing on it.
+So `_populate_route` puts a floor of live constructs on the walk, scaled
+by posture, and at a gang that floor is one. A floor, not a quota: a
+corporate route already runs seven and this does not touch it. In front
+of the desk it draws only from the behaviours a fresh build can answer by
+going quiet, moving, or leaving, which is the D71 promise and the reason
+this cannot quietly undo it.
+
+One exception, and it is the interesting one: **the chair is left clear on
+a residency job.** Eight clean ticks on a host with something awake on it
+is not a hard job, it is an arithmetic impossibility, so the danger goes
+on the way in rather than on the thing you have to sit on.
+
+Then the half that was not about density at all.
+
+**The surveil brief was wrong.** It said "Take nothing, break nothing",
+and the code has never read either: a tick banks if the alert is below red
+when it ends, and red empties every one you had. A player watching a
+counter go to eight without being told what fills it or what empties it is
+watching a number, not playing a game. Both the aim and the progress line
+now say the rule, and the progress line says what to do about it from
+where you are standing.
+
+**A tell explained itself only if it was lethal.** Black ICE has always
+printed a line saying what the tick of warning is for. Everything else
+printed atmosphere and struck. The first time anything winds up in a run,
+once, the game now names the three answers: go to another host, hit it if
+you brought something that hits, or go quiet and hope.
+
+**A host said something was running and stopped there.** Now it says
+whether it is asleep and what wakes it, or awake and looking, which is the
+whole decision on that host: be quiet here, go round, or accept it.
+Traps are exempt and stay invisible, because a trap is not running, it is
+sitting there, and that is the one thing you cannot scout.
+
+Measured after: something wakes on 10 of 24 first nights against 0, with
+16 tells, and the alert leaves green on 14 of 24. Completion is 20 of 24,
+which is up from D71's 19 rather than down: the danger costs a run
+sometimes, and the advice being honest about red rooms saves more than it
+costs. All twelve origins still finish 9 to 12 of 12, and the mid-game
+ladder is unchanged again.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.

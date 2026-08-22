@@ -49,8 +49,10 @@ OBJECTIVE_AIM = {
                'has always said what your patron wants it to say.',
     'wipe': 'Destroy {asset} on {node} with `wipe`. Nobody is paying you to '
             'carry it out, which is the whole appeal.',
-    'surveil': 'Sit on {node} and `observe` until you have banked {ticks} '
-               'clean ticks. Take nothing, break nothing.',
+    'surveil': 'Sit on {node} and `observe` until {ticks} clean ticks are '
+               'banked. A tick banks while the alert is below red, and red '
+               'empties every one you had, so the job is not the '
+               'sitting: it is keeping the room calm while you do it.',
     'escort': 'Keep {who} alive and moving until they are done and out. '
               'Their noise is not your decision and never will be.',
 }

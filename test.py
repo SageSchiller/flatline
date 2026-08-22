@@ -7967,6 +7967,64 @@ def test_early() -> None:
          'and asks for one the moment the room is quiet again')
 
 
+def test_tension() -> None:
+    """D72: a run has something in it, and the game says what it means."""
+    T.section('something in the room')
+    from flatline.run import network as net_mod
+
+    # Every route a player actually walks has something live on it. It was
+    # a median of zero at gang posture: the network had three constructs
+    # and they were all somewhere else.
+    for faction, posture in (('sixes', 22), ('carrion', 30), ('kagawa', 45)):
+        for seed in range(12):
+            for size in (0.75, 1.0):
+                net = net_mod.generate(Rng(seed).fork('network', f'd72{size}'),
+                                       faction, posture, objective='exfiltrate',
+                                       size_mod=size)
+                route = net_mod._route(net, net.objective_node) or []
+                live = [c for u in route for c in net.nodes[u].ice if c.alive]
+                T.ok(live, f'{faction} {seed} {size}: the walk has something '
+                           f'on it')
+
+    # Except the chair on a residency job: eight clean ticks on a host with
+    # something awake on it is arithmetic, not difficulty.
+    for seed in range(20):
+        net = net_mod.generate(Rng(seed).fork('network', 'd72s'), 'sixes', 22,
+                               objective='surveil', size_mod=0.75)
+        route = net_mod._route(net, net.objective_node) or []
+        if net.objective_node not in route:
+            continue
+        added = [c for c in net.nodes[net.objective_node].ice
+                 if c.uid.endswith(('-r1', '-r2', '-r3', '-r4'))]
+        T.eq(added, [], f'seed {seed}: nothing was added to the chair')
+
+    # The tell explains itself once, the first time anything winds up.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=4)
+    net = net_mod.generate(Rng(4).fork('network', 'd72t'), 'sixes', 22)
+    run = RunState(char=game.char, net=net, console=quiet_console(),
+                   rng=Rng(4).fork('ice', 'd72t'))
+    live = [c for node in net.nodes.values() for c in node.ice
+            if c.behaviour != 'black' and c.data.tells]
+    T.ok(live, 'the fixture network has something on it to tell')
+    run.console.start_capture()
+    run._tell(live[0])
+    first = ui.plain(run.console.end_capture())
+    T.ok('A tell is a tick to answer it in' in first,
+         'the first tell says what a tick is for')
+    run.console.start_capture()
+    run._tell(live[0])
+    second = ui.plain(run.console.end_capture())
+    T.ok('A tell is a tick to answer it in' not in second,
+         'and does not say it again')
+
+    # A surveil brief states the rule that actually governs it.
+    from flatline.world.contracts import OBJECTIVE_AIM
+    aim = OBJECTIVE_AIM['surveil']
+    T.ok('red' in aim, 'the surveil aim names what empties the bank')
+    T.ok('Take nothing, break nothing' not in aim,
+         'and no longer gives an instruction the code does not read')
+
+
 def test_collector() -> None:
     """D70: an arrangement is world state a thread can read."""
     T.section('the collector')
@@ -8880,7 +8938,7 @@ SUITES = (
     test_consequences, test_spine, test_texture, test_arcs,
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
     test_intrusion, test_catalogue, test_money, test_relics, test_street,
-    test_collector, test_early,
+    test_collector, test_early, test_tension,
     test_soak, test_advice, test_scale, test_place, test_ladder,
     test_net_signatures, test_breadth, test_new_origins,
     test_networks, test_run_mechanics, test_city, test_rivals,

@@ -2522,15 +2522,26 @@ def _show_node(sess, node, detail: bool = False) -> None:
     if live:
         c.blank()
         for construct in live:
+            # Asleep or awake, and what that means, because the difference
+            # is the whole decision on this host. A dormant construct is a
+            # reason to be quiet here or to go round; an awake one is a
+            # reason to be somewhere else. The line used to say neither,
+            # so a player who had been told there was something running
+            # had been told nothing they could act on (D72).
+            state = ('[dim]asleep; noise on this host is what wakes it[/]'
+                     if construct.state == 'dormant'
+                     else '[warn]awake and looking for you[/]')
             if construct.known:
                 c.raw(f'  [ice]{construct.data.name}[/] '
                       f'[dim]rating {construct.rating}, '
                       f'{construct.behaviour}[/]')
-                c.say(f'[dim]{construct.data.blurb}[/]', indent='    ',
-                      subsequent='    ')
             else:
                 c.raw('  [ice]something is running here that you have not '
                       'identified.[/]')
+            c.raw(f'    {state}')
+            if construct.known:
+                c.say(f'[dim]{construct.data.blurb}[/]', indent='    ',
+                      subsequent='    ')
 
     if node.data:
         c.blank()
