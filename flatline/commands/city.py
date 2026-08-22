@@ -1747,6 +1747,8 @@ def cmd_travel(sess, args) -> None:
     c.blank()
     c.rule(district.name)
     c.say(district.arrival)
+    if district.scale:
+        c.say(f'[dim]{district.scale}[/]')
     # What the place is doing at this hour, which is not the same thing as
     # what it is (D53).
     now = districts.scene(district.key, game.city.phase)

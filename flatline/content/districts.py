@@ -435,7 +435,10 @@ DISTRICTS: tuple[District, ...] = (
         'where nobody is selling anything. The doors are tall, the cameras '
         'are discreet to the point of courtesy, and a man in a good coat has '
         'already decided you are not a customer.',
-        services=('fixer', 'market'),
+        # Nothing on the Row is for sale, which is the whole of what the
+        # place is about, so it does not have a market. What it has is
+        # somebody who will arrange a thing for a fee.
+        services=('fixer',),
         security=85, price_mult=1.4, max_tier=3,
         scale=(
             'One street, eight hundred metres, four institutions, and a '
