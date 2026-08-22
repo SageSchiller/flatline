@@ -12,7 +12,7 @@ updated: 2026-08-21
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is closed; D63 is the mechanics deep dive.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **14,067 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. The latest work is **D63**, in five parts, all landed 2026-08-21: (a) every declared number and rider has a reader, guarded by `check_reads`; (b) the intrusion layer's holes closed (`mask` decays, sealed records, armour wears, faction style knobs, the soft warden route); (c) `inspect`, a bare `load`, `fit`, passives counting once, program riders, six mid-tier parts; (d) Threes capped, collections outpace interest, hook-4 drugs ask; (e) fifteen relics with histories, nine found at places and six given by decisions, with rumours that stop. Before that, D50 through D62 on the same day: the onboarding layer, decisions that are read, the Deepwater spine, the city deeper, voices and hours, district arcs, the rival bond, the drawn map, the HUD, the tutorial's second half, run conditions, and the rest of the Phase 7 list. **Every Phase 7 item is done.** What is next is whatever playing it turns up. Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
+> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is closed; D63 is the mechanics deep dive.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **14,814 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. The latest work is **D63**, in five parts, all landed 2026-08-21: (a) every declared number and rider has a reader, guarded by `check_reads`; (b) the intrusion layer's holes closed (`mask` decays, sealed records, armour wears, faction style knobs, the soft warden route); (c) `inspect`, a bare `load`, `fit`, passives counting once, program riders, six mid-tier parts; (d) Threes capped, collections outpace interest, hook-4 drugs ask; (e) fifteen relics with histories, nine found at places and six given by decisions, with rumours that stop. Then **D64**, the play test: networks in six shapes by doctrine, the brief reading the sums, and the city grown to twelve districts (the Stacks, Meridian Row, the Hall) with people, places, threads and a sixteenth relic; plus the leftovers, one at a time, and `reset`. Before that, D50 through D62 on the same day: the onboarding layer, decisions that are read, the Deepwater spine, the city deeper, voices and hours, district arcs, the rival bond, the drawn map, the HUD, the tutorial's second half, run conditions, and the rest of the Phase 7 list. **Every Phase 7 item is done.** What is next is whatever playing it turns up. Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
@@ -1822,6 +1822,25 @@ a wipe or a push cannot land tonight (and points a sealed record at
 is a sixth of posture plus three, which a Kindling at a gang's posture
 can meet.
 
+**(b) The city grows.** Three districts, because the map felt small and
+because three factions had networks and no street: **The Stacks**
+(Static's presses and relay shacks under the Terraces' water towers; a
+list of names read out at the top of every hour that nobody will say the
+source of), **Meridian Row** (the banks: stone, glass, silence, a counter
+hall with one Notary and a ledger with a very long line in it) and **The
+Hall** (the old interchange the Chorus took when the trains stopped: soup,
+singing, a clinic that does not ask, Carrion standing at the back of the
+queue). Each has three scenes, seven street lines, three places, and a
+thread with a decision the world reads back: the stop list (print, hold,
+sell), the Meridian key (return, keep, give to the Stacks: keeping it is a
+relic, a forger that is not an argument but the thing the argument is
+about), the tin (stand with the Hall, take Carrion's money, walk away; both
+of the first two post a run). Four people (Ines Vale who runs the presses,
+Pip who climbs the towers, the Notary, the Cantor), with work, stock and a
+favour between them. Fifteen events: six weather, nine consequences. The
+map is redrawn for twelve and the walk rule is four shifts corner to
+corner, because a bigger city takes longer to cross.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -2992,3 +3011,16 @@ its row; a new character's first board always has a job the kit can do
 poorest origin can reach it; `now` names the cheapest payload, its price at
 the nearest market, and `borrow` when that is more than you have; `new`'s
 closing lines point at `load` and `inspect`.
+
+### 2026-08-21 (r): the play test, and the city grows
+
+The author played, and the list was: the leftovers from the deep dive
+(done, one at a time: the Switchboard floor, traps on contact only, in-kind
+collections at half, a runner's loan as a tab, programs held to rank + 2),
+`unload` by row and programs that say what they are for, a first board the
+kit can do, `reset`, networks in six shapes with the brief reading the
+sums, and the city grown by three districts with four people, nine places,
+three threads, fifteen events and a relic. `validate.py` clean, `test.py`
+green at **14,814 checks**. Next, by the author's direction: physical
+danger and skill in the real world (D65), then more to explore, meet, find
+and do.

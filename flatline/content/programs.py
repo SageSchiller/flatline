@@ -448,6 +448,24 @@ RELICS: tuple[Program, ...] = (
                  'cranes. He hands it over without looking away from them. '
                  'He has watched you for eight runs and that is apparently '
                  'enough.'),
+    Program('meridian_key', 'A Meridian Key', 'forger', 2, 5, 0.3, 8000, 3,
+            'Not a file that is a key: a key. A thing half the city\'s doors '
+            'recognise as permission out of habit, because it is older than '
+            'the habit. It opens nothing of Meridian\'s. It opens nearly '
+            'everything else, a little.',
+            effects={'pretext_bonus': 5, 'heat_mult': 1.15},
+            note='Quiet, strong, and Meridian notice what it opens.',
+            unique=True,
+            lore='Meridian held it for the first thirty years, Sendai for '
+                 'the next eleven, and the ledger on the Row kept a line for '
+                 'it the whole time that got longer every shift it was '
+                 'away. You carried it out of a Sendai network for the '
+                 'ledger and did not put it on the counter. It is the best '
+                 'argument a forger can make, because it is not an '
+                 'argument: it is the thing the argument is about. Doors '
+                 'that were built when the key was issued open for it the '
+                 'way old men stand up for a tune. Meridian know exactly '
+                 'which doors those are, and they write down every one.'),
     Program('survey', 'The Survey', 'hunter', 1, 3, 0.6, 1900, 1,
             'Tuck\'s map of every cable in the Ninth, on something that is '
             'not paper. It is a map of a district, and it turns out a '

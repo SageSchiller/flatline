@@ -465,6 +465,78 @@ SPOTS: tuple[Spot, ...] = (
          'with eleven thousand people on it in principle and forty in '
          'practice, and the forty keep the rota, and the rota is the nearest '
          'thing the Terraces has to a government.'),
+    # -- The Stacks (D64 b) -------------------------------------------------
+    Spot('presses', 'the presses', 'stacks',
+         'Four machines older than anybody working them, behind a wall that '
+         'shakes in time. The floor is paper to the ankle and nobody sweeps '
+         'it because the paper is the point: whatever the edition says, the '
+         'floor says the last forty editions, and somebody is always reading '
+         'the floor.',
+         night='At night the presses are the only light in the Stacks, a bar '
+               'of it under the door, and the shaking is a sound you can '
+               'sleep to if you grew up here and cannot if you did not.',
+         who=('printer',)),
+    Spot('towers', 'the water towers', 'stacks',
+         'Three tanks on iron legs, dripping on everything, with ladders '
+         'that the kids have taken the bottom rungs off so that only kids '
+         'can climb them. Every platform has a dish and every dish has an '
+         'opinion about where to point.',
+         night='At night somebody is always up one of them, a small shape '
+               'against the glow, talking to a relay in a voice that carries '
+               'further than it should.',
+         who=('pip',)),
+    Spot('shack', 'the relay shack', 'stacks',
+         'Corrugated tin, a door that does not lock, a table of radios in '
+         'various states of having been opened, and a chair for the person '
+         'reading the names. The names go out at the top of every hour. '
+         'Nobody in the shack will say where the list comes from, and '
+         'everybody in the shack has been on it.'),
+    # -- Meridian Row (D64 b) -----------------------------------------------
+    Spot('counterhall', 'the counter hall', 'row',
+         'A room built to make you feel the height of it. One counter, one '
+         'person behind it, no queue, and a floor that takes your footsteps '
+         'and gives them back to you slightly louder, as a reminder.',
+         night='At night the counter hall is lit and empty and the person '
+               'behind the counter is still there, or a person is, reading.',
+         who=('notary',)),
+    Spot('vault_steps', 'the vault steps', 'row',
+         'Eleven steps down to a door that is not a door, it is a statement '
+         'about doors. People sit on the steps at lunch. Nobody has ever '
+         'seen the door open, and it is generally agreed that it does not '
+         'need to.'),
+    Spot('colonnade', 'the colonnade', 'row',
+         'Stone pillars the length of the Row, a roof against the rain, and '
+         'a man in a good coat every sixty paces who is not a guard and is '
+         'not anything else either. Couriers come through here. They do not '
+         'slow down and they do not look up.',
+         night='At night the colonnade is the quietest place in the city, '
+               'and the coats are still there, further apart.'),
+    # -- The Hall (D64 b) ---------------------------------------------------
+    Spot('platform', 'the old platform', 'hall',
+         'The soup queue runs its length in the morning and the singing '
+         'stands on it at night. In between it is a platform with no trains, '
+         'a kettle, and a departure board showing a hymn. Somebody has '
+         'chalked the words on the wall for people who do not know them.',
+         night='At night the platform is forty people doing the thing they '
+               'do, and the sound going up into the roof and coming down '
+               'changed.',
+         who=('cantor',)),
+    Spot('kitchens', 'the kitchens', 'hall',
+         'Behind the concourse, three ranges and a wall of pans and a rota '
+         'nobody wrote. The soup is what there is, and there is always soup, '
+         'and the people stirring it have been Carrion\'s, Kagawa\'s, and '
+         'nobody\'s, and are stirring.',
+         who=('cantor',)),
+    Spot('loft', 'the bell loft', 'hall',
+         'Up a stair that was never meant for the public, a room under the '
+         'roof with one bell that does not ring and a window onto the whole '
+         'of the east of the city. The Chorus come up here to be quiet. It '
+         'is the only place in the building where nobody sings, and the '
+         'pigeons treat it as theirs.',
+         night='At night the loft window is the one dark square in a lit '
+               'building, and from it the Row is a line of light and the '
+               'Glasshouse is a glow, and the Hall under you is a sound.'),
+
 )
 
 BY_KEY: dict[str, Spot] = {s.key: s for s in SPOTS}

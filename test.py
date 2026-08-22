@@ -4301,7 +4301,8 @@ def test_city_map() -> None:
     # changes is the distance column.
     for d in districts.DISTRICTS:
         T.ok(d.key in out, f'{d.key} is on the map')
-    T.ok('1 of 9 walked' in out, 'a new character has walked one district')
+    T.ok(f'1 of {len(districts.DISTRICTS)} walked' in out,
+         'a new character has walked one district')
     T.ok('here' in out, 'and the map says which one')
 
     # Distances are real distances, in both directions, for every pair.

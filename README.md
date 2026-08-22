@@ -162,10 +162,10 @@ The three ideas everything else hangs off:
 ## What is in it
 
 12 skills with 24 techniques · 26 traits · 10 origins, each with a signature
-verb nobody else can use and its own starting face · 37 implants · 54 programs
-· 32 deck components · 15 of all of those one of a kind, never sold, found at a place at an hour or handed over by a decision, each with a history · 28 countermeasures · 9 pieces of bench work · 9 districts, each with a mark for the faction that
-holds it · 12 factions · 7 rival runners who decide about you, and one you can keep · 22 named characters who keep hours, hand out work, keep private stock and do favours on a tab · 28 storylines across 81 scenes and 100 decisions, every one of them read back by the world, with a spine through the middle that has four endings and one of them is a door ·
-102 appearance features · 9 districts, drawn, with a scene for every hour and 45 places in them to go and stand · 163 ambient city events, 71 of them consequences of something you decided and 9 of them rumours that stop when the thing is found · 40 manual topics ·
+verb nobody else can use and its own starting face · 37 implants · 55 programs
+· 32 deck components · 16 of all of those one of a kind, never sold, found at a place at an hour or handed over by a decision, each with a history · 28 countermeasures · 9 pieces of bench work · 12 districts, each with a mark for the faction that
+holds it · 12 factions · 7 rival runners who decide about you, and one you can keep · 26 named characters who keep hours, hand out work, keep private stock and do favours on a tab · 31 storylines across 93 scenes and 107 decisions, every one of them read back by the world, with a spine through the middle that has four endings and one of them is a door ·
+102 appearance features · 12 districts, drawn, with a scene for every hour and 54 places in them to go and stand · 178 ambient city events, 80 of them consequences of something you decided and 9 of them rumours that stop when the thing is found · 40 manual topics · networks in six shapes ·
 12 drugs · 3 lenders · 2 games of chance in 5 rooms ·
 122 commands · 71 pieces of terminal across 7 axes.
 

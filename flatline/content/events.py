@@ -1226,6 +1226,108 @@ ARC_CONSEQUENCES: tuple[Event, ...] = (
 
 _RUNNERS = ('vesper', 'hound', 'quietkid', 'saint', 'ledger', 'moth', 'grieve')
 
+
+#: D64 b: the city grows. Weather for three new districts, and the readers of
+#: the nine decisions their threads add.
+GROWTH: tuple[Event, ...] = (
+    Event('stacks_correction', 'wry',
+          'The morning edition is wrong about something, and the correction '
+          'is already being set, and a man reading the floor says the '
+          'correction is the point and the edition was the bait, and nobody '
+          'contradicts him, which in the Stacks is agreement.',
+          districts=('stacks',)),
+    Event('stacks_names', 'grim',
+          'The relay reads the names at the top of the hour. Somebody in the '
+          'queue for the tap hears one and puts their cup down very carefully '
+          'and walks away without it, and the next person in the queue takes '
+          'the cup.',
+          districts=('stacks',), phases=('night',)),
+    Event('row_coat', 'wry',
+          'The man in the good coat has moved. Four paces. Two people who '
+          'work on the Row have stopped to look at where he was, and one of '
+          'them writes something down.',
+          districts=('row',)),
+    Event('row_courier', 'grim',
+          'A courier comes down the colonnade with a case that is not heavy '
+          'enough, and trips, and the case does not open, and the courier '
+          'does not get up for a while, and nobody helps, because helping '
+          'would mean having seen.',
+          districts=('row',)),
+    Event('hall_clock', 'absurd',
+          'The wrong clock on the departure board says the wrong time, and '
+          'somebody in the soup queue checks their own against it and adjusts '
+          'theirs, and is now also wrong, and will be on time for everything '
+          'in the Hall and nothing outside it.{{The Chorus consider this '
+          'conversion.}}',
+          districts=('hall',)),
+    Event('hall_back', 'grim',
+          'Two of Carrion\'s stand at the back of the clinic queue, not in it. '
+          'The singing on the platform goes up a little. Neither side looks '
+          'at the other and both sides know exactly where the other is.',
+          districts=('hall',), phases=('afternoon',)),
+
+    Event('presses_own_name', 'grim',
+          'The relay reads its list at the top of the hour and the first '
+          'name on it is Ines Vale, and the voice reading it is hers, and '
+          'the presses under her are still running, and nobody in the Stacks '
+          'has bought a paper today that was not that one.',
+          districts=('stacks',), requires=('presses_printed',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('presses_held_floor', 'wry',
+          'Ines reads the floor with the cigarette lit now, and when somebody '
+          'asks about the stop list she says, "Somebody kept it," in a tone '
+          'that makes it a weather report, and the floor under her says the '
+          'last forty editions and not one of them is the one.',
+          districts=('stacks',), requires=('presses_held',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('presses_higher', 'grim',
+          'The relay reads a name at the top of the hour that you have used, '
+          'and it is higher on the list than it was, and the person reading '
+          'it does not know it is yours, and reads it the way they read the '
+          'others.',
+          requires=('presses_sold',), weight=CONSEQUENCE_WEIGHT),
+    Event('keys_line_ended', 'wry',
+          'On the Row a courier passes with a case that is exactly heavy '
+          'enough, which people who work here have never seen, and two of '
+          'them stop, and one of them says the line ended, and the other '
+          'says which line, and the first does not say.',
+          districts=('row',), requires=('keys_returned',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('keys_courier_passes', 'grim',
+          'A courier passes you in the street with a case that is not heavy '
+          'enough and does not slow down and does not look at you, and you '
+          'find you have checked the bag, and the key is in it, and the line '
+          'is longer.',
+          requires=('keys_kept',), weight=CONSEQUENCE_WEIGHT),
+    Event('keys_list_of_doors', 'wry',
+          'The Stacks\' edition is a list of doors, which is the only edition '
+          'anybody on the Row has ever bought, and the man in the good coat '
+          'is holding one, and has turned it over to see if there is a '
+          'second page.',
+          districts=('row', 'stacks'), requires=('keys_public',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('soup_louder', 'wry',
+          'The singing on the platform is louder than it was, and Carrion\'s '
+          'two at the back are a pace closer than they were, and the Cantor '
+          'stirs, and the boards say a hymn, and somebody in the soup queue '
+          'has started to sing along, badly, on purpose.',
+          districts=('hall',), requires=('soup_stood',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('soup_thanks_nobody', 'grim',
+          'The tin on the concourse is there and the soup is there and the '
+          'Cantor does not thank anybody by name this week, because the '
+          'machine under the bell has forgotten them, and he stirs, and the '
+          'stirring has something in it.',
+          districts=('hall',), requires=('soup_carrion',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('soup_somebody_else', 'grim',
+          'Somebody you half know in the Shambles says the Hall thing got '
+          'done, one way or the other, and does not say which, and you do '
+          'not ask, and the kettle in the Hall is still on, as far as you '
+          'know, which is not very far.',
+          requires=('soup_left',), weight=CONSEQUENCE_WEIGHT),
+)
+
 RUNNER_CONSEQUENCES: tuple[Event, ...] = (
     Event('partner_seen', 'wry',
           'Two runners are working the same Kagawa segment from two terminals '
@@ -1277,7 +1379,7 @@ def _rumours() -> tuple:
 RUMOURS: tuple = _rumours()
 
 EVENTS = (EVENTS + MORE_WEATHER + CONSEQUENCES + ARC_CONSEQUENCES
-          + RUNNER_CONSEQUENCES + RUMOURS)
+          + RUNNER_CONSEQUENCES + GROWTH + RUMOURS)
 
 BY_KEY: dict[str, Event] = {e.key: e for e in EVENTS}
 EVENT_KEYS: tuple[str, ...] = tuple(BY_KEY)

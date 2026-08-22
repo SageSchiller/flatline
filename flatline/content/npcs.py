@@ -889,6 +889,167 @@ NPCS: tuple[Npc, ...] = (
                       'and I do, a little, every time."',
         },
         hours=('afternoon', 'night')),
+    # -- D64 b: the city grows -------------------------------------------------
+    Npc('printer', 'Ines Vale', 'who runs the presses',
+        'stacks', 'market', 'deceitful', ('intel', 'work'),
+        'A woman with ink to the elbow and a cigarette she has not lit in '
+        'three years, reading the floor. She looks up, decides what you are, '
+        'and says it before you can: "You are not here to buy a paper."',
+        'Lies by omission with great care and never by commission, and will '
+        'tell you which she is doing if you ask, which nobody does.',
+        lines=(
+            '"Everything in this district is printed twice. Once for the '
+            'people who believe it and once for the people who need to be '
+            'seen believing it."',
+            '"We are a press. We do not have networks worth running. We have '
+            'what everybody else\'s networks said, which is better."',
+            '"The names go out at the top of the hour. If you are on the '
+            'list, somebody put you there, and it was not us. We only read."',
+            '"I have not lit this in three years. It is not about the '
+            'cigarette."',
+            '"Kagawa would like us shut. Kagawa would also like their '
+            'maintenance ledger to stop being quoted. These are the same '
+            'wish and they cannot have either."',
+            '"Come back when you have something. I print things. That is what '
+            'I do with things."',),
+        topics={
+            'city': '"Twelve powers and one press. Guess which one the other '
+                    'eleven would close first, and then guess why they have '
+                    'not."',
+            'stacks': '"Wet, loud, and honest in a way you have to learn to '
+                      'read. The towers drip on the presses and the presses '
+                      'print the towers. We are a closed loop."',
+            'list': '"The list. Everybody asks. The list is names and the '
+                    'names are people somebody wants read out, and we read '
+                    'them, and we do not ask, and one day it will be mine, '
+                    'and I will read it."',
+            'kagawa': '"They hold the water contract and we hold the '
+                      'ledger, in the sense that we have quoted it forty '
+                      'times. They cannot sue a rumour. They have tried."',
+            'deepwater': 'She taps ash off a cigarette that is not lit. "We '
+                         'printed the name once. Once. The presses were wrong '
+                         'for a week afterwards in a way the engineer could '
+                         'not find."',
+        },
+        hours=('morning', 'afternoon')),
+    Npc('pip', 'Pip', 'who climbs the towers',
+        'stacks', 'fence', 'absurd', ('intel',),
+        'A child of about eleven comes down a ladder that has no bottom '
+        'rungs, lands beside you, and starts telling you what the Vertical '
+        'is doing this hour as if you had asked. You had not. It does not '
+        'matter.',
+        'Talks in lists. Knows where every dish in the Stacks is pointed and '
+        'will trade that for almost anything, and does not know yet what it '
+        'is worth, which is the only reason it is for sale.',
+        lines=(
+            '"Tower two is pointed at the Vertical. Tower three is pointed at '
+            'the Vertical. Tower one is pointed at tower two, for reasons."',
+            '"If you take the bottom rungs off a ladder only people who can '
+            'jump can climb it. That is physics. I did the physics."',
+            '"The names come in on the big dish. I do not know from where. '
+            'Nobody does. I know which way it is pointed, which is the same '
+            'thing if you think about it, which nobody does."',
+            '"I can see the Green from tower three. There is a man who stands '
+            'on the lawn and does not move. I have a theory."',
+            '"Ines says I am not allowed up at night. Ines is asleep at '
+            'night."',),
+        topics={
+            'city': '"From the top of tower three it is all one thing. From '
+                    'down here it is twelve things. I prefer up."',
+            'towers': '"Three. Tanks on legs. The dishes are the good bit and '
+                      'I am the only one who can reach all of them because of '
+                      'the rungs."',
+            'dishes': '"Where they point. That is what I know and that is '
+                      'what it costs: a thing I want. I want a lot of things. '
+                      'Most of them are small."',
+            'green': '"The man on the lawn. He has a number on his wrist. I '
+                     'can see it on a clear day and I have written it down and '
+                     'I will not tell you, and the not telling is the price."',
+        },
+        hours=('afternoon', 'morning')),
+    Npc('notary', 'the Notary', 'behind the one counter on the Row',
+        'row', 'fixer', 'unsettling', ('intel', 'work'),
+        'One person behind one counter in a room built to make you feel the '
+        'height of it. They do not look up when you come in and they do not '
+        'look up when you stop in front of them. "State the matter," they '
+        'say, to the ledger.',
+        'Never uses your name and never gets it wrong. Speaks as if reading '
+        'from something, and has been, for a long time, and it has not been '
+        'you.',
+        lines=(
+            '"Meridian does not sell. Meridian holds. If you want something '
+            'held, there is a rate. If you want something that is held, '
+            'there is not."',
+            '"The keys are the only thing. Everything else in this building '
+            'is furniture for the keys."',
+            '"You will not be offered a loan. You may, in time, be offered an '
+            'arrangement. They are not similar."',
+            '"The man in the coat is not a guard. He is a fact about the '
+            'street, and the street is ours."',
+            '"State the matter. The ledger is patient and I am it."',
+            '"Nightwatch walk the Row slowly, as a courtesy. We have never '
+            'once needed them to walk it fast."',),
+        topics={
+            'city': '"Eleven factions make noise and one keeps the books. '
+                    'You are standing in the books."',
+            'row': '"Stone, glass, and silence. The silence is maintained. '
+                   'It is the most expensive thing on the street and it is '
+                   'not for sale either."',
+            'keys': '"A Meridian key is a thing that is held. Several are '
+                    'held by people who are not Meridian, which is the kind '
+                    'of matter that, eventually, gets stated."',
+            'arrangement': '"When the ledger knows you, you may be offered '
+                           'one. Work, against the keys, on terms. The terms '
+                           'are the terms."',
+            'deepwater': 'The pen stops. "Deepwater holds a key of ours. It '
+                         'has held it for eleven years. The ledger has a line '
+                         'for it and the line is very long."',
+        },
+        hours=('morning', 'afternoon', 'night')),
+    Npc('cantor', 'the Cantor', 'who leads the singing and runs the soup',
+        'hall', 'clinic', 'warm', ('favour', 'goods'),
+        'A big man with a ladle in one hand and a kettle in the other comes '
+        'out of the kitchens, sees you, and hands you the kettle, because '
+        'you are standing there and it needs carrying. "Concourse. The '
+        'table by the boards. Thank you." It is only later you realise you '
+        'have not been asked anything.',
+        'Warm without being soft. Asks after people by name and remembers '
+        'the answers, and has decided that whatever you came for, you will '
+        'eat first.',
+        lines=(
+            '"Soup first. Whatever it is, it is better after soup. That is '
+            'not theology, it is catering."',
+            '"The boards say a hymn and the clock is wrong. Both true. You '
+            'can set a life by a clock that is reliably wrong."',
+            '"Carrion stand at the back. They do not join the queue. I have '
+            'told them they are welcome to and they have not, and we both '
+            'know what that is."',
+            '"We took the hall when the trains stopped. Nobody else wanted '
+            'it. That is how the Chorus gets most things."',
+            '"The clinic does not ask. People tell it anyway. People need to '
+            'have told somebody."',
+            '"Sing or do not sing. The kettle needs carrying either way."',),
+        topics={
+            'city': '"Twelve powers, they say. I count one, and it is hunger, '
+                    'and we are the only ones fighting it with a ladle."',
+            'hall': '"A transit hall with the tracks pulled up and the boards '
+                    'still lit. Somebody should have turned them off. Nobody '
+                    'did, and now they are ours, and they show what we '
+                    'want."',
+            'carrion': '"They want the donor list. Every name that has ever '
+                       'put money in the tin. I have told them it is people, '
+                       'and they have told me that is what they want it '
+                       'for."',
+            'soup': '"Lentils, mostly. Kagawa vegetables when somebody on '
+                    'the Vertical remembers us, which is rarer than it should '
+                    'be and more often than you would think."',
+            'deepwater': 'He puts the ladle down. "We have a woman who came '
+                         'out of there. She does not sing. She sits on the '
+                         'platform and listens, and we feed her, and that is '
+                         'the whole of what we know."',
+        },
+        hours=('morning', 'afternoon', 'night')),
+
 )
 
 BY_KEY: dict[str, Npc] = {n.key: n for n in NPCS}

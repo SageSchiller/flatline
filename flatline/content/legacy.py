@@ -514,6 +514,38 @@ EPILOGUE: tuple[tuple[str, str], ...] = (
     ('stood_grieve',
      'You did not pay Grieve, and Grieve hunted you professionally, '
      'patiently, and filed the reports.'),
+    # D64 b: the city grows
+    ('presses_printed',
+     'You gave Kagawa\'s stop list to the presses, wet, and the relay read '
+     'Ines Vale\'s name the next morning in her own voice, and the presses '
+     'kept running.'),
+    ('presses_held',
+     'You kept the stop list. Everybody keeps one, Ines said, and lit the '
+     'cigarette, and read your calls back to you slightly wrong for the '
+     'rest of it.'),
+    ('presses_sold',
+     'You sold the stop list back to Kagawa, and a handle you had used '
+     'climbed the relay\'s list, an hour at a time.'),
+    ('keys_returned',
+     'You put the Meridian key on the counter and the Notary drew a line '
+     'through eleven years without lifting the pen, and said thank you, '
+     'which nobody on the Row had heard.'),
+    ('keys_kept',
+     'You kept the Meridian key, and it opened nearly everything a little, '
+     'and the line in the ledger got longer and was yours.'),
+    ('keys_public',
+     'You gave the Meridian key to the Stacks and they printed what it '
+     'opened, and the Row was the quietest it has ever been.'),
+    ('soup_stood',
+     'You told the Cantor what Carrion wanted and stood with the Hall, and '
+     'the singing got louder, and the two at the back got closer, and '
+     'neither stopped.'),
+    ('soup_carrion',
+     'You wiped the tin for Carrion\'s money, and the Cantor stirred, and '
+     'did not thank anybody by name that week.'),
+    ('soup_left',
+     'You walked away from the Hall and the Shambles both, and somebody else '
+     'did it, one way or the other, and you never asked which.'),
 )
 
 EPILOGUE_BY_FLAG: dict[str, str] = {flag: line for flag, line in EPILOGUE}

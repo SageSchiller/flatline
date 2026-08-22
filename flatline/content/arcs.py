@@ -26,7 +26,7 @@ DISTRICT_THREADS: tuple[Thread, ...] = (
         'pumps', 'The Pump House',
         'Four machines, one chair, and a maintenance contract nobody is '
         'paying.',
-        crosses=('theirs',),
+        crosses=('theirs', 'presses'),
         stages=(
             Stage('level', 'Tuck shows you the tape',
                   'Tuck takes you down without being asked, the way you show '
@@ -630,6 +630,307 @@ DISTRICT_THREADS: tuple[Thread, ...] = (
                              credits=2500),
                   ),
                   where='terraces'),
+        )),
+    # -- The Stacks: the list (D64 b) ------------------------------------------
+    Thread(
+        'presses', 'The List',
+        'Names, read out at the top of every hour, from a list nobody will '
+        'say the source of.',
+        crosses=('pumps',),
+        stages=(
+            Stage('floor', 'Ines reads you the floor',
+                  'Ines Vale walks you across the floor of the press room, '
+                  'which is paper to the ankle, and stops, and points down '
+                  'with the unlit cigarette. "Last Tuesday." A sheet under '
+                  'the sheets. A list of names, in no order. "Top of every '
+                  'hour, on the relay. We read it. We do not write it."\n\n'
+                  'Third from the bottom is a handle. It is one you have used.',
+                  requires=('met:printer',),
+                  any_of=('runs:2', 'pumps_seen'),
+                  sets=('presses_floor',),
+                  where='stacks'),
+            Stage('posting', 'Static want the stop list',
+                  'Ines has a sheet for you, folded, which in the Stacks is '
+                  'how a job arrives.\n\n'
+                  '"Kagawa keep a list of what they have asked the Watch to '
+                  'stop us printing. Forty items, we think. The ledger is on '
+                  'it. So, we think, is the list of names, or where it comes '
+                  'from. It is on a Kagawa network in the Vertical. We would '
+                  'like it. We would like it wet."',
+                  requires=('presses_floor',),
+                  sets=('presses_posting',),
+                  posts=Posting(
+                      patron='static', target='kagawa', objective='exfiltrate',
+                      title='Stop List',
+                      blurb='Static want Kagawa\'s stop list out of a Vertical '
+                            'network: everything Kagawa has asked the Watch to '
+                            'keep off the presses, and, the Stacks think, where '
+                            'the names on the relay come from.',
+                      label='Kagawa\'s stop list',
+                      pay=2900),
+                  where='stacks'),
+            Stage('edition', 'What goes to the presses',
+                  'It is forty-one items. The maintenance ledger is on it. '
+                  'So is a clinic in the Shambles, and a man\'s name you do '
+                  'not know, and, at the bottom, a frequency, which is the '
+                  'relay\'s, and a note beside it that says SOURCE: INTERNAL.\n\n'
+                  'Kagawa write the list. Kagawa have been writing the list '
+                  'of names the Stacks read out every hour, and the Stacks '
+                  'have been reading it, and the names are people Kagawa '
+                  'wanted read. Ines is waiting. So, by now, are Kagawa.',
+                  requires=('did:presses.posting',),
+                  sets=('presses_edition',),
+                  choices=(
+                      Choice('print', 'Give it to the presses',
+                             'Ines reads it once, standing, and puts the '
+                             'cigarette down on the table, which you have not '
+                             'seen her do, and says, "Wet," and the presses '
+                             'start.\n\n'
+                             'The next morning\'s edition is the stop list, '
+                             'all forty-one items, with the frequency at the '
+                             'bottom and SOURCE: INTERNAL in the font. The '
+                             'relay goes quiet for a day. Then it reads a new '
+                             'list, and the first name on it is Ines Vale, '
+                             'and she reads it herself.',
+                             sets=('presses_printed',),
+                             rep={'static': 25, 'kagawa': -20}),
+                      Choice('hold', 'Keep it',
+                             'You do not give it to Ines. You do not give it '
+                             'to anybody. Forty-one items and a frequency is '
+                             'the kind of thing that is worth more held than '
+                             'printed, and you have read enough of the floor '
+                             'to know what printed things become.\n\n'
+                             'Ines looks at you for a long moment and lights '
+                             'the cigarette. "Everybody keeps one," she says. '
+                             '"I had hoped you would be the other kind." She '
+                             'still takes your calls. She reads them back to '
+                             'you, slightly wrong.',
+                             sets=('presses_held',),
+                             rep={'static': -10}),
+                      Choice('sell', 'Sell it back to Kagawa',
+                             'A man from the Vertical meets you in Marrow with '
+                             'a case that is exactly heavy enough. He does not '
+                             'ask how you got it. He asks whether anybody '
+                             'has read it, and you say no, and he writes that '
+                             'down.\n\n'
+                             'The relay reads its list at the top of the next '
+                             'hour, and the hour after, and a name on it is a '
+                             'handle you have used, and it is higher than it '
+                             'was.',
+                             sets=('presses_sold',),
+                             rep={'kagawa': 15, 'static': -30},
+                             credits=2400),
+                  ),
+                  where='stacks'),
+        )),
+
+    # -- Meridian Row: the ledger's line (D64 b) -------------------------------
+    Thread(
+        'keys', 'The Ledger\'s Line',
+        'A Meridian key, held by people who are not Meridian, for eleven '
+        'years, and the very long line in the ledger that says so.',
+        stages=(
+            Stage('matter', 'The Notary states the matter',
+                  'The Notary does not look up. "State the matter," they say, '
+                  'and then, before you can, state it themselves.\n\n'
+                  '"A Meridian key, held by Sendai, for eleven years. It '
+                  'opens nothing any more. It is a key, and it is ours, and '
+                  'the ledger has a line for it, and the line is very long." '
+                  'The pen stops. "The ledger would like the line to end."',
+                  requires=('met:notary',),
+                  any_of=('runs:4', 'rep:meridian:10'),
+                  sets=('keys_matter',),
+                  where='row'),
+            Stage('posting', 'Held',
+                  'A courier finds you with a case that is not heavy enough. '
+                  'Inside is a single sheet, printed on both sides in a type '
+                  'that was designed to be unreadable at any distance, and '
+                  'readable at none.\n\n'
+                  'It is a posting. Meridian, against Sendai, for a key that '
+                  'opens nothing. The fee is the kind of number Meridian '
+                  'thinks is modest.',
+                  requires=('keys_matter',),
+                  sets=('keys_posting',),
+                  posts=Posting(
+                      patron='meridian', target='sendai', objective='exfiltrate',
+                      title='Held',
+                      blurb='Meridian want a key of theirs out of a Sendai '
+                            'network, where it has been held for eleven years. '
+                            'It opens nothing any more. That is not the point.',
+                      label='a Meridian key',
+                      pay=3600),
+                  where='row'),
+            Stage('held', 'The key, and the line',
+                  'It is a key. Not a file that is a key: a key, a thing a '
+                  'network recognises as permission, old enough that half '
+                  'the city\'s doors would take it out of habit. It does not '
+                  'open anything of Meridian\'s. It opens nearly everything '
+                  'else, a little.\n\n'
+                  'The Notary is waiting, in the sense that the Notary is '
+                  'always there. So, you realise, is everybody who would '
+                  'rather the line in the ledger did not end.',
+                  requires=('did:keys.posting',),
+                  sets=('keys_held',),
+                  choices=(
+                      Choice('return', 'Hand it over the counter',
+                             'You put it on the counter. The Notary looks at '
+                             'it, and then, for the first time, at you, and '
+                             'draws a line through something in the ledger, '
+                             'and the line is very long and the pen does not '
+                             'lift.\n\n'
+                             '"Noted." And then, which is not a word you '
+                             'expected: "Thank you." The arrangement, when '
+                             'it comes, comes through the same courier, with '
+                             'the case the right weight.',
+                             sets=('keys_returned',),
+                             rep={'meridian': 30, 'sendai': -15}),
+                      Choice('keep', 'Keep it',
+                             'You do not go back to the Row. A key that opens '
+                             'nearly everything a little is worth more in a '
+                             'deck than on a counter, and Meridian can keep '
+                             'their line.\n\n'
+                             'The line does not end. It gets longer, and it is '
+                             'yours now, and every so often a courier passes '
+                             'you in the street with a case that is not heavy '
+                             'enough and does not slow down.',
+                             sets=('keys_kept',),
+                             gives=('meridian_key',),
+                             rep={'meridian': -35}),
+                      Choice('static', 'Give it to the Stacks',
+                             'Ines Vale turns it over in ink-stained fingers '
+                             'and says, "We cannot print a key." And then: "We '
+                             'can print what it opens." The next edition is a '
+                             'list of doors, and the Row is the quietest it '
+                             'has ever been, which is saying something.\n\n'
+                             'The Notary does not look up when you pass the '
+                             'counter hall. The Notary never did. It is '
+                             'different now.',
+                             sets=('keys_public',),
+                             rep={'static': 20, 'meridian': -40, 'sendai': 10},
+                             credits=1500),
+                  ),
+                  where='row'),
+        )),
+
+    # -- The Hall: the tin (D64 b) ---------------------------------------------
+    Thread(
+        'soup', 'The Tin',
+        'Every name that ever put money in the Hall\'s tin, and the people '
+        'who would like the list.',
+        stages=(
+            Stage('kettle', 'The Cantor tells you about the tin',
+                  'You are carrying the kettle again. The Cantor walks beside '
+                  'you with the ladle and talks about Carrion the way he '
+                  'talks about the weather.\n\n'
+                  '"They want the donor list. Every name that has ever put '
+                  'money in the tin. I have told them it is people. They '
+                  'have told me that is what they want it for." He takes the '
+                  'kettle. "They will ask somebody. They may ask you. I '
+                  'wanted you to have heard it from me first."',
+                  requires=('met:cantor',),
+                  sets=('soup_kettle',),
+                  where='hall'),
+            Stage('tin', 'Carrion ask',
+                  'They ask. Not in the queue: at the back of it, through a '
+                  'man you half know, with a number that is good and a tone '
+                  'that says the number is the polite part.\n\n'
+                  '"The list. Off the Hall\'s machine. Wipe it so they cannot '
+                  'find who to thank, and bring us the copy." The Cantor is '
+                  'in the Hall, stirring. Forty people are on the platform. '
+                  'The boards say a hymn.',
+                  requires=('soup_kettle',),
+                  any_of=('runs:3', 'rep:carrion:10', 'lark_dead'),
+                  sets=('soup_asked',),
+                  choices=(
+                      Choice('stand', 'Tell the Cantor, and stand with the Hall',
+                             'You tell him on the platform, with the kettle '
+                             'between you. He does not stop stirring. "Thank '
+                             'you," he says, and then, "Carrion stand at the '
+                             'back. They will stand a bit closer now. We will '
+                             'sing a bit louder."\n\n'
+                             'He has a job for you, it turns out, if you want '
+                             'it: watch the back of the queue, from inside '
+                             'their network, and tell him what they are '
+                             'going to do before they do it.',
+                             sets=('soup_stood',),
+                             rep={'chorus': 25, 'carrion': -20}),
+                      Choice('carrion', 'Take Carrion\'s money',
+                             'You take the number. The man you half know '
+                             'nods, once, the way you nod at somebody who has '
+                             'agreed to something you did not think they '
+                             'would.\n\n'
+                             'The Hall\'s machine is in the bell loft, under '
+                             'the bell that does not ring. It is not '
+                             'defended. It was never going to be.',
+                             sets=('soup_carrion',),
+                             rep={'carrion': 15, 'chorus': -30},
+                             credits=600),
+                      Choice('leave', 'Walk away from both',
+                             'You say no to the man at the back and you do '
+                             'not tell the Cantor, and you stop carrying the '
+                             'kettle. The soup goes on. So does the standing '
+                             'at the back.\n\n'
+                             'A month later somebody else does it, one way or '
+                             'the other. You hear about it. You do not ask '
+                             'which.',
+                             sets=('soup_left',)),
+                  ),
+                  where='hall'),
+            Stage('watch', 'The back of the queue',
+                  'The Cantor\'s job, through nobody: he hands you a sheet '
+                  'himself, with the kettle. "Their network. Sit in it. Tell '
+                  'me what they are going to do to us, and when. I will not '
+                  'do anything about it. I would like to know."',
+                  requires=('soup_stood',),
+                  sets=('soup_watch',),
+                  posts=Posting(
+                      patron='chorus', target='carrion', objective='surveil',
+                      title='The Back of the Queue',
+                      blurb='The Chorus want eyes inside Carrion\'s network: '
+                            'what they mean to do about the Hall, and when. '
+                            'Nothing taken, nothing touched. Sit, and listen.',
+                      pay=2200),
+                  where='hall'),
+            Stage('wipe', 'The tin, wiped',
+                  'Carrion\'s posting arrives the usual way, folded, through '
+                  'the man you half know. The Hall\'s machine. The list. '
+                  'Wipe it, bring the copy, and do not be seen by forty '
+                  'people who would recognise you, because you have carried '
+                  'the kettle.',
+                  requires=('soup_carrion',),
+                  sets=('soup_wipe',),
+                  posts=Posting(
+                      patron='carrion', target='chorus', objective='wipe',
+                      title='The Tin',
+                      blurb='Carrion want the Hall\'s donor list wiped off the '
+                            'Chorus machine, and a copy brought out first. '
+                            'Every name that ever put money in.',
+                      label='the Hall\'s donor list',
+                      pay=2600),
+                  where='hall'),
+            Stage('told', 'What you heard',
+                  'You tell the Cantor on the platform, with the kettle '
+                  'between you, what Carrion mean to do and when. He listens '
+                  'the whole way through without stirring, which you have '
+                  'never seen, and then stirs.\n\n'
+                  '"Thank you." He does not say what he will do. He said he '
+                  'would not do anything. The singing that night is the '
+                  'loudest you have heard it, and the two at the back have '
+                  'gone, and the next morning there are four.',
+                  requires=('did:soup.watch',),
+                  sets=('soup_told',),
+                  where='hall'),
+            Stage('wiped', 'The tin, after',
+                  'The Hall\'s machine does not know who to thank. The copy '
+                  'is with Carrion, who know exactly who to thank, and will.'
+                  '\n\nThe soup is there in the morning and the queue is the '
+                  'length of the platform and the Cantor hands you the '
+                  'kettle, because you are standing there and it needs '
+                  'carrying, and does not look at you while he does it, and '
+                  'that is the whole of what he says.',
+                  requires=('did:soup.wipe',),
+                  sets=('soup_wiped',),
+                  where='hall'),
         )),
 )
 

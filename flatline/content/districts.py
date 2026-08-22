@@ -57,7 +57,7 @@ DISTRICTS: tuple[District, ...] = (
         'at you yet, which in the Ninth is a decision rather than an accident.',
         services=('market', 'fence', 'workshop', 'safehouse'),
         security=25, price_mult=0.85, max_tier=1,
-        neighbours=('marrow', 'freeport', 'terraces', 'shambles'),
+        neighbours=('marrow', 'freeport', 'terraces', 'shambles', 'stacks'),
         presence=('carrion', 'fixers'),
     ),
     District(
@@ -107,7 +107,7 @@ DISTRICTS: tuple[District, ...] = (
         'staff talk to your deck rather than to you.',
         services=('market', 'workshop', 'clinic'),
         security=65, price_mult=1.15, max_tier=3,
-        neighbours=('marrow', 'green', 'freeport'),
+        neighbours=('marrow', 'green', 'freeport', 'row', 'hall',),
         presence=('nightwatch', 'freeport'),
     ),
     District(
@@ -119,7 +119,7 @@ DISTRICTS: tuple[District, ...] = (
         'is either community-printed or fell off something.',
         services=('market', 'workshop', 'fence', 'safehouse', 'fixer'),
         security=30, price_mult=0.92, max_tier=2,
-        neighbours=('ninth', 'marrow', 'glasshouse', 'shambles'),
+        neighbours=('ninth', 'marrow', 'glasshouse', 'shambles', 'row',),
         presence=('carrion', 'fixers', 'sixes'),
     ),
 
@@ -161,9 +161,49 @@ DISTRICTS: tuple[District, ...] = (
         'thing about the place.',
         services=('market', 'safehouse'),
         security=35, price_mult=0.95, max_tier=1,
-        neighbours=('vertical', 'ninth'),
+        neighbours=('vertical', 'ninth', 'stacks',),
         presence=('nightwatch', 'sixes'),
     ),
+    District(
+        'stacks', 'The Stacks', 'static',
+        'Presses, relay shacks, and the water towers they hide under. '
+        'Everything here is printed twice and believed once.',
+        'The Stacks are wet underfoot and loud overhead: the Terraces\' water '
+        'towers drip on a quarter-mile of tin roofs and under the roofs the '
+        'presses run all night. Somebody has painted a masthead on a '
+        'shutter and somebody else has painted over the date.',
+        services=('market', 'fence'),
+        security=20, price_mult=0.8, max_tier=1,
+        neighbours=('terraces', 'ninth'),
+        presence=('sixes', 'chorus'),
+    ),
+    District(
+        'row', 'Meridian Row', 'meridian',
+        'The banks. Stone, glass, and a silence you could set a watch by. '
+        'Nothing here is for sale except the keys, and the keys are not.',
+        'Meridian Row is the cleanest street in the city and the only one '
+        'where nobody is selling anything. The doors are tall, the cameras '
+        'are discreet to the point of courtesy, and a man in a good coat has '
+        'already decided you are not a customer.',
+        services=('fixer', 'market'),
+        security=85, price_mult=1.4, max_tier=3,
+        neighbours=('glasshouse', 'freeport', 'hall'),
+        presence=('nightwatch', 'kagawa'),
+    ),
+    District(
+        'hall', 'The Hall', 'chorus',
+        'A transit hall the Chorus took over when the trains stopped. Soup, '
+        'singing, and a clinic that does not ask.',
+        'The Hall is the old interchange with the tracks pulled up and the '
+        'departure boards still lit, every one of them showing a hymn. It '
+        'smells of soup and floor polish. Somebody is singing, not well, and '
+        'nobody minds.',
+        services=('clinic', 'fence'),
+        security=35, price_mult=0.9, max_tier=1,
+        neighbours=('glasshouse', 'row'),
+        presence=('sixes', 'carrion'),
+    ),
+
 )
 
 BY_KEY: dict[str, District] = {d.key: d for d in DISTRICTS}
@@ -335,6 +375,63 @@ SCENES: dict[str, dict[str, str]] = {
             'being tired behind thin walls. A child is doing homework by '
             'vending-machine light. The homework is about Kagawa.',
     },
+    'stacks': {
+        'morning':
+            'The presses stop for an hour at dawn, which is when the Stacks '
+            'find out what they printed. Bundles go out on handcarts under '
+            'the dripping towers, and the first edition of the day is already '
+            'wrong about something, and somebody is already setting the '
+            'correction, and the correction will be wrong too, on purpose.',
+        'afternoon':
+            'The afternoon is for the relays. Kids go up the water towers '
+            'with coils of cable and come down with opinions, and every '
+            'shack has a dish pointed at something it should not be able to '
+            'see. Static\'s people do not look like anything. That is the '
+            'whole craft.',
+        'night':
+            'At night the Stacks are a sound: the presses, the drip, and a '
+            'voice on a relay reading out a list of names in no order anybody '
+            'can find. Half the district is listening. The other half is '
+            'being read.',
+    },
+    'row': {
+        'morning':
+            'Meridian Row opens at an hour that has been agreed rather than '
+            'announced. The doors go from shut to open without anybody '
+            'appearing to touch them, and the first people through are '
+            'already inside by the time you notice the doors are open.',
+        'afternoon':
+            'Nothing happens on the Row in the afternoon, visibly, and a great '
+            'deal happens. Couriers come and go with cases that are not heavy '
+            'enough. A man in a good coat stands where he stood this '
+            'morning. The cameras do not move, because they do not need to.',
+        'night':
+            'At night the Row is lit from inside, every window, and empty, '
+            'every street, and the silence has the quality of a held note. '
+            'Nobody is selling anything. Nobody ever was. The keys are in '
+            'there, and the keys are the only thing.',
+    },
+    'hall': {
+        'morning':
+            'Soup at the Hall starts at first light and the queue is already '
+            'the length of the old platform. Nobody takes names. The '
+            'departure boards show a hymn, then a different hymn, then the '
+            'time, which is wrong, and which nobody has fixed in six years '
+            'on the grounds that it is the only clock in the building and '
+            'you can set anything by a clock that is reliably wrong.',
+        'afternoon':
+            'Afternoons the Hall is a clinic. Two rooms off the concourse, '
+            'one Cantor, one kettle, a queue that does not ask what the '
+            'person in front is in for. Carrion\'s people come and stand at '
+            'the back sometimes, not in the queue, and the singing does not '
+            'stop for them, which is a statement.',
+        'night':
+            'At night the Hall sings. Not a performance: there is nobody to '
+            'perform for. Forty people on the old platform doing the thing '
+            'they do, and the sound goes up into the roof where the pigeons '
+            'are, and comes back down changed, and the boards say a hymn, '
+            'and the wrong clock says the wrong time.',
+    },
 }
 
 
@@ -437,6 +534,33 @@ STREET: dict[str, tuple[str, ...]] = {
         'the farms humming under the floor',
         'a lift with preferences',
         'somebody saying good evening without checking who you are',
+    ),
+    'stacks': (
+        'a handcart of bundles under a dripping tower, nobody pushing it yet',
+        'a kid halfway up a water tower with a coil of cable over one shoulder',
+        'a shutter with a masthead on it and the date painted over',
+        'a relay voice reading names in no order, and three people listening',
+        'a press running behind a wall, felt more than heard',
+        'two of the Sixes buying a paper they cannot read, for the pictures',
+        'a dish on a shack roof pointed at the Vertical, which is rude',
+    ),
+    'row': (
+        'a man in a good coat, standing where he stood this morning',
+        'a courier with a case that is not heavy enough',
+        'a door that has gone from shut to open without anybody touching it',
+        'a camera that does not move because it does not need to',
+        'a Nightwatch pair walking slowly, which on the Row is a courtesy',
+        'nobody selling anything, at all, anywhere',
+        'a window lit from inside with nobody behind it',
+    ),
+    'hall': (
+        'the soup queue, the length of the old platform, nobody taking names',
+        'a departure board showing a hymn, then the wrong time',
+        'somebody singing, not well, and nobody minding',
+        'two of Carrion\'s at the back of the clinic queue, not in it',
+        'a kettle on the concourse that has never been off',
+        'a pigeon coming down out of the roof changed by the singing',
+        'a child asleep on a bench under a blanket that says SENDAI',
     ),
 }
 

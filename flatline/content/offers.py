@@ -125,6 +125,25 @@ WORK: tuple[Work, ...] = (
         dropped='Mr Sunday nods, and it is impossible to tell whether that '
                 'cost you anything at all, which is exactly the effect he has '
                 'spent thirty years building.'),
+    Work('printer', 'static', targets=('kagawa', 'meridian'), pay=1.15,
+         patience=8, requires=('met:printer',),
+         dropped='"You put it down. Fine. Somebody else will pick it up, and '
+                 'I will print that they did, and your name will not be in '
+                 'it, which you will find is its own kind of being in it."',
+         pitch='"Kagawa keep a list of what they have asked the Watch to '
+               'stop us printing. I would like to print it. You would like '
+               'to be paid. These are compatible."',
+         closing='"Bring it wet. Nothing is true until it has been through '
+                 'the presses, and the presses are hungry."'),
+    Work('notary', 'meridian', targets=('sendai', 'deepwater', 'kagawa'),
+         pay=1.3, patience=10, requires=('met:notary', 'rep:meridian:10'),
+         dropped='"Noted." The pen moves. The line is very short, and it is '
+                 'yours, and the ledger does not forget a line.',
+         pitch='"An arrangement. Meridian holds keys. Several are held by '
+               'people who are not Meridian, and the ledger would like them '
+               'back, and the ledger pays. State whether the matter is of '
+               'interest."',
+         closing='"Noted." The pen moves. Nothing else does.'),
 )
 
 
@@ -206,6 +225,14 @@ STOCK: tuple[Stock, ...] = (
         first='"FORMULA NUMBER ONE. ALERTNESS. CLARITY. LONGEVITY. RESISTANCE '
               'TO ELEVEN NAMED CONDITIONS." The machine is very pleased. It '
               'has been very pleased about this for nineteen years.'),
+    Stock('cantor', ('ash_tea', 'ratchet', 'ozymandias'), markup=0.7,
+          pitch='"Behind the kettle. It is not a shop. People leave things '
+                'and people need things and the kettle is between them."',
+          first='"You will want to pay. Put it in the tin, then. The tin does '
+                'not keep accounts and neither do I."',
+          requires=('met:cantor',),
+          refusal='"The kettle is between people who have met. We have not." '
+                  'He hands it to you anyway, to carry.'),
 )
 
 
@@ -376,6 +403,19 @@ FAVOURS: tuple[Favour, ...] = (
         refusal='"No." She caps the pen. "That was for the room in the '
                 'Terraces, and the room in the Terraces is settled. The rest '
                 'is yours."'),
+    Favour(
+        'cantor', 'soup', 'You were at the soup',
+        'The Chorus say you were on the platform all night, and the people '
+        'who were looking for you believe the Chorus.',
+        effect='heat', amount=25,
+        requires=('met:cantor',),
+        text='"You were here. You carried the kettle, you sang badly, and you '
+             'slept on the platform under a blanket that says SENDAI on it. '
+             'Forty people will say so, and they will mean it, because by '
+             'the time anybody asks you will have."\n\n'
+             'He hands you the kettle.',
+        refusal='"I cannot say you were here if you have never been here." '
+                'He says it kindly, and hands you the kettle anyway.'),
 )
 
 

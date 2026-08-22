@@ -31,6 +31,12 @@ MAP_EDGES: frozenset[frozenset[str]] = frozenset(frozenset(p) for p in (
     ('ninth', 'marrow'), ('marrow', 'glasshouse'),
     ('ninth', 'shambles'), ('ninth', 'freeport'), ('marrow', 'freeport'),
     ('glasshouse', 'freeport'), ('shambles', 'freeport'),
+    # D64 b: the city grows. The Stacks hang off the Terraces and the
+    # Ninth; the Row sits under the Glasshouse beside the Freeport; the
+    # Hall is east of the Glasshouse and above the Row.
+    ('stacks', 'terraces'), ('stacks', 'ninth'),
+    ('glasshouse', 'row'), ('freeport', 'row'), ('row', 'hall'),
+    ('glasshouse', 'hall'),
 ))
 
 #: Markers after a district's name. Plain, so they survive the ASCII rung.
@@ -90,30 +96,37 @@ def draw(game, caps, flags=None) -> list[str]:
             col = max(col, where) + ui.width(text)
         return out
 
-    m = _MARGIN
-    # Column plan (0-based, margin included): terraces/ninth/shambles slots
-    # start at m, vertical/marrow/freeport at m+14, green/glasshouse at m+30,
-    # precinct at m+20. The bars sit two in from each slot's left edge.
-    # Every connector is dimmed at construction rather than by a replace
-    # afterwards: the ASCII rung's `/` is also the character in `[/]`.
+    m = _MARGIN + 10
+    # Column plan (0-based, margin included): the Stacks sit alone at the
+    # far left (m-10), terraces/ninth/shambles slots start at m,
+    # vertical/marrow/freeport at m+14, green/glasshouse/row at m+30,
+    # precinct at m+20, the Hall at m+44. The bars sit two in from each
+    # slot's left edge. Every connector is dimmed at construction rather
+    # than by a replace afterwards: the ASCII rung's `/` is also the
+    # character in `[/]`.
     rule = f'[dim]{{}}[/]'
     v, dn, up = f'[dim]{v}[/]', f'[dim]{dn}[/]', f'[dim]{up}[/]'
+    s = m - 10
     rows = [
         at([(m, slot('terraces', 10, True)), (m + 10, rule.format(h * 4)),
             (m + 14, slot('vertical', 10, True)),
             (m + 24, rule.format(h * 6)), (m + 30, slot('green', 8))]),
-        at([(m + 2, v), (m + 16, v), (m + 18, dn), (m + 32, v)]),
-        at([(m + 2, v), (m + 16, v), (m + 20, slot('precinct', 10)),
-            (m + 32, v)]),
-        at([(m + 2, v), (m + 16, v), (m + 18, up), (m + 32, v)]),
+        at([(s + 7, up), (m + 2, v), (m + 16, v), (m + 18, dn), (m + 32, v)]),
+        at([(s, slot('stacks', 7)), (m + 2, v), (m + 16, v),
+            (m + 20, slot('precinct', 10)), (m + 32, v)]),
+        at([(s + 7, dn), (m + 2, v), (m + 16, v), (m + 18, up), (m + 32, v)]),
         at([(m, slot('ninth', 8, True)), (m + 8, rule.format(h * 6)),
             (m + 14, slot('marrow', 9, True)), (m + 23, rule.format(h * 7)),
-            (m + 30, slot('glasshouse', 12))]),
-        at([(m + 2, v), (m + 8, dn), (m + 16, v), (m + 31, up)]),
-        at([(m + 2, v), (m + 9, dn), (m + 16, v), (m + 30, up)]),
+            (m + 30, slot('glasshouse', 12, True)),
+            (m + 42, rule.format(h * 2)), (m + 44, slot('hall', 6))]),
+        at([(m + 2, v), (m + 8, dn), (m + 16, v), (m + 31, up), (m + 32, v),
+            (m + 45, dn)]),
+        at([(m + 2, v), (m + 9, dn), (m + 16, v), (m + 30, up), (m + 32, v),
+            (m + 44, dn)]),
         at([(m, slot('shambles', 10, True)), (m + 10, rule.format(h * 4)),
             (m + 14, slot('freeport', 10, True)),
-            (m + 24, rule.format(h * 5)), (m + 29, up)]),
+            (m + 24, rule.format(h * 6)), (m + 30, slot('row', 9, True)),
+            (m + 39, rule.format(h * 4)), (m + 43, up)]),
     ]
     return rows
 

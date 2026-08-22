@@ -1273,11 +1273,11 @@ def check_districts(rep: Report) -> None:
     check_city_shape(rep)
 
 
-#: The furthest apart two districts are allowed to be, in shifts. The city is
-#: nine places and travel is the one thing that always costs time, so a corner
-#: four shifts from the middle is not a distant district, it is a district
-#: nobody will ever accept a contract in.
-MAX_WALK = 3
+#: The most shifts any district may be from any other. Three while the city
+#: was nine districts; four since D64 b grew it to twelve, because a bigger
+#: city takes longer to cross and that is part of what bigger means. The
+#: contract lifetime (6 to 12 shifts) still reaches every corner.
+MAX_WALK = 4
 
 
 def check_city_shape(rep: Report) -> None:
