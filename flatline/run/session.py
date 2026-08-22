@@ -454,6 +454,33 @@ class RunState:
             base = max(2, base + self.condition.wake)
         return base
 
+    def _response(self) -> None:
+        """Nightwatch send somebody (D67).
+
+        Their doctrine has always said their networks are lightly defended
+        and extremely well watched and that the ICE arrives rather than
+        waiting, and nothing in the generator did any of that. Once a run,
+        when the room turns red, something turns up on the host you are
+        standing on, awake, and it did not come up through the network.
+        """
+        if (self.net.faction != 'nightwatch' or self.alert != 'red'
+                or 'arrived' in self.spent):
+            return
+        self.spent.add('arrived')
+        pool = ice_content.available('hunter', 'nightwatch')
+        if not pool:
+            return
+        data = self.rng.pick(pool)
+        lo, hi = data.rating
+        self.node.ice.append(IceInstance(
+            uid=f'{data.key}-call', key=data.key,
+            rating=max(1, self.rng.int(lo, hi)), state='awake', known=True))
+        self.console.blank()
+        self.console.raw(f'[err]Something has been sent. {data.name} is on '
+                         f'{self.here}, awake, and it did not come up '
+                         f'through the network.[/]')
+        self.log(f'nightwatch sent {data.name}')
+
     def cool(self) -> None:
         """The network stands down one level. Never below green, and the
         quiet has to be earned again for the next one."""
@@ -483,6 +510,7 @@ class RunState:
             return
         self.alert = levels[new]
         self.since_filed = 0
+        self._response()
         self.console.blank()
         self.console.raw(f'[err][bold]ALERT: {self.alert.upper()}[/][/]  '
                          f'[dim]{ice_content.ALERT_BLURB[self.alert]}[/]')
@@ -978,6 +1006,12 @@ class RunState:
             data = construct.data
             if data.behaviour == 'trap':
                 continue  # traps spring on contact, not on the clock
+            if (self.net.faction == 'chorus' and construct.known
+                    and construct.state == 'dormant'):
+                # Devotional rather than defensive (D67): what wakes in a
+                # Chorus network does not go back to sleep. A construct you
+                # have seen wake is awake for the rest of the evening.
+                construct.state = 'awake'
             if self.impersonating > 0 and data.behaviour != 'black':
                 # Impersonate (D63, as the technique always said): you are
                 # somebody with a reason to be here, and everything that
@@ -1914,7 +1948,10 @@ class RunState:
             return bool(self.haul)
         kind = self.contract.get('objective', 'exfiltrate')
         if kind == 'exfiltrate':
-            return self.net.objective_asset in self.haul
+            # A mirror counts (D67): Static keep everything eleven times,
+            # and the copy is the same file.
+            want = self.net.objective_asset
+            return any(uid in (want, f'{want}-mirror') for uid in self.haul)
         if kind == 'surveil':
             return self.observed_enough
         if kind == 'escort':

@@ -1078,6 +1078,8 @@ def _show_contract(sess, contract) -> None:
         ('size', f'{contract_mod.SIZE_WORDS[contract.size_mod][0]} [dim]'
                  f'{contract_mod.SIZE_WORDS[contract.size_mod][1]}[/]'),
         ('reads as', readiness(game.char, int(contract.posture))),
+        *([('their way', _net_signature(contract.target))]
+          if _net_signature(contract.target) else []),
         ('posture', f'{int(contract.posture)} [dim]'
                     f'{contract.target_data.doctrine}[/]'
                     + (f' [accent2]({factions.style_line(contract.target_data)})[/]'
@@ -1213,6 +1215,12 @@ def readiness(char, posture: int) -> str:
     tail = (breaker.name if breaker else 'no breaker loaded')
     return (f'[{role}]{words}[/] [dim]({chance:.0%} on a middling service '
             f'with {tail})[/]')
+
+
+def _net_signature(faction: str) -> str:
+    """What this lot's networks do that nobody else's do (D67), or ''."""
+    from ..run import network as net_mod
+    return net_mod.SIGNATURES.get(faction, '')
 
 
 def _suggest_contract(game):

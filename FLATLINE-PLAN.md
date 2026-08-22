@@ -2040,6 +2040,19 @@ Measured after, twenty-four networks a band: a mid build takes 17 to 21 of
 24 gang jobs and 3 to 9 corporate ones; an end-game build takes 21 of 24 at
 Kagawa, 24 of 24 at Meridian and 20 of 24 at Deepwater. That is a ladder.
 
+**And each lot builds differently, structurally** (`network.SIGNATURES`,
+six of them, named on the contract screen under `their way`). Deepwater has
+no perimeter: the front of the network is not there and you arrive already
+inside it. Freeport is audited in public, so the whole topology is known
+from the first tick and seeing it is not the same as walking it. Static
+mirror everything, so the thing you came for exists twice and the copy
+counts. Meridian seal the objective, always, because the keys are the only
+thing they guard. A Chorus construct you have seen wake never goes back to
+sleep. Nightwatch send somebody: once a run, when the room turns red,
+something arrives on the host you are standing on that did not come up
+through the network. `check_factions` holds every declared signature to
+being acted on somewhere outside content.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.

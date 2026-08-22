@@ -8480,12 +8480,96 @@ def test_ladder() -> None:
          'and the brief says why')
     console.end_capture()
 
+
+def test_signatures() -> None:
+    """D67: a faction's network is its own, structurally."""
+    T.section('what each lot builds')
+    from flatline.run import network as net_mod
+    from flatline.content import ice as ice_content
+
+    # Deepwater: you arrive already inside it.
+    for seed in range(6):
+        net = net_mod.generate(Rng(seed).fork('network', 'g'), 'deepwater', 72)
+        T.ok(not any(n.zone == 'perimeter' for n in net.nodes.values()),
+             f'seed {seed}: Deepwater has no perimeter')
+        T.eq(net.node(net.entry).zone, 'interior', 'and you start inside it')
+
+    # Freeport: audited in public.
+    net = net_mod.generate(Rng(1).fork('network', 'g'), 'freeport', 40)
+    T.ok(all(n.known for n in net.nodes.values()),
+         'a Freeport network is known from the first tick')
+    T.ok(not all(n.open for n in net.nodes.values()),
+         'and seeing it is not walking it')
+    other = net_mod.generate(Rng(1).fork('network', 'g'), 'kagawa', 45)
+    T.ok(sum(1 for n in other.nodes.values() if n.known) <= 2,
+         'and nobody else works that way')
+
+    # Static: mirrored, and the copy counts.
+    for seed in range(8):
+        net = net_mod.generate(Rng(seed).fork('network', 'g'), 'static', 28)
+        mirror = [d for n in net.nodes.values() for d in n.data
+                  if d.uid.endswith('-mirror')]
+        if mirror:
+            break
+    T.ok(mirror, 'Static keep a second copy')
+    char = Character.from_origin('gutter', 'x')
+    console = quiet_console(); console.start_capture()
+    state = RunState.begin(net, char, Rng(2)('combat'), console,
+                           contract={'objective': 'exfiltrate', 'title': 'T'})
+    state.haul.append(f'{net.objective_asset}-mirror')
+    T.ok(state.objective_met(), 'and taking the copy is taking the thing')
+    console.end_capture()
+
+    # Meridian: sealed.
+    for seed in range(6):
+        net = net_mod.generate(Rng(seed).fork('network', 'g'), 'meridian', 62)
+        found = net.find_asset(net.objective_asset)
+        T.ok(found and found[1].encrypted,
+             f'seed {seed}: a Meridian objective is behind a key')
+
+    # Chorus: what wakes does not sleep.
+    net = net_mod.generate(Rng(3).fork('network', 'g'), 'chorus', 38)
+    console = quiet_console(); console.start_capture()
+    state = RunState.begin(net, Character.from_origin('gutter', 'x'),
+                           Rng(3)('combat'), console)
+    guard = net_mod.IceInstance(uid='p-1', key='psalm', rating=4,
+                                state='dormant', known=True)
+    state.node.ice.append(guard)
+    state._ice_tick()
+    T.ok(guard.state != 'dormant', 'a Chorus construct you have seen stays up')
+    console.end_capture()
+
+    # Nightwatch: something arrives when the room turns red.
+    net = net_mod.generate(Rng(4).fork('network', 'g'), 'nightwatch', 48)
+    console = quiet_console(); console.start_capture()
+    state = RunState.begin(net, Character.from_origin('gutter', 'x'),
+                           Rng(4)('combat'), console)
+    before = len(state.node.ice)
+    state.escalate(2)
+    out = ui.plain(console.end_capture())
+    T.ok(len(state.node.ice) > before, 'Nightwatch send somebody')
+    T.ok('did not come up through the network' in out, 'and say so')
+    console.start_capture()
+    state.escalate(1)
+    console.end_capture()
+    T.eq(len(state.node.ice), before + 1, 'once a run')
+
+    # Every signature is named to the player on the contract.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=11)
+    contract = game.city.board[0]
+    contract.target = 'deepwater'
+    _, out = play([f'board {contract.cid}'], game=game)
+    T.ok('their way' in ui.plain(out), 'the contract says how they build')
+    T.ok('no perimeter' in ' '.join(ui.plain(out).split()),
+         'and what that means')
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
     test_intrusion, test_catalogue, test_money, test_relics, test_street,
     test_soak, test_advice, test_scale, test_place, test_ladder,
+    test_signatures,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,

@@ -447,7 +447,70 @@ def generate(rng: Stream, faction: str, posture: int,
     # -- objective ---------------------------------------------------------
     _place_objective(rng, net, objective)
     _ensure_ladder(rng, net, scale)
+    _signature(rng, net, fac)
     return net
+
+
+#: What each faction's network *is*, past the knobs (D67). A style value
+#: makes a network denser or quieter; these change its shape or its rules,
+#: which is the difference between a faction that reads different and one
+#: that is. Each is one sentence of doctrine the generator or the run
+#: honours literally, and `check_factions` holds every declared signature
+#: to being implemented.
+SIGNATURES: dict[str, str] = {
+    'deepwater': 'no perimeter: you arrive already inside it',
+    'freeport': 'audited in public: the whole topology is known from the '
+                'first tick',
+    'static': 'mirrored: the thing you came for exists twice',
+    'meridian': 'everything is sealed: the objective is always encrypted',
+    'chorus': 'devotional: what wakes here does not go back to sleep',
+    'nightwatch': 'response, not prevention: something arrives when the '
+                  'room turns red',
+}
+
+
+def _signature(rng: Stream, net: Network, fac: factions.Faction) -> None:
+    """Apply the faction's structural signature.
+
+    The generation half. The run half lives in `RunState` and reads
+    `net.faction` for the same keys.
+    """
+    if fac.key == 'deepwater':
+        # No perimeter to speak of: the front of the network is not there
+        # and you arrive somewhere that is already inside.
+        inside = [n for n in net.nodes.values() if n.zone == 'interior']
+        if inside:
+            for node in [n for n in net.nodes.values()
+                         if n.zone == 'perimeter']:
+                node.zone = 'interior'
+            entry = rng.pick(inside)
+            net.entry = entry.uid
+            entry.known = entry.open = entry.mapped = True
+    if fac.key == 'freeport':
+        # Genuinely open, genuinely audited. You can see all of it. Seeing
+        # it and being able to walk it are different things.
+        for node in net.nodes.values():
+            node.known = True
+    if fac.key == 'static':
+        # Mirrored eleven times, and one of the mirrors is reachable.
+        found = net.find_asset(net.objective_asset)
+        if found:
+            node, asset = found
+            others = [n for n in net.nodes.values()
+                      if n.uid != node.uid
+                      and n.zone in ('interior', 'restricted')]
+            if others:
+                twin = rng.pick(others)
+                twin.data.append(DataAsset(
+                    uid=f'{asset.uid}-mirror', kind=asset.kind,
+                    value=asset.value, encrypted=asset.encrypted,
+                    objective=True, label=asset.label))
+    if fac.key == 'meridian':
+        # The keys are the only thing they guard, so the thing you came for
+        # is behind one.
+        found = net.find_asset(net.objective_asset)
+        if found:
+            found[1].encrypted = True
 
 
 def _ensure_ladder(rng: Stream, net: Network, scale: float) -> None:

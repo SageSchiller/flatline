@@ -1191,6 +1191,17 @@ def check_factions(rep: Report) -> None:
     for key in factions.STYLE_KEYS:
         rep.check(any(key in f.style for f in factions.FACTIONS), 'factions',
                   f'style key {key!r} is declared and no faction uses it')
+    # D67: a structural signature is a promise the engine has to keep.
+    from flatline.run import network as net_world
+    engine = _wide_source()
+    for key, line in net_world.SIGNATURES.items():
+        where = f'factions/{key}'
+        rep.check(key in factions.BY_KEY, 'factions',
+                  f'{key!r} has a signature and is not a faction')
+        rep.check(engine.count(f"'{key}'") >= 2, where,
+                  f'declares a signature the engine never acts on')
+        rep.check(len(line) > 20 and not line.endswith('.'), where,
+                  'signature reads badly in a list')
 
     # Every place the code branches on faction kind must handle every kind, or
     # adding a faction is a KeyError a player finds rather than the build.
