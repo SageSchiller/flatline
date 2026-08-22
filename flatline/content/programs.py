@@ -309,6 +309,34 @@ PROGRAMS: tuple[Program, ...] = (
 )
 
 
+#: How far above your skill a program will run at full rating (D63 f). A
+#: rating-6 breaker in the hands of Intrusion 0 runs as a rating 2: you do
+#: not know how to drive it yet. This is what makes training compete with
+#: buying without making the cheap programs worse: every check that reads a
+#: rating reads it through `held`, and prints the term as "held to N by
+#: <skill> <rank>" when it bites.
+HELD_ABOVE = 2
+
+#: Which skill holds a category, for `inspect` and for the checks that do
+#: not already know (breakers are held by the service's own family skill).
+HELD_BY: dict[str, str] = {
+    'breaker': 'intrusion', 'forger': 'subterfuge', 'weapon': 'warfare',
+    'wiper': 'forensics', 'mask': 'stealth', 'payload': 'intrusion',
+}
+
+
+def held(prog: Program, rank: int) -> int:
+    """The rating a program runs at for somebody of this rank."""
+    return max(1, min(prog.rating, rank + HELD_ABOVE))
+
+
+def held_label(prog: Program, rank: int, skill: str) -> str:
+    eff = held(prog, rank)
+    if eff >= prog.rating:
+        return prog.name
+    return f'{prog.name}, held to {eff} by {skill.title()} {rank}'
+
+
 #: The ones there is one of (D63 e). Not sold. Found, given, or decided.
 RELICS: tuple[Program, ...] = (
     Program('thessaly', 'Thessaly', 'breaker', 3, 5, 0.65, 7400, 3,

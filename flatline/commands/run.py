@@ -1066,7 +1066,9 @@ def cmd_pretext(sess, args) -> None:
     check.add('guile', state.char.attr('guile'))
     check.add('gear', state.char.bonus('pretext_bonus'))
     if forger:
-        check.add(forger.name, forger.rating * 2)
+        rank = state.char.skill('subterfuge')
+        check.add(programs.held_label(forger, rank, 'subterfuge'),
+                  programs.held(forger, rank) * 2)
     if node.tier > state.tier:
         check.add('you have no business here', -3 * (node.tier - state.tier))
     check.resolve(state.rng)
@@ -1367,7 +1369,9 @@ def cmd_scrub(sess, args) -> None:
     check.add('forensics', state.char.skill('forensics') * 2)
     check.add('logic', state.char.attr('logic'))
     if wiper:
-        check.add(wiper.name, wiper.rating * 2)
+        rank = state.char.skill('forensics')
+        check.add(programs.held_label(wiper, rank, 'forensics'),
+                  programs.held(wiper, rank) * 2)
     else:
         check.add('no wiper loaded', -4)
     check.resolve(state.rng)
@@ -1393,7 +1397,9 @@ def strike_check(state, target, weapon) -> Check:
     check.add('warfare', state.char.skill('warfare') * 2)
     check.add('nerve', state.char.attr('nerve'))
     if weapon:
-        check.add(weapon.name, weapon.rating * 2)
+        rank = state.char.skill('warfare')
+        check.add(programs.held_label(weapon, rank, 'warfare'),
+                  programs.held(weapon, rank) * 2)
     else:
         check.add('bare hands', -5)
     check.add('gear', state.char.bonus('ice_damage'))
@@ -1721,7 +1727,9 @@ def cmd_falsify(sess, args) -> None:
     check.add('logic', state.char.attr('logic'))
     wiper = programs.best(state.char.deck.loaded, 'wiper')
     if wiper:
-        check.add(wiper.name, wiper.rating * 2)
+        rank = state.char.skill('forensics')
+        check.add(programs.held_label(wiper, rank, 'forensics'),
+                  programs.held(wiper, rank) * 2)
     else:
         check.add('no wiper loaded', -5)
     rel = fac_content.relation(state.net.faction, key)
@@ -1762,9 +1770,11 @@ def cmd_mask(sess, args) -> None:
     check = Check(name='mask', resistance=10)
     check.add('stealth', state.char.skill('stealth') * 2)
     check.add('reflex', state.char.attr('reflex'))
-    check.add(mask.name, mask.rating * 2)
+    rank = state.char.skill('stealth')
+    rating = programs.held(mask, rank)
+    check.add(programs.held_label(mask, rank, 'stealth'), rating * 2)
     check.resolve(state.rng)
-    reduction = (mask.rating * 2.5 + state.char.skill('stealth') * 1.5)
+    reduction = (rating * 2.5 + state.char.skill('stealth') * 1.5)
     if not check.success:
         reduction *= 0.4
     # D63 b: a story wears thin. Each mask tonight is worth three quarters
@@ -2107,7 +2117,10 @@ def push_check(state, kind: str, payload) -> Check:
     else:
         check.add('intrusion', state.char.skill('intrusion') * 2)
         check.add('logic', state.char.attr('logic'))
-    check.add(payload.name, payload.rating * 2)
+    skill = 'sabotage' if kind == 'corrupt' else 'intrusion'
+    rank = state.char.skill(skill)
+    check.add(programs.held_label(payload, rank, skill),
+              programs.held(payload, rank) * 2)
     _improvised(check, payload, kind)
     return check
 
@@ -2119,7 +2132,9 @@ def wipe_check(state, payload) -> Check:
     check.add('sabotage', state.char.skill('sabotage') * 2)
     check.add('guile', state.char.attr('guile'))
     if payload:
-        check.add(payload.name, payload.rating * 2)
+        rank = state.char.skill('sabotage')
+        check.add(programs.held_label(payload, rank, 'sabotage'),
+                  programs.held(payload, rank) * 2)
         _improvised(check, payload, 'wipe')
     else:
         check.add('no payload loaded', -4)

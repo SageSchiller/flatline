@@ -2961,3 +2961,9 @@ a credit changed hands, which made an empty account the cheapest way to pay.
 Fourth: a runner's loan is a tab (`City.tabs`): they mention it every nine
 shifts it stands, in front of people, at three disposition a mention; `ask
 <name> repay` pays it down and clearing it gives half the favour's cost back.
+Fifth, **(f)**: a program runs at full rating only for somebody who can
+drive it. On every check that reads a rating, the rating is held to the
+governing skill's rank plus two (`programs.held`, `HELD_BY`), and the term
+prints as "held to N by Intrusion 2" when it bites. Training competes with
+buying without the cheap programs getting worse; `inspect` says what a
+program runs at for you.

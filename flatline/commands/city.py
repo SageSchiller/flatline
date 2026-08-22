@@ -2048,7 +2048,17 @@ def describe_item(sess, kind: str, item) -> None:
         rows.append(('kind', f'{item.category} [dim]{what} '
                              f'({", ".join(verbs)})[/]'))
         rows.append(('memory', str(item.memory)))
-        rows.append(('rating', f'{item.rating} [dim]counts double on a check[/]'))
+        skill = programs.HELD_BY.get(item.category, '')
+        held_note = ''
+        if skill and game is not None:
+            rank = game.char.skill(skill)
+            eff = programs.held(item, rank)
+            held_note = (f'; runs at {eff} for you ({skill.title()} {rank})'
+                         if eff < item.rating else
+                         f'; your {skill.title()} {rank} drives it in full')
+        rows.append(('rating', f'{item.rating} [dim]counts double on a check, '
+                               f'held to your skill + {programs.HELD_ABOVE}'
+                               f'{held_note}[/]'))
         rows.append(('signature', f'{item.signature:g} [dim]'
                                   f'{signature_word(item.signature)}[/]'))
         if item.jobs:

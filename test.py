@@ -6878,6 +6878,25 @@ def test_reads() -> None:
     T.ok('grip cuts you out' in ui.plain(console.end_capture()),
          'and said so')
 
+    # A program above your skill runs held (D63 f).
+    T.eq(programs.held(programs.BY_KEY['thunderhead'], 0), 2,
+         'Thunderhead at Intrusion 0 runs as a 2')
+    T.eq(programs.held(programs.BY_KEY['thunderhead'], 4), 6,
+         'and in full at Intrusion 4')
+    T.eq(programs.held(programs.BY_KEY['crowbar'], 0), 2,
+         'a Crowbar is a Crowbar for anybody')
+    char = Character.from_origin('gutter', 'x')
+    char.base_skills['intrusion'] = 0
+    char.deck.loaded = ['thunderhead']
+    state, console = run_for(char)
+    node = next(n for n in state.net.nodes.values() if n.services)
+    svc = next((s for s in node.services if s.family != 'crypto'), node.services[0])
+    check = session_mod.crack_check(state, node, svc, programs.BY_KEY['thunderhead'])
+    term = next(t for t in check.terms if 'Thunderhead' in t.label)
+    T.ok('held to' in term.label and term.value <= 4,
+         f'the crack sum says it is held ({term.label}: {term.value})')
+    console.end_capture()
+
     # Threadpuller: the second breaker rides along.
     char = Character.from_origin('gutter', 'x')
     char.installed.append('threadpuller')

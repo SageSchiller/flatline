@@ -1332,7 +1332,9 @@ class RunState:
         check.add('gear', self.char.bonus('pretext_bonus'))
         forger = programs.best(self.char.deck.loaded, 'forger')
         if forger:
-            check.add(forger.name, forger.rating * 2)
+            rank = self.char.skill('subterfuge')
+            check.add(programs.held_label(forger, rank, 'subterfuge'),
+                      programs.held(forger, rank) * 2)
         if self.impersonating > 0:
             check.add('wearing somebody else\'s name', 5)
         if 'no_social' in self.char.riders():
@@ -1868,7 +1870,9 @@ def crack_check(state: RunState, node: Node, svc: net_mod.ServiceInstance,
     attr = skill_content.BY_KEY[skill_key].attr
     check.add(attr, state.char.attr(attr))
     if program:
-        check.add(program.name, program.rating * 2)
+        rank = state.char.skill(skill_key)
+        check.add(programs.held_label(program, rank, skill_key),
+                  programs.held(program, rank) * 2)
         if 'dual_thread' in state.char.riders():
             # Threadpuller (D63): two programs against one target. The
             # second-best of the category rides along at its full rating,
@@ -1883,7 +1887,8 @@ def crack_check(state: RunState, node: Node, svc: net_mod.ServiceInstance,
                       and programs.BY_KEY[k].category == program.category]
             if others:
                 second = max(others, key=lambda p: p.rating)
-                check.add(f'second thread: {second.name}', second.rating)
+                check.add(f'second thread: {second.name}',
+                          programs.held(second, rank))
     else:
         check.add(f'no {category} loaded', -6)
     if svc.family == 'crypto':
