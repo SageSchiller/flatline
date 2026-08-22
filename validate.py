@@ -2621,15 +2621,26 @@ def check_documented(rep: Report) -> None:
                   f'{owners} claims to document content/{name}.py, which is '
                   f'not there')
 
-    # Declared search terms exist to catch the words the prose does not use.
-    # One that is already in the prose is not a synonym, it is a duplicate,
-    # and it will drift when the prose is rewritten.
+    # Declared search terms are what a player types. Two topics claiming the
+    # same one is the real hazard: search scores terms above body text, so a
+    # word owned by two pages is a word that opens neither (D68). A term
+    # that also appears in the prose is fine and often necessary: `trace`
+    # belongs to `triangle` and saying so is how the search finds it, which
+    # the old rule against it made impossible.
+    owners: dict[str, str] = {}
     for topic in manual.TOPICS:
         where = f'manual/{topic.key}'
-        body = ui.plain(topic.body).lower()
         for term in topic.terms:
             rep.check(term == term.lower().strip(), where,
                       f'search term {term!r} is not normalised')
+            first = owners.setdefault(term, topic.key)
+            rep.check(first == topic.key, where,
+                      f'search term {term!r} is also claimed by '
+                      f'{first!r}, so it opens neither')
+    for topic in manual.TOPICS:
+        where = f'manual/{topic.key}'
+        body = ui.plain(topic.body).lower()
+        for term in ():
             rep.check(term not in body, where,
                       f'search term {term!r} is already in the body, so the '
                       f'search finds this topic without it')

@@ -150,6 +150,22 @@ def _help_topic(sess, topic) -> None:
     reached = ('help --topic' if REGISTRY.lookup(topic.key) else 'help')
     c.header(topic.title, f'{reached} {topic.key}')
     for para in topic.body.split('\n\n'):
+        # A paragraph that opens by naming itself gets a rule, so a page of
+        # twenty-five paragraphs is a page you can scan (D68). The marker is
+        # the prose's own shape: `[warn]The decision:[/]`, `[warn]Six
+        # shapes.[/]`, and so on.
+        head = _sub_heading(para)
+        if head:
+            c.rule(head, role='muted')
+            para = para[para.index('[/]') + 3:].lstrip()
+            # The sentence carried on from the heading, so it starts in
+            # lower case; standing on its own under a rule it should not.
+            for i, ch in enumerate(para):
+                if ch.isalpha():
+                    para = para[:i] + ch.upper() + para[i + 1:]
+                    break
+                if ch not in '[]/a-z':
+                    break
         for line in para.split('\n'):
             # Lines that are already laid out as a table keep their spacing;
             # prose gets wrapped.
@@ -165,6 +181,26 @@ def _help_topic(sess, topic) -> None:
         c.say('[dim]See also: ' + ', '.join(
             f'`help {"--topic " if REGISTRY.lookup(k) else ""}{k}`'
             for k in topic.see) + '[/]')
+
+
+#: The longest a leading `[warn]...[/]` can be and still be a heading
+#: rather than an emphasised sentence.
+SUB_HEADING_MAX = 34
+
+
+def _sub_heading(para: str) -> str:
+    """The heading a paragraph opens with, or '' if it does not open with
+    one. A short bolded phrase ending in a colon or a full stop is a
+    heading; anything longer is prose that happens to start emphasised."""
+    if not para.startswith('[warn]'):
+        return ''
+    end = para.find('[/]')
+    if end < 0:
+        return ''
+    text = para[len('[warn]'):end].strip()
+    if len(text) > SUB_HEADING_MAX or not text.endswith((':', '.')):
+        return ''
+    return text.rstrip(':.').lower()
 
 
 def _listing(c, rows: list[tuple[str, str]], indent: str = '  ') -> None:
@@ -313,7 +349,7 @@ def _in_catalogue(topic, word: str) -> bool:
 def _help_search(sess, word: str) -> None:
     """Nothing is called that. Find what does mention it.
 
-    A hundred and six verbs and thirty-five topics is more than anybody can
+    A hundred and thirty verbs and forty-two topics is more than anybody can
     hold the names of, and the commonest failure is knowing what you want and
     not what it is called. `help addiction` and `help loan` and `help odds of
     winning` all have to land somewhere rather than raising.
@@ -374,6 +410,24 @@ def _help_search(sess, word: str) -> None:
         raise CommandError(
             f'nothing called {word!r}, and nothing mentions it. '
             f'`help topics` for the manual, `help commands` for the verbs.')
+
+    # A word a topic *claims* is that topic's word (D68). `trace` is
+    # mentioned by nineteen pages and belongs to one; handing back nineteen
+    # rows was the search refusing to answer a question it knew the answer
+    # to. An outright owner wins, and the rest becomes a dim footnote.
+    owners = [t for t in topics if t[0] == 3]
+    if len(owners) == 1 and not [v for v in verbs if v[0] == 3]:
+        topic = manual.BY_KEY[owners[0][1]]
+        _help_topic(sess, topic)
+        rest = [t for t in topics if t[1] != topic.key][:6]
+        if rest:
+            c.blank()
+            c.say(f'[dim]{len(topics) - 1} other page'
+                  f'{"s" if len(topics) - 1 != 1 else ""} mention '
+                  f'{word!r}: '
+                  + ', '.join(f'`help --topic {t[1]}`' for t in rest)
+                  + ('...' if len(topics) - 1 > len(rest) else '') + '[/]')
+        return
 
     # One hit is an answer, not a result set. Making somebody read a list of
     # length one and then type the only thing on it is a search being pleased

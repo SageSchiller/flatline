@@ -202,7 +202,13 @@ TOPICS: tuple[Topic, ...] = (
         '[trace]TRACE[/] is the clock. It runs from 0 to 100, it never goes '
         'down on its own, and when it fills, somebody at the other end cuts '
         'you loose. It advances a little every tick and a lot when you are '
-        'loud, so it is fed by both the time you spend and the noise you make.\n\n'
+        'loud, so it is fed by both the time you spend and the noise you '
+        'make, and the two are not equal: [warn]a tick in which you made no '
+        'noise costs 0.45 and a tick in which you did costs 1.1[/], before '
+        'the alert level multiplies either. That is what makes [fg]wait[/], '
+        '[fg]--quiet[/], Ghost and Sidechannel worth the time they take, and '
+        'why a big network works for you: twenty hosts is more traffic to be '
+        'lost in, and runs the clock about a fifth slower than eight.\n\n'
         '[residue]RESIDUE[/] is evidence. It does not affect the run at all. '
         'It sits on the nodes you touched, you carry it out with you, and a '
         'shift later it becomes that faction\'s heat on your name.\n\n'
@@ -212,7 +218,9 @@ TOPICS: tuple[Topic, ...] = (
         'unless you were fast enough earlier to afford the difference.',
         see=('alert', 'heat', 'basics'),
         commands=('status', 'scrub', 'mask', 'wipe'),
-        terms=('stealth', 'detection', 'timer',)),
+        terms=('trace', 'noise', 'residue', 'timer',
+               'countdown', 'evidence', 'stealth meter'),
+        group='systems'),
     Topic(
         'checks', 'How anything is decided',
         'The one formula, and why you can always see it.',
@@ -242,7 +250,8 @@ TOPICS: tuple[Topic, ...] = (
         '  [ice]trap[/]     invisible until sprung. Did you look first?\n'
         '  [ice]warden[/]   holds a boundary. Break it, or satisfy it?\n'
         '  [ice]herder[/]   never touches you, closes your routes instead\n'
-        '  [ice]black[/]    lethal. The only thing that can actually kill you\n\n'
+        '  [ice]black[/]    lethal. One of the two things that can kill '
+        'you; the street is the other\n\n'
         '[warn]Everything that can act telegraphs first.[/] One tick before a '
         'construct strikes, it prints a line describing what is happening: '
         '[dim]"the segment\'s routing table is being rewritten around you"[/] '
@@ -261,18 +270,28 @@ TOPICS: tuple[Topic, ...] = (
         'alert', 'The alert level',
         'The network making up its mind about you.',
         'A network is at [ok]green[/], [warn]amber[/], [err]red[/], or '
-        '[err]lockdown[/]. It only ever goes up, never down, inside a run.\n\n'
-        'Each step multiplies how fast the trace advances: amber is 1.25x, red '
-        'is 1.7x, lockdown is 2.4x. It rises when a node gets too noisy, when a '
-        'sentry files on you, when a pretext fails, and when you do something '
-        'spectacular like an overload.\n\n'
-        '[warn]The decision:[/] alert is the reason a slow careful run beats a '
-        'fast loud one over the length of a whole network. At red your trace '
-        'is running at nearly double speed, so every tick you spend after that '
-        'point costs you nearly twice what the same tick cost at green.',
+        '[err]lockdown[/]. Each step multiplies how fast the [trace]trace[/] '
+        'advances: amber is 1.25x, red is 1.7x, lockdown is 2.4x. It rises '
+        'when a node gets too [noise]noisy[/], when a sentry files on you, '
+        'when a pretext fails, and when you do something spectacular like an '
+        'overload.\n\n'
+        '[ok]It can come back down.[/] A response desk that has found '
+        'nothing for a while stands down: nine ticks with nothing new filed '
+        'against you, or six consecutive ticks in which you made no noise '
+        'anywhere, takes it down one level. Every fresh escalation resets '
+        'both counters. [fg]wait[/] is the verb for buying that on purpose, '
+        'and it is the only thing in the run that makes no noise at all.\n\n'
+        '[warn]The decision:[/] alert is the reason a slow careful run beats '
+        'a fast loud one over the length of a whole network. At red your '
+        'trace runs at nearly double speed, so every tick after that costs '
+        'nearly twice what it cost at green, and nine quiet ticks to buy the '
+        'multiplier back is a trade worth doing arithmetic on: it is usually '
+        'right early in a long run and usually wrong near the end of a short '
+        'one.',
         see=('triangle', 'ice'),
-        commands=('status',),
-        terms=('alarm', 'escalation',)),
+        commands=('status', 'wait', 'mask', 'jack out'),
+
+        terms=('alarm',)),
     Topic(
         'objectives', 'The six kinds of job',
         'What contracts actually ask for.',
@@ -330,7 +349,7 @@ TOPICS: tuple[Topic, ...] = (
         '  Integrity = 10 + 2x Grit      damage before the run ends\n'
         '  Focus     = 3 + Logic/2       precision actions per run\n'
         '  Tempo     = 1 + Reflex/4      free actions banked, capped at 3\n'
-        '  Composure = Nerve, less drift resistance to black ICE\n'
+        '  Composure = 2x Nerve + Drift/10   holding under black ICE\n'
         '  Cover     = 2x Guile          how fast heat cools\n\n'
         '[warn]The decision:[/] attributes are broad and slow. They set your '
         'ceilings. Skills decide what you can do at all, so early points '
@@ -357,10 +376,16 @@ TOPICS: tuple[Topic, ...] = (
         '  [accent]Psyche[/]        the part of you that is actually in '
         'there.\n'
         '  [accent]Hardware[/]      deck tuning, overclocking, hotswaps.\n'
-        '  [accent]Forensics[/]     managing what you leave behind.\n\n'
-        '[warn]Every attribute governs at least two of them[/], three lines '
-        'apiece for Logic and two for everybody else, so there is no '
-        'attribute you can safely ignore and no single best one.\n\n'
+        '  [accent]Forensics[/]     managing what you leave behind.\n'
+        '  [accent]Streetcraft[/]   reading a street, and being read by it '
+        'the way you meant.\n'
+        '  [accent]Fieldcraft[/]    the body on the street: carrying hurt, '
+        'walking far, staying up.\n\n'
+        'The last two are the half of the game that happens with the deck in '
+        'the bag. See `help street`.\n\n'
+        '[warn]Every attribute governs at least two of them[/], four for '
+        'Logic and two or three for everybody else, so there is no attribute '
+        'you can safely ignore and no single best one.\n\n'
         '[warn]Ranks 2 and 4 of every line unlock a technique[/], which is a '
         'new verb in the shell or a new option on an existing one. Ranks 1, 3 '
         'and 5 are numeric fill. That is the whole shape of progression here: '
@@ -377,7 +402,7 @@ TOPICS: tuple[Topic, ...] = (
         group='character'),
     Topic(
         'techniques', 'Techniques',
-        'The twenty-four things ranks 2 and 4 unlock.',
+        'The twenty-eight things ranks 2 and 4 unlock.',
         'Every skill unlocks one technique at rank 2 and another at rank 4. '
         '[fg]techniques[/] lists the ones you have; [fg]skills[/] shows the '
         'next one coming.\n\n'
@@ -452,7 +477,7 @@ TOPICS: tuple[Topic, ...] = (
         'Skills say what you can do. Chrome says what you are made of. '
         '[accent]Traits say what you are like.[/]\n\n'
         'You pick two at creation and earn one more every six runs, to a '
-        'maximum of five, out of a pool of twenty-six. That asymmetry is the '
+        'maximum of five, out of a pool of twenty-nine. That asymmetry is the '
         'entire point: no two characters are taking the same five, so the '
         'question stops being "what is optimal" and becomes "what is this '
         'person".\n\n'
@@ -602,7 +627,9 @@ TOPICS: tuple[Topic, ...] = (
         'Passive effects, the numbers a mask or an armour gives while it is '
         'merely loaded, count for [warn]the strongest program of each kind '
         'only[/]. Two masks are not twice the mask. An armour program is '
-        'good for as many saves a run as its rating, and then it is gone. '
+        'good for as many saves as its rating, and then it is [err]gone for '
+        'good[/]: not spent for the night, destroyed, off the deck and out '
+        'of the bag. '
         '[fg]inspect <name>[/] reads any program before you pay for it.\n\n'
         '[warn]The decision:[/] every slot spent on insurance is a slot not '
         'spent on capability. Armour and masks are invisible until the run '
@@ -668,7 +695,7 @@ TOPICS: tuple[Topic, ...] = (
         'Time moves in [accent]shifts[/], three to a day. Travelling costs '
         'one, legwork costs one, resting costs as many as you spend, and '
         'establishing a new identity costs two.\n\n'
-        'Nine districts, and [accent]travel only goes to a neighbour[/], so '
+        'Twelve districts, and [accent]travel only goes to a neighbour[/], so '
         'somewhere on the far side of the city costs two or three shifts to '
         'reach and the contract expiring is counting all of them. [fg]map[/] '
         'draws the city, marks where you are and where the job is, and says '
@@ -759,7 +786,7 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] a new name costs money, two shifts, and every '
         'relationship you built under the old one. Sometimes that is cheaper '
         'than the bounty. Usually it is not.',
-        see=('triangle', 'factions', 'death', 'safehouse'),
+        see=('triangle', 'factions', 'death', 'safehouse', 'networks'),
         commands=('alias', 'burn', 'rep', 'rest'),
         terms=('wanted', 'police', 'arrest', 'hiding',),
         group='city'),
@@ -902,8 +929,13 @@ TOPICS: tuple[Topic, ...] = (
     Topic(
         'money', 'Credits and what things cost',
         'The economy, and what a run is actually worth.',
-        'A contract pays between about 1,200 and 6,000 credits depending on '
-        'the target\'s posture and what the patron thinks of you.\n\n'
+        'A contract pays on a curve against the target\'s posture and a '
+        'multiplier for its size. A gang job is about [credit]1,600c[/], a '
+        'corporate one about [credit]3,200c[/], and a Meridian sprawl about '
+        '[credit]10,000c[/]. Size alone moves it a long way: a small job is '
+        'worth four fifths of the standard one and a sprawl is worth more '
+        'than twice it, because a sprawl is a night\'s work and there is '
+        'more in it to carry out.\n\n'
         'On top of that you keep what you carried out, sold through the '
         'patron. [warn]What it clears depends on your standing with them[/]: a '
         'stranger gets under half of nominal, somebody trusted gets close to '
@@ -1325,6 +1357,57 @@ TOPICS: tuple[Topic, ...] = (
         terms=('footnotes', 'flavour',),
         group='city'),
 
+    Topic(
+        'networks', 'What you are breaking into',
+        'Shape, size, and how one lot\'s networks differ from another\'s.',
+        'Every network is generated, and every one is generated the same '
+        'way: four concentric [accent]zones[/] (perimeter, interior, '
+        'restricted, core), an authored [accent]shape[/] the hosts are wired '
+        'into, and random fill inside that. Nothing is hand-drawn, and '
+        'nothing is arbitrary either.\n\n'
+        '[warn]Six shapes.[/] [accent]Layered[/] is the standard four rings. '
+        'A [accent]spine[/] is one long corridor in. A [accent]ring[/] gives '
+        'every zone two ways round. A [accent]hub[/] hangs each zone off one '
+        'host, which is where the wardens stand. A [accent]mesh[/] is joined '
+        'every way it could be. A [accent]split[/] forks the deep zones into '
+        'two wings, and the job is in one of them. Which shapes a faction '
+        'builds is doctrine: a gang runs a phone tree, so it is a hub; a '
+        'bank is a spine; Deepwater is a mesh nobody drew. [fg]map[/] names '
+        'the shape once you have seen enough of it, and topology legwork '
+        'names it before you go in.\n\n'
+        '[warn]Size is breadth, not depth.[/] Contracts come small, usual, '
+        'large, or a [accent]sprawl[/], and the board says which. A bigger '
+        'job widens the front: more ways in, more hosts that are not the '
+        'job, more to carry out. It barely deepens the back, because depth '
+        'is hops and hops are [trace]trace[/]. And the size itself is cover: '
+        'a twenty-host network runs the clock about a fifth slower than an '
+        'eight-host one, because there is more traffic to be lost in. Size '
+        'pays: a sprawl is worth more than twice a standard job.\n\n'
+        '[warn]Posture is the difficulty.[/] It sets how well the place is '
+        'actually built: service difficulty, how much ICE there is, how '
+        'often a boundary is guarded. A gang at 22 is a phone tree with '
+        'delusions and a bank at 62 is a bank. The board prints it, and '
+        'prints [fg]reads[/] beside it: whether their doors open for the '
+        'breaker you carry, and how hard the room runs the clock while you '
+        'work. Most runs are lost to the second one.\n\n'
+        '[warn]And each lot builds differently.[/] Deepwater has no '
+        'perimeter and you arrive already inside it. Freeport is audited in '
+        'public, so you can see the whole topology from the first tick and '
+        'seeing it is not walking it. Static mirror everything, so the thing '
+        'you came for exists twice. Meridian always seal the objective. A '
+        'Chorus construct that has woken does not go back to sleep. '
+        'Nightwatch send somebody when the room turns red. The contract '
+        'screen says which of these you are walking into, under '
+        '[fg]their way[/].\n\n'
+        '[warn]The decision:[/] posture decides whether you can open it, '
+        'size decides how long you will be in there, and shape decides '
+        'whether there is a second way round. Legwork buys all three before '
+        'you commit, and it is cheaper than finding out.',
+        see=('objectives', 'contracts', 'triangle', 'factions'),
+        commands=('map', 'legwork', 'board', 'scan'),
+        terms=('shape', 'sprawl', 'zones', 'topology', 'layout',
+               'how big', 'signature', 'network', 'networks'),
+        group='systems'),
     Topic(
         'conditions', 'Tonight, inside',
         'What the network is like tonight, which is not what it is.',
