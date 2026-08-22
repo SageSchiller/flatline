@@ -1760,6 +1760,9 @@ says.
   habit. Ash Tea names each comedown it cleared and the habit it moved,
   and `chem` says the cure is the habit. `help chemistry` says Focus is
   counted at the door.
+- **The Switchboard has a floor.** 1,200c, what a payload costs: the one
+  person who needed an advance was the one they offered nothing, and the
+  offer text now says what the number is and why.
 
 **(e) The relics: things there is one of.** Asked for in the same breath:
 special items, unique, with their own backstories, hard to get or found in
@@ -2944,3 +2947,8 @@ clothes, numbers declared and never read, and the guard for it now lives
 in `validate.py` rather than in anybody\'s memory.
 
 `validate.py` clean, `test.py` green at **14,067 checks**.
+
+### 2026-08-21 (q): the leftovers, one at a time
+
+The author asked for the items the deep dive had left alone, one at a time.
+First: the Switchboard lends a newcomer 1,200c rather than nothing.

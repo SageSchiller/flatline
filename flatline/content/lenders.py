@@ -71,11 +71,13 @@ LENDERS: tuple[Lender, ...] = (
         'fixers', 'Mara Okonkwo',
         where='marrow', at='fixer',
         rate=0.022, grace=18,
-        floor=0, per_rep=90, per_run=400, ceiling=25000,
+        floor=1200, per_rep=90, per_run=400, ceiling=25000,
         offer='The Switchboard will advance against work. Not against you, '
               'against work: what they will lend is what they think you are '
               'going to earn, and if they have not seen you earn anything '
-              'that number is zero.',
+              'that number is what a payload costs and not a credit more. '
+              'Somebody who has burned them is offered less than that, and '
+              'at some point a conversation instead.',
         handover='She writes it in a book, turns the book round so you can '
                  'read your own name in it, and waits until you have. Then '
                  'the money is in your account and the book goes back in the '
