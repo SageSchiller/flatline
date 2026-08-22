@@ -717,6 +717,13 @@ class City:
             # You delivered, but they had to hear about it from somebody else.
             pay = int(pay * 0.7)
             told.append('[warn]The exit was messy. They withheld part of it.[/]')
+        if summary.get('sealed'):
+            # D63 b: they wanted it open. A sealed record is the job done
+            # badly rather than not done, and paid like it.
+            from ..run.session import SEALED_SHARE
+            pay = int(pay * SEALED_SHARE)
+            told.append('[warn]It came out sealed. They wanted it open, and '
+                        'the fee says so.[/]')
         # Work gets attributed to somebody. Being a person worth naming means
         # the story that goes round afterwards has your name in it.
         alias.adjust_rep(contract.patron,

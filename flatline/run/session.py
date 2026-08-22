@@ -83,6 +83,18 @@ DEADMAN_FRACTION = 0.35
 #: Chance per tick that a daemon under a Mirror icon does nothing.
 MIRROR_HESITATION = 0.25
 
+#: `mask` (D63 b). Each use in a run is worth this much of the last, and no
+#: mask can take the trace below this fraction of what the clock alone has
+#: put there. Before this a rating-3 mask on a quiet host was a loop that
+#: reset the only clock in the game indefinitely.
+MASK_DECAY = 0.75
+MASK_FLOOR = 0.5
+
+#: What a sealed record is worth (D63 b): the share of nominal it sells for
+#: and the share of the fee a patron pays for the thing they wanted open.
+SEALED_HAUL = 0.4
+SEALED_SHARE = 0.55
+
 OUTCOMES = ('running', 'clean', 'burned', 'severed', 'flatline')
 
 
@@ -233,6 +245,14 @@ class RunState:
     #: Constructs that have tried to lock on and missed, so that the same
     #: evade line is not printed every tick they retry.
     evaded: set = field(default_factory=set)
+    #: The host you came from (D63 b). A herder that knows it cuts the way
+    #: back rather than a random edge, which is what herding is.
+    previous: str = ''
+    #: Times `mask` has been used tonight. See `MASK_DECAY`.
+    masked: int = 0
+    #: Assets pulled shut, without the decrypt (D63 b). Worth less, and the
+    #: patron pays less for the one they wanted open.
+    sealed: set = field(default_factory=set)
 
     # ------------------------------------------------------------------
     # construction
@@ -350,6 +370,8 @@ class RunState:
             amount *= 0.85
         if self.condition is not None:
             amount *= self.condition.residue
+        # Freeport logs in public (D63 b): the faction's style.
+        amount *= self.style('residue')
         # D63: a construct that declares `residue_mult` is one that files.
         # While an Auditor is awake on a host, everything done there leaves
         # more behind; the rider was declared on the type and read nowhere.
@@ -359,6 +381,11 @@ class RunState:
         value = max(0, int(round(amount)))
         node.residue += value
         return value
+
+    def style(self, key: str) -> float:
+        """One of the target faction's style knobs (D63 b), default 1.0."""
+        fac = fac_content.BY_KEY.get(self.net.faction)
+        return float(fac.style.get(key, 1.0)) if fac else 1.0
 
     def _portrait(self, construct) -> None:
         """Its mark, beside its name, the first time it wakes and you know
@@ -1097,6 +1124,9 @@ class RunState:
             construct.state = 'locked'
         self.add_trace(data.trace)
         damage = data.damage + construct.rating // 2
+        # D63 b: a faction's style. Sendai's doctrine has always said its
+        # constructs hit harder; now the generator and the strike agree.
+        damage = int(round(damage * self.style('damage')))
         self.take_damage(damage, black=(data.behaviour == 'black'),
                          source=data.name)
 
@@ -1112,15 +1142,23 @@ class RunState:
         candidates: list[tuple[str, str]] = []
         for node in self.net.nodes.values():
             for edge in node.edges:
-                # Prefer cutting behind the player, which is the whole point:
-                # a herder pushes you deeper rather than boxing you in place.
+                # Never the edges touching the player: a herder pushes you
+                # deeper rather than boxing you in place.
                 if node.uid == self.here or edge == self.here:
                     continue
                 candidates.append((node.uid, edge))
         if not candidates:
             return None
 
-        for a, b in self.rng.shuffled(candidates):
+        # D63 b: behind you first. The edges on the host you just left are
+        # the way back, and a herder that closes the way back is herding;
+        # one that closes a random edge across the network was a die roll
+        # with a name. Shuffled within each group, so which edge behind you
+        # goes is still the network's decision.
+        behind = [e for e in candidates if self.previous in e]
+        rest = [e for e in candidates if self.previous not in e]
+        ordered = list(self.rng.shuffled(behind)) + list(self.rng.shuffled(rest))
+        for a, b in ordered:
             node_a, node_b = self.net.nodes[a], self.net.nodes[b]
             node_a.edges.remove(b)
             node_b.edges.remove(a)
@@ -1160,6 +1198,28 @@ class RunState:
     # damage
     # ------------------------------------------------------------------
 
+    def _wear_armour(self) -> None:
+        """Armour is good for as many saves as its rating (D63 b). Bulwark's
+        note has always said it loses a point each time it saves you, and
+        until now it did not; now every hit it softens is a point, and at
+        the rating it is gone from the deck and the bag."""
+        armour = programs.best(self.char.deck.loaded, 'armour')
+        if armour is None:
+            return
+        self.armour_wear += 1
+        left = armour.rating - self.armour_wear
+        if left > 0:
+            self.console.say(f'[dim]{armour.name} took the edge off. '
+                             f'{left} more like that in it.[/]')
+            return
+        if armour.key in self.char.deck.loaded:
+            self.char.deck.loaded.remove(armour.key)
+        if armour.key in self.char.library:
+            self.char.library.remove(armour.key)
+        self.armour_wear = 0
+        self.console.warn(f'{armour.name} has taken all it can. It is gone.')
+        self.log(f'armour burned: {armour.name}')
+
     def take_damage(self, amount: int, black: bool, source: str = '') -> None:
         amount = max(0, int(round(amount * self.char.mult('ice_dr'))))
         if not amount:
@@ -1178,6 +1238,7 @@ class RunState:
         # The Deepjack routes everything through you rather than the deck.
         to_body = black or 'deep_jack' in self.char.installed
 
+        self._wear_armour()
         if not to_body:
             slot = self.rng.pick(list(self.char.deck.parts))
             # D63: a big construct hits harder. Two levels at and above
@@ -1315,6 +1376,14 @@ class RunState:
             if eff.get('tick_mult'):
                 self.drag *= float(eff['tick_mult'])
                 self.console.warn('Everything is going to take longer now.')
+            if eff.get('route_cut'):
+                # Gallows (D63 b): its strike line always said it cut the
+                # segment behind you, and it dropped your tier instead.
+                cut = self._cut_route()
+                if cut:
+                    self.console.warn(f'The route between {cut[0]} and '
+                                      f'{cut[1]} is gone.')
+                    self.log(f'route cut: {cut[0]}-{cut[1]}')
 
     # ------------------------------------------------------------------
     # resolution
@@ -1443,8 +1512,16 @@ class RunState:
                     f'{self.escort["state"]}'
                     + (', carrying it' if self.escort['done'] else ''))
         if kind == 'exfiltrate':
-            return ('you have it' if self.objective_met()
-                    else f'{asset_name} is still theirs')
+            if self.objective_met():
+                return ('you have it, shut: they pay part for a sealed one'
+                        if self.net.objective_asset in self.sealed
+                        else 'you have it')
+            found = self.net.find_asset(self.net.objective_asset)
+            shut = ''
+            if found and found[1].encrypted and found[0].mapped:
+                shut = (' It is sealed: Cryptography opens it, or `pull '
+                        '--sealed` takes it shut for part of the fee.')
+            return f'{asset_name} is still theirs.{shut}'
         if self.objective_met():
             return 'done'
         return 'not yet'
@@ -1744,7 +1821,10 @@ class RunState:
         for uid in self.haul:
             found = self.net.find_asset(uid)
             if found:
-                total += found[1].value
+                value = found[1].value
+                if uid in self.sealed:
+                    value = int(value * SEALED_HAUL)
+                total += value
         return total
 
     def summary(self) -> dict:
@@ -1758,6 +1838,7 @@ class RunState:
             'haul': list(self.haul),
             'haul_value': self.haul_value(),
             'objective': self.objective_met(),
+            'sealed': self.net.objective_asset in self.sealed,
             'faction': self.net.faction,
             'framed': self.framed,
             'observed': self.observed,

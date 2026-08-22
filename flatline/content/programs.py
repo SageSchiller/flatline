@@ -145,7 +145,7 @@ PROGRAMS: tuple[Program, ...] = (
     Program('bulwark', 'Bulwark', 'armour', 2, 3, 0.0, 2100, 1,
             'Absorbs feedback before it reaches the deck. Degrades as it works.',
             effects={'ice_dr': 0.7},
-            note='Passive. Loses a rating point each time it saves you.'),
+            note='Passive. Good for three saves a run, then it is gone.'),
     Program('deadlight', 'Deadlight', 'armour', 3, 5, 0.0, 7300, 3,
             'Black ICE mitigation. The only reason to attempt a core without '
             'the Nerve for it.',
@@ -220,7 +220,7 @@ PROGRAMS: tuple[Program, ...] = (
             'Bleeds feedback into the deck chassis. Cheap, and the deck is '
             'the thing that pays for it.',
             effects={'ice_dr': 0.85},
-            note='One memory. Redirects harm to your components.'),
+            note='One memory. Two saves a run, then it is gone.'),
     Program('understudy', 'Understudy', 'daemon', 3, 4, 1.0, 5300, 3,
             'Runs a copy of your session one node behind you, doing what you '
             'did a tick ago. Probes find it first.',

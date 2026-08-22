@@ -1792,8 +1792,10 @@ def test_herders_and_kinds() -> None:
             T.checks += 1
 
     # Every faction can be fielded against, and every ICE type is reachable.
+    # Twenty networks per faction: D63 b made Sendai's networks sparse, and
+    # its lethal construct is rare by doctrine rather than by accident.
     reached = set()
-    for i in range(96):
+    for i in range(240):
         key = factions.FACTION_KEYS[i % len(factions.FACTION_KEYS)]
         net = net_mod.generate(Rng(i).fork('network', f'k{i}'), key,
                                factions.BY_KEY[key].posture)
@@ -7057,10 +7059,272 @@ def test_reads() -> None:
          'asking people about topology is not resonance')
 
 
+
+def test_intrusion() -> None:
+    """D63 b: the intrusion layer's holes, closed."""
+    T.section('intrusion layer')
+    from flatline.run import session as session_mod
+    from flatline.commands import run as run_cmd
+    from flatline.content import factions as fac_content
+
+    def run_for(char, seed=11, faction='sixes', posture=30, objective='exfiltrate'):
+        net = net_mod.generate(Rng(seed).fork('network', 'r'), faction, posture,
+                               objective)
+        console = quiet_console()
+        console.start_capture()
+        state = RunState.begin(net, char, Rng(seed)('combat'), console)
+        return state, console
+
+    # mask: each use is worth less, and the floor holds.
+    char = Character.from_origin('ghost', 'x')  # carries Quietcastle
+    char.base_skills['stealth'] = 3
+    game = Game.new(char, seed=2424)
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    sess, _ = play([f'take {contract.cid}', 'jack in --force'], game=game)
+    T.ok(sess.run is not None and 'quietcastle' in sess.run.char.deck.loaded,
+         'the ghost carries a mask')
+    sess.run.trace = 40.0
+    sess.run.tick = 20
+    sess.execute('mask')
+    first = 40.0 - sess.run.trace
+    t1 = sess.run.trace
+    sess.execute('mask')
+    second = t1 - sess.run.trace
+    T.ok(sess.run.masked == 2, 'mask counts its uses')
+    T.ok(second <= first, f'the second mask is worth no more ({second:.1f} '
+                          f'vs {first:.1f})')
+    for _ in range(8):
+        sess.execute('mask')
+    floor = session_mod.TRACE_PER_TICK * sess.run.tick * session_mod.MASK_FLOOR
+    T.ok(sess.run.trace >= floor - 0.01,
+         f'ten masks cannot take the trace under the floor '
+         f'({sess.run.trace:.1f} vs {floor:.1f})')
+
+    # Sealed pulls: the decrypt is a fifth of posture, and --sealed is a path.
+    char = Character.from_origin('gutter', 'x')
+    char.deck.loaded = ['siphon', 'crowbar']
+    char.library += ['siphon']
+    found = None
+    for seed in range(40):
+        state, console = run_for(char, seed=seed, faction='kagawa', posture=45)
+        hit = state.net.find_asset(state.net.objective_asset)
+        if hit and hit[1].encrypted:
+            found = (state, console, hit)
+            break
+        console.end_capture()
+    T.ok(found is not None, 'a Kagawa exfiltration with a sealed record exists')
+    if found:
+        state, console, (node, asset) = found
+        T.eq(run_cmd.decrypt_check(state).resistance, 45 // 5 + 5,
+             'the decrypt is a fifth of posture plus five')
+        sess = Session(console=console, slot='test')
+        sess.game = Game.new(char, seed=1)
+        sess.run = state
+        state.here = node.uid
+        node.open = True
+        node.known = node.mapped = True
+        sess.execute(f'pull {asset.uid} --sealed')
+        out = ui.plain(console.end_capture())
+        T.ok(asset.uid in state.haul, 'the sealed record is in the haul')
+        T.ok(asset.uid in state.sealed, 'and marked sealed')
+        T.ok('sealed' in out, 'and it said so')
+        T.ok(state.haul_value() < asset.value,
+             'a sealed record is worth less than nominal')
+        summary = state.summary()
+        T.ok(summary['sealed'], 'the summary carries it')
+        T.ok(summary['objective'], 'and the objective counts as met')
+        game = Game.new(Character.from_origin('gutter', 'x'), seed=77)
+        contract = game.city.board[0]
+        base = {'faction': contract.target, 'residue': 0, 'outcome': 'clean',
+                'objective': True, 'alert': 'green', 'haul_value': 0,
+                'ticks': 10, 'haul': [], 'posture': 30}
+        full, _ = game.city.pay_out(game.alias, contract, dict(base), 1.0, 0)
+        part, told = game.city.pay_out(game.alias, contract,
+                                       {**base, 'sealed': True}, 1.0, 0)
+        T.ok(part < full, f'a sealed objective pays less ({part} vs {full})')
+        T.ok(any('sealed' in t for t in told), 'and the patron says why')
+
+    # Armour wears: a rating-3 Bulwark is three saves and then gone.
+    char = Character.from_origin('gutter', 'x')
+    char.deck.loaded = ['bulwark']
+    char.library.append('bulwark')
+    state, console = run_for(char)
+    for _ in range(3):
+        state.take_damage(3, black=False, source='test')
+    out = ui.plain(console.end_capture())
+    T.ok('bulwark' not in state.char.deck.loaded, 'the third save burned it')
+    T.ok('bulwark' not in state.char.library, 'and it is not in the bag either')
+    T.ok('taken all it can' in out, 'and it said so')
+
+    # No black ICE on a faction that has none; alert jumps that jump.
+    black = 0
+    for seed in range(20):
+        net = net_mod.generate(Rng(seed).fork('network', 's'), 'sixes', 40)
+        black += sum(1 for n in net.nodes.values() for c in n.ice
+                     if c.behaviour == 'black')
+    T.eq(black, 0, 'a Sixes vault never gets somebody else\'s Undertow')
+    for key in ('verger', 'psalm', 'stringer'):
+        T.ok(ice_content.BY_KEY[key].effects.get('alert_jump', 1) >= 2,
+             f'{key} escalates by more than the default')
+    char = Character.from_origin('gutter', 'x')
+    state, console = run_for(char)
+    verger = net_mod.IceInstance(uid='v-1', key='verger', rating=4)
+    verger.state = 'awake'
+    verger.telegraphed = True
+    state.node.ice.append(verger)
+    state._strike(verger)
+    T.eq(state.alert, 'red', 'a Verger strike is two levels from green')
+    console.end_capture()
+
+    # Gallows cuts a route, as its strike line always said.
+    T.ok(ice_content.BY_KEY['gallows'].effects.get('route_cut'),
+         'Gallows declares a route cut')
+    char = Character.from_origin('gutter', 'x')
+    char.base_attrs['reflex'] = 1
+    for seed in range(12):
+        state, console = run_for(char, seed=seed)
+        gallows = net_mod.IceInstance(uid='g-1', key='gallows', rating=9)
+        state.node.ice.append(gallows)
+        edges = sum(len(n.edges) for n in state.net.nodes.values())
+        state.check_traps(state.node)
+        out = ui.plain(console.end_capture())
+        after = sum(len(n.edges) for n in state.net.nodes.values())
+        if gallows.state == 'sprung' and 'route between' in out:
+            T.ok(after == edges - 2, 'a sprung Gallows closed one route')
+            break
+    else:
+        T.ok(False, 'a Gallows sprang and cut somewhere in twelve tries')
+
+    # The herder cuts behind you first.
+    steered = 0
+    tried = 0
+    for seed in range(30):
+        char = Character.from_origin('gutter', 'x')
+        state, console = run_for(char, seed=seed)
+        here = state.net.node(state.here)
+        if not here.edges:
+            console.end_capture()
+            continue
+        nxt = here.edges[0]
+        state.previous = state.here
+        state.here = nxt
+        # Only count when some edge behind you could be cut safely.
+        behind = [(a, b) for a in state.net.nodes
+                  for b in state.net.nodes[a].edges
+                  if state.previous in (a, b) and state.here not in (a, b)]
+        cut = state._cut_route()
+        console.end_capture()
+        if cut is None or not behind:
+            continue
+        tried += 1
+        if state.previous in cut:
+            steered += 1
+    T.ok(tried > 0, f'the herder had something to do ({tried} networks)')
+    T.ok(steered >= tried * 0.5,
+         f'and it closed the way back most of the time ({steered}/{tried})')
+
+    # Style: doctrine is numbers now.
+    def ice_count(faction, posture, seeds=30):
+        total = 0
+        traps = 0
+        vaults = 0
+        for seed in range(seeds):
+            net = net_mod.generate(Rng(seed).fork('network', 'y'), faction,
+                                   posture)
+            for n in net.nodes.values():
+                total += len(n.ice)
+                traps += sum(1 for c in n.ice if c.behaviour == 'trap')
+                vaults += 1 if n.type == 'vault' else 0
+        return total, traps, vaults
+    k_total, k_traps, k_vaults = ice_count('kagawa', 50)
+    m_total, _, _ = ice_count('meridian', 50)
+    T.ok(m_total < k_total * 0.8,
+         f'Meridian is emptier than Kagawa at the same posture '
+         f'({m_total} vs {k_total})')
+    c_total, c_traps, _ = ice_count('carrion', 40)
+    s_total, s_traps, _ = ice_count('sixes', 40)
+    T.ok(c_traps / max(1, c_total) > s_traps / max(1, s_total),
+         'Carrion is studded with traps next to the Sixes')
+    _, _, a_vaults = ice_count('aoyama', 50)
+    T.ok(a_vaults > k_vaults, f'Aoyama has more vaults ({a_vaults} vs {k_vaults})')
+    char = Character.from_origin('gutter', 'x')
+    state, console = run_for(char, faction='sendai', posture=50)
+    T.ok(state.style('damage') > 1.0, 'Sendai hits harder')
+    T.ok('harder hits' in fac_content.style_line(fac_content.BY_KEY['sendai']),
+         'and the style line says so')
+    T.eq(fac_content.style_line(fac_content.BY_KEY['kagawa']), '',
+         'the standard has no style line')
+    console.end_capture()
+    state, console = run_for(char, faction='freeport', posture=40)
+    T.ok(state.style('residue') > 1.0, 'Freeport logs everything')
+    console.end_capture()
+
+    # Soft wardens on the open route.
+    capped = True
+    seen = 0
+    for seed in range(30):
+        net = net_mod.generate(Rng(seed).fork('network', 'w'), 'kagawa', 70)
+        walls = {uid for uid, node in net.nodes.items() if net_mod._is_wall(node)}
+        for uid in (net_mod._route(net, net.objective_node, avoid=walls)
+                    or net_mod._route(net, net.objective_node)):
+            for c in net.nodes[uid].ice:
+                if (c.behaviour == 'warden' and c.alive
+                        and c.data.effects.get('credential_check')):
+                    seen += 1
+                    if c.rating > net_mod.SOFT_WARDEN:
+                        capped = False
+    T.ok(seen > 0, f'credential wardens sit on the open route ({seen})')
+    T.ok(capped, 'and none of them is above the soft rating there')
+
+    # Escort fallback: an escort job always has an escort.
+    from flatline.world import rivals as rival_world
+    keep = rival_world.pick_escort
+    rival_world.pick_escort = lambda rng, pool, patron: None
+    try:
+        done = False
+        for seed in range(30):
+            game = Game.new(Character.from_origin('gutter', 'x'), seed=seed)
+            contract = next((c for c in game.city.board
+                             if c.objective == 'escort'), None)
+            if contract is None:
+                continue
+            game.city.where = contract.district
+            sess, out = play([f'take {contract.cid}', 'jack in --force'],
+                             game=game)
+            T.ok(sess.run is not None and sess.run.escort is not None,
+                 'an escort job with nobody on the roster still has an escort')
+            done = True
+            break
+        T.ok(done, 'an escort contract turned up in thirty boards')
+    finally:
+        rival_world.pick_escort = keep
+
+    # connect remembers where you came from.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    sess, _ = play([f'take {contract.cid}', 'jack in --force', 'scan'],
+                   game=game)
+    state = sess.run
+    start = state.here
+    nxt = next((u for u in state.node.edges
+                if state.net.nodes[u].open), None)
+    if nxt is None and state.node.edges:
+        u = state.node.edges[0]
+        state.net.nodes[u].open = True
+        nxt = u
+    if nxt:
+        sess.execute(f'connect {nxt}')
+        if sess.run is not None and sess.run.here == nxt:
+            T.eq(sess.run.previous, start, 'connect remembers the host you left')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
+    test_intrusion,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,

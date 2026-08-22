@@ -232,7 +232,9 @@ def generate(rng: Stream, faction: str, posture: int,
             if 'honeypot' in weights:
                 weights['honeypot'] = 0.8 * scale if fac.kind == 'corp' else 0.2
             if 'vault' in weights:
-                weights['vault'] = 2.5 if zone == 'core' else 0.6
+                # Aoyama's doctrine: a lot of small vaults (D63 b).
+                weights['vault'] = ((2.5 if zone == 'core' else 0.6)
+                                    * fac.style.get('vaults', 1.0))
             pick = rng.weighted(weights)
             zone_nodes.append(Node(uid=hostname(), type=pick, zone=zone))
         by_zone[zone] = zone_nodes
@@ -275,7 +277,11 @@ def generate(rng: Stream, faction: str, posture: int,
         count = min(len(pool), rng.curve(lo, hi, 0.5))
         for svc in rng.sample(pool, count):
             dlo, dhi = svc.difficulty
-            diff = max(1, int(round(rng.int(dlo, dhi) * (0.7 + 0.6 * scale))))
+            diff = rng.int(dlo, dhi) * (0.7 + 0.6 * scale)
+            if svc.family == 'crypto':
+                # Meridian's doctrine: the keys are the thing (D63 b).
+                diff *= fac.style.get('crypto', 1.0)
+            diff = max(1, int(round(diff)))
             node.services.append(ServiceInstance(key=svc.key, difficulty=diff))
         # The entry node is already yours; its services are not a puzzle.
         if node.uid == net.entry:
@@ -302,10 +308,12 @@ def generate(rng: Stream, faction: str, posture: int,
         # Deepwater is not defended, it is inhabited.
         'construct': 1.3,
     }[fac.kind]
+    style = fac.style
     for node in net.nodes.values():
         if node.uid == net.entry:
             continue
-        chance = node.data_type.ice_chance * (0.35 + 0.95 * scale) * kind_density
+        chance = (node.data_type.ice_chance * (0.35 + 0.95 * scale)
+                  * kind_density * style.get('density', 1.0))
         # Deeper zones are meaner regardless of posture.
         chance *= {'perimeter': 0.6, 'interior': 0.9,
                    'restricted': 1.15, 'core': 1.4}[node.zone]
@@ -314,8 +322,14 @@ def generate(rng: Stream, faction: str, posture: int,
             count += 1
             chance *= 0.35
         for _ in range(count):
-            behaviour = _pick_behaviour(rng, node, scale)
+            behaviour = _pick_behaviour(rng, node, scale, style)
             pool = ice_content.available(behaviour, faction)
+            if not pool and behaviour == 'black':
+                # D63 b: seven factions have no lethal construct of their
+                # own, and the fallback used to hand them everybody else's.
+                # A Sixes vault does not get an Undertow; it gets a hunter.
+                behaviour = 'hunter'
+                pool = ice_content.available(behaviour, faction)
             if not pool:
                 pool = ice_content.by_behaviour(behaviour)
             it = rng.pick(pool)
@@ -337,7 +351,8 @@ def generate(rng: Stream, faction: str, posture: int,
             # Not every boundary is guarded. A gang's "restricted zone" is a
             # back room with a door on it, and putting a Chamberlain on it
             # would make every faction's network feel like the same network.
-            warden_chance = min(0.95, 0.25 + 0.6 * scale) * kind_density
+            warden_chance = (min(0.95, 0.25 + 0.6 * scale) * kind_density
+                             * style.get('wardens', 1.0))
             if inner == 'interior':
                 warden_chance *= 0.55  # the first boundary is often soft
             if not rng.chance(warden_chance):
@@ -381,18 +396,22 @@ def _link(a: Node, b: Node) -> None:
         b.edges.append(a.uid)
 
 
-def _pick_behaviour(rng: Stream, node: Node, scale: float) -> str:
+def _pick_behaviour(rng: Stream, node: Node, scale: float,
+                    style: dict | None = None) -> str:
     """Which kind of countermeasure fits this node.
 
     Weighted by node type rather than uniform, because a Coffin on a perimeter
-    relay is not a difficulty spike, it is a bug the player can feel.
+    relay is not a difficulty spike, it is a bug the player can feel. The
+    faction's style (D63 b) scales each behaviour, which is how Carrion is
+    studded with traps and Nightwatch is watched rather than defended.
     """
+    style = style or {}
     weights = {
         'sentry': 3.0,
-        'probe': 1.4,
-        'hunter': 1.0 * scale,
-        'trap': 1.2,
-        'herder': 0.7,
+        'probe': 1.4 * style.get('probes', 1.0),
+        'hunter': 1.0 * scale * style.get('hunters', 1.0),
+        'trap': 1.2 * style.get('traps', 1.0),
+        'herder': 0.7 * style.get('herders', 1.0),
         'warden': 0.0,   # placed deliberately at chokepoints, never randomly
         'black': 0.0,
     }
@@ -401,7 +420,7 @@ def _pick_behaviour(rng: Stream, node: Node, scale: float) -> str:
         weights['trap'] *= 1.3
         weights['herder'] *= 1.4
     if node.zone == 'core' or node.type == 'vault':
-        weights['black'] = 1.1 * scale
+        weights['black'] = 1.1 * scale * style.get('black', 1.0)
     if node.type == 'honeypot':
         # Honeypots are soft on purpose, right up to the part that is not.
         weights = {'sentry': 4.0, 'trap': 2.5, 'probe': 0.5,
@@ -491,6 +510,7 @@ def _place_objective(rng: Stream, net: Network, objective: str) -> None:
     _ensure_reachable(net)
     # After the edges exist, because it walks them.
     _ensure_passable(net)
+    _soften_route(net)
 
 
 #: Wardens that cannot be answered with credentials. A warden is the one kind
@@ -503,6 +523,11 @@ def _is_wall(node: Node) -> bool:
     return any(i.behaviour == 'warden' and i.alive
                and not i.data.effects.get('credential_check')
                for i in node.ice)
+
+
+#: The highest rating a credential warden keeps on the one route
+#: `_ensure_passable` opens (D63 b).
+SOFT_WARDEN = 4
 
 
 def _ensure_passable(net: Network) -> None:
@@ -554,6 +579,48 @@ def _ensure_passable(net: Network) -> None:
                     and not construct.data.effects.get('credential_check')):
                 construct.state = 'dead'
         walls.discard(blocking)
+
+
+def _soften_route(net: Network) -> None:
+    """D63 b: the same promise for the builds that cannot present a badge.
+
+    A credential warden at rating 8 is resistance 18, which no fresh runner
+    and few old ones beat without a forger, so on the one route a player
+    would walk (the shortest one that needs no technique) the wardens are
+    capped at `SOFT_WARDEN`: a cheap Handshake answers them, and everything
+    off that route keeps its rating."""
+    objective = net.objective_node
+    if not objective or objective not in net.nodes:
+        return
+    walls = {uid for uid, node in net.nodes.items() if _is_wall(node)}
+    for uid in _route(net, objective, avoid=walls) or _route(net, objective):
+        for construct in net.nodes[uid].ice:
+            if (construct.behaviour == 'warden' and construct.alive
+                    and construct.data.effects.get('credential_check')
+                    and construct.rating > SOFT_WARDEN):
+                construct.rating = SOFT_WARDEN
+
+
+def _route(net: Network, objective: str, avoid=()) -> list[str]:
+    """The shortest route from the entry to the objective that does not
+    pass through `avoid`, as host uids, or [] if there is none."""
+    parent: dict[str, str] = {net.entry: ''}
+    queue = [net.entry]
+    while queue:
+        uid = queue.pop(0)
+        if uid == objective:
+            path = [uid]
+            while parent[path[-1]]:
+                path.append(parent[path[-1]])
+            return path
+        for edge in net.nodes[uid].edges:
+            if edge in parent or edge not in net.nodes:
+                continue
+            if edge in avoid and edge != objective:
+                continue
+            parent[edge] = uid
+            queue.append(edge)
+    return []
 
 
 def _first_wall_on_route(net: Network, objective: str,

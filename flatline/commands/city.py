@@ -964,7 +964,9 @@ def _show_contract(sess, contract) -> None:
         ('expires', 'held for you, and it will keep' if contract.held
                     else f'in {contract.expires - game.city.shift} shifts'),
         ('posture', f'{int(contract.posture)} [dim]'
-                    f'{contract.target_data.doctrine}[/]'),
+                    f'{contract.target_data.doctrine}[/]'
+                    + (f' [accent2]({factions.style_line(contract.target_data)})[/]'
+                       if contract.target_data.style else '')),
     ])
     need = OBJECTIVE_PROGRAM.get(contract.objective)
     if need and not game.char.deck.has_category(need):

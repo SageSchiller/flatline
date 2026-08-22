@@ -123,6 +123,17 @@ def cmd_jack_in(sess, args) -> None:
         found = net.find_asset(net.objective_asset)
         if found is not None:
             found[1].label = contract.label
+    if contract.objective == 'exfiltrate' and net.objective_asset:
+        found = net.find_asset(net.objective_asset)
+        if found is not None and found[1].encrypted:
+            # D63 b: said at the door. The decrypt sum is posture and
+            # Cryptography, and a build without the second can still take
+            # the thing shut for part of the fee.
+            c.say(f'[warn]The record is sealed.[/] [dim]Cryptography opens '
+                  f'it on the host (resistance '
+                  f'{int(contract.posture) // 5 + 5}); `pull --sealed` '
+                  f'takes it shut for {session_mod.SEALED_SHARE:.0%} of the '
+                  f'fee.[/]')
     # Tonight's condition (D61), from its own stream forked on the contract,
     # so the network above is the same network whether or not anybody looked
     # at the weather.
@@ -149,6 +160,15 @@ def cmd_jack_in(sess, args) -> None:
                 'skill': data.skill, 'done': False, 'progress': 0,
                 'panic': (game.rng('rivals').pick(data.panic)
                           if data.panic else ''),
+            }
+        else:
+            # D63 b: nobody on the roster would work for this patron, which
+            # used to mean an escort job with no escort and no way to finish
+            # it. The patron sends somebody you have never heard of.
+            state.escort = {
+                'key': '', 'name': 'the patron\'s runner', 'node': net.entry,
+                'integrity': 15, 'state': 'working', 'skill': 2,
+                'done': False, 'progress': 0, 'panic': '',
             }
     # Somebody on a retainer is in on every run without being asked, which is
     # the whole difference between a crew and a hire.
@@ -813,6 +833,7 @@ def cmd_connect(sess, args) -> None:
         raise CommandError('you have not learned to ghost. Stealth rank 2.')
 
     crossing = node.tier > state.net.nodes[state.here].tier
+    state.previous = state.here
     state.here = uid
     # Native: the network is a room and you are walking across it.
     free = state.native > 0
@@ -1051,6 +1072,7 @@ def cmd_pivot(sess, args) -> None:
                            'on its trust')
     node.open = True
     node.known = True
+    state.previous = state.here
     state.here = uid
     _act(sess, 'connect', node=node, noise_scale=0.0)
     if state.running:
@@ -1128,8 +1150,22 @@ def cmd_impersonate(sess, args) -> None:
 # --------------------------------------------------------------------------
 
 
+def decrypt_check(state) -> Check:
+    """Opening a sealed record (D63 b). Resistance came down from a quarter
+    of posture to a fifth: at the old figure a Kagawa vault was impossible
+    for anybody without Cryptography, and nothing had said so at the door."""
+    check = Check(name='decrypt', resistance=state.net.posture // 5 + 5)
+    check.add('cryptography', state.char.skill('cryptography') * 2)
+    check.add('logic', state.char.attr('logic'))
+    check.add('gear', state.char.bonus('crypto_bonus'))
+    if 'first_principles' in state.char.riders():
+        check.add('first principles', 3)
+    return check
+
+
 @command('pull', 'Take data out.',
-         group='action', contexts=('run',), ticks=2, usage='pull [asset|--all]')
+         group='action', contexts=('run',), ticks=2,
+         usage='pull [asset|--all] [--sealed]')
 def cmd_pull(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     node = state.node
@@ -1169,25 +1205,36 @@ def cmd_pull(sess, args) -> None:
                 f'give up the fee.')
 
     for asset in targets:
-        if asset.encrypted:
-            check = Check(name='decrypt', resistance=state.net.posture // 4 + 6)
-            check.add('cryptography', state.char.skill('cryptography') * 2)
-            check.add('logic', state.char.attr('logic'))
-            check.add('gear', state.char.bonus('crypto_bonus'))
-            if 'first_principles' in state.char.riders():
-                check.add('first principles', 3)
+        shut = False
+        if asset.encrypted and args.has('sealed'):
+            # D63 b: take it without opening it. A sealed record is worth
+            # part of nominal and the patron pays part of the fee, which is
+            # the honest alternative to an exfiltration that a build with
+            # no Cryptography could never finish and was never warned about.
+            shut = True
+        elif asset.encrypted:
+            check = decrypt_check(state)
             check.resolve(state.rng)
             if not check.success:
                 c.err(f'{asset.name} is sealed and stays sealed.')
                 c.say(check.explain())
+                c.say(f'[dim]`pull {asset.uid} --sealed` takes it shut, for '
+                      f'{session_mod.SEALED_HAUL:.0%} of nominal'
+                      + (f' and {session_mod.SEALED_SHARE:.0%} of the fee'
+                         if asset.objective else '') + '.[/]')
                 _act(sess, 'pull', node=node,
-                 noise_scale=payload.signature
-                 * _improvised_noise(payload, 'exfiltrate'))
+                     noise_scale=payload.signature
+                     * _improvised_noise(payload, 'exfiltrate'))
                 continue
         asset.taken = True
         state.haul.append(asset.uid)
+        if shut:
+            state.sealed.add(asset.uid)
         mark = ' [accent2](the job)[/]' if asset.objective else ''
-        c.ok(f'{asset.name} pulled, [credit]{asset.value:,}c[/] nominal.{mark}')
+        worth = (int(asset.value * session_mod.SEALED_HAUL) if shut
+                 else asset.value)
+        c.ok(f'{asset.name} pulled{", sealed" if shut else ""}, '
+             f'[credit]{worth:,}c[/] nominal.{mark}')
         _act(sess, 'pull', node=node,
                  noise_scale=payload.signature
                  * _improvised_noise(payload, 'exfiltrate'))
@@ -1653,7 +1700,14 @@ def cmd_falsify(sess, args) -> None:
 
 
 @command('mask', 'Spend a tick making yourself harder to follow.',
-         group='defence', contexts=('run',), ticks=1, usage='mask')
+         group='defence', contexts=('run',), ticks=1, usage='mask',
+         detail='A Stealth check with your best mask: succeed and the trace '
+                'drops by the mask\'s rating times two and a half plus '
+                'Stealth, fail and it drops by two fifths of that. Each mask '
+                'tonight is worth three quarters of the last, and nothing a '
+                'mask does takes the trace below half of what the clock alone '
+                'has put there: the log exists, and you can only edit so much '
+                'of it. One good mask is a tick well spent; the fifth is not.')
 def cmd_mask(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     mask = programs.best(state.char.deck.loaded, 'mask')
@@ -1667,11 +1721,23 @@ def cmd_mask(sess, args) -> None:
     reduction = (mask.rating * 2.5 + state.char.skill('stealth') * 1.5)
     if not check.success:
         reduction *= 0.4
+    # D63 b: a story wears thin. Each mask tonight is worth three quarters
+    # of the last, and nothing a mask does takes the trace below half of
+    # what the clock alone has put there: the log exists, and you can only
+    # edit so much of it.
+    reduction *= session_mod.MASK_DECAY ** state.masked
+    state.masked += 1
+    floor = session_mod.TRACE_PER_TICK * state.tick * session_mod.MASK_FLOOR
     before = state.trace
-    state.trace = max(0.0, state.trace - reduction)
+    state.trace = max(min(before, floor), state.trace - reduction)
     _act(sess, 'mask')
     if state.running:
         c.ok(f'Trace {int(before)} -> {int(state.trace)}.')
+        if state.masked >= 2:
+            c.say(f'[dim]It works less well each time: the next one is worth '
+                  f'{session_mod.MASK_DECAY ** state.masked:.0%} of the first, '
+                  f'and nothing takes the trace under {int(floor)} at this '
+                  f'tick.[/]')
 
 
 @command('nullsig', 'Stop the trace entirely, briefly. Once per run.',
@@ -2850,6 +2916,7 @@ def cmd_backway(sess, args) -> None:
         state.spent.discard('sig:backway')
         raise CommandError(f'you have not seen {uid} yet.')
     node.open = True
+    state.previous = state.here
     state.here = uid
     _act(sess, 'connect', node=node, noise_scale=0.0)
     if state.running:

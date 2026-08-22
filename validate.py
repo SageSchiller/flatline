@@ -1174,6 +1174,18 @@ def check_skills(rep: Report) -> None:
 
 
 def check_factions(rep: Report) -> None:
+    # D63 b: style knobs name a declared key and are positive multipliers.
+    for f in factions.FACTIONS:
+        for key, value in f.style.items():
+            rep.check(key in factions.STYLE_KEYS, f'factions/{f.key}',
+                      f'style key {key!r} is not in STYLE_KEYS')
+            rep.check(isinstance(value, (int, float)) and value > 0
+                      and not isinstance(value, bool), f'factions/{f.key}',
+                      f'style {key} is {value!r}, expected a positive number')
+    for key in factions.STYLE_KEYS:
+        rep.check(any(key in f.style for f in factions.FACTIONS), 'factions',
+                  f'style key {key!r} is declared and no faction uses it')
+
     # Every place the code branches on faction kind must handle every kind, or
     # adding a faction is a KeyError a player finds rather than the build.
     from flatline.run import network as net_mod
@@ -1323,6 +1335,16 @@ def check_city_shape(rep: Report) -> None:
 
 
 def check_ice(rep: Report) -> None:
+    # D63 b: a construct that declares `alert_jump` must declare more than
+    # the default, or the whole distinguishing feature is decorative. Traps
+    # are the exception: a tripwire publishing at all is the feature.
+    for i in ice_content.ICE:
+        jump = i.effects.get('alert_jump')
+        if jump is not None and i.behaviour != 'trap':
+            rep.check(int(jump) >= 2, f'ice/{i.key}',
+                      f'alert_jump {jump} is the default escalation, so the '
+                      f'declared effect changes nothing')
+
     for i in ice_content.ICE:
         where = f'ice/{i.key}'
         rep.check(i.behaviour in ice_content.BEHAVIOURS, where,

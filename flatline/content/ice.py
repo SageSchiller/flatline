@@ -335,7 +335,7 @@ ICE: tuple[IceType, ...] = (
         ),
         strike='Verger tells everything nearby exactly where you are.',
         noise=5,
-        effects={'alert_jump': 1},
+        effects={'alert_jump': 2},
     ),
     IceType(
         'gull', 'Gull', 'probe', ('freeport', 'fixers', 'sixes'),
@@ -374,7 +374,7 @@ ICE: tuple[IceType, ...] = (
         tells=(),
         strike='Gallows cuts the segment behind you. That route is gone.',
         trace=5,
-        effects={'access_drop': 1},
+        effects={'route_cut': 1},
     ),
     IceType(
         'steward', 'Steward', 'warden', ('freeport', 'fixers', 'sixes'),
@@ -476,7 +476,7 @@ ICE: tuple[IceType, ...] = (
         strike='Psalm decides you are not one of them and says so, loudly, to '
                'everybody.',
         noise=6,
-        effects={'alert_jump': 1},
+        effects={'alert_jump': 2},
     ),
     IceType(
         'congregant', 'Congregant', 'hunter', ('chorus',),
@@ -507,7 +507,7 @@ ICE: tuple[IceType, ...] = (
         strike='Stringer publishes you. Not to security. To everybody.',
         noise=4,
         trace=5,
-        effects={'alert_jump': 1},
+        effects={'alert_jump': 2},
     ),
     IceType(
         'undertow', 'Undertow', 'black', ('deepwater',),

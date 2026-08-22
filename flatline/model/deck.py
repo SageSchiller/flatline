@@ -161,8 +161,10 @@ class Deck:
         prog = programs.BY_KEY.get(program_key)
         if prog is None:
             return False, f'no such program: {program_key}'
-        # Duplicates are deliberately legal: two Crowbars means a spare when
-        # one gets burned. The only question here is capacity.
+        # Duplicates are deliberately legal: a Threadpuller runs the second
+        # copy as a second thread, and an armour program that has taken all
+        # it can is gone, so a spare is a spare. The only question here is
+        # capacity.
         if prog.memory > self.memory_free:
             return False, (f'{prog.name} needs {prog.memory} memory, '
                            f'{self.memory_free} free')

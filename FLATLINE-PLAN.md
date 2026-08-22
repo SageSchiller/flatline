@@ -12,7 +12,7 @@ updated: 2026-08-21
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,980 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. Then **D54** (six lines and four topics per person, in seventeen voices; hours, so the clock is a reason to be somewhere) and **D55** (nine threads rooted in the districts, twenty-two decisions, four postings). Then **D56**: a decision at each rival's bond latch (fourteen scenes, twenty-eight decisions, read by the hire price, the shift boundary, four events and the epilogue), and the wire carrying scenes, decisions and what a run did to the city. Then **D57** (the city drawn, `walk`) and **D58** (forty-five places, twenty-two people, the street, a hundred and fifty-four events). Then **D59**, the readout: one dim line after every tick spent in a run, as the seventh rice axis (`hud`: line, bar, terse, quiet). Then **D60**, the tutorial's second half: nine more steps, past the door into what the city does. Then **D61**, tonight inside: eight run conditions drawn at the door, every field read, in the sum where they touch a check. Then **D62**, the rest of the list: the journal as a log, previously on resume, `odds` for strike and for what any verb costs tonight, ICE portraits, attribute bars and a build label, the end-of-run card, scripts discoverable, naming the deck and the safehouse. **Every Phase 7 item is done.** What is next is whatever playing it turns up. Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
+> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,973 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. Then **D54** (six lines and four topics per person, in seventeen voices; hours, so the clock is a reason to be somewhere) and **D55** (nine threads rooted in the districts, twenty-two decisions, four postings). Then **D56**: a decision at each rival's bond latch (fourteen scenes, twenty-eight decisions, read by the hire price, the shift boundary, four events and the epilogue), and the wire carrying scenes, decisions and what a run did to the city. Then **D57** (the city drawn, `walk`) and **D58** (forty-five places, twenty-two people, the street, a hundred and fifty-four events). Then **D59**, the readout: one dim line after every tick spent in a run, as the seventh rice axis (`hud`: line, bar, terse, quiet). Then **D60**, the tutorial's second half: nine more steps, past the door into what the city does. Then **D61**, tonight inside: eight run conditions drawn at the door, every field read, in the sum where they touch a check. Then **D62**, the rest of the list: the journal as a log, previously on resume, `odds` for strike and for what any verb costs tonight, ICE portraits, attribute bars and a build label, the end-of-run card, scripts discoverable, naming the deck and the safehouse. **Every Phase 7 item is done.** What is next is whatever playing it turns up. Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
@@ -1667,9 +1667,47 @@ says.
   two skills. One dead vocabulary key (`actions_first_tick`) went.
   `test_reads` drives each of the above.
 
-Parts (b) through (e) follow in this decision: the intrusion layer, the
-catalogue and what a player can learn about it, the vices and the money,
-and the relics.
+**(b) The intrusion layer.** The audit's findings, closed one by one.
+
+- **`mask` wears thin.** Each use tonight is worth three quarters of the
+  last (`MASK_DECAY`), and nothing a mask does takes the trace below half
+  of what the clock alone has put there (`MASK_FLOOR`). It was a loop: a
+  rating-3 mask on a quiet host reset the only clock in the game forever.
+- **Sealed records.** The decrypt is a fifth of posture plus five (it was a
+  quarter plus six: a Kagawa vault was impossible without Cryptography and
+  nothing said so). `pull --sealed` takes a record shut for 40% of nominal
+  and 55% of the fee; the door says the record is sealed and what opens it;
+  the brief says it on the host; the patron says why the fee is short.
+- **Armour wears.** An armour program is good for as many saves a run as
+  its rating, and then it is gone from the deck and the bag. Bulwark's note
+  said this for two years; now Sump's does too.
+- **No borrowed black ICE.** Seven factions have no lethal construct; the
+  generator used to hand them everybody else's. A Sixes vault gets a hunter.
+- **Riders that do something.** Verger, Psalm and Stringer escalate by two
+  (one was the default, so the declared effect changed nothing; `check_ice`
+  holds the rule). Gallows cuts a route, as its strike line always said.
+- **The herder herds.** `RunState.previous` is the host you came from, and
+  `_cut_route` closes the edges behind you first.
+- **Doctrine is numbers.** `Faction.style`, eleven knobs (`STYLE_KEYS`:
+  density, probes, hunters, traps, herders, black, wardens, vaults, crypto,
+  damage, residue), read by the generator and by the run: Meridian is
+  empty and hard-keyed, Carrion is studded with traps, Aoyama has many
+  small vaults, Sendai hits harder and is sparse, Nightwatch is watched
+  rather than defended, Freeport logs everything, Deepwater closes routes
+  and has no boundaries. `style_line` puts the phrase beside the doctrine
+  on the contract. `check_factions` holds keys to the vocabulary and the
+  vocabulary to being used.
+- **The open route is soft.** `_soften_route`: on the one route
+  `_ensure_passable` guarantees, credential wardens are capped at rating 4,
+  so a Handshake answers them; off that route they keep their rating.
+- **An escort job always has an escort.** When nobody on the roster works
+  for the patron, the patron sends somebody you have never heard of.
+- **Non-lethal hits scale.** Two deck levels at and above damage 6, after
+  armour, so a Coroner and a Kestrel are different constructs. (Landed in
+  (a).)
+
+Parts (c) through (e) follow in this decision: the catalogue and what a
+player can learn about it, the vices and the money, and the relics.
 
 ### D17: The finish line
 
@@ -2768,3 +2806,15 @@ black ICE names itself on the tell, Composure is read when the room turns.
 reader outside content, which is the guard this whole bug class wanted.
 
 `validate.py` clean, `test.py` green at **13,980 checks**.
+
+### 2026-08-21 (m): the mechanics read back, part two
+
+**D63 (b)**, the intrusion layer: `mask` decays and has a floor, sealed
+records can be taken shut for part of the fee and the door says so, armour
+wears out, black ICE stays with the factions that have it, three riders
+escalate by what they declare, Gallows cuts a route, the herder closes the
+way back, and every faction's doctrine is a set of numbers the generator
+and the run read. The soft-warden rule and the escort fallback close the
+two ways a run could be generated unfinishable for a particular build.
+
+`validate.py` clean, `test.py` green at **13,973 checks**.

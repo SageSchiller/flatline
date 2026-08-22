@@ -66,6 +66,12 @@ class Faction:
     relations: dict = field(default_factory=dict)
     #: What they pay for, which shapes the contract board.
     wants: tuple[str, ...] = ()
+    #: How their networks differ from the standard (D63 b): multipliers the
+    #: generator and the run read, keyed by `STYLE_KEYS`, default 1.0. The
+    #: doctrine above is prose; this is the same sentence as numbers, and
+    #: `validate.py` holds the two to agreeing by requiring every key here
+    #: to be one the engine reads.
+    style: dict = field(default_factory=dict)
 
 
 FACTIONS: tuple[Faction, ...] = (
@@ -94,6 +100,7 @@ FACTIONS: tuple[Faction, ...] = (
         relations={'kagawa': -0.3, 'sendai': 0.2, 'nightwatch': 0.4,
                    'freeport': -0.7, 'carrion': -0.5, 'meridian': 0.3,
                    'chorus': 0.3, 'static': -0.5},
+        style={'vaults': 1.8, 'density': 0.9, 'traps': 1.3, 'black': 0.8},
         wants=('exfiltrate', 'implant', 'wipe'),
     ),
     Faction(
@@ -106,6 +113,7 @@ FACTIONS: tuple[Faction, ...] = (
         relations={'kagawa': -0.5, 'aoyama': 0.2, 'nightwatch': 0.3,
                    'freeport': -0.4, 'meridian': 0.3, 'static': -0.4,
                    'deepwater': -0.6},
+        style={'density': 0.7, 'damage': 1.4, 'hunters': 1.6, 'black': 1.3},
         wants=('exfiltrate', 'corrupt', 'implant'),
     ),
     Faction(
@@ -118,6 +126,7 @@ FACTIONS: tuple[Faction, ...] = (
         posture=22, hardening=3.0, heat_decay=0.5,
         relations={'carrion': -0.9, 'kagawa': -0.4, 'nightwatch': -0.7,
                    'fixers': 0.3, 'meridian': -0.3},
+        style={'residue': 0.8},
         wants=('corrupt', 'wipe', 'escort'),
     ),
     Faction(
@@ -129,6 +138,7 @@ FACTIONS: tuple[Faction, ...] = (
         posture=30, hardening=4.0, heat_decay=0.4,
         relations={'sixes': -0.9, 'aoyama': -0.5, 'nightwatch': -0.8,
                    'freeport': -0.3, 'meridian': -0.4, 'chorus': 0.2},
+        style={'traps': 2.2, 'density': 0.9},
         wants=('exfiltrate', 'wipe', 'escort'),
     ),
     Faction(
@@ -141,6 +151,7 @@ FACTIONS: tuple[Faction, ...] = (
         posture=35, hardening=5.0, heat_decay=1.0,
         relations={'sixes': 0.3, 'freeport': 0.4, 'nightwatch': -0.3,
                    'chorus': -0.2, 'static': 0.2},
+        style={'density': 0.8, 'residue': 1.15},
         wants=('exfiltrate', 'surveil', 'escort'),
     ),
     Faction(
@@ -155,6 +166,7 @@ FACTIONS: tuple[Faction, ...] = (
                    'sixes': -0.7, 'carrion': -0.8, 'freeport': -0.5,
                    'fixers': -0.3, 'meridian': 0.5, 'chorus': -0.6,
                    'static': -0.7, 'deepwater': -0.5},
+        style={'density': 0.75, 'probes': 1.8, 'hunters': 1.4, 'wardens': 0.8},
         wants=('surveil', 'wipe', 'corrupt'),
     ),
     Faction(
@@ -168,6 +180,7 @@ FACTIONS: tuple[Faction, ...] = (
         relations={'fixers': 0.4, 'kagawa': -0.6, 'aoyama': -0.7,
                    'nightwatch': -0.5, 'sendai': -0.4, 'carrion': -0.3,
                    'meridian': -0.6, 'static': 0.6, 'deepwater': 0.2},
+        style={'residue': 1.35, 'black': 0.5, 'wardens': 1.3},
         wants=('exfiltrate', 'implant', 'escort'),
     ),
     Faction(
@@ -184,6 +197,7 @@ FACTIONS: tuple[Faction, ...] = (
                    'nightwatch': 0.5, 'freeport': -0.6, 'sixes': -0.3,
                    'carrion': -0.4, 'chorus': -0.5, 'static': -0.7,
                    'deepwater': -0.3},
+        style={'density': 0.5, 'crypto': 1.3, 'black': 0.7, 'traps': 0.6},
         wants=('exfiltrate', 'corrupt', 'surveil'),
     ),
     Faction(
@@ -199,6 +213,7 @@ FACTIONS: tuple[Faction, ...] = (
         relations={'aoyama': 0.3, 'carrion': 0.2, 'nightwatch': -0.6,
                    'meridian': -0.5, 'fixers': -0.2, 'kagawa': -0.3,
                    'static': 0.1, 'deepwater': 0.4},
+        style={'density': 0.8, 'hunters': 1.2, 'wardens': 0.7},
         wants=('implant', 'surveil', 'escort'),
     ),
     Faction(
@@ -214,6 +229,7 @@ FACTIONS: tuple[Faction, ...] = (
         relations={'freeport': 0.6, 'fixers': 0.2, 'nightwatch': -0.7,
                    'kagawa': -0.5, 'aoyama': -0.5, 'sendai': -0.4,
                    'meridian': -0.7, 'chorus': 0.1},
+        style={'density': 0.5, 'vaults': 0.6, 'residue': 0.7},
         wants=('exfiltrate', 'surveil', 'wipe'),
     ),
     Faction(
@@ -230,9 +246,51 @@ FACTIONS: tuple[Faction, ...] = (
         posture=72, hardening=9.0, heat_decay=0.6,
         relations={'sendai': -0.6, 'freeport': 0.2, 'chorus': 0.4,
                    'nightwatch': -0.5, 'meridian': -0.3, 'kagawa': -0.4},
+        style={'herders': 1.7, 'black': 1.3, 'wardens': 0.5, 'damage': 1.15},
         wants=('implant', 'surveil', 'escort'),
     ),
 )
+
+#: The style knobs (D63 b), and what each one scales. Every one is read by
+#: the generator or the run; `validate.check_factions` holds `style` dicts to
+#: these keys and `check_reads` holds the engine to reading them.
+STYLE_KEYS: dict[str, str] = {
+    'density': 'how much ICE there is at all',
+    'probes': 'how much of it watches and reports',
+    'hunters': 'how much of it hunts',
+    'traps': 'how much of it is traps',
+    'herders': 'how much of it closes routes',
+    'black': 'how often a vault is lethal',
+    'wardens': 'how often a boundary is guarded',
+    'vaults': 'how many vaults there are',
+    'crypto': 'how hard the encryption is',
+    'damage': 'how hard a construct hits',
+    'residue': 'how much of what you do is logged',
+}
+
+
+def style_line(fac: Faction) -> str:
+    """The style as a phrase: `fewer constructs, harder hits, lethal
+    vaults likelier`. Empty for the standard."""
+    words = {
+        'density': ('fewer constructs', 'more constructs'),
+        'probes': ('less watched', 'closely watched'),
+        'hunters': ('fewer hunters', 'more hunters'),
+        'traps': ('fewer traps', 'studded with traps'),
+        'herders': ('routes stay open', 'routes close behind you'),
+        'black': ('lethal vaults rarer', 'lethal vaults likelier'),
+        'wardens': ('boundaries softer', 'boundaries guarded'),
+        'vaults': ('fewer vaults', 'many small vaults'),
+        'crypto': ('weaker keys', 'harder keys'),
+        'damage': ('softer hits', 'harder hits'),
+        'residue': ('logs less', 'logs everything'),
+    }
+    out = []
+    for key, value in fac.style.items():
+        low, high = words.get(key, (f'less {key}', f'more {key}'))
+        out.append(high if value > 1.0 else low)
+    return ', '.join(out)
+
 
 BY_KEY: dict[str, Faction] = {f.key: f for f in FACTIONS}
 FACTION_KEYS: tuple[str, ...] = tuple(BY_KEY)
