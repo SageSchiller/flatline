@@ -113,7 +113,8 @@ The three ideas everything else hangs off:
 - **Failure is a state change, not a game over.** Only black ICE ends a
   character, it only guards cores, and it always telegraphs first.
 - **No hidden dice.** `odds` prints the entire sum and the exact percentage
-  before you commit, and a failed check names the term that sank it. The
+  before you commit, for a crack or a strike, and `odds <any verb>` prints
+  what that verb costs tonight; a failed check names the term that sank it. The
   same goes for the weather: about one run in two has a condition tonight,
   announced at the door with its numbers, and one that touches a check is a
   named term in the sum.

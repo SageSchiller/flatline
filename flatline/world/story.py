@@ -156,6 +156,30 @@ class Story:
             return None
         return thread, stage
 
+    def decided(self, thread_key: str) -> list[tuple]:
+        """What you chose in a thread, as (stage, choice) pairs, in order.
+
+        Derived from the flags rather than stored, because the flags are the
+        whole state of the layer (D31): the choice you took is the one whose
+        flags are all set. A stage with a choice still waiting is not here;
+        it is in `pending`.
+        """
+        out = []
+        thread = thread_content.BY_KEY.get(thread_key)
+        if thread is None:
+            return out
+        done = self.reached.get(thread_key, [])
+        for stage in thread.stages:
+            if stage.key not in done or not stage.choices:
+                continue
+            if f'{thread_key}.{stage.key}' in self.pending:
+                continue
+            for choice in stage.choices:
+                if choice.sets and all(f in self.flags for f in choice.sets):
+                    out.append((stage, choice))
+                    break
+        return out
+
     def active_threads(self) -> list[thread_content.Thread]:
         return [thread_content.BY_KEY[k] for k in self.reached
                 if k in thread_content.BY_KEY]

@@ -84,10 +84,13 @@ def main(argv: list[str] | None = None) -> int:
     if sess.game is not None:
         game = sess.game
         console.say(f'[dim]Continuing as [/][accent]{game.char.handle}[/]'
-                    f'[dim], running as {game.alias.name}. '
-                    f'{game.city.when}, {game.city.district.name}.[/]')
+                    f'[dim], running as {game.alias.name}.[/]')
         if len(_living(sess)) > 1:
             console.say('[dim]`characters` for the others.[/]')
+        # Where you left it (D62): a save is a place, and nobody remembers a
+        # place they left a week ago well enough to stand back up in it.
+        from .commands.guide import previously
+        previously(sess)
         console.blank()
     elif len(_living(sess)) > 1:
         # Nobody open and several to choose from. Show them rather than

@@ -31,6 +31,30 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+#: What a countermeasure looks like the moment it wakes, by behaviour. Three
+#: rows, the same width, in the Unicode rung and the ASCII one. Printed once
+#: per construct, beside its name, when it wakes and you know what it is
+#: (D62): a mark, like the faction sigils, so that after five runs the shape
+#: says "warden" before the word does.
+PORTRAITS: dict[str, tuple[tuple[str, str, str], tuple[str, str, str]]] = {
+    'sentry': (('┌─┐', '│●│', '└─┘'), ('+-+', '|o|', '+-+')),
+    'probe': (('·∘·', ' ◉ ', '·∘·'), ('.o.', ' O ', '.o.')),
+    'hunter': (('◢█◣', '███', '◥█◤'), ('/#\\', '###', '\\#/')),
+    'trap': (('╲ ╱', ' ╳ ', '╱ ╲'), ('\\ /', ' X ', '/ \\')),
+    'warden': (('▛▀▜', '▌■▐', '▙▄▟'), ('+=+', '|#|', '+=+')),
+    'herder': (('→→→', '↑ ↓', '←←←'), ('>>>', '^ v', '<<<')),
+    'black': (('███', '█ █', '███'), ('###', '# #', '###')),
+}
+
+
+def portrait(behaviour: str, ascii_only: bool) -> tuple[str, ...]:
+    """The three rows for a behaviour, at the rung the terminal can draw."""
+    pair = PORTRAITS.get(behaviour)
+    if pair is None:
+        return ()
+    return pair[1] if ascii_only else pair[0]
+
+
 BEHAVIOURS = ('sentry', 'probe', 'hunter', 'trap', 'warden', 'herder',
               'black')
 

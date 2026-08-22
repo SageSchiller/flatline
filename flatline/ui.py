@@ -647,6 +647,30 @@ class Console:
                 cells.append(s + ' ' * max(0, widths[i] - width(s)))
             self.raw('  '.join(cells).rstrip())
 
+    def box(self, lines, title: str = '', role: str = 'border') -> None:
+        """A framed block. Rare, on purpose: borders in a scrollback game turn
+        the log into a wall, so this is for the one card at the end of a run
+        (D62) and nothing that prints every tick. Lines are markup and are
+        wrapped to fit; the frame glyphs come from the player's chosen set."""
+        g = self.caps.g
+        w = self.caps.text_width
+        h, v = g('hline'), g('vline')
+        tl, tr, bl, br = (g('corner_tl'), g('corner_tr'), g('corner_bl'),
+                          g('corner_br'))
+        inner = w - 4
+        if title:
+            label = f' {title} '
+            top = (f'[{role}]{tl}{h}[/][accent]{label}[/][{role}]'
+                   f'{h * max(0, w - 3 - width(label))}{tr}[/]')
+        else:
+            top = f'[{role}]{tl}{h * (w - 2)}{tr}[/]'
+        self.raw(top)
+        for line in lines:
+            for piece in wrap(line, inner):
+                pad = ' ' * max(0, inner - width(piece))
+                self.raw(f'[{role}]{v}[/] {piece}{pad} [{role}]{v}[/]')
+        self.raw(f'[{role}]{bl}{h * (w - 2)}{br}[/]')
+
     def bar(self, pct: float, role: str = 'accent', cells: int = 20,
             label: str | None = None) -> str:
         """A meter as a markup string, for embedding in a status line.

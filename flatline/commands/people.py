@@ -654,6 +654,8 @@ def cmd_journal(sess, args) -> None:
             raise CommandError(f'nothing in the journal about {query!r}')
         c.header(thread.name, thread.key)
         c.say(f'[dim]{thread.blurb}[/]')
+        decided = {stage.key: choice
+                   for stage, choice in story.decided(thread.key)}
         for stage in thread.stages:
             if stage.key not in story.reached[thread.key]:
                 continue
@@ -661,6 +663,18 @@ def cmd_journal(sess, args) -> None:
             c.rule(stage.headline)
             for para in stage.text.split('\n\n'):
                 c.say(para)
+                c.blank()
+            # What you decided, and what it cost, under the scene it
+            # belonged to. The journal is a log now (D62), not a table of
+            # contents.
+            choice = decided.get(stage.key)
+            if choice is not None:
+                c.say(f'[accent2]You chose: {choice.label}.[/] '
+                      f'[dim]{_cost_of(choice)}[/]', indent='  ',
+                      subsequent='  ')
+                c.blank()
+            elif f'{thread.key}.{stage.key}' in story.pending:
+                c.say('[warn]Waiting on you.[/] [dim]`choose`.[/]', indent='  ')
                 c.blank()
         crossing = [k for k in thread.crosses if k in story.reached]
         if crossing:
@@ -675,17 +689,57 @@ def cmd_journal(sess, args) -> None:
         c.say('[dim]Nothing yet. Things start when you meet people: `look` '
               'around wherever you are.[/]')
         return
+    # What is waiting first, because it is the one thing in here that does
+    # not move without you.
+    waiting = []
+    for tag in story.pending:
+        tkey, _, skey = tag.partition('.')
+        thread = thread_content.BY_KEY.get(tkey)
+        stage = next((s for s in thread.stages if s.key == skey), None) \
+            if thread else None
+        if thread and stage:
+            waiting.append((thread, stage))
+    if waiting:
+        c.say('[warn]Waiting on you:[/]')
+        for thread, stage in waiting:
+            c.say(f'[fg]{thread.name}[/] [dim]{stage.headline}[/]',
+                  indent='  ', subsequent='  ')
+        c.say('[dim]`choose` takes the first.[/]', indent='  ')
+        c.blank()
+    decisions = 0
     for thread in active:
         c.blank()
         c.raw(f'[accent]{thread.name}[/]  [dim]{thread.key}[/]')
         headline = story.headline(thread.key)
         if headline:
             c.say(f'[dim]{headline}[/]', indent='  ', subsequent='  ')
-    if story.pending:
-        c.blank()
-        c.warn('Something is waiting on you. `choose` to see it.')
+        for stage, choice in story.decided(thread.key):
+            decisions += 1
+            c.say(f'[accent2]decided:[/] {choice.label.lower()}',
+                  indent='  ', subsequent='  ')
     c.blank()
-    c.say('[dim]`journal <name>` to read one in full.[/]')
+    c.say(f'[dim]{decisions} decision{"s" if decisions != 1 else ""} made, '
+          f'every one read by the world and every one with a line in the '
+          f'ending. `journal <name>` to read one in full.[/]')
+
+
+def _cost_of(choice) -> str:
+    """What a decision cost or paid, in one clause, from its declared effects."""
+    bits = []
+    if choice.credits:
+        bits.append(f'{abs(choice.credits):,}c '
+                    f'{"in" if choice.credits > 0 else "gone"}')
+    for faction, delta in choice.rep.items():
+        short = factions.BY_KEY[faction].short if faction in factions.BY_KEY \
+            else faction
+        bits.append(f'{short} {"warmer" if delta > 0 else "colder"}')
+    if choice.drift:
+        bits.append(f'drift {choice.drift:+d}')
+    if choice.gives:
+        bits.append('something in the bag')
+    if choice.ends:
+        bits.append(choice.ends)
+    return ('; '.join(bits) + '.') if bits else 'Nothing it would put a number on.'
 
 
 @command('choose', 'Decide the thing that is waiting on you.',

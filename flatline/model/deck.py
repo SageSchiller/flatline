@@ -32,6 +32,9 @@ class Deck:
     #: component rather than by the slot, because the work was done to the
     #: metal: sell it and the tuning goes with it. See `content/mods.py`.
     mods: dict[str, list[str]] = field(default_factory=dict)
+    #: What you call it (D62). Cosmetic, persisted, read by nothing but the
+    #: screens that mention the deck.
+    name: str = ''
 
     # -- construction ------------------------------------------------------
 
@@ -200,9 +203,12 @@ class Deck:
     # -- persistence -------------------------------------------------------
 
     def to_dict(self) -> dict:
-        return {'parts': dict(self.parts), 'loaded': list(self.loaded),
-                'damage': {k: v for k, v in self.damage.items() if v},
-                'mods': {k: list(v) for k, v in self.mods.items() if v}}
+        out = {'parts': dict(self.parts), 'loaded': list(self.loaded),
+               'damage': {k: v for k, v in self.damage.items() if v},
+               'mods': {k: list(v) for k, v in self.mods.items() if v}}
+        if self.name:
+            out['name'] = self.name
+        return out
 
     @classmethod
     def from_dict(cls, d: dict) -> Deck:
@@ -212,7 +218,8 @@ class Deck:
                    mods={k: [m for m in (v or ())
                              if m in mod_content.BY_KEY]
                          for k, v in (d.get('mods') or {}).items()
-                         if k in hardware.BY_KEY})
+                         if k in hardware.BY_KEY},
+                   name=str(d.get('name') or '')[:32])
 
 
 def _scaled(effects: dict, scale: float) -> dict:

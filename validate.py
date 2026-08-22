@@ -3697,6 +3697,28 @@ def check_city_texture(rep: Report) -> None:
               'a close call should cost a little, not a lot')
 
 
+def check_portraits(rep: Report) -> None:
+    """D62: every behaviour has a mark, three rows, the same width, and the
+    ASCII rung draws it in ASCII."""
+    for behaviour in ice_content.BEHAVIOURS:
+        where = f'ice/portrait/{behaviour}'
+        pair = ice_content.PORTRAITS.get(behaviour)
+        rep.check(pair is not None, where, 'has no portrait')
+        if pair is None:
+            continue
+        for rows, rung in ((pair[0], 'unicode'), (pair[1], 'ascii')):
+            rep.check(len(rows) == 3, where, f'{rung}: not three rows')
+            widths = {ui.width(r) for r in rows}
+            rep.check(len(widths) == 1, where, f'{rung}: rows differ in width')
+            rep.check(all(1 <= w <= 7 for w in widths), where,
+                      f'{rung}: wider than a mark should be')
+        rep.check(all(ord(ch) < 128 for r in pair[1] for ch in r), where,
+                  'the ASCII rung draws a non-ASCII character')
+    for key in ice_content.PORTRAITS:
+        rep.check(key in ice_content.BEHAVIOURS, 'ice/portrait',
+                  f'a portrait for unknown behaviour {key!r}')
+
+
 def check_conditions(rep: Report) -> None:
     """D61: tonight's weather inside a network changes something, says so,
     and stays inside sane bounds.
@@ -3754,7 +3776,7 @@ def check_conditions(rep: Report) -> None:
 CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
     check_guide, check_consequences, check_spine, check_city_texture,
-    check_conditions,
+    check_conditions, check_portraits,
     check_icons, check_dissonance, check_cyberspace, check_rivals, check_debt,
     check_origins, check_appearance, check_events, check_rice, check_shifts, check_district_mood, check_dead_fields, check_skills, check_factions, check_districts,
     check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_offers, check_legacy, check_bonds, check_safehouses, check_crew, check_mods, check_commands,

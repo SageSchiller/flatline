@@ -189,6 +189,8 @@ class RunState:
     #: loosely: it is a `conditions.Condition` and this module does not need
     #: to know more than its fields.
     condition: object = None
+    #: Constructs whose portrait has been shown (D62). Once each.
+    portrayed: set = field(default_factory=set)
 
     # ------------------------------------------------------------------
     # construction
@@ -301,6 +303,25 @@ class RunState:
         value = max(0, int(round(amount)))
         node.residue += value
         return value
+
+    def _portrait(self, construct) -> None:
+        """Its mark, beside its name, the first time it wakes and you know
+        what it is (D62). Once per construct; a portrait that printed on every
+        wake would be wallpaper."""
+        if not construct.known or construct.uid in self.portrayed:
+            return
+        rows = ice_content.portrait(
+            construct.behaviour,
+            self.console.caps.glyphs is ui.GlyphLevel.ASCII)
+        if not rows:
+            return
+        self.portrayed.add(construct.uid)
+        role = 'err' if construct.behaviour == 'black' else 'ice'
+        self.console.blank()
+        for i, row in enumerate(rows):
+            tail = (f'   [dim]{construct.data.name}, {construct.behaviour}, '
+                    f'rating {construct.rating}[/]' if i == 1 else '')
+            self.console.raw(f'  [{role}]{row}[/]{tail}')
 
     def _ghost_tick(self) -> None:
         """The other runner (D61). Noise on a node you can see, not yours."""
@@ -460,6 +481,7 @@ class RunState:
                 for construct in node.live_ice:
                     if construct.behaviour == 'probe' and construct.state == 'dormant':
                         construct.state = 'awake'
+                        self._portrait(construct)
             # Daemons are not free. They announce themselves where they sit.
             if prog:
                 self.add_trace(prog.signature * 0.4)
@@ -655,6 +677,7 @@ class RunState:
                 continue
             if construct.state == 'dormant':
                 construct.state = 'awake'
+                self._portrait(construct)
                 if not announced:
                     announced = True
                     self.console.blank()
@@ -784,6 +807,7 @@ class RunState:
                 threshold = self.wake_threshold(construct)
                 if self.node.noise >= threshold and construct in self.node.ice:
                     construct.state = 'awake'
+                    self._portrait(construct)
                     if not self.woken:
                         self.woken = True
                         self.console.blank()
@@ -861,6 +885,7 @@ class RunState:
                 self.console.say('[dim]There is nothing left it can safely '
                                  'close.[/]')
             construct.state = 'awake'
+            self._portrait(construct)
             return
 
         if data.behaviour == 'warden':

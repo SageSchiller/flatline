@@ -6583,10 +6583,148 @@ def test_conditions() -> None:
          '`help conditions` is the page')
 
 
+def test_polish() -> None:
+    """D62: the journal as a log, previously, odds for more verbs, ICE
+    portraits, attribute bars and a build label, the card, scripts
+    discoverable, and naming things."""
+    T.section('polish')
+    from flatline.commands.city import build_label
+    from flatline.content import ice as ice_content, threads as thread_content
+
+    # The journal lists what you decided, what it cost, and what is waiting.
+    game = Game.new(Character.from_origin('gutter', 'Log'), seed=4242)
+    st = game.story
+    st.flags.update({'lark_met', 'lark_problem'})
+    st.reached['lark'] = ['meet', 'problem']
+    stage = next(s for s in thread_content.BY_KEY['lark'].stages
+                 if s.key == 'resolve')
+    st.reach('lark', stage)
+    _, out = play(['journal'], game=game)
+    T.ok('Waiting on you' in out and 'Lark' in out,
+         'the journal puts what is waiting first')
+    st.pending = ['lark.resolve']
+    play(['choose nothing'], game=game)
+    decided = st.decided('lark')
+    T.ok(decided and decided[0][1].key == 'nothing',
+         'the decision is derived from the flags')
+    _, out = play(['journal'], game=game)
+    T.ok('decided:' in out and 'do nothing' in out.lower(),
+         'and listed under the thread')
+    _, out = play(['journal lark'], game=game)
+    T.ok('You chose: Do nothing' in out, 'and read back in full, under its '
+                                         'scene')
+    T.ok('Moth' in out or 'colder' in out or 'Nothing it would' in out,
+         'with what it cost')
+
+    # Previously: on switch and on restore.
+    sess, _ = play(['new Prev --origin gutter --seed 4242'])
+    slot_a = sess.slot
+    sess.execute('new Other --origin ghost --seed 4242')
+    sess.console.start_capture()
+    sess.execute('switch Prev')
+    out = sess.console.end_capture()
+    T.ok('previously' in out and 'where' in out and 'job' in out,
+         '`switch` says where you left it')
+    T.ok('Marrow' in out, 'and names the district')
+    for slot in (slot_a, sess.slot):
+        if save_mod.exists(slot):
+            save_mod.delete(slot)
+
+    # odds strike, and odds <verb>.
+    game = Game.new(Character.from_origin('expolice', 'Odds'), seed=4242)
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    sess, _ = play([f'take {contract.cid}', 'jack in --force'], game=game)
+    state = sess.run
+    sess.console.start_capture()
+    sess.execute('odds scan')
+    out = sess.console.end_capture()
+    T.ok('ticks' in out and 'noise' in out and 'residue' in out,
+         '`odds scan` prints what a scan costs tonight')
+    from flatline.content import conditions as cond_content
+    state.condition = cond_content.BY_KEY['storm']
+    sess.console.start_capture()
+    sess.execute('odds scan')
+    out = sess.console.end_capture()
+    T.ok('storm' in out.lower(), 'and names tonight when it matters')
+    construct = next((c for n in state.net.nodes.values() for c in n.ice
+                      if c.behaviour != 'trap'), None)
+    if construct is not None:
+        construct.known = True
+        # Strike only reaches what is on your node or locked on; put it here.
+        state.node.ice.append(construct)
+        sess.console.start_capture()
+        sess.execute(f'odds strike {construct.uid}')
+        out = sess.console.end_capture()
+        T.ok('strike' in out and ('warfare' in out or 'bare hands' in out),
+             '`odds strike` prints the strike sum')
+        # And its portrait, the first time it wakes and you know what it is.
+        sess.console.start_capture()
+        state._portrait(construct)
+        state._portrait(construct)
+        out = sess.console.end_capture()
+        rows = ice_content.portrait(construct.behaviour, False)
+        T.ok(rows[1] in out and construct.data.name in out,
+             'a known construct has a portrait beside its name')
+        T.eq(out.count(rows[1]), 1, 'shown once')
+    T.ok(all(b in ice_content.PORTRAITS for b in ice_content.BEHAVIOURS),
+         'every behaviour has a portrait')
+
+    # The card: framed, with the numbers in it, fitting the column.
+    sess.run.haul.append(sess.run.net.objective_asset) if sess.run.net.objective_asset else None
+    sess.console.start_capture()
+    sess.execute('jack out')
+    sess.execute('jack out')
+    out = sess.console.end_capture()
+    T.ok('ticks' in out and 'residue' in out, 'the card carries the numbers')
+    glyph = '┌' if any('┌' in l for l in out.splitlines()) else '+'
+    T.ok(any(l.startswith(glyph) for l in out.splitlines()),
+         'and is framed')
+    T.ok(all(ui.width(l) <= 80 for l in out.splitlines()), 'and fits')
+
+    # Attribute bars and the build label.
+    game = Game.new(Character.from_origin('gutter', 'Bars'), seed=4242)
+    _, out = play(['char'], game=game)
+    T.ok('plays as' in out and 'a fast breaker' in out,
+         'a gutter runner plays as a fast breaker')
+    T.ok('Reflex' in out and ('█' in out or '#' in out), 'with bars')
+    game.char.dissonance = 60
+    T.ok(build_label(game.char).startswith('a wired'),
+         'and the drift shows in the label')
+    blank = Character.from_origin('gutter', 'Blank')
+    for k in list(blank.base_skills):
+        blank.base_skills[k] = 0
+    T.ok(build_label(blank).endswith('runner'), 'no skills is a runner')
+
+    # Scripts discoverable: `now` points at the library once it opens.
+    game = Game.new(Character.from_origin('gutter', 'Daemon'), seed=4242)
+    game.char.base_skills['daemonology'] = 2
+    _, out = play([''], game=game)
+    T.ok('script' in out, '`now` mentions the script library at Daemonology 2')
+
+    # Naming things: the deck, persisted; the safehouse, persisted.
+    game = Game.new(Character.from_origin('gutter', 'Names'), seed=4242)
+    sess, out = play(['deck name Old Bastard', 'deck'], game=game)
+    T.ok('Old Bastard' in out, 'the deck has a name and the sheet uses it')
+    game.save('named')
+    back = Game.load('named')
+    T.eq(back.char.deck.name, 'Old Bastard', 'and it survives a save')
+    save_mod.delete('named')
+    _, out = play(['deck name --clear', 'deck'], game=game)
+    T.ok('Old Bastard' not in out and 'Deck' in out, 'and can be cleared')
+    from flatline.content import safehouses
+    key = next(iter(safehouses.BY_KEY))
+    game.city.safehouse = {'key': key, 'stored': []}
+    _, out = play(['safehouse name The Hole'], game=game)
+    T.eq(game.city.safehouse.get('name'), 'The Hole', 'a safehouse can be named')
+    _, out = play(['safehouse'], game=game)
+    T.ok('The Hole' in out, 'and the screen says so')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
-    test_tutorial_second_half, test_conditions,
+    test_tutorial_second_half, test_conditions, test_polish,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,

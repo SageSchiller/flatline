@@ -318,13 +318,24 @@ def _resolve(sess) -> None:
     }.get(summary['outcome'], '')
     c.say(verdict)
 
+    # The card (D62): the one framed thing in the game, because this is the
+    # one moment that is a result rather than a stream.
+    history = state.trace_history
+    spark = (ui.sparkline(history, 30, c.caps, lo=0, hi=100)
+             if len(history) > 1 else '')
+    rows = [
+        f'[dim]ticks[/]    {summary["ticks"]}',
+        f'[dim]trace[/]    [trace]{summary["trace"]}/100[/]'
+        + (f'  [trace]{spark}[/]' if spark else ''),
+        f'[dim]alert[/]    {summary["alert"]}',
+        f'[dim]residue[/]  [residue]{summary["residue"]}[/]',
+        f'[dim]haul[/]     {len(summary["haul"])} assets, '
+        f'[credit]{summary["haul_value"]:,}c[/] nominal',
+    ]
+    if state.condition is not None:
+        rows.append(f'[dim]tonight[/]  {state.condition.name.lower()}')
     c.blank()
-    c.kv([('ticks', str(summary['ticks'])),
-          ('trace', f'{summary["trace"]}/100'),
-          ('alert', summary['alert']),
-          ('residue', f'[residue]{summary["residue"]}[/]'),
-          ('haul', f'{len(summary["haul"])} assets, '
-                   f'[credit]{summary["haul_value"]:,}c[/] nominal')])
+    c.box(rows, title=summary['outcome'])
 
     if summary['outcome'] == 'flatline':
         game.over = 'flatlined'
@@ -1241,6 +1252,24 @@ def cmd_scrub(sess, args) -> None:
 # --------------------------------------------------------------------------
 
 
+def strike_check(state, target, weapon) -> Check:
+    """The strike sum, unresolved, so `odds` can print it (D14, D62)."""
+    check = Check(name='strike', resistance=target.rating * 2)
+    check.add('warfare', state.char.skill('warfare') * 2)
+    check.add('nerve', state.char.attr('nerve'))
+    if weapon:
+        check.add(weapon.name, weapon.rating * 2)
+    else:
+        check.add('bare hands', -5)
+    check.add('gear', state.char.bonus('ice_damage'))
+    return check
+
+
+def strike_damage(state) -> int:
+    """What a landed strike takes off a construct, before a critical."""
+    return 4 + state.char.skill('warfare') + state.char.bonus('ice_damage')
+
+
 @command('strike', 'Attack a countermeasure directly.',
          group='defence', contexts=('run',), ticks=1, usage='strike [ice]',
          detail='Warfare rank 2. Damage scales on rank and Nerve. Cheaper than '
@@ -1252,14 +1281,7 @@ def cmd_strike(sess, args) -> None:
     target = _pick_ice(state, args.get(0))
     weapon = programs.best(state.char.deck.loaded, 'weapon')
 
-    check = Check(name='strike', resistance=target.rating * 2)
-    check.add('warfare', state.char.skill('warfare') * 2)
-    check.add('nerve', state.char.attr('nerve'))
-    if weapon:
-        check.add(weapon.name, weapon.rating * 2)
-    else:
-        check.add('bare hands', -5)
-    check.add('gear', state.char.bonus('ice_damage'))
+    check = strike_check(state, target, weapon)
     check.resolve(state.rng)
 
     _act(sess, 'strike', noise_scale=weapon.signature if weapon else 1.2)
@@ -1267,7 +1289,7 @@ def cmd_strike(sess, args) -> None:
         return
     c.blank()
     if check.success:
-        damage = 4 + state.char.skill('warfare') + state.char.bonus('ice_damage')
+        damage = strike_damage(state)
         if check.critical:
             damage *= 2
         target.damage_taken += damage
@@ -1802,12 +1824,33 @@ def cmd_job(sess, args) -> None:
 
 @command('odds', 'Show the maths before you commit.',
          group='info', contexts=('run',),
-         usage='odds crack <host> <service>',
-         detail='D14: no hidden dice. Prints the full sum for an action, '
-                'including every modifier, and the exact probability.')
+         usage='odds crack <host> <service> | odds strike <ice> | odds <verb>',
+         detail='D14: no hidden dice. `odds crack` prints the full sum for a '
+                'crack, every modifier and the exact probability, for the '
+                'best and the quietest program you carry. `odds strike` does '
+                'the same for a strike, with what a hit would take off. '
+                '`odds <any verb>` prints what that verb costs you tonight: '
+                'ticks, the noise it makes here, the residue it leaves, with '
+                'tonight\'s condition and your own chrome in the numbers.')
 def cmd_odds(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     what = (args.get(0) or '').lower()
+    if what == 'strike':
+        target = _pick_ice(state, args.get(1))
+        weapon = programs.best(state.char.deck.loaded, 'weapon')
+        check = strike_check(state, target, weapon)
+        c.blank()
+        c.raw(f'[accent]strike {target.data.name}[/] '
+              f'[dim]({weapon.name if weapon else "bare hands"})[/]  '
+              f'{check.summary()}')
+        c.say(check.explain(), indent='  ')
+        left = max(0, target.hp - target.damage_taken)
+        c.say(f'[dim]A hit takes {strike_damage(state)} off {left} left; a '
+              f'critical doubles it.[/]', indent='  ')
+        return
+    if what not in ('crack', '') and what in COST:
+        _odds_cost(sess, what)
+        return
     if what in ('crack', ''):
         node, svc = _target_service(state, args, offset=1)
         category = node_content.FAMILIES[svc.family][1]
@@ -1821,7 +1864,41 @@ def cmd_odds(sess, args) -> None:
             c.raw(f'[accent]{label}[/] [dim]({name})[/]  {check.summary()}')
             c.say(check.explain(), indent='  ')
         return
-    raise CommandError('odds crack <host> <service>')
+    raise CommandError('odds crack <host> <service>, odds strike <ice>, or '
+                       'odds <verb> for what a verb costs tonight')
+
+
+def _odds_cost(sess, verb: str) -> None:
+    """What a verb costs tonight: ticks, noise here, residue here, with
+    everything that scales them (D14, D62). The same sums `_act` does,
+    before it does them."""
+    state, c = sess.run, sess.console
+    ticks, noise, residue = COST[verb]
+    cond = state.condition
+    if ticks and cond is not None and verb in cond.slow:
+        ticks += 1
+    node = state.node
+    noise_mult = state.char.mult('noise_mult') * node.data_type.noise_mult
+    if cond is not None:
+        noise_mult *= cond.noise
+    residue_mult = state.char.mult('residue_mult')
+    if cond is not None:
+        residue_mult *= cond.residue
+    c.blank()
+    c.raw(f'[accent]{verb}[/] [dim]tonight, from {state.here}[/]')
+    c.kv([
+        ('ticks', f'{ticks}' + (' [dim](tick multiplier '
+                                f'x{state.char.mult("tick_mult"):.2f})[/]'
+                                if state.char.mult('tick_mult') != 1.0
+                                else '')),
+        ('noise', f'[noise]{int(round(noise * noise_mult))}[/] '
+                  f'[dim]({noise} base x{noise_mult:.2f})[/]'),
+        ('residue', f'[residue]{int(round(residue * residue_mult))}[/] '
+                    f'[dim]({residue} base x{residue_mult:.2f})[/]'),
+    ])
+    if cond is not None:
+        c.say(f'[dim]Tonight: {cond.name.lower()}, '
+              f'{"; ".join(cond.terms())}.[/]', indent='  ')
 
 
 @command('log', 'What has happened this run.',

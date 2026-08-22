@@ -12,7 +12,7 @@ updated: 2026-08-21
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,387 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. Then **D54** (six lines and four topics per person, in seventeen voices; hours, so the clock is a reason to be somewhere) and **D55** (nine threads rooted in the districts, twenty-two decisions, four postings). Then **D56**: a decision at each rival's bond latch (fourteen scenes, twenty-eight decisions, read by the hire price, the shift boundary, four events and the epilogue), and the wire carrying scenes, decisions and what a run did to the city. Then **D57** (the city drawn, `walk`) and **D58** (forty-five places, twenty-two people, the street, a hundred and fifty-four events). Then **D59**, the readout: one dim line after every tick spent in a run, as the seventh rice axis (`hud`: line, bar, terse, quiet). Then **D60**, the tutorial's second half: nine more steps, past the door into what the city does. Then **D61**, tonight inside: eight run conditions drawn at the door, every field read, in the sum where they touch a check. **Phase 7** items 1 to 6, 8, 10, 15, 18 and 19 are done; open: 7 (journal as a real log), 9 (previously, on resume), 11 (`odds` for more verbs), 12 to 14 (ICE portraits, attribute bars and a build label, the end-of-run card), 16 and 17. Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
+> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,387 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. Then **D54** (six lines and four topics per person, in seventeen voices; hours, so the clock is a reason to be somewhere) and **D55** (nine threads rooted in the districts, twenty-two decisions, four postings). Then **D56**: a decision at each rival's bond latch (fourteen scenes, twenty-eight decisions, read by the hire price, the shift boundary, four events and the epilogue), and the wire carrying scenes, decisions and what a run did to the city. Then **D57** (the city drawn, `walk`) and **D58** (forty-five places, twenty-two people, the street, a hundred and fifty-four events). Then **D59**, the readout: one dim line after every tick spent in a run, as the seventh rice axis (`hud`: line, bar, terse, quiet). Then **D60**, the tutorial's second half: nine more steps, past the door into what the city does. Then **D61**, tonight inside: eight run conditions drawn at the door, every field read, in the sum where they touch a check. Then **D62**, the rest of the list: the journal as a log, previously on resume, `odds` for strike and for what any verb costs tonight, ICE portraits, attribute bars and a build label, the end-of-run card, scripts discoverable, naming the deck and the safehouse. **Every Phase 7 item is done.** What is next is whatever playing it turns up. Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
@@ -1555,6 +1555,41 @@ not the fourth, and the reason legwork cannot tell you everything.
 it, and a draw taken from that stream would have made the network it read
 a different network from the one you ran. `help conditions` is the page.
 
+### D62: The rest of the list
+
+The remaining Phase 7 items, each small, each a surface the game already
+had that was not saying what it knew.
+
+- **The journal is a log.** What is waiting on you comes first; under each
+  thread, what you decided; in the full read, each decision under its scene
+  with what it cost, derived from the flags (`Story.decided`) rather than
+  stored, because the flags are the layer.
+- **Previously.** Five rows when a character is continued, switched to or
+  restored: where and when, the job, who is hottest, what is open and what
+  is waiting, the last thing the wire said. A save is a place, and nobody
+  remembers a place they left a week ago well enough to stand back up in
+  it.
+- **`odds` for more.** `odds strike <ice>` prints the strike sum and what a
+  hit takes off (the sum is one function now, `strike_check`, used by both
+  the verb and the question). `odds <any verb>` prints what that verb costs
+  tonight: ticks, noise here, residue here, with chrome and the condition in
+  the numbers, the same sums `_act` does, before it does them.
+- **ICE portraits.** `ice.PORTRAITS`: a three-row mark per behaviour, both
+  rungs, printed once beside a construct's name the first time it wakes and
+  you know what it is. After five runs the shape says "warden" before the
+  word does. `check_portraits` holds every behaviour to having one.
+- **Attribute bars and a build label.** Five lengths beside five numbers on
+  `char`, and `plays as`: the skill you have most of and the attribute,
+  "wired" with the drift. It reads the build and nothing reads it back.
+- **The card.** `Console.box`, the one framed thing in the game, for the
+  one moment that is a result rather than a stream: the end-of-run numbers
+  with the trace sparkline, titled with the outcome.
+- **Scripts discoverable.** `now` names the empty library once Daemonology
+  2 opens it.
+- **Naming things.** `deck name <what you call it>` and `safehouse name
+  <what you call it>`. Cosmetic, persisted, on every screen that mentions
+  them.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -1804,32 +1839,29 @@ More districts, factions, chrome, and programs. Content, not systems.
    one more true thing.
 6. ~~`news`.~~ Done: D53, and D56 writes scenes, decisions and what a run
    did to the city into it.
-7. **`journal` as a real log**: the decisions you made and what they cost,
-   per thread; and `now` saying "a choice is waiting: `choose`".
+7. ~~`journal` as a real log.~~ Done: D62 (and `now` says when a choice
+   is waiting, since D52).
 
 **Accessibility and understanding**
 
 8. ~~A HUD line after every tick-costing run action.~~ Done: D59, as the
    `hud` rice axis.
-9. **"Previously" on resume**: five lines when you `switch` or continue.
+9. ~~"Previously" on resume.~~ Done: D62.
 10. ~~Tutorial, second half.~~ Done: D60, nine more steps.
-11. **`odds` for connect, pull, scrub and strike.** D14 says no hidden dice
-    and one verb answers.
+11. ~~`odds` for more verbs.~~ Done: D62: `odds strike`, and `odds <any
+    verb>` for what it costs tonight.
 
 **Visual**
 
-12. **ICE portraits**: a three-line glyph block per countermeasure family
-    when one engages, like the faction sigils.
-13. **Attribute bars on `char`**, and a computed build label under the
-    handle. Cosmetic identity, zero numbers.
-14. **End-of-run card**: the summary boxed, with the trace sparkline.
+12. ~~ICE portraits.~~ Done: D62.
+13. ~~Attribute bars and a build label.~~ Done: D62.
+14. ~~End-of-run card.~~ Done: D62.
 
 **Fun and customisation**
 
 15. ~~Run conditions.~~ Done: D61, eight of them.
-16. **Scripts discoverable**: a `now` hint at Daemonology 2; `script` is
-    the payoff of a whole skill and nobody finds it.
-17. Naming things (deck, safehouse); the build label from 13.
+16. ~~Scripts discoverable.~~ Done: D62.
+17. ~~Naming things.~~ Done: D62.
 
 **At the author's request, after the above**
 
@@ -2619,3 +2651,21 @@ by asking for the odds on a host it had only scanned.
 
 `validate.py` clean, `test.py` green at **13,882 checks**. 39 manual
 topics.
+
+### 2026-08-21 (k): the rest of the list
+
+**D62.** The eight remaining Phase 7 items, each a surface that was not
+saying what it knew: the journal as a log of decisions and what they cost,
+previously on resume, `odds` for strike and for any verb's cost tonight,
+ICE portraits, attribute bars and a build label, the boxed end-of-run card,
+a `now` line for the empty script library, and names for the deck and the
+safehouse. With that the Phase 7 list is closed; the next list should come
+from playing it.
+
+**One thing worth writing down.** The batch patched seven files by anchor
+in one script and the script stopped at an assertion that expected two
+wake sites and found four. Two of the four were the escort's and the
+ally's exposure to countermeasures, which wake the same way and deserve the
+same mark, and the assertion was the only reason anybody looked.
+
+`validate.py` clean, `test.py` green at **13,908 checks**.

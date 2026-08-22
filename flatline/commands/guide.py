@@ -161,7 +161,66 @@ def _now_city(sess):
                                f'{char.xp} experience are unspent. This '
                                f'suggests a way; `boost` and `train` are '
                                f'yours'))
+    # Daemonology's payoff is a whole automation layer that nobody finds
+    # (D62): say so, once the rank that opens it is bought and until the
+    # library has something in it.
+    if char.skill('daemonology') >= 2 and not sess.scripts:
+        steps.append(('script help', 'Daemonology 2 opened the script '
+                                     'library and it is empty. `script '
+                                     'example bailout` copies a working one'))
     return line, steps, also
+
+
+# --------------------------------------------------------------------------
+# previously (D62)
+# --------------------------------------------------------------------------
+
+
+def previously(sess) -> None:
+    """Five lines for somebody sitting back down with a character.
+
+    Where and when, the job, who is hottest on you, what is open and what
+    is waiting, and the last thing the wire said. Printed when a character
+    is continued, switched to or restored, because a save is a place you
+    left and nobody remembers a place they left a week ago well enough to
+    stand back up in it.
+    """
+    game, c = sess.game, sess.console
+    if game is None:
+        return
+    from ..content import factions as fac_content
+    city, char = game.city, game.char
+    rows = [('where', f'{city.district.name}, {city.when}')]
+    contract = city.current
+    if contract is not None:
+        hops = city.shifts_to(contract.district)
+        rows.append(('job', f'[accent]{contract.title}[/] [dim]against '
+                            f'{contract.target_data.short}, '
+                            + ('here' if not hops else
+                               f'{hops} shift{"s" if hops != 1 else ""} away')
+                            + '[/]'))
+    else:
+        rows.append(('job', '[dim]nothing accepted[/]'))
+    hot, heat = game.alias.hottest
+    if hot and heat > 0:
+        rows.append(('heat', f'[heat]{fac_content.BY_KEY[hot].short} '
+                             f'{int(heat)}[/]'))
+    open_threads = len(game.story.reached)
+    waiting = len(game.story.pending)
+    story_line = f'{open_threads} thread{"s" if open_threads != 1 else ""} open'
+    if waiting:
+        story_line += (f', [warn]{waiting} waiting on a decision[/] '
+                       f'[dim](`choose`)[/]')
+    rows.append(('story', story_line))
+    if city.news:
+        last = city.news[-1]
+        rows.append(('last', last))
+    rows.append(('money', f'[credit]{char.credits:,}c[/] [dim]'
+                          f'{char.runs} run{"s" if char.runs != 1 else ""} '
+                          f'so far[/]'))
+    c.blank()
+    c.rule('previously', role='accent2')
+    c.kv(rows)
 
 
 # --------------------------------------------------------------------------

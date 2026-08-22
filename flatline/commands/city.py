@@ -86,6 +86,38 @@ def cmd_new(sess, args) -> None:
           'next.[/]')
 
 
+#: The two words a build comes down to (D62). Cosmetic: it reads the build
+#: and nothing reads it back. The noun is the skill you have most of, the
+#: adjective the attribute, and "wired" arrives with the drift.
+_BUILD_NOUN = {
+    'intrusion': 'breaker', 'cryptography': 'cryptographer',
+    'subterfuge': 'talker', 'hardware': 'tinker', 'stealth': 'ghost',
+    'warfare': 'brawler', 'forensics': 'cleaner', 'daemonology': 'summoner',
+    'architecture': 'mapper', 'signal': 'listener', 'sabotage': 'wrecker',
+    'psyche': 'nerve',
+}
+_BUILD_ADJ = {'logic': 'careful', 'reflex': 'fast', 'nerve': 'steady',
+              'guile': 'smooth', 'grit': 'hard'}
+
+
+def build_label(char) -> str:
+    """'a fast breaker', 'a wired careful summoner', or 'a runner' for a
+    sheet with nothing on it yet."""
+    best_skill = max(skill_content.SKILL_KEYS,
+                     key=lambda k: (char.skill(k),
+                                    -skill_content.SKILL_KEYS.index(k)))
+    best_attr = max(attr_content.ATTR_KEYS,
+                    key=lambda k: (char.attr(k),
+                                   -attr_content.ATTR_KEYS.index(k)))
+    noun = (_BUILD_NOUN.get(best_skill, 'runner') if char.skill(best_skill)
+            else 'runner')
+    adj = _BUILD_ADJ.get(best_attr, '')
+    wired = 'wired' if char.dissonance >= 50 else ''
+    words = ' '.join(w for w in (wired, adj, noun) if w)
+    article = 'an' if words[:1] in 'aeiou' else 'a'
+    return f'{article} {words}'
+
+
 def resolve_origin(token: str):
     """An origin from its number in the list, its key, or its name. Or None.
 
@@ -287,6 +319,8 @@ def cmd_char(sess, args) -> None:
         ('read as', f'{char.memorable_band[0]} '
                     f'[dim]({char.memorable} memorable, '
                     f'{char.presence:+d} presence, `self` for detail)[/]'),
+        ('plays as', f'[accent2]{build_label(char)}[/] [dim](the shape of '
+                     f'the build, in two words; it reads nothing back)[/]'),
     ])
 
     c.blank()
@@ -324,6 +358,12 @@ def cmd_char(sess, args) -> None:
         role = 'accent' if shift >= 0 else 'err'
         rows.append((a.name, f'{base} {arrow} [{role}]{eff}[/] '
                              f'[dim]({why})[/]'))
+    # A bar beside each number (D62), scaled to the ceiling, the way the
+    # skills screen has always done it: five numbers read faster as five
+    # lengths.
+    rows = [(name, c.bar(char.base_attrs.get(a.key, 0) / attr_content.ATTR_MAX,
+                         'accent', 9) + f' {value}')
+            for (name, value), a in zip(rows, attr_content.ATTRIBUTES)]
     c.kv(rows)
 
     c.blank()
@@ -438,12 +478,28 @@ def cmd_train(sess, args) -> None:
 
 
 @command('deck', 'What your deck is made of, and what it can carry.',
-         group='character', usage='deck')
+         group='character', usage='deck [name <what you call it>]')
 def cmd_deck(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     deck = game.char.deck
-    c.header('Deck', f'memory {deck.memory_used}/{deck.memory}  '
-                     f'heat {deck.heat}/{deck.heat_cap}')
+    if (args.get(0) or '').lower() == 'name':
+        # Naming it (D62). Cosmetic, persisted, and the only thing about
+        # the deck that the deck does not read.
+        name = args.rest(1).strip()
+        if args.has('clear'):
+            deck.name = ''
+            c.ok('It is a deck again.')
+        elif not name:
+            raise CommandError('deck name <what you call it>. `deck name '
+                               '--clear` to stop calling it anything.')
+        else:
+            deck.name = name[:32]
+            c.ok(f'The deck is [accent]{deck.name}[/] now. It does not care, '
+                 f'and it will be on every screen that mentions it.')
+        sess.autosave()
+        return
+    c.header(deck.name or 'Deck', f'memory {deck.memory_used}/{deck.memory}  '
+                                  f'heat {deck.heat}/{deck.heat_cap}')
     rows = []
     for slot in hardware.SLOTS:
         comp = deck.component(slot)
@@ -2963,6 +3019,18 @@ def cmd_safehouse(sess, args) -> None:
     if verb in ('take', 'get'):
         _safehouse_move(sess, args, prop, into=False)
         return
+    if verb == 'name':
+        # Naming it (D62). A place you own is a place you call something.
+        if prop is None or house.get('burned'):
+            raise CommandError('you have nowhere of your own to name.')
+        name = args.rest(1).strip()
+        if not name:
+            raise CommandError('safehouse name <what you call it>.')
+        house['name'] = name[:32]
+        c.ok(f'It is [accent]{house["name"]}[/] now, to you. To the city it '
+             f'is still {prop.name}.')
+        sess.autosave()
+        return
     if verb == 'money':
         _safehouse_money(sess, args, prop)
         return
@@ -2971,7 +3039,9 @@ def cmd_safehouse(sess, args) -> None:
         districts.BY_KEY[prop.where].controller)
     risk = safehouses.raid_chance(prop.security, attention)
     stored = list(house.get('stored') or [])
-    c.header(prop.name, districts.BY_KEY[prop.where].name)
+    c.header(house.get('name') or prop.name,
+             (f'{prop.name}, ' if house.get('name') else '')
+             + districts.BY_KEY[prop.where].name)
     c.say(f'[dim]{prop.blurb}[/]')
     c.blank()
     c.kv([

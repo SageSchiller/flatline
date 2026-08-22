@@ -653,6 +653,8 @@ def cmd_restore(sess, args) -> None:
         sess.load_game(slot)
         game = sess.game
         c.ok(f'{game.char.handle} is here, filed under {slot!r}.')
+        from .guide import previously
+        previously(sess)
         c.say(f'[dim]{game.city.when}, {game.city.district.name}, '
               f'{game.char.runs} runs, running as {game.alias.name}.[/]')
         if game.over:
@@ -785,10 +787,12 @@ def cmd_switch(sess, args) -> None:
     sess.load_game(target.slot)
     game = sess.game
     c.ok(f'You are [accent]{game.char.handle}[/], running as '
-         f'[accent]{game.alias.name}[/]. {game.city.when}, '
-         f'{game.city.district.name}.')
+         f'[accent]{game.alias.name}[/].')
     if game.over:
         c.warn(f'This character is finished: {game.over}')
+    else:
+        from .guide import previously
+        previously(sess)
 
 
 @command('delete', 'Lose a character on purpose.',
