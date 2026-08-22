@@ -1925,6 +1925,19 @@ route up is a full crack of one and a network whose only auth sat at tier
 two had no ladder at all; `_tier_steps` will now name an auth one rung
 above you, which is three points and a decision, rather than none.
 
+Three more dead ends, found by running a whole campaign the same way: a
+`spend` that refuses ("nothing the shape suggests") while `now` goes on
+recommending it, which is now impossible in both directions (the planner
+falls back to any affordable rank anywhere, and the advice checks the plan
+exists before naming `spend`); a `travel` the street refuses because
+somebody is paying to find you there, where the advice now says `arrange`
+if you can pay for the streets and `rest 3` if you cannot, and names
+`--anyway` as the third way; and the same check reading only the first
+token of a `walk`, so a two-hop route through a district that wanted you
+was recommended for ever. `test_advice` holds all of it: every step the
+advice names is a command the shell knows, says why, and is not a walk
+into a district above the incident floor.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -3194,3 +3207,11 @@ the rumour, once each (`heard:<item>`), with the place named, and it goes
 on the wire. The ambient rumour is the city telling you when it feels like
 it; this is the channel the player controls, and it is the payoff for
 meeting people. `help relics` says so. `test.py` green at **15,082 checks**.
+
+### 2026-08-21 (ab): the advice never loops
+
+Campaign-scale simulation (fifteen hundred commands, a policy that trains,
+rests, buys and pays) turned up three more advice loops behind the four
+from (c): the refusing `spend`, the refused `travel`, and the multi-hop
+walk whose danger was only checked one hop in. All closed, with
+`test_advice` to keep them closed. `test.py` green at **15,293 checks**.
