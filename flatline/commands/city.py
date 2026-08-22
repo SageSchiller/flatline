@@ -316,7 +316,8 @@ def cmd_char(sess, args) -> None:
         ('running as', f'[accent]{game.alias.name}[/] '
                        f'[dim]({game.alias.runs} runs)[/]'),
         ('credits', f'[credit]{char.credits:,}c[/]'),
-        ('integrity', f'{char.integrity}/{char.integrity_max}'),
+        ('integrity', f'{char.integrity}/{char.integrity_max}'
+                      + _warned_line(game)),
         ('dissonance', f'{char.dissonance} [dim]({char.dissonance_band[1]})[/]'),
         ('looks', f'[dim]{appearance.summary(char.look)}[/]'),
         ('read as', f'{char.memorable_band[0]} '
@@ -1171,6 +1172,19 @@ def city_job(sess) -> None:
     c.say('[dim]Next:[/]')
     for step, _ in city_steps(game):
         c.raw(f'  [fg]{step}[/]')
+
+
+def _warned_line(game) -> str:
+    """Who has told you, in so many words, that next time they will not
+    be asking (D65). On the sheet beside Integrity, because it is the one
+    number on the sheet that the warning is about."""
+    warned = sorted(f[7:] for f in game.story.flags if f.startswith('warned:'))
+    if not warned:
+        return ''
+    names = [factions.BY_KEY[w].short if w in factions.BY_KEY else 'somebody'
+             for w in warned]
+    return (f'  [err]warned by {", ".join(names)}: next time they will not '
+            f'be asking[/]')
 
 
 def city_steps(game) -> list[tuple[str, str]]:

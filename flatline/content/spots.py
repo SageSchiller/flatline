@@ -484,7 +484,20 @@ SPOTS: tuple[Spot, ...] = (
          night='At night somebody is always up one of them, a small shape '
                'against the glow, talking to a relay in a voice that carries '
                'further than it should.',
-         who=('pip',)),
+         who=('pip',),
+         finds=(Find('ant_pip', requires=('met:pip', 'runs:3'),
+                     hours=('afternoon',),
+                     text='Pip comes down the ladder with no bottom rungs with '
+                          'the dish under one arm and says, "Tower three. I '
+                          'have a better one now," and names a price, and the '
+                          'price is a thing you have in the bag that you did '
+                          'not know you wanted less than this.',
+                     rumour='Pip is said to have the best dish in the Stacks '
+                            'on tower three, pointed at the Vertical, and to '
+                            'be willing to trade it for something, and to not '
+                            'know what it is worth, which is the only reason '
+                            'it is for sale.',
+                     tone='absurd'),)),
     Spot('shack', 'the relay shack', 'stacks',
          'Corrugated tin, a door that does not lock, a table of radios in '
          'various states of having been opened, and a chair for the person '
@@ -498,7 +511,19 @@ SPOTS: tuple[Spot, ...] = (
          'and gives them back to you slightly louder, as a reminder.',
          night='At night the counter hall is lit and empty and the person '
                'behind the counter is still there, or a person is, reading.',
-         who=('notary',)),
+         who=('notary',),
+         finds=(Find('mem_ledger', requires=('keys_returned',),
+                     hours=('night',),
+                     text='The counter hall at night, lit, empty, and a sheet '
+                          'on the counter where nothing is ever left, which is '
+                          'not paper and is not a drive. The Notary does not '
+                          'look up. "An arrangement," they say, to the ledger.',
+                     rumour='Somebody on the Row says the Notary left '
+                            'something on the counter once, at night, for '
+                            'somebody who ended a line, and that nobody has '
+                            'seen the counter hall empty since and nobody has '
+                            'seen the something.',
+                     tone='wry'),)),
     Spot('vault_steps', 'the vault steps', 'row',
          'Eleven steps down to a door that is not a door, it is a statement '
          'about doors. People sit on the steps at lunch. Nobody has ever '
@@ -535,7 +560,18 @@ SPOTS: tuple[Spot, ...] = (
          'pigeons treat it as theirs.',
          night='At night the loft window is the one dark square in a lit '
                'building, and from it the Row is a line of light and the '
-               'Glasshouse is a glow, and the Hall under you is a sound.'),
+               'Glasshouse is a glow, and the Hall under you is a sound.',
+         finds=(Find('bell', requires=('soup_stood',), hours=('night',),
+                     text='Under the bell that does not ring, on the floor, a '
+                          'drive with a hymn number written on it in chalk. '
+                          'The loft is the one dark square in a lit building '
+                          'and the Hall under you is a sound, and somebody has '
+                          'left this here for you, and nobody will say who.',
+                     rumour='The Chorus are said to have recorded the bell in '
+                            'the loft, the whole of what it would have sounded '
+                            'like, and to keep the recording under it for '
+                            'somebody, and not to say for whom.',
+                     tone='grim'),)),
 
 )
 

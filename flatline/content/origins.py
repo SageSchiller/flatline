@@ -100,7 +100,7 @@ ORIGINS: tuple[Origin, ...] = (
         'breaking them. Everything you own is held together with solder and '
         'opinion, and all of it is faster than it has any right to be.',
         attrs={'reflex': 2, 'grit': 1, 'logic': -1},
-        skills={'intrusion': 1, 'hardware': 1},
+        skills={'intrusion': 1, 'hardware': 1, 'streetcraft': 1},
         credits=700,
         cyberware=('salvage_reflex_loop',),
         programs=('crowbar', 'crowbar', 'blink'),
@@ -131,7 +131,7 @@ ORIGINS: tuple[Origin, ...] = (
         'owes, and how a deal falls apart, long before you learned what a port '
         'scan was. The technical part is still catching up.',
         attrs={'guile': 2, 'nerve': 1, 'logic': -1},
-        skills={'subterfuge': 1},
+        skills={'subterfuge': 1, 'streetcraft': 1},
         credits=1800,
         cyberware=('social_lattice',),
         programs=('sable', 'handshake', 'blink'),
@@ -195,7 +195,7 @@ ORIGINS: tuple[Origin, ...] = (
         'more move. You know what they are waiting for. It has not helped as '
         'much as you expected.',
         attrs={'nerve': 2, 'reflex': 1, 'guile': -1},
-        skills={'warfare': 1, 'forensics': 1},
+        skills={'warfare': 1, 'forensics': 1, 'streetcraft': 1},
         credits=1500,
         cyberware=('threat_overlay',),
         programs=('cudgel', 'sable', 'mirrorbox'),
@@ -364,7 +364,7 @@ ORIGINS: tuple[Origin, ...] = (
         'changes. The net is the part you learned last and it still feels '
         'like somewhere you are visiting.',
         attrs={'reflex': 2, 'grit': 2, 'logic': -2, 'guile': 1},
-        skills={'subterfuge': 1, 'hardware': 1},
+        skills={'subterfuge': 1, 'hardware': 1, 'fieldcraft': 1},
         credits=1600,
         cyberware=('quiet_hands',),
         programs=('crowbar', 'blink', 'siphon'),

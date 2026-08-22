@@ -78,7 +78,7 @@ class Story:
             return f'met:{value}' in self.flags
         if kind == 'ran':
             return f'ran:{value}' in self.flags
-        if kind in ('did', 'bond', 'found'):
+        if kind in ('did', 'bond', 'found', 'street', 'warned'):
             # A posting finished, a runner decided about you, or a relic
             # found (D63 e). The flag carries its own colons, so it is
             # matched whole rather than parsed.

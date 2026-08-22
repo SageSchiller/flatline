@@ -1320,6 +1320,18 @@ GROWTH: tuple[Event, ...] = (
           'stirring has something in it.',
           districts=('hall',), requires=('soup_carrion',),
           weight=CONSEQUENCE_WEIGHT),
+    Event('street_walked_out', 'grim',
+          'Somebody says a runner walked out of a stretch of street that '
+          'nobody walks out of, with both ends held, and the person telling '
+          'it does not know it was you and tells it to your face, and gets '
+          'the ending wrong, and you do not correct them.',
+          requires=('street:finish',), weight=CONSEQUENCE_WEIGHT),
+    Event('street_pot', 'wry',
+          'The woman with the pot on the trolley is at the corner again, and '
+          'she sees you, and she holds out a cup without being asked, the '
+          'way you hold one out to somebody you have fed before, which is a '
+          'kind of being known.',
+          requires=('street:soup',), weight=CONSEQUENCE_WEIGHT),
     Event('soup_somebody_else', 'grim',
           'Somebody you half know in the Shambles says the Hall thing got '
           'done, one way or the other, and does not say which, and you do '

@@ -253,6 +253,45 @@ RELICS: tuple[Component, ...] = (
                    'impossible to look at it fitted to a nine-thousand-credit '
                    'rig without hearing her explain it. There is no better '
                    'item in the game and there are many stronger ones.'),
+    Component('ant_pip', 'Pip\'s Dish', 'antenna', 2, 2600,
+              'A flat dish off tower three, pointed by somebody who knew '
+              'exactly where everything was and did not know what any of it '
+              'was worth. It hears the city the way a child on a water tower '
+              'hears it: all of it, at once, in lists.',
+              effects={'legwork_bonus': 2}, heat=1,
+              drawback='It was pointed at the Vertical when you got it, and '
+                       'the Vertical noticed. Anything pointed can be '
+                       'pointed at.',
+              penalty={'trace_mult': 1.08},
+              unique=True,
+              lore='Pip took the bottom rungs off the ladders so that only '
+                   'kids could climb them, and put this on tower three, and '
+                   'pointed it at the Vertical for reasons, and traded it to '
+                   'you for a thing you wanted less than Pip wanted the thing '
+                   'Pip asked for, which is how all of Pip\'s trades go and '
+                   'why Pip has so much. It is the best legwork antenna in '
+                   'the city by a distance, because it was never built to be '
+                   'an antenna: it was built to hear everything, by somebody '
+                   'who had not yet learned what not to listen to.'),
+    Component('mem_ledger', 'A Ledger Page', 'memory', 3, 7000,
+              'A sheet of Meridian\'s own storage, the kind the ledger is '
+              'kept on, which holds more than it should because it was built '
+              'to hold a line that never ends.',
+              effects={'memory': 8}, heat=1,
+              drawback='It keeps a line. Everything you load is written '
+                       'somewhere Meridian can read, and they convert it to '
+                       'heat a little faster.',
+              penalty={'heat_mult': 1.08},
+              unique=True,
+              lore='The Notary left it on the counter, after the line was '
+                   'ended, without looking up: a sheet of whatever the '
+                   'ledger is kept on, which is not paper and is not a drive '
+                   'and is, fitted to a deck, eight memory with almost no '
+                   'heat. Nobody at Meridian gives anything away, and the '
+                   'Notary did not: it is an arrangement. The page keeps a '
+                   'line, the way all of their pages do, and the line is '
+                   'what you carry, and the line is very long, and they can '
+                   'read it.'),
     Component('io_landline', 'Mara\'s Landline', 'io', 2, 3300,
               'A number on the old exchange that rings back. Nobody traces a '
               'landline, because nobody remembers they exist.',

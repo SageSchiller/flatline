@@ -3086,3 +3086,14 @@ kill you, after it has told you so in as many words; you get out of it by
 running, talking, paying or standing there, each a printed check on two
 new skills; errands are the work that needs no deck. `validate.py` clean,
 `test.py` green at **14,896 checks**.
+
+### 2026-08-21 (t): the street reads back
+
+Three encounters that are decisions coming to find you (Carrion's two from
+the back of the queue, somebody from the Stacks with a paper, a courier
+with an empty case), two events for what the street remembers, origins
+that start with a street rank (gutter, protege and ex-enforcement with
+Streetcraft 1, the courier with Fieldcraft 1), the sheet naming who has
+warned you, three people with an opinion about the street, and three more
+relics in the new districts (Pip's Dish, A Ledger Page, The Bell That Does
+Not Ring). `test.py` green at **14,901 checks**.

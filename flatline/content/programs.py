@@ -466,6 +466,21 @@ RELICS: tuple[Program, ...] = (
                  'that were built when the key was issued open for it the '
                  'way old men stand up for a tune. Meridian know exactly '
                  'which doors those are, and they write down every one.'),
+    Program('bell', 'The Bell That Does Not Ring', 'mask', 2, 4, 0.0, 5200, 3,
+            'A mask built out of a recording of a bell that was never rung: '
+            'the shape of a sound with no sound in it. A network looking for '
+            'you finds the shape and nothing inside it.',
+            effects={'trace_mult': 0.8, 'noise_mult': 0.92},
+            note='Passive. Quiet the way an empty church is quiet.',
+            unique=True,
+            lore='The bell in the Hall\'s loft has never rung. The Chorus '
+                 'recorded it anyway, the whole of what it would have sounded '
+                 'like worked out from the metal and the room, and somebody '
+                 'who came out of Deepwater and does not sing turned the '
+                 'recording into this, and left it in the loft, under the '
+                 'bell, for whoever stood with the Hall when it counted. It is '
+                 'the quietest thing the Chorus own and they gave it to you '
+                 'without a word, which is how they give things.'),
     Program('survey', 'The Survey', 'hunter', 1, 3, 0.6, 1900, 1,
             'Tuck\'s map of every cable in the Ninth, on something that is '
             'not paper. It is a map of a district, and it turns out a '

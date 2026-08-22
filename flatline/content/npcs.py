@@ -98,6 +98,7 @@ NPCS: tuple[Npc, ...] = (
             '"Sit. I will tell you one true thing and you will not like it, '
             'and then we will talk about work."',),
         topics={
+            'street': '"The street is the part of the job nobody puts on the board. Walk into somewhere your name is worth money and do not act surprised when somebody collects."',
             'city': '"Twelve powers, and eleven of them think they are the '
                     'one holding the leash. Do not correct anybody."',
             'work': '"Take the small ones until somebody who is not me says '
@@ -171,6 +172,7 @@ NPCS: tuple[Npc, ...] = (
             '"Are you any good? You do not have to answer. I will know by '
             'next week."',),
         topics={
+            'street': '"Round here they lean. They do not take. Leaning is cheaper and it works, and you can pay a lean off with a name or a favour or by not being there."',
             'city': '"Nothing down here connects the way the map says. The '
                     'map is from before the flood."',
             'work': '"You want the one nobody else took. There is always one '
@@ -877,6 +879,7 @@ NPCS: tuple[Npc, ...] = (
             'unkind. I am doing the stock."',
         ),
         topics={
+            'street': '"What comes out of somebody, somebody put in. The ones who stop asking are the ones whose name you should have learned the first time they asked."',
             'cabinets': '"Serial numbers at the front, because those are the '
                         'ones people check. The ones at the back have had '
                         'the numbers taken off, and I keep a book of what '

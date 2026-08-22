@@ -391,6 +391,89 @@ ENCOUNTERS: tuple[Encounter, ...] = (
                            'to the next person, who does not keep walking.'),
                    Outcome('')),
         )),
+    # -- the city reads back (D65): decisions that come to find you ----------
+    Encounter(
+        'backqueue', 'The back of the queue, closer', 2, 'street', 'grim',
+        'Two of Carrion\'s, the two who stand at the back of the Hall\'s '
+        'queue, in {district}, not at the back of anything now. "You carried '
+        'the kettle. Then you took our money. We are not sure which one you '
+        'are." They would like to find out.',
+        (
+            Option('talk', 'Tell them which one you are', 'talk',
+                   Outcome('You tell them. It is the version they wanted, '
+                           'said the way they wanted it, and they are '
+                           'satisfied in the way people are satisfied by a '
+                           'thing they already believed.'),
+                   Outcome('You tell them and it is the wrong version, and '
+                           'they show you, in a doorway, which one they have '
+                           'decided you are.', hurt=(2, 5), credits=0.2)),
+            Option('run', 'Go', 'run',
+                   Outcome('You go, and the Hall taught you nothing about '
+                           'running but the Shambles did.'),
+                   Outcome('You go, and they were ready for that, because '
+                           'they had decided which one you are.',
+                           hurt=(3, 6))),
+            Option('pay', 'Pay them to have decided', 'pay',
+                   Outcome('You pay, and they decide you are the one who '
+                           'pays, and that is a kind of answer.'),
+                   Outcome('')),
+        ),
+        requires=('soup_carrion',)),
+    Encounter(
+        'paperboy', 'Somebody with a paper', 1, 'street', 'wry',
+        'Somebody from the Stacks, ink to the elbow, in {district}, holding '
+        'out a paper you did not ask for. Your handle is on the front of it. '
+        'Not the real one. The one you have used. Above the fold.',
+        (
+            Option('talk', 'Ask what it costs to not be in the next one', 'talk',
+                   Outcome('They name a price, and it is small, and it is '
+                           'not really about money, and you say the right '
+                           'thing about Ines, and the paper goes back under '
+                           'their arm.'),
+                   Outcome('They name a price and you say the wrong thing '
+                           'about Ines, and the next edition is worse, and '
+                           'somebody who reads it finds you.',
+                           hurt=(1, 3), heat=0)),
+            Option('stand', 'Take the paper and read it', 'stand',
+                   Outcome('You take it and read it standing there, all of '
+                           'it, and hand it back, and say it is mostly right, '
+                           'and they look at you differently.'),
+                   Outcome('You take it and read it and somebody behind you '
+                           'reads it over your shoulder and recognises the '
+                           'handle and you.', hurt=(1, 3), credits=0.15)),
+        ),
+        requires=('presses_sold',)),
+    Encounter(
+        'courier', 'A case that is not heavy enough', 2, 'street', 'grim',
+        'A courier, in {district}, with a case that is not heavy enough, who '
+        'does not slow down and does not look at you, and then does both. '
+        '"The ledger has a line for you." The case opens. It is empty. It '
+        'was always going to be empty. "The line is very long."',
+        (
+            Option('talk', 'State the matter', 'talk',
+                   Outcome('You state the matter the way the Notary would, '
+                           'and the courier listens, and closes the case, '
+                           'and says, "Noted," and goes, and the line does '
+                           'not end, but it does not get longer tonight.'),
+                   Outcome('You state the matter badly, and the courier '
+                           'writes something in the empty case, and two '
+                           'people you had not seen explain the ledger to '
+                           'you with their hands.', hurt=(2, 5), credits=0.25)),
+            Option('run', 'Leave the courier with the case', 'run',
+                   Outcome('You leave, and the courier does not follow, '
+                           'because the courier never follows. The line is '
+                           'longer.'),
+                   Outcome('You leave, and the two you had not seen were '
+                           'where you were going.', hurt=(3, 6))),
+            Option('stand', 'Wait for the rest of it', 'stand',
+                   Outcome('You wait, and the rest of it is a sentence, and '
+                           'the sentence is that the key opens nothing of '
+                           'theirs, and they know what it opens, and they '
+                           'are writing it down. Then they go.'),
+                   Outcome('You wait, and the rest of it is not a sentence.',
+                           hurt=(3, 6), deck=True)),
+        ),
+        requires=('keys_kept',)),
 )
 
 BY_KEY: dict[str, Encounter] = {e.key: e for e in ENCOUNTERS}

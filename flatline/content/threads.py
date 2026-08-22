@@ -32,7 +32,8 @@ from dataclasses import dataclass, field
 #: 'rep:<faction>:N', 'ran:<faction>', 'did:<thread.stage>' (a posting
 #: finished, see `Posting`).
 CONDITIONS = ('runs', 'diss', 'shift', 'credits', 'heat', 'met', 'rep',
-              'ran', 'origin', 'debt', 'trait', 'did', 'bond', 'found')
+              'ran', 'origin', 'debt', 'trait', 'did', 'bond', 'found',
+              'street', 'warned')
 
 
 @dataclass(frozen=True, slots=True)
