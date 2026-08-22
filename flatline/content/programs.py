@@ -481,6 +481,39 @@ RELICS: tuple[Program, ...] = (
                  'bell, for whoever stood with the Hall when it counted. It is '
                  'the quietest thing the Chorus own and they gave it to you '
                  'without a word, which is how they give things.'),
+    Program('reliquary', 'Reliquary', 'armour', 2, 5, 0.0, 6400, 3,
+            'Saint\'s armour, which is not armour: it is a list of the names '
+            'of everybody who has died doing this, kept between you and the '
+            'feedback, and it holds the way a thing holds that has already '
+            'been through the worst of it.',
+            effects={'ice_dr': 0.7, 'composure': 4},
+            note='Passive. Five saves, and it remembers each one.',
+            unique=True,
+            lore='Saint keeps the names. Everybody who ever ran with Saint and '
+                 'did not come out is in the header, and the header is most '
+                 'of the program, and the program is what sits between '
+                 'Saint and the feedback, and Saint has never once explained '
+                 'how a list of the dead absorbs a strike except to say that '
+                 'it has been through worse. You worked with Saint and Saint '
+                 'gave you a copy, which means your name is in it too, at the '
+                 'bottom, with no date, and Saint would like to keep it that '
+                 'way.'),
+    Program('lantern', 'Lantern', 'hunter', 2, 4, 0.45, 4400, 3,
+            'Moth\'s hunter. It goes towards the light, which in a network is '
+            'wherever the most is happening, and it gets there first, and it '
+            'does not burn.',
+            effects={'tell_lead': 1, 'scan_depth': 1},
+            note='Reaches a hop further and hears a tick sooner. Moth\'s way.',
+            unique=True,
+            lore='Moth is called that because Moth goes towards the light, '
+                 'and has done for eleven years, and has not burned, which '
+                 'nobody who watched the first year would have bet on. This '
+                 'is how. A hunter that reads a network for where the most is '
+                 'happening and gets you there a hop sooner and a tick '
+                 'earlier than anything on a shelf, because Moth could not '
+                 'afford the shelf and wrote it in a stairwell. Moth gave it '
+                 'to you the way Moth gives anything, which is by leaving it '
+                 'where you would find it and denying it later.'),
     Program('survey', 'The Survey', 'hunter', 1, 3, 0.6, 1900, 1,
             'Tuck\'s map of every cable in the Ninth, on something that is '
             'not paper. It is a map of a district, and it turns out a '

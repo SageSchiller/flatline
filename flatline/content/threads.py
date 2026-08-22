@@ -124,8 +124,7 @@ THREADS: tuple[Thread, ...] = (
     Thread(
         'deepwater', 'What Deepwater Is',
         'Nine years of contracts and nobody has ever met anybody.',
-        crosses=('archive', 'ozymandias', 'drawer', 'favour', 'package',
-                 'lark', 'demo'),
+        crosses=('archive', 'ozymandias', 'drawer', 'favour', 'package', 'lark', 'demo', 'listener',),
         stages=(
             # -- act one: hearing it -----------------------------------------
             Stage('hear', 'Somebody mentioned it and then stopped',
@@ -1186,9 +1185,10 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
 #: The nine district threads live in `arcs.py` (D55) and import the classes
 #: above, which is why this import is at the bottom: by the time it runs,
 #: everything they need is defined.
-from .arcs import DISTRICT_THREADS, RUNNER_THREAD  # noqa: E402
+from .arcs import DISTRICT_THREADS, MORE_THREADS, RUNNER_THREAD  # noqa: E402
 
-THREADS = THREADS + ORIGIN_THREADS + DISTRICT_THREADS + (RUNNER_THREAD,)
+THREADS = (THREADS + ORIGIN_THREADS + DISTRICT_THREADS + MORE_THREADS
+           + (RUNNER_THREAD,))
 BY_KEY = {t.key: t for t in THREADS}
 THREAD_KEYS = tuple(BY_KEY)
 ALL_STAGES = {f'{t.key}.{s.key}': s for t in THREADS for s in t.stages}

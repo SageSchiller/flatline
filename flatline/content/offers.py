@@ -233,6 +233,22 @@ STOCK: tuple[Stock, ...] = (
           requires=('met:cantor',),
           refusal='"The kettle is between people who have met. We have not." '
                   'He hands it to you anyway, to carry.'),
+    Stock('bartender', ('nightingale', 'blue_hour', 'kick'), markup=1.15,
+          pitch='"Under the bar. It is not a menu. It is what people left and '
+                'what people need, and I am the bar between them."',
+          first='"First one is on the bar. After that I have a living to '
+                'make, and so, by the look of you, do you."',
+          requires=('met:bartender',),
+          refusal='"I do not know you well enough to know what you need." He '
+                  'pours the one that is on the bar anyway.'),
+    Stock('tailor', ('mask_foil', 'cool_block', 'ant_dish'), markup=1.2,
+          pitch='"Not clothes. Things that fit under clothes, for people who '
+                'have to stand on the box and be measured."',
+          first='"You will want it to hang right. Everybody does. Forty-two, '
+                'long in the arm: I will allow for it."',
+          requires=('met:tailor',),
+          refusal='"I have not measured you." She means it literally, and '
+                  'will not sell to a shoulder she has not read.'),
 )
 
 
@@ -416,6 +432,18 @@ FAVOURS: tuple[Favour, ...] = (
              'He hands you the kettle.',
         refusal='"I cannot say you were here if you have never been here." '
                 'He says it kindly, and hands you the kettle anyway.'),
+    Favour(
+        'widow', 'stairwell', 'A stairwell that does not know you',
+        'The Terraces forget a face for a while: heat with whoever holds the '
+        'stairs cools.',
+        effect='heat', amount=20,
+        requires=('met:widow',),
+        text='"You carried a can. Three, actually, I counted." She says a '
+             'name on every landing going up, and on every landing somebody '
+             'opens a door, and nods, and closes it. "They did not see you. '
+             'They will not have seen you for a week or so. After that, '
+             'carry another can."',
+        refusal='"You have not carried anything up yet." She hands you a can.'),
 )
 
 

@@ -546,6 +546,17 @@ EPILOGUE: tuple[tuple[str, str], ...] = (
     ('soup_left',
      'You walked away from the Hall and the Shambles both, and somebody else '
      'did it, one way or the other, and you never asked which.'),
+    ('listener_remnant',
+     'You took the woman who does not sing to the dark room, and Remnant told '
+     'her it does not stop, and on the way back she sang once, under her '
+     'breath, and you did not mention it.'),
+    ('listener_left',
+     'You left the woman who does not sing on her bench, and the Cantor fed '
+     'her, and that was the whole of what anybody knew.'),
+    ('listener_told',
+     'You told the Notary about the woman who does not sing, and a courier '
+     'sat beside her every morning after, and she stopped listening, or '
+     'started listening to something else.'),
 )
 
 EPILOGUE_BY_FLAG: dict[str, str] = {flag: line for flag, line in EPILOGUE}

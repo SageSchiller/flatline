@@ -1332,6 +1332,25 @@ GROWTH: tuple[Event, ...] = (
           'way you hold one out to somebody you have fed before, which is a '
           'kind of being known.',
           requires=('street:soup',), weight=CONSEQUENCE_WEIGHT),
+    Event('listener_quiet', 'grim',
+          'The woman on the Hall\'s bench has started, the Cantor says, '
+          'humming, which is not singing, and which he counts, and which she '
+          'stops the moment anybody looks, the way Remnant said she would.',
+          districts=('hall', 'glasshouse'), requires=('listener_remnant',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('listener_bench', 'grim',
+          'She is on the bench under the board that shows a hymn, and the '
+          'Cantor puts a bowl beside her, and she does not look at it, and '
+          'later it is empty, and nobody saw her eat.',
+          districts=('hall',), requires=('listener_left',),
+          weight=CONSEQUENCE_WEIGHT),
+    Event('listener_courier', 'wry',
+          'A courier with a case that is not heavy enough sits on the Hall\'s '
+          'platform beside a woman who does not sing, every morning now, and '
+          'the Chorus have started leaving two bowls, and the courier does '
+          'not eat, and the bowl is empty later anyway.',
+          districts=('hall',), requires=('listener_told',),
+          weight=CONSEQUENCE_WEIGHT),
     Event('soup_somebody_else', 'grim',
           'Somebody you half know in the Shambles says the Hall thing got '
           'done, one way or the other, and does not say which, and you do '

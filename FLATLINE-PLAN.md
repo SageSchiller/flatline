@@ -3097,3 +3097,14 @@ Streetcraft 1, the courier with Fieldcraft 1), the sheet naming who has
 warned you, three people with an opinion about the street, and three more
 relics in the new districts (Pip's Dish, A Ledger Page, The Bell That Does
 Not Ring). `test.py` green at **14,901 checks**.
+
+### 2026-08-21 (u): more to meet, find and do
+
+Two more partner relics (Saint's Reliquary, Moth's Lantern), two encounters
+from the runners who decided against you (Hound's people, a word from
+Vesper), three more people with offers (Osei at the back bar, Mrs
+Achterberg who fits the Vertical, the Widow at the water point), the woman
+who does not sing (a side thread of the Hall that crosses the spine, three
+decisions, read back), and `help street` in the tutorial's closing. Counts:
+21 relics, 32 threads across 95 scenes and 110 decisions,
+29 people, 186 events, 14 encounters. `test.py` green at **14,940 checks**.

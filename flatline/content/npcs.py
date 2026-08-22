@@ -1053,6 +1053,122 @@ NPCS: tuple[Npc, ...] = (
         },
         hours=('morning', 'afternoon', 'night')),
 
+    # -- more people (D65 depth) ----------------------------------------------
+    Npc('bartender', 'Osei', 'who runs the back bar',
+        'marrow', 'market', 'warm', ('goods', 'intel'),
+        'A man behind a bar that has no front, only a back, pouring something '
+        'that is not on any list into a glass that is not clean, and he puts '
+        'it in front of you before you have sat down and says, "You look like '
+        'you have been somewhere. Tell me or do not. Either way, that one is '
+        'on the bar."',
+        'Remembers what you drank and what you said and never connects the '
+        'two out loud. Hears everything Marrow says after dark and sells a '
+        'little of it, carefully, to people he has decided about.',
+        lines=(
+            '"Marrow after dark is Marrow telling the truth. I am the glass '
+            'it tells it into."',
+            '"I do not sell anything on the board. I sell what people say '
+            'after they have stopped being on it."',
+            '"That one is on the bar. The next one is not, and neither is '
+            'the one after, and you will buy them anyway."',
+            '"The Switchboard close at night. I do not. That is the whole of '
+            'my business plan."',
+            '"Somebody was asking after a runner with your walk. I said I had '
+            'not seen one. I had not, then."',
+            '"Drink it or hold it. Holding it is fine. Holding it is what most '
+            'of them do."',),
+        topics={
+            'city': '"Twelve powers and one bar they all drink in, because '
+                    'nobody starts anything in Marrow, and everybody needs '
+                    'somewhere to not start it."',
+            'marrow': '"By day it is neutral ground. By night it is the same '
+                      'ground and the neutrality has gone home."',
+            'runners': '"They come in after. Not before, after. I can tell '
+                       'you how a run went by which glass they ask for."',
+            'street': '"The street is where the net sends the bill. I see the '
+                      'people who paid it, later, in here, and some of them '
+                      'cannot lift the glass yet."',
+            'deepwater': 'He wipes the same spot twice. "A woman sat where '
+                         'you are sitting and ordered nothing and listened '
+                         'to the room for four hours and left. I have not '
+                         'seen her since and I check."',
+        },
+        hours=('night',)),
+    Npc('tailor', 'Mrs Achterberg', 'who fits the Vertical',
+        'vertical', 'market', 'unsettling', ('goods', 'intel'),
+        'A small woman with a tape measure round her neck and pins in her '
+        'mouth, who looks at you once, up and down, and says round the pins, '
+        '"Forty-two. Long in the arm. You are not here for a suit." She is '
+        'right on all three.',
+        'Fits the Vertical\'s people for the Vertical\'s occasions and knows, '
+        'from the measurements, who has put on weight and who has had '
+        'something put in, and keeps both to herself until they are worth '
+        'something.',
+        lines=(
+            '"I fit the building. Every floor from forty up has stood on that '
+            'box. The box remembers them better than I do."',
+            '"You can tell a great deal from a shoulder. What is under it. '
+            'What it carries. Whether it has been carrying it long."',
+            '"Kagawa like a narrow lapel. It is the only thing I will say '
+            'about Kagawa."',
+            '"I do not sell clothes to people like you. I sell what fits. '
+            'Some of it is not clothes."',
+            '"Stand still. Nobody stands still any more. It is the chrome."',
+            '"Forty-two. I was right. I am always right about forty-two."',),
+        topics={
+            'city': '"I have measured most of it. It is smaller than it '
+                    'thinks and heavier than it looks."',
+            'vertical': '"Ninety floors and one box. Everybody who matters '
+                        'has stood on it in their socks. That is the Vertical: '
+                        'power, in socks, being measured."',
+            'chrome': '"A shoulder with something in it hangs wrong. I fit '
+                      'around it. The Green never fit around anything in '
+                      'their lives."',
+            'street': '"Down there they take the jacket. Up here they take '
+                      'the measurements. It is the same theft with better '
+                      'light."',
+        },
+        hours=('morning', 'afternoon')),
+    Npc('widow', 'the Widow', 'at the water point',
+        'terraces', 'market', 'tragic', ('favour', 'intel'),
+        'An old woman at the water point with two cans and a third she is '
+        'filling for somebody else, who looks at you the way people look at '
+        'somebody who might be the person they are waiting for, and then '
+        'does not, and says, "You will carry one of these up, since you are '
+        'standing there."',
+        'Has outlived a husband, two children and most of a stairwell, and '
+        'keeps the water point the way the Hall keeps the kettle: because '
+        'somebody has to and she is still here.',
+        lines=(
+            '"Carry one. Not that one, that one is for the Adeyemis. That '
+            'one."',
+            '"The lifts worked for a year. My husband said they would not '
+            'last and they did not and he did not either."',
+            '"Everybody on this stairwell owes me a can of water. I keep '
+            'count. I have never once collected."',
+            '"You are not the person I am waiting for. Nobody is. I have '
+            'got used to it."',
+            '"The preacher says the water is a gift. The water is a pump and '
+            'a pipe and a woman with two cans. The gift is the woman."',
+            '"Up. Sixth floor. Mind the seventh step, it is not there."',),
+        topics={
+            'city': '"I have never been further than Marrow. I do not need '
+                    'the rest of it. The rest of it comes up the stairs '
+                    'eventually."',
+            'terraces': '"Stairs and water and people who know which steps '
+                        'are missing. That is all a district is."',
+            'street': '"Nobody leans on an old woman with two cans. I have '
+                      'watched them lean on everybody else from this spot for '
+                      'forty years. I could tell you who leans, and how."',
+            'lifts': '"A year. Then the cable. Then the boy. Then the notice '
+                     'that said there would be a review."',
+            'deepwater': 'She stops filling the can. "My daughter went to '
+                         'work there. She sends money. She has never once sent '
+                         'a word. The money is a word, I suppose. It is not '
+                         'the one I want."',
+        },
+        hours=('morning', 'afternoon')),
+
 )
 
 BY_KEY: dict[str, Npc] = {n.key: n for n in NPCS}

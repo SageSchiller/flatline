@@ -817,6 +817,7 @@ DISTRICT_THREADS: tuple[Thread, ...] = (
         'soup', 'The Tin',
         'Every name that ever put money in the Hall\'s tin, and the people '
         'who would like the list.',
+        crosses=('listener',),
         stages=(
             Stage('kettle', 'The Cantor tells you about the tin',
                   'You are carrying the kettle again. The Cantor walks beside '
@@ -932,6 +933,7 @@ DISTRICT_THREADS: tuple[Thread, ...] = (
                   sets=('soup_wiped',),
                   where='hall'),
         )),
+
 )
 
 
@@ -1096,12 +1098,88 @@ _RUNNER_SCENES = (
 BUYOFF = 2500
 
 
+#: Threads that sit beside a district's own (D65 depth): a second story in
+#: a place that already has one. Merged into `threads.THREADS` with the rest.
+MORE_THREADS: tuple[Thread, ...] = (
+    # -- The Hall: the woman who does not sing (D65 depth) ---------------------
+    Thread(
+        'listener', 'The Woman Who Does Not Sing',
+        'She came out of Deepwater. She sits on the platform and listens, and '
+        'the Chorus feed her, and that is the whole of what anybody knows.',
+        crosses=('deepwater', 'soup'),
+        stages=(
+            Stage('bench', 'She speaks',
+                  'She is on the platform, on the bench under the board that '
+                  'shows a hymn, where she always is, and tonight when you '
+                  'pass with the kettle she says, without looking up, the '
+                  'name of a network, and then, "You have heard it. Or you '
+                  'will. I can hear which."\n\n'
+                  'The Cantor, across the concourse, has stopped stirring.',
+                  requires=('met:cantor',),
+                  any_of=('dw_heard', 'runs:6'),
+                  sets=('listener_spoke',),
+                  where='hall'),
+            Stage('where', 'What she wants',
+                  '"I do not sing because I can still hear it," she says. '
+                  '"Eleven years of it. The singing here is the only thing '
+                  'that is louder." She turns her head, finally. "There is '
+                  'somebody in the Glasshouse who had theirs taken out. I '
+                  'would like to know if it stopped for them. I would like '
+                  'somebody to ask."\n\n'
+                  'The Cantor has come over. He does not say anything. He '
+                  'hands you the kettle, which is full, and heavy, and his.',
+                  requires=('listener_spoke',),
+                  sets=('listener_asked',),
+                  choices=(
+                      Choice('remnant', 'Take her to the dark room',
+                             'You take her to the Glasshouse, to the dark '
+                             'room, to Remnant, who looks at her for a long '
+                             'time and then says, "No. It does not stop. It '
+                             'gets quieter and you get used to the quiet and '
+                             'then one day you notice you have been listening '
+                             'to the quiet."\n\n'
+                             'She nods. On the way back she sings, very '
+                             'quietly, under her breath, once, and then does '
+                             'not, and you do not mention it.',
+                             sets=('listener_remnant',),
+                             rep={'chorus': 15, 'deepwater': -5}),
+                      Choice('leave', 'Leave her on the bench',
+                             'You do not take her anywhere. It is not yours '
+                             'to carry, and you have the kettle, and the '
+                             'kettle is enough.\n\n'
+                             'She is on the bench the next night, and the '
+                             'next, and she does not speak to you again, and '
+                             'the Cantor feeds her, and that is the whole of '
+                             'what anybody knows.',
+                             sets=('listener_left',)),
+                      Choice('notary', 'Tell the Notary she is here',
+                             'The Notary does not look up. "A person who came '
+                             'out of Deepwater. Noted." The pen moves for a '
+                             'long time. "The ledger has a line for that '
+                             'network. It is the longest line in the book. '
+                             'Thank you."\n\n'
+                             'A courier with a case that is not heavy enough '
+                             'is on the Hall\'s platform the next morning, '
+                             'sitting beside her, not talking. She does not '
+                             'sing. She has stopped listening, too, or '
+                             'started listening to something else.',
+                             sets=('listener_told',),
+                             rep={'meridian': 20, 'chorus': -15},
+                             credits=900),
+                  ),
+                  where='hall'),
+        )),
+)
+
+
 #: What working with somebody puts in your bag (D63 e). Two of the seven:
 #: the Quiet Kid's route file and Grieve's desk. The rest give the hire
 #: price, which is also a gift, and the ending.
 PARTNER_GIFTS: dict[str, tuple[str, ...]] = {
     'quietkid': ('nobody',),
     'grieve': ('desk',),
+    'saint': ('reliquary',),
+    'moth': ('lantern',),
 }
 
 

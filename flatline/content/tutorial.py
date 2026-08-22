@@ -351,6 +351,7 @@ CLOSING = (
     '  [fg]help rivals[/]     the other people doing this job\n'
     '  [fg]help money[/]      what things cost and what a run is worth\n'
     '  [fg]map[/]             the city, drawn, and `walk` to anywhere on it\n'
+    '  [fg]help street[/]     the half of the danger with the deck in the bag\n'
     '  [fg]news[/]            what the city did while you were not looking\n\n'
     'The residue from that run becomes heat in a shift or so. Everything '
     'else in this city follows from that one fact.'
@@ -359,4 +360,4 @@ CLOSING = (
 #: Commands whose mere use satisfies a step. Tracked because "did they look at
 #: it" is a legitimate teaching goal and is not otherwise visible in state.
 WATCHED = ('char', 'board', 'deck', 'odds', 'status', 'rep', 'look',
-           'talk', 'visit', 'journal', 'now', 'retire')
+           'talk', 'visit', 'journal', 'now', 'retire', 'errands')

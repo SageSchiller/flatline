@@ -474,6 +474,56 @@ ENCOUNTERS: tuple[Encounter, ...] = (
                            hurt=(3, 6), deck=True)),
         ),
         requires=('keys_kept',)),
+    Encounter(
+        'hounds_people', 'Hound\'s people', 2, 'street', 'grim',
+        'Two people in {district} who are not anybody\'s and are, it turns '
+        'out, Hound\'s, which is worse, because Hound pays by results and '
+        'these two have not had a result in a while. "Hound says you will '
+        'know why." You do.',
+        (
+            Option('talk', 'Send Hound a message', 'talk',
+                   Outcome('You give them a sentence to take back, and it is '
+                           'the right sentence, and they take it, because '
+                           'taking a sentence back is a result.'),
+                   Outcome('You give them a sentence and it is the wrong one, '
+                           'and they give you the reply on Hound\'s behalf, '
+                           'with interest.', hurt=(2, 5), credits=0.2)),
+            Option('run', 'Go', 'run',
+                   Outcome('You go, and they are paid by results, and chasing '
+                           'you across {district} is not a result they are '
+                           'being paid for.'),
+                   Outcome('You go, and one of them is faster than paid-by-'
+                           'results usually is.', hurt=(3, 6))),
+            Option('pay', 'Pay what Hound is paying them', 'pay',
+                   Outcome('You name a number that is a little more than Hound '
+                           'is paying, and they look at each other, and take '
+                           'it, and Hound will hear about it, and that is '
+                           'fine: Hound will respect it.'),
+                   Outcome('')),
+        ),
+        requires=('bond:hound:nemesis', 'not:paid_hound')),
+    Encounter(
+        'vespers_word', 'A word from Vesper', 1, 'street', 'wry',
+        'Somebody in {district} says your name, the real one, quietly, and '
+        'when you turn it is nobody, a woman with a shopping bag, and she '
+        'says, "Vesper says hello," and keeps walking. It is not a threat. '
+        'Vesper does not make threats. Vesper makes sure you know she knows '
+        'where you stand, so that you do too.',
+        (
+            Option('talk', 'Send hello back', 'talk',
+                   Outcome('You say hello back, to the shopping bag, with the '
+                           'right amount of warmth, and the bag pauses, and '
+                           'nods, and Vesper will be told you took it well.'),
+                   Outcome('You say the wrong thing to the shopping bag and '
+                           'Vesper will be told that too, and the telling is '
+                           'the cost.', credits=0.1)),
+            Option('stand', 'Say nothing', 'none',
+                   Outcome('You say nothing. Vesper will be told that you '
+                           'said nothing, and will read into it exactly what '
+                           'you meant, which is the problem with Vesper.'),
+                   Outcome('')),
+        ),
+        requires=('bond:vesper:nemesis', 'not:paid_vesper')),
 )
 
 BY_KEY: dict[str, Encounter] = {e.key: e for e in ENCOUNTERS}
