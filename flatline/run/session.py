@@ -1666,7 +1666,15 @@ class RunState:
             # empties the lot, is a number somebody watches and does not
             # understand.
             if self.here != self.net.objective_node:
-                where = f'nothing banks until you are on {self.net.objective_node}'
+                # Named only once it has been found, like everything else
+                # about it: the aim one line above says the host has not
+                # been reached yet, and naming it here hands over the
+                # answer the run is asking for.
+                target = self.net.node(self.net.objective_node)
+                where = ('nothing banks until you are on '
+                         + (self.net.objective_node
+                            if target is not None and target.known
+                            else 'it'))
             elif self.alert in ('red', 'lockdown'):
                 where = ('nothing banks while the room is red; go quiet and '
                          'let it stand down')

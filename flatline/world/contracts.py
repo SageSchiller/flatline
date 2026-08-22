@@ -111,6 +111,27 @@ def objective_power(char, kind: str) -> int:
     return power + int(best) * 2
 
 
+def objective_ready(char, kind: str, posture: int) -> bool:
+    """Whether this is a job they could go and do tonight.
+
+    Two questions, and the board has to ask both. `objective_possible` is
+    whether the die could carry the verb; this adds whether the thing the
+    verb needs is on the deck or in the library at all. A guaranteed first
+    job that wants a nine hundred credit payload from somebody holding
+    seven hundred is a guaranteed first job in name only, and it sent
+    people at the harder network on the board instead (D74).
+    """
+    from ..content import programs as program_content
+    need = OBJECTIVE_PROGRAM.get(kind, '')
+    if need:
+        held = {program_content.BY_KEY[k].category
+                for k in list(char.library) + list(char.deck.loaded)
+                if k in program_content.BY_KEY}
+        if need not in held:
+            return False
+    return objective_possible(char, kind, posture)
+
+
 def objective_possible(char, kind: str, posture: int) -> bool:
     """Whether the die could carry it at all (D14: the same sum the run
     prints). A ten-sided die offset by five is five points of reach."""

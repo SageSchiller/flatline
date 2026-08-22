@@ -7898,15 +7898,19 @@ def test_early() -> None:
     # could not be finished.
     for seed in range(12):
         fresh = Game.new(Character.from_origin('gutter', 'x'), seed=seed)
+        # Ready, not merely possible: soft, small, and needing nothing
+        # they do not already carry. A guaranteed first job that wants a
+        # nine hundred credit payload from somebody holding seven hundred
+        # sent people at the harder network on the board instead.
         good = [c for c in fresh.city.board
                 if int(c.posture) <= 30 and c.size_mod <= 0.8
-                and contract_mod.objective_possible(
+                and contract_mod.objective_ready(
                     fresh.char, c.objective, int(c.posture))]
         T.ok(good, f'seed {seed}: a first board has a first job')
         pick = city_cmd._suggest_contract(fresh)
-        T.ok(contract_mod.objective_possible(
+        T.ok(contract_mod.objective_ready(
             fresh.char, pick.objective, int(pick.posture)),
-            f'seed {seed}: and the advice points at one that can be done')
+            f'seed {seed}: and the advice points at one they can go and do')
 
     # Every origin jacks in able to open a door. Rating alone once put
     # Ex-enforcement into the net holding a mask and a truncheon with the
@@ -8094,6 +8098,37 @@ def test_hostnames() -> None:
                     T.ok(base in names,
                          f'{faction} {seed}: {name} has a {base} above it')
                     T.ok(n >= 2, f'{faction} {seed}: {name} numbers from two')
+
+
+def test_cli_persistence() -> None:
+    """D74: what `-c` does, it keeps."""
+    T.section('the non-interactive path')
+    from flatline import app
+
+    with tempfile.TemporaryDirectory() as tmp:
+        old = os.environ.get('XDG_DATA_HOME')
+        os.environ['XDG_DATA_HOME'] = tmp
+        try:
+            app.main(['--no-intro', '-c',
+                      'new Probe --origin gutter --seed 7'])
+            # Two commands, one that autosaves on its own and one that does
+            # not. Both have to survive the process ending: the spend used
+            # to persist and the contract used to vanish, which reads as
+            # the game forgetting rather than as a policy about `-c`.
+            app.main(['--no-intro', '-c', 'spend --go', '-c', 'take c003'])
+            entry = next(e for e in save_mod.roster() if e.handle == 'Probe')
+            game = Game.load(entry.slot)
+            T.ok(game.char.skill('intrusion') >= 2,
+                 'the budget it spent stayed spent')
+            T.ok(game.city.current is not None,
+                 'and the contract it took is still taken')
+            if game.city.current is not None:
+                T.eq(game.city.current.cid, 'c003', 'the same one')
+        finally:
+            if old is None:
+                os.environ.pop('XDG_DATA_HOME', None)
+            else:
+                os.environ['XDG_DATA_HOME'] = old
 
 
 def test_collector() -> None:
@@ -9017,6 +9052,7 @@ SUITES = (
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
     test_intrusion, test_catalogue, test_money, test_relics, test_street,
     test_collector, test_early, test_tension, test_hostnames,
+    test_cli_persistence,
     test_soak, test_advice, test_scale, test_place, test_ladder,
     test_net_signatures, test_breadth, test_new_origins,
     test_networks, test_run_mechanics, test_city, test_rivals,

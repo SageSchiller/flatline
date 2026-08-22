@@ -2351,6 +2351,44 @@ rank where it meant to read Intrusion. Renaming the hosts shifted the
 stream and both fell over. The rates are now measured over thirty seeds
 and the fixture asks for the family it means.
 
+### D74: What a test run found
+
+Three things, all found by sitting down and playing one first night from
+`new` to the summary card rather than by running a harness at it.
+
+**The game forgot the job.** `-c` mode did not save when it finished, on
+the reasoning that a non-interactive invocation should not surprise
+anybody by writing to disk. That sounds like the careful choice and was
+not, because a handful of commands autosave on their own: anything that
+moves a shift, anything on the street. So a `-c` run wrote *some* of what
+it had done. Spending a budget and then taking a job kept the spend and
+lost the job, and the next invocation said `no contract accepted`, which
+does not read as a policy about non-interactive mode. It reads as the
+game forgetting. It saves at the end now, the same as leaving the prompt
+does, with one exception: not mid-run, because a run is not in the save
+format and `quit` refuses for the same reason.
+
+**The first board offered a job nobody could afford.** The guarantee
+already asked whether the objective's *check* could land, which was D71's
+fix and a real one. It never asked whether the thing the verb needs was
+on the deck. A Carrion exfiltration at posture 30 counted as the soft,
+small, doable job the board promises, and it wants a payload, and the
+cheapest payload in the game is nine hundred credits against a starting
+seven hundred. So the guarantee did not fire, and the advice priced the
+unaffordable soft job above a posture thirty-five network and sent
+everybody there. That run is in the log: a core objective, a Drover
+closing routes behind, two Bloodhounds, severed at a hundred trace on
+tick twenty-two with a bounty attached to the name. `objective_ready`
+asks both questions and the board and the advice both read it. All twelve
+origins moved up: nine to twelve of twelve first contracts, from nine to
+eleven.
+
+**The brief named a host it had just said you had not found.** The
+surveil progress line was rewritten in D72 to say what to do from where
+you are standing, and it did that by naming the objective host, one line
+under an aim that says the host has not been reached yet. Everything else
+in the run holds to earning a name before printing it. Now this does too.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.

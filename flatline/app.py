@@ -73,11 +73,26 @@ def main(argv: list[str] | None = None) -> int:
     _open_a_character(sess, args, console)
 
     if args.command:
-        # Non-interactive mode: no splash, no readline, no autosave surprises.
+        # Non-interactive mode: no splash, no readline.
         for line in args.command:
             sess.execute(line)
             if not sess.running:
                 break
+        # And then it saves, the same as leaving the prompt does. It used
+        # not to, which sounds like the safe choice and was not: a handful
+        # of commands autosave on their own (anything that moves a shift,
+        # anything on the street), so a `-c` run wrote *some* of what it
+        # did. Spending your budget and then taking a job persisted the
+        # spend and lost the job, and the next invocation said no contract
+        # accepted, which reads as the game forgetting rather than as a
+        # policy about non-interactive mode (D74).
+        #
+        # Mid-run is the one exception, because a run is not in the save
+        # format at all: `quit` refuses while you are jacked in for the
+        # same reason, and writing here would file the city as it was
+        # before you jacked in and quietly lose the run.
+        if sess.game is not None and sess.run is None:
+            sess.autosave()
         return sess.exit_code
 
     sess.splash(quick=args.no_intro)

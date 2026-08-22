@@ -557,7 +557,7 @@ class City:
             # that was both, and the rest were unfinishable on the night
             # they were offered.
             if not any(int(c.posture) <= SOFT_POSTURE and c.size_mod <= 0.8
-                       and contract_mod.objective_possible(
+                       and contract_mod.objective_ready(
                            char, c.objective, int(c.posture))
                        for c in self.board):
                 soft = min(factions.FACTION_KEYS,
@@ -574,7 +574,7 @@ class City:
                 # posture.
                 kind = next(
                     (o for o in ('surveil', 'exfiltrate', 'corrupt')
-                     if contract_mod.objective_possible(
+                     if contract_mod.objective_ready(
                          char, o, int(self.posture.get(
                              soft, factions.BY_KEY[soft].posture)))),
                     'surveil') if char is not None else None
