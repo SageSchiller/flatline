@@ -393,6 +393,7 @@ META_DEFAULT = {
     'bounties_taken': 0,
     'threads_closed': 0,
     'best_standing': 0,
+    'errands_done': 0,
     #: `kind:key` for everything earned, so a new unlock can be announced once.
     'unlocked': [],
     #: What the shell currently looks like. See `content/rice.py`.

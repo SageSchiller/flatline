@@ -291,6 +291,7 @@ class Session:
             best_credits=game.char.credits,
             deepest_drift=game.char.dissonance,
             districts_seen=len(game.city.visited),
+            errands_done=int(getattr(game.city, 'errands_done', 0)),
             bounties_taken=1 if game.city.bounties else 0,
             black_ice_survived=1 if 'black_ice' in game.char.marks else 0,
             threads_closed=threads,

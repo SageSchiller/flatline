@@ -7944,9 +7944,14 @@ def test_street() -> None:
     T.eq(game.city.where, to, 'arrived')
     T.ok(not game.city.errand, 'and the package is delivered')
     T.ok(game.char.credits > credits - 2000, 'and paid')
-    game = Game.new(Character.from_origin('gutter', 'x'), seed=8)
-    offers = street_world.errands_here(game)
-    watch = next(i for i, o in enumerate(offers, 1) if o['kind'] == 'watch')
+    for seed in range(8, 40):
+        game = Game.new(Character.from_origin('gutter', 'x'), seed=seed)
+        offers = street_world.errands_here(game)
+        watch = next((i for i, o in enumerate(offers, 1) if o['kind'] == 'watch'),
+                     None)
+        if watch is not None:
+            break
+    T.ok(watch is not None, 'a watch turns up somewhere')
     credits = game.char.credits
     shift = game.city.shift
     sess, out = play([f'errands take {watch}'], game=game)
@@ -7958,11 +7963,95 @@ def test_street() -> None:
     T.eq(saved.errands_done, game.city.errands_done, 'errands round-trip')
 
 
+
+def test_soak() -> None:
+    """A character who does what `now` says, and answers the street when it
+    stops them, for sixty commands across many seeds, must never crash and
+    must end alive or ended on purpose. The new-player path, soaked."""
+    T.section('soak: doing what now says')
+    from flatline.commands import city as city_cmd
+    from flatline.world import city as city_world
+    ended = 0
+    crashed = 0
+    for seed in range(14):
+        origin = ('gutter', 'courier', 'protege', 'expolice')[seed % 4]
+        game = Game.new(Character.from_origin(origin, 's'), seed=seed)
+        sess = Session(console=quiet_console(), slot='soak')
+        sess.game = game
+        sess.console.start_capture()
+        try:
+            for i in range(60):
+                if sess.game is None or sess.game.over:
+                    ended += 1
+                    break
+                if sess.pending is not None:
+                    sess.execute('pay' if game.char.credits > 1500 else 'talk')
+                    continue
+                if sess.run is not None:
+                    brief = sess.run.brief()
+                    sess.execute(brief.steps[0] if brief.steps else 'jack out')
+                    continue
+                if i % 9 == 4:
+                    sess.execute('errands take 1')
+                    continue
+                if i % 9 == 7:
+                    sess.execute('rest')
+                    continue
+                steps = city_cmd.city_steps(game)
+                cmd = steps[0][0] if steps else 'board'
+                if cmd == 'board':
+                    if game.city.board:
+                        sess.execute(f'take {game.city.board[0].cid}')
+                    else:
+                        sess.execute('rest')
+                    continue
+                sess.execute(cmd)
+        except Exception:  # noqa: BLE001
+            crashed += 1
+            T.failures.append(f'soak: seed {seed} {origin} crashed:\n'
+                              + traceback.format_exc())
+            T.checks += 1
+        finally:
+            sess.console.end_capture()
+        if sess.game is not None:
+            char = sess.game.char
+            T.ok(char.integrity >= 0, f'seed {seed}: integrity never negative')
+    T.eq(crashed, 0, 'nothing crashed doing what now says')
+
+    # Warnings lapse with the threat.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=2)
+    game.story.flags.add('warned:sixes')
+    game.city.advance(game.rng, game.alias, 1, char=game.char,
+                      satisfied=lambda r: game.story.satisfied(r, game),
+                      flags=game.story.flags)
+    T.ok('warned:sixes' not in game.story.flags,
+         'a warning lapses when nobody is looking')
+    game.story.flags.add('warned:sixes')
+    game.city.bounties['sixes'] = 30
+    game.city.advance(game.rng, game.alias, 1, char=game.char,
+                      satisfied=lambda r: game.story.satisfied(r, game),
+                      flags=game.story.flags)
+    T.ok('warned:sixes' in game.story.flags, 'and stands while there is a number')
+
+    # Escort and collect exist among the errands somewhere.
+    from flatline.world import street as street_world
+    kinds = set()
+    for seed in range(12):
+        game = Game.new(Character.from_origin('gutter', 'x'), seed=seed)
+        for d in districts.DISTRICTS:
+            game.city.where = d.key
+            for job in street_world.errands_here(game):
+                kinds.add(job['kind'])
+    T.ok({'courier', 'watch', 'collect', 'escort'} <= kinds,
+         f'all four kinds of errand turn up ({sorted(kinds)})')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
     test_intrusion, test_catalogue, test_money, test_relics, test_street,
+    test_soak,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,

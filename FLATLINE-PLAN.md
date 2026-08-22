@@ -3108,3 +3108,14 @@ who does not sing (a side thread of the Hall that crosses the spine, three
 decisions, read back), and `help street` in the tutorial's closing. Counts:
 21 relics, 32 threads across 95 scenes and 110 decisions,
 29 people, 186 events, 14 encounters. `test.py` green at **14,940 checks**.
+
+### 2026-08-21 (v): the street, second pass
+
+A warning on the street lapses when the faction stops looking (no bounty,
+attention under 25), so the telegraph tracks the threat. Two more kinds of
+errand: walking somebody across the city at their pace (worth stopping),
+and collecting a debt with your voice (a printed Guile check at a door; a
+press in a doorway when it fails). An errands counter in the meta layer. A
+soak test that does what `now` says for sixty commands across fourteen
+seeds and four origins, answering the street when it stops them, and must
+never crash. `test.py` green at **14,956 checks**.

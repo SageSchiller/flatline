@@ -198,6 +198,19 @@ class City:
             told.extend(self._expire(alias))
             told.extend(self._rival_turn(rng, alias, flags))
             told.extend(fallout_mod.bounty_check(alias, self, rng('events')))
+            # A warning on the street stands as long as the threat does
+            # (D65). When a faction has stopped paying and stopped caring,
+            # the sentence "next time they will not be asking" lapses with
+            # them; the next number on your name starts the ladder again.
+            if flags is not None:
+                for key in [f for f in flags if f.startswith('warned:')]:
+                    who = key[7:]
+                    if (who in factions.BY_KEY and who not in self.bounties
+                            and alias.attention(who) < 25):
+                        flags.discard(key)
+                        told.append(f'[dim]{factions.BY_KEY[who].short} have '
+                                    f'stopped looking. What they told you in '
+                                    f'the street no longer stands.[/]')
             if debt is not None:
                 told.extend(self._debt_turn(rng, alias, debt, char))
             if char is not None and alias is not None:

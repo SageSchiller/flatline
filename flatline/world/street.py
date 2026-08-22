@@ -306,10 +306,12 @@ def on_arrival(sess, faction: str, danger: int) -> bool:
 
 
 def texture(sess, danger: int) -> bool:
-    """Below the ladder: a small thing in the street, sometimes."""
+    """Below the ladder: a small thing in the street, sometimes. Twice as
+    often with somebody in tow or something warm in the bag."""
     game = sess.game
     rng = game.rng('events')
-    if not rng.chance(TEXTURE_CHANCE):
+    chance = TEXTURE_CHANCE * (2.0 if game.city.errand.get('hot') else 1.0)
+    if not rng.chance(chance):
         return False
     enc = choose(rng, game, 'street', 1)
     if enc is None:
@@ -363,13 +365,78 @@ def errands_here(game) -> list[dict]:
         out.append({'kind': 'courier', 'to': target.key, 'pay': int(pay),
                     'hot': hot, 'from': city.where,
                     'what': stream.pick(COURIER_PACKAGES)})
-    # Watch: a shift standing somewhere here.
+    # The second one is local: a watch, or a debt to collect, or somebody
+    # who needs walking somewhere, by the shift.
     places = spots.in_district(city.where)
     where = stream.pick(places).name if places else here.name
-    pay = WATCH_BASE + here.security * 2
-    out.append({'kind': 'watch', 'at': where, 'pay': int(pay),
-                'from': city.where})
+    local = stream.weighted({'watch': 2.0, 'collect': 1.2, 'escort': 1.0})
+    if local == 'escort' and far:
+        target = stream.pick(far)
+        hops = city.shifts_to(target.key)
+        danger, _ = city.danger(game.alias, target.key, flags=game.story.flags)
+        out.append({'kind': 'escort', 'to': target.key,
+                    'pay': int(ESCORT_PER_HOP * hops + danger * 4 + 150),
+                    'hot': True, 'from': city.where,
+                    'what': stream.pick(ESCORTEES)})
+    elif local == 'collect':
+        owed = stream.int(12, 40) * 100
+        out.append({'kind': 'collect', 'at': where, 'owed': owed,
+                    'pay': int(owed * COLLECT_CUT), 'from': city.where,
+                    'who': stream.pick(DEBTORS)})
+    else:
+        pay = WATCH_BASE + here.security * 2
+        out.append({'kind': 'watch', 'at': where, 'pay': int(pay),
+                    'from': city.where})
     return out
+
+
+#: Escort pay per hop, and what a collector keeps of what they collect.
+ESCORT_PER_HOP = 260
+COLLECT_CUT = 0.15
+
+ESCORTEES = (
+    'a clerk who has stopped looking over their shoulder, which is how you '
+    'know they should',
+    'a woman with a child and a suitcase that is mostly child',
+    'a man who says he is nobody, twice, unprompted',
+    'somebody the Hall fed for a month, walking for the first time in it',
+    'a courier who has lost the case and not the habit of carrying it',
+)
+
+DEBTORS = (
+    'a man behind a shutter who owes the Sixes and knows your face from '
+    'somewhere',
+    'a woman running a stall who pays everybody late and everybody on time',
+    'two brothers who disagree about which of them owes it',
+    'somebody who has moved twice since the loan and not far enough',
+)
+
+
+def collect(sess, job: dict) -> None:
+    """A debt to collect, at a door, with your voice (D65). A talk check;
+    win and you keep a cut, lose and it is a press in a doorway."""
+    game, c = sess.game, sess.console
+    check = Check(name='collect', resistance=7 + game.city.district.security // 15)
+    check.add('guile', game.char.attr('guile'))
+    check.add('streetcraft', game.char.skill('streetcraft') * 2)
+    check.add('subterfuge', game.char.skill('subterfuge'))
+    if game.char.has_technique('face'):
+        check.add('a face', 4)
+    c.say(f'You find {job["who"]}, and say the number, which is '
+          f'{job["owed"]:,}c, and wait.')
+    check.resolve(game.rng('events'))
+    c.say(f'[dim]{check.explain()}[/]')
+    if check.success:
+        game.char.credits += job['pay']
+        game.earned += job['pay']
+        game.city.errands_done += 1
+        c.ok(f'They pay, eventually, most of it. Your cut is '
+             f'[credit]{job["pay"]:,}c[/].')
+        sess.record_progress()
+        return
+    c.err('They do not pay. They have friends, it turns out, and a doorway.')
+    enc = street_content.BY_KEY['knives']
+    begin(sess, enc, '', 40, why='The debt was not the problem. You were.')
 
 
 COURIER_PACKAGES = (
@@ -384,21 +451,28 @@ def deliver(sess) -> None:
     """Called on arrival: if the package was for here, it is delivered."""
     game, c = sess.game, sess.console
     errand = game.city.errand
-    if not errand or errand.get('kind') != 'courier':
+    if not errand or errand.get('kind') not in ('courier', 'escort'):
         return
     if errand.get('to') != game.city.where:
         return
     pay = int(errand.get('pay', 0))
     game.char.credits += pay
     game.earned += pay
+    kind = errand.get('kind')
     game.city.errand = {}
     game.city.errands_done += 1
     controller = game.city.district.controller
     game.alias.adjust_rep(controller, 3)
     c.blank()
     c.rule('delivered', role='ok')
-    c.say(f'Somebody is waiting for {errand.get("what", "it")} at the agreed '
-          f'place, and takes it, and does not look inside, and pays.')
+    if kind == 'escort':
+        c.say(f'You get {errand.get("what", "them")} to the agreed place, '
+              f'and somebody takes them in, and they do not look back, and '
+              f'you are paid by somebody who does not say thank you.')
+    else:
+        c.say(f'Somebody is waiting for {errand.get("what", "it")} at the '
+              f'agreed place, and takes it, and does not look inside, and '
+              f'pays.')
     c.say(f'[credit]{pay:,}c[/]. [dim]{factions.BY_KEY[controller].short} '
           f'warmer, a little.[/]')
     game.city.news.append(f'Delivered {errand.get("what", "a package")} to '

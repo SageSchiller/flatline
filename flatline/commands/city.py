@@ -1717,7 +1717,9 @@ def cmd_rest(sess, args) -> None:
          detail='D65. The half of the game that is not a deck. Two pieces of '
                 'work on offer in every district every shift: carry a '
                 'package to a district one to three shifts away and get paid '
-                'on arrival, or stand a shift on watch at a place here. Paid '
+                'on arrival; or something local: a shift on watch at a place '
+                'here, a debt to collect with your voice, or somebody who '
+                'needs walking across the city at your pace. Paid '
                 'in credits, priced by how far and how dangerous, with the '
                 'street in the way: a courier with a hot package is somebody '
                 'worth stopping. No program, no deck, no trace. `errands '
@@ -1747,19 +1749,26 @@ def cmd_errands(sess, args) -> None:
         if not 1 <= n <= len(offers):
             raise CommandError(f'which one? 1 to {len(offers)}.')
         job = offers[n - 1]
-        if job['kind'] == 'courier':
+        if job['kind'] in ('courier', 'escort'):
             game.city.errand = dict(job)
             to = districts.BY_KEY[job['to']]
             c.ok(f'You take {job["what"]}. {to.name}, '
                  f'{game.city.shifts_to(to.key)} shift'
                  f'{"s" if game.city.shifts_to(to.key) != 1 else ""} away, '
                  f'[credit]{job["pay"]:,}c[/] on arrival.')
-            if job.get('hot'):
+            if job['kind'] == 'escort':
+                c.warn('They walk at your pace and they are worth stopping. '
+                       'Anybody who stops you stops them.')
+            elif job.get('hot'):
                 c.warn('It is warm. Whoever wants it wants it badly enough '
                        'that somebody else might too.')
             c.say(f'[dim]`{game.city.walk_to(to.key)}`. The wire remembers '
                   f'what you are carrying.[/]')
             game.city.news.append(f'Carrying {job["what"]} to {to.name}.')
+            sess.autosave()
+            return
+        if job['kind'] == 'collect':
+            street_world.collect(sess, job)
             sess.autosave()
             return
         # watch: a shift, here, now
@@ -1784,13 +1793,18 @@ def cmd_errands(sess, args) -> None:
     c.header('Errands', game.city.district.name)
     rows = []
     for n, job in enumerate(offers, 1):
-        if job['kind'] == 'courier':
+        if job['kind'] in ('courier', 'escort'):
             to = districts.BY_KEY[job['to']]
             hops = game.city.shifts_to(to.key)
-            rows.append((str(n), 'courier',
+            rows.append((str(n), job['kind'],
                          f'{job["what"]} to {to.name} '
                          f'({hops} shift{"s" if hops != 1 else ""})'
-                         + (' [warn]warm[/]' if job.get('hot') else ''),
+                         + (' [warn]warm[/]' if job.get('hot')
+                            and job['kind'] == 'courier' else ''),
+                         f'{job["pay"]:,}c'))
+        elif job['kind'] == 'collect':
+            rows.append((str(n), 'collect',
+                         f'{job["owed"]:,}c from {job["who"]}, your cut',
                          f'{job["pay"]:,}c'))
         else:
             rows.append((str(n), 'watch', f'a shift at {job["at"]}',
