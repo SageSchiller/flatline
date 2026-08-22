@@ -163,7 +163,7 @@ PROGRAMS: tuple[Program, ...] = (
             note='Passive. Specifically counters lethal countermeasures.'),
 
     # -- payloads ----------------------------------------------------------
-    Program('siphon', 'Siphon', 'payload', 2, 3, 0.9, 1300, 1,
+    Program('siphon', 'Siphon', 'payload', 2, 3, 0.9, 900, 1,
             'Pulls data out through the connection you already have. Slower '
             'than a bulk copy, and it does not need a bulk copy\'s privileges.',
             note='Built for exfiltration. Anything else, it does badly.',

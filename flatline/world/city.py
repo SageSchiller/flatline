@@ -466,6 +466,24 @@ class City:
             rng('contracts'), self.shift, alias, self.posture,
             count=self.board_size(char), start_id=self.next_cid, flags=flags)
         self.next_cid += len(self.board) + 1
+        # A first board has something the kit can do. Nine origins ship
+        # without a payload, four of the six objectives need one, and a new
+        # character whose whole board needed one was stuck at the door with
+        # 700c and no idea why. One job that needs no program: surveil.
+        if char is not None and char.runs == 0 and self.board:
+            from ..content import programs as program_content
+            owns = any(k in program_content.BY_KEY
+                       and program_content.BY_KEY[k].category == 'payload'
+                       for k in list(char.library) + list(char.deck.loaded))
+            doable = any(not contract_mod.OBJECTIVE_PROGRAM.get(c.objective)
+                         for c in self.board)
+            if not owns and not doable:
+                old = self.board[0]
+                self.board[0] = contract_mod.make_one(
+                    rng('contracts'), int(old.cid[1:]), old.patron, old.target,
+                    self.shift, alias, self.posture,
+                    used={c.title for c in self.board[1:]},
+                    objective='surveil')
 
     def top_up_board(self, rng: Rng, alias: Alias, char=None,
                      flags=None) -> list[str]:

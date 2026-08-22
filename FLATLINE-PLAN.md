@@ -2967,3 +2967,11 @@ governing skill's rank plus two (`programs.held`, `HELD_BY`), and the term
 prints as "held to N by Intrusion 2" when it bites. Training competes with
 buying without the cheap programs getting worse; `inspect` says what a
 program runs at for you.
+
+Then, from the author's first play test: `unload` takes a row number and a
+bare `unload` lists; `deck` and the bag print what each program is for under
+its row; a new character's first board always has a job the kit can do
+(surveil) when the origin shipped without a payload; Siphon is 900c so the
+poorest origin can reach it; `now` names the cheapest payload, its price at
+the nearest market, and `borrow` when that is more than you have; `new`'s
+closing lines point at `load` and `inspect`.

@@ -268,10 +268,12 @@ def pick_target(rng: Stream, patron: str, alias) -> str | None:
 
 
 def make_one(rng: Stream, cid: int, patron: str, target: str, shift: int,
-          alias, posture: dict, used: set | None = None) -> Contract:
+          alias, posture: dict, used: set | None = None,
+          objective: str | None = None) -> Contract:
     pfac, tfac = factions.BY_KEY[patron], factions.BY_KEY[target]
-    objective = rng.weighted({o: (2.5 if o in pfac.wants else 0.7)
-                              for o in OBJECTIVES})
+    if objective is None:
+        objective = rng.weighted({o: (2.5 if o in pfac.wants else 0.7)
+                                  for o in OBJECTIVES})
 
     target_posture = int(posture.get(target, tfac.posture))
     # Pay tracks difficulty first, then the patron's opinion of you.

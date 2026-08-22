@@ -7417,6 +7417,39 @@ def test_catalogue() -> None:
     sess, out = play([f'load {row}'], game=game)
     T.ok('sable' in game.char.deck.loaded, 'load by row number works')
 
+    # unload by row number, and a bare unload lists.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=5)
+    sess, out = play(['unload'], game=game)
+    T.ok('Loaded' in ui.plain(out) and 'Crowbar' in ui.plain(out),
+         'a bare unload lists what is loaded')
+    before = len(game.char.deck.loaded)
+    sess, out = play(['unload 1'], game=game)
+    T.eq(len(game.char.deck.loaded), before - 1, 'unload 1 unloads the first')
+    sess, out = play(['deck'], game=game)
+    T.ok('reliable, loud' in ui.plain(out), 'deck says what a program does')
+    sess, out = play(['load'], game=game)
+    T.ok('Defeats services' in ui.plain(out), 'and so does the bag')
+
+    # A first board has a job the kit can do.
+    for origin in ('gutter', 'burnout', 'bonded'):
+        for seed in range(6):
+            game = Game.new(Character.from_origin(origin, 'x'), seed=seed)
+            owns = any(k in programs.BY_KEY
+                       and programs.BY_KEY[k].category == 'payload'
+                       for k in game.char.library)
+            if owns:
+                continue
+            T.ok(any(c.objective in ('surveil', 'escort') for c in game.city.board),
+                 f'{origin} seed {seed}: a new character can start somewhere')
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+    contract = next((c for c in game.city.board if c.objective == 'exfiltrate'),
+                    None)
+    if contract is not None:
+        game.city.accepted = contract.cid
+        steps = city_cmd.city_steps(game)
+        T.ok(any('Siphon' in why and 'c at the' in why for _, why in steps),
+             'now names the cheapest payload and its price')
+
     # fit swaps a spare in and the old part out; sell takes components.
     game = Game.new(Character.from_origin('gutter', 'x'), seed=6)
     game.char.library.append('cool_block')

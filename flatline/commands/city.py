@@ -83,7 +83,8 @@ def cmd_new(sess, args) -> None:
           '`train <skill>` to spend them yourself. `trait` to decide what '
           'kind of person this is, `self` to decide what they look like, '
           'which is a real decision here and not a portrait. `board` when '
-          'you are ready to work. Enter on an empty line says what to do '
+          'you are ready to work. `load` lists what you carry and `inspect '
+          '<name>` says what each thing does. Enter on an empty line says what to do '
           'next.[/]')
 
 
@@ -528,6 +529,9 @@ def cmd_deck(sess, args) -> None:
             c.raw(f'  [accent]{p.name:<14}[/] [dim]{p.category:<8} '
                   f'{p.memory}mem  rating {p.rating}  '
                   f'sig {p.signature:.1f}[/]')
+            what, _verbs = programs.CATEGORIES.get(p.category, ('', ()))
+            c.say(f'[dim]{what} {p.note}[/]', indent='      ',
+                  subsequent='      ')
     spare = [k for k in game.char.library if k not in deck.loaded]
     if spare:
         c.blank()
@@ -665,9 +669,17 @@ def cmd_load(sess, args) -> None:
         c.table(('#', 'program', 'kind', 'mem', 'r', 'sig', 'deck'), rows,
                 roles=('accent', 'accent', 'dim', 'dim', 'dim', 'dim', 'info'))
         sess.remember('load', keys)
+        sess.remember('unload', [k for k in keys if k in deck.loaded])
+        c.blank()
+        for key in dict.fromkeys(owned):
+            p = programs.BY_KEY[key]
+            what, _verbs = programs.CATEGORIES.get(p.category, ('', ()))
+            c.say(f'[accent]{p.name}[/][dim]: {what} {p.note}[/]',
+                  indent='  ', subsequent='    ')
         c.blank()
         c.say('[dim]`load <name>` or `load <row number>`. `inspect <name>` '
-              'for what one does. `unload <name>` to make room.[/]')
+              'for the whole of what one does. `unload <name|row>` to make '
+              'room. `help programs` for how they work.[/]')
         return
     token = sess.pick('load', args.get(0), fallback=owned, what='program',
                       again='load')
@@ -689,7 +701,24 @@ def cmd_unload(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     if sess.run is not None:
         raise CommandError('the loadout is fixed once you are inside.')
-    key = _find_program(args.get(0), game.char.deck.loaded)
+    loaded = list(game.char.deck.loaded)
+    if not len(args):
+        if not loaded:
+            raise CommandError('nothing is loaded.')
+        c.header('Loaded', f'memory {game.char.deck.memory_used}/'
+                           f'{game.char.deck.memory}')
+        for n, key in enumerate(loaded, 1):
+            p = programs.BY_KEY.get(key)
+            if p:
+                c.raw(f'  [accent]{n}[/]  [fg]{p.name}[/]  [dim]{p.category}, '
+                      f'{p.memory}mem[/]')
+        sess.remember('unload', loaded)
+        c.blank()
+        c.say('[dim]`unload <name>` or `unload <row number>`.[/]')
+        return
+    token = sess.pick('unload', args.get(0), fallback=loaded, what='program',
+                      again='unload')
+    key = _find_program(token, game.char.deck.loaded)
     game.char.deck.unload(key)
     c.ok(f'{programs.BY_KEY[key].name} unloaded. '
          f'[dim]{game.char.deck.memory_free} memory free.[/]')
@@ -1164,8 +1193,27 @@ def city_steps(game) -> list[tuple[str, str]]:
             steps.append((f'load {owned[0].name.lower()}',
                           f'the job needs a {need} loaded, and you own one'))
         else:
-            steps.append(('market program',
-                          f'the job needs a {need} loaded, and you own none'))
+            cheapest = min((p for p in programs.by_category(need)
+                            if not p.unique), key=lambda p: p.price, default=None)
+            if cheapest is not None:
+                shops = [d for d in districts.DISTRICTS
+                         if 'market' in d.services]
+                here = game.city.district
+                shop = here if 'market' in here.services else (
+                    min(shops, key=lambda d: game.city.shifts_to(d.key))
+                    if shops else here)
+                price = int(round(cheapest.price * shop.price_mult))
+                short = price - game.char.credits
+                how = (f'{cheapest.name} is about {price:,}c at the '
+                       f'{shop.name} market'
+                       + (f', which is {short:,}c more than you have: `borrow` '
+                          f'covers it' if short > 0 else ''))
+                steps.append((f'market program',
+                              f'the job needs a {need} loaded, and you own '
+                              f'none. {how}'))
+            else:
+                steps.append(('market program',
+                              f'the job needs a {need} loaded, and you own none'))
     where = districts.BY_KEY[contract.district]
     hops = game.city.shifts_to(contract.district)
     if hops:
