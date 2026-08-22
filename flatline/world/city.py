@@ -44,6 +44,9 @@ NEWS_KEPT = 40
 TAB_NAG = 9
 TAB_NAG_COST = 3
 
+#: The posture a first board must offer something at or below (D64 c).
+SOFT_POSTURE = 30
+
 #: A standing arrangement with a faction (D65): how often the number comes
 #: round, how much danger it takes off their streets, the tier their people
 #: stop at while it stands, the base of the rate, and the heat a missed
@@ -537,6 +540,23 @@ class City:
                     self.shift, alias, self.posture,
                     used={c.title for c in self.board[1:]},
                     objective='surveil')
+            # And something soft to point it at. Posture is the difficulty,
+            # and a first board of nothing but corporate networks is a first
+            # week of runs that cannot be finished by the deck the game just
+            # handed out.
+            if not any(int(c.posture) <= SOFT_POSTURE for c in self.board):
+                soft = min(factions.FACTION_KEYS,
+                           key=lambda k: self.posture.get(
+                               k, factions.BY_KEY[k].posture))
+                old = self.board[-1]
+                patron = next((k for k in factions.FACTION_KEYS
+                               if k != soft
+                               and factions.BY_KEY[k].relations.get(soft, 0) < 0),
+                              old.patron)
+                self.board[-1] = contract_mod.make_one(
+                    rng('contracts'), int(old.cid[1:]), patron, soft,
+                    self.shift, alias, self.posture,
+                    used={c.title for c in self.board[:-1]})
 
     def top_up_board(self, rng: Rng, alias: Alias, char=None,
                      flags=None) -> list[str]:

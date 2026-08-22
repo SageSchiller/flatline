@@ -7511,6 +7511,13 @@ def test_catalogue() -> None:
                 continue
             T.ok(any(c.objective in ('surveil', 'escort') for c in game.city.board),
                  f'{origin} seed {seed}: a new character can start somewhere')
+    from flatline.world import city as city_world
+    for origin in ('gutter', 'academic', 'ghost'):
+        for seed in range(6):
+            board = Game.new(Character.from_origin(origin, 'x'),
+                             seed=seed).city.board
+            T.ok(any(int(c.posture) <= city_world.SOFT_POSTURE for c in board),
+                 f'{origin} seed {seed}: a first board has something soft')
     game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
     contract = next((c for c in game.city.board if c.objective == 'exfiltrate'),
                     None)
