@@ -1459,10 +1459,40 @@ class RunState:
                 progress=f'no {need} on the deck',
                 done=False, steps=('jack out',))
 
-        return Brief(aim=aim, where=self._objective_where(target, found),
+        where = self._objective_where(target, found)
+        steps = self._objective_steps(kind, target, found)
+        # The brief reads the same sums the verbs do (D64 a). Advice that
+        # says `wipe` forever against a check that cannot land tonight is
+        # a loop with a friendly voice; if the thing cannot be done with
+        # what you carry, the brief says so and the next move is out. A
+        # sealed record it cannot open is the one exception: there is a
+        # second way to carry that out.
+        if steps and self.here == self.net.objective_node:
+            from ..commands.run import (decrypt_check, push_check,
+                                        wipe_check)
+            payload = programs.best(self.char.deck.loaded, 'payload')
+            blocked = None
+            verb = steps[0].split(' ')[0]
+            if verb == 'wipe' and payload is not None:
+                check = wipe_check(self, payload)
+                if check.impossible:
+                    blocked = f'the wipe cannot land: {check.summary()}'
+            elif verb == 'push' and payload is not None:
+                check = push_check(self, kind, payload)
+                if check.impossible:
+                    blocked = f'the {kind} will not take: {check.summary()}'
+            elif verb == 'pull' and asset and asset[1].encrypted \
+                    and not asset[1].taken and decrypt_check(self).impossible:
+                steps = (f'pull {asset[1].uid} --sealed',)
+                where = (where + ' You cannot open it tonight; take it '
+                         'shut for part of the fee.').strip()
+            if blocked:
+                where = (where + f' {blocked[0].upper()}{blocked[1:]}. Nothing '
+                         f'you carry changes that tonight.').strip()
+                steps = ('jack out',)
+        return Brief(aim=aim, where=where,
                      progress=self._objective_progress(kind, asset_name),
-                     done=self.objective_met(),
-                     steps=self._objective_steps(kind, target, found))
+                     done=self.objective_met(), steps=steps)
 
     def _missing_program(self) -> str:
         """The program category this contract needs and the deck has not got."""

@@ -149,12 +149,48 @@ class Node:
         return all(s.cracked for s in self.services)
 
 
+#: The shapes a network can take (D64 a), and what each does to the edges.
+#: A layered net is the standard four concentric zones; a spine is one long
+#: corridor; a ring closes each zone into a loop with two ways round; a hub
+#: hangs each zone off one host, which is where the wardens stand; a mesh is
+#: everything joined to everything near it; a split forks the deep zones
+#: into two wings, and the job is in one of them. Which shapes a faction
+#: builds is doctrine (`SHAPE_WEIGHTS`), so a Sixes phone tree is a hub and
+#: Deepwater is a mesh nobody drew.
+SHAPES: dict[str, str] = {
+    'layered': 'layered, four rings deep',
+    'spine': 'a spine, one long corridor in',
+    'ring': 'a ring, two ways round every zone',
+    'hub': 'a hub and spokes, everything through one host per zone',
+    'mesh': 'a mesh, joined every way it could be',
+    'split': 'split, two wings past the interior',
+}
+
+SHAPE_WEIGHTS: dict[str, dict[str, float]] = {
+    'corp': {'layered': 3.0, 'spine': 1.2, 'ring': 0.8, 'split': 1.0},
+    'law': {'layered': 2.0, 'ring': 2.0, 'hub': 0.6},
+    'broker': {'hub': 2.5, 'layered': 1.0},
+    'collective': {'ring': 2.0, 'mesh': 1.5, 'layered': 1.0},
+    'gang': {'hub': 3.0, 'spine': 1.0, 'mesh': 0.8},
+    'cult': {'hub': 2.0, 'spine': 1.5, 'layered': 0.8},
+    'press': {'mesh': 3.0, 'ring': 1.0},
+    'construct': {'mesh': 3.0, 'split': 1.5},
+}
+SHAPE_BY_FACTION: dict[str, dict[str, float]] = {
+    'aoyama': {'split': 3.0, 'layered': 1.5, 'ring': 0.5},
+    'meridian': {'spine': 3.0, 'layered': 1.0},
+    'sendai': {'spine': 2.0, 'layered': 2.0, 'split': 0.8},
+}
+
+
 @dataclass(slots=True)
 class Network:
     faction: str
     posture: int
     nodes: dict[str, Node] = field(default_factory=dict)
     entry: str = ''
+    #: Which of `SHAPES` this one is.
+    shape: str = 'layered'
     #: uid of the asset the contract is about, when there is one.
     objective_asset: str = ''
     objective_node: str = ''
@@ -242,25 +278,11 @@ def generate(rng: Stream, faction: str, posture: int,
             net.nodes[n.uid] = n
 
     # -- edges -------------------------------------------------------------
-    # Within a zone: a spanning path plus a few extras, so a zone is navigable
-    # but not fully connected. Between zones: one or two chokepoints only.
-    for zone, group in by_zone.items():
-        for a, b in zip(group, group[1:]):
-            _link(a, b)
-        extra = len(group) // 3
-        for _ in range(extra):
-            a, b = rng.pick(group), rng.pick(group)
-            if a is not b:
-                _link(a, b)
-
-    for outer, inner in zip(node_content.ZONES, node_content.ZONES[1:]):
-        outs, ins = by_zone[outer], by_zone[inner]
-        if not outs or not ins:
-            continue
-        # Fewer chokepoints as posture rises: a hardened network funnels you.
-        count = 2 if (scale < 1.1 and len(ins) > 1 and rng.chance(0.6)) else 1
-        for _ in range(count):
-            _link(rng.pick(outs), rng.pick(ins))
+    # The shape decides the edges (D64 a). Layered is the standard: within a
+    # zone a spanning path plus a few extras, between zones one or two
+    # chokepoints. The others bend that.
+    net.shape = _pick_shape(rng, fac)
+    _wire(rng, net.shape, by_zone, scale)
 
     # -- entry -------------------------------------------------------------
     perimeter = by_zone['perimeter']
@@ -385,6 +407,81 @@ def generate(rng: Stream, faction: str, posture: int,
     # -- objective ---------------------------------------------------------
     _place_objective(rng, net, objective)
     return net
+
+
+def _pick_shape(rng: Stream, fac: factions.Faction) -> str:
+    weights = dict(SHAPE_WEIGHTS.get(fac.kind, {'layered': 1.0}))
+    weights.update(SHAPE_BY_FACTION.get(fac.key, {}))
+    return rng.weighted(weights)
+
+
+def _wire(rng: Stream, shape: str, by_zone: dict, scale: float) -> None:
+    """Draw the edges for a shape. Repairs (`_ensure_reachable`) run after
+    the objective is placed, so a shape only has to be a shape, not proof
+    against its own corners."""
+    zones = list(node_content.ZONES)
+    hubs: dict[str, Node] = {}
+    wings: dict[str, tuple[list, list]] = {}
+
+    for zone in zones:
+        group = by_zone[zone]
+        if not group:
+            continue
+        if shape == 'hub':
+            hub = rng.pick(group)
+            hubs[zone] = hub
+            for n in group:
+                _link(hub, n)
+            continue
+        if shape == 'split' and zone in ('restricted', 'core') and len(group) >= 2:
+            half = max(1, len(group) // 2)
+            left, right = group[:half], group[half:]
+            for part in (left, right):
+                for a, b in zip(part, part[1:]):
+                    _link(a, b)
+            wings[zone] = (left, right)
+            continue
+        # chain
+        for a, b in zip(group, group[1:]):
+            _link(a, b)
+        if shape == 'ring' and len(group) >= 3:
+            _link(group[-1], group[0])
+        extra = {'spine': 0, 'mesh': len(group) // 2 + 1}.get(shape, len(group) // 3)
+        for _ in range(extra):
+            a, b = rng.pick(group), rng.pick(group)
+            if a is not b:
+                _link(a, b)
+
+    for outer, inner in zip(zones, zones[1:]):
+        outs, ins = by_zone[outer], by_zone[inner]
+        if not outs or not ins:
+            continue
+        if shape == 'hub':
+            # Through the hub, which is where the boundary stands.
+            _link(hubs.get(outer, rng.pick(outs)), hubs.get(inner, rng.pick(ins)))
+            continue
+        if shape == 'split' and inner in wings:
+            left, right = wings[inner]
+            if outer in wings:
+                o_left, o_right = wings[outer]
+                _link(rng.pick(o_left), rng.pick(left))
+                _link(rng.pick(o_right), rng.pick(right))
+            else:
+                # Two doors out of the interior, one per wing.
+                _link(rng.pick(outs), rng.pick(left))
+                _link(rng.pick(outs), rng.pick(right))
+            continue
+        if shape == 'spine':
+            count = 1
+        elif shape == 'ring':
+            count = 2 if len(ins) > 1 and len(outs) > 1 else 1
+        elif shape == 'mesh':
+            count = 3 if len(ins) > 2 else 2
+        else:
+            # Fewer chokepoints as posture rises: a hardened network funnels you.
+            count = 2 if (scale < 1.1 and len(ins) > 1 and rng.chance(0.6)) else 1
+        for _ in range(count):
+            _link(rng.pick(outs), rng.pick(ins))
 
 
 def _link(a: Node, b: Node) -> None:

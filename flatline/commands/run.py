@@ -676,7 +676,10 @@ def cmd_map(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     net = state.net
     visible = {n.uid for n in net.nodes.values() if n.known}
-    c.header('Known hosts', f'{len(visible)} of {len(net.nodes)}')
+    # The shape is named once you have seen enough of it to tell (D64 a).
+    shape = (f', {net_mod.SHAPES.get(net.shape, net.shape)}'
+             if len(visible) >= 3 else '')
+    c.header('Known hosts', f'{len(visible)} of {len(net.nodes)}{shape}')
 
     if args.has('flat') or state.here not in visible:
         _map_flat(sess, visible)
@@ -2128,7 +2131,7 @@ def push_check(state, kind: str, payload) -> Check:
 def wipe_check(state, payload) -> Check:
     """The wipe check (D63). Sabotage again, and the payload counts: the
     contract demanded one at the door and the verb never touched it."""
-    check = Check(name='wipe', resistance=state.net.posture // 5 + 5)
+    check = Check(name='wipe', resistance=state.net.posture // 6 + 3)
     check.add('sabotage', state.char.skill('sabotage') * 2)
     check.add('guile', state.char.attr('guile'))
     if payload:

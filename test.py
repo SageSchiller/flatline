@@ -7075,9 +7075,10 @@ def test_reads() -> None:
     game.char.credits = 9000
     contract = game.city.board[0]
     game.city.where = contract.district
-    _, out = play([f'take {contract.cid}', 'legwork topology'], game=game)
+    _, out = play([f'take {contract.cid}', 'legwork perimeter'], game=game)
+    T.ok('done' in ui.plain(out).lower(), 'legwork on the perimeter works')
     T.ok(drift.RESONANCE_TEXT.split('.')[0] not in ui.plain(out),
-         'asking people about topology is not resonance')
+         'asking people about the perimeter is not resonance')
 
 
 
@@ -7230,20 +7231,32 @@ def test_intrusion() -> None:
         nxt = here.edges[0]
         state.previous = state.here
         state.here = nxt
-        # Only count when some edge behind you could be cut safely.
+        # Only count when some edge behind you could be cut *safely*: a
+        # spine has one way back and the herder may not strand you.
         behind = [(a, b) for a in state.net.nodes
                   for b in state.net.nodes[a].edges
                   if state.previous in (a, b) and state.here not in (a, b)]
+        safe_behind = False
+        for a, b in behind:
+            na, nb = state.net.nodes[a], state.net.nodes[b]
+            na.edges.remove(b)
+            nb.edges.remove(a)
+            ok = state._still_playable()
+            na.edges.append(b)
+            nb.edges.append(a)
+            if ok:
+                safe_behind = True
+                break
         cut = state._cut_route()
         console.end_capture()
-        if cut is None or not behind:
+        if cut is None or not safe_behind:
             continue
         tried += 1
         if state.previous in cut:
             steered += 1
     T.ok(tried > 0, f'the herder had something to do ({tried} networks)')
-    T.ok(steered >= tried * 0.5,
-         f'and it closed the way back most of the time ({steered}/{tried})')
+    T.eq(steered, tried,
+         f'and it closed the way back whenever it safely could ({steered}/{tried})')
 
     # Style: doctrine is numbers now.
     def ice_count(faction, posture, seeds=30):
@@ -7297,6 +7310,41 @@ def test_intrusion() -> None:
                         capped = False
     T.ok(seen > 0, f'credential wardens sit on the open route ({seen})')
     T.ok(capped, 'and none of them is above the soft rating there')
+
+    # Network shapes (D64 a): more than one, by doctrine, and each is
+    # what it says.
+    seen = {}
+    for seed in range(40):
+        for faction in ('kagawa', 'sixes', 'aoyama', 'deepwater', 'freeport'):
+            net = net_mod.generate(Rng(seed).fork('network', 'shape'), faction, 40)
+            seen.setdefault(net.shape, []).append(net)
+    T.ok(len(seen) >= 4, f'several shapes turn up ({sorted(seen)})')
+    T.ok(all(s in net_mod.SHAPES for s in seen), 'and every one is declared')
+    for net in seen.get('hub', [])[:10]:
+        for zone in ('interior', 'restricted'):
+            group = [n for n in net.nodes.values() if n.zone == zone]
+            if len(group) >= 3:
+                T.ok(any(sum(1 for e in n.edges
+                             if net.nodes[e].zone == zone) >= len(group) - 1
+                         for n in group),
+                     'a hub zone hangs off one host')
+                break
+    for net in seen.get('ring', [])[:10]:
+        group = [n for n in net.nodes.values() if n.zone == 'interior']
+        if len(group) >= 3:
+            T.ok(all(sum(1 for e in n.edges if net.nodes[e].zone == 'interior') >= 2
+                     for n in group),
+                 'a ring zone has two ways round')
+            break
+    sixes = [s for s in seen if any(n.faction == 'sixes' for n in seen[s])]
+    T.ok('hub' in sixes, 'a Sixes phone tree is a hub')
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=2)
+    game.char.credits = 9000
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    _, out = play([f'take {contract.cid}', 'legwork perimeter'], game=game)
+    T.ok('shape of it' in ui.plain(out).replace('\n', ' '),
+         'topology intel names the shape')
 
     # Escort fallback: an escort job always has an escort.
     from flatline.world import rivals as rival_world

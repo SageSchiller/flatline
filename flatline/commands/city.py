@@ -1899,8 +1899,10 @@ def _legwork_result(net, gives: str, bonus: int, game) -> str:
         for node in net.nodes.values():
             counts[node.zone] = counts.get(node.zone, 0) + 1
         shape = ', '.join(f'{v} in {k}' for k, v in counts.items())
-        return (f'{len(net.nodes)} hosts: {shape}. Entry at '
-                f'[accent]{net.entry}[/].')
+        from ..run import network as net_mod
+        form = net_mod.SHAPES.get(net.shape, net.shape)
+        return (f'{len(net.nodes)} hosts: {shape}. The shape of it: {form}. '
+                f'Entry at [accent]{net.entry}[/].')
     if gives == 'ice':
         seen = {}
         for node in net.nodes.values():

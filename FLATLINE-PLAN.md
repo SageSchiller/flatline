@@ -1805,6 +1805,23 @@ an unexpected way, to reward exploration.
   of the decisions it waits on. `help relics`.
 
 
+### D64: The play test
+
+The author's first session, 2026-08-21, and what it turned up. Each part is
+small and each is a thing a new player ran into.
+
+**(a) Networks have shapes.** `Network.shape`, one of six (`SHAPES`:
+layered, spine, ring, hub, mesh, split), drawn by doctrine
+(`SHAPE_WEIGHTS` by faction kind, `SHAPE_BY_FACTION` overrides: a Sixes
+phone tree is a hub, Aoyama splits into wings, Meridian is a spine,
+Deepwater a mesh), built into the edges by `_wire`. Named on `map` once
+three hosts are known and in topology legwork. Two things the shapes
+shook loose: the brief now reads the same sums the verbs do and says when
+a wipe or a push cannot land tonight (and points a sealed record at
+`--sealed`) instead of advising the same verb forever; and the wipe sum
+is a sixth of posture plus three, which a Kindling at a gang's posture
+can meet.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
