@@ -232,13 +232,74 @@ HOST_ROLE = (
     'app', 'db', 'fs', 'auth', 'ctl', 'gw', 'rly', 'ops', 'lab', 'arc',
     'mail', 'bld', 'sec', 'net', 'dev', 'prd',
 )
-HOST_SITE = (
-    'n1', 'n2', 'e4', 'w7', 's3', 'hq', 'dc1', 'dc2', 'edge', 'core',
-)
+#: Who names the machines, and what that sounds like (D73).
+#:
+#: A corporation runs an asset register and its hosts are entries in it.
+#: Everybody else names a box the way people name a thing they have to
+#: live with, and what they reach for says what they are: a gang uses the
+#: names it shouts across a room, the docks use the language of the rota,
+#: the Chorus uses the hours of the office, Static uses the print floor,
+#: Nightwatch uses the register, Switchboard is a telephone exchange and
+#: has never pretended otherwise, and whatever Deepwater is, it is not
+#: made of offices.
+#:
+#: One pool per faction kind. Anything without a pool gets the corporate
+#: scheme, which is the register.
+HOST_NAMES: dict[str, tuple[str, ...]] = {
+    'gang': (
+        'tommy', 'vic', 'nan', 'bishop', 'hatchet', 'tallboy', 'mule',
+        'tenner', 'knuckle', 'cousin', 'jackdaw', 'tooth', 'remy',
+        'backhand', 'bruiser', 'dodger', 'weasel', 'muggins', 'nutmeg',
+        'sixer',
+    ),
+    'collective': (
+        'berth', 'muster', 'tally', 'quorum', 'picket', 'shanty',
+        'longshore', 'deckhand', 'purser', 'bosun', 'hawser', 'jetty',
+        'slipway', 'chandler', 'mess', 'nightgang', 'tideboard',
+        'dunnage', 'crewroom', 'ropewalk',
+    ),
+    'cult': (
+        'matins', 'lauds', 'compline', 'litany', 'cantor', 'censer',
+        'novice', 'antiphon', 'kyrie', 'sexton', 'narthex', 'chancel',
+        'oblate', 'plainsong', 'introit', 'canticle', 'sanctus',
+        'thurible', 'precentor', 'cloister',
+    ),
+    'press': (
+        'carrier', 'mast', 'dial', 'lede', 'galley', 'splice', 'offcut',
+        'bulletin', 'nightdesk', 'byline', 'deadline', 'pressroom',
+        'proof', 'slug', 'spike', 'masthead', 'kicker', 'standfirst',
+        'deadair', 'cutaway',
+    ),
+    'law': (
+        'docket', 'ward', 'warrant', 'custody', 'remand', 'exhibit',
+        'caution', 'summons', 'bailiff', 'casefile', 'chargesheet',
+        'watchhouse', 'cellblock', 'register', 'incident', 'disposal',
+        'callsign', 'nightturn', 'holdingroom', 'sergeant',
+    ),
+    'broker': (
+        'patch', 'trunk', 'extension', 'operator', 'tieline', 'junction',
+        'exchange', 'ringdown', 'switchroom', 'dialtone', 'crossbar',
+        'handset', 'subscriber', 'toll', 'party', 'relayroom', 'splitter',
+        'tandem', 'terminus', 'loopback',
+    ),
+    'construct': (
+        'fathom', 'trench', 'silt', 'drift', 'hadal', 'nekton', 'anemone',
+        'gulper', 'viperfish', 'isopod', 'brine', 'thermocline',
+        'midwater', 'scattering', 'deadzone', 'downwelling', 'halocline',
+        'sounding', 'abyssal', 'marianas',
+    ),
+}
 
-#: Gang and collective networks are named by people, not committees.
-INFORMAL_HOSTS = (
-    'kettle', 'birdcage', 'nine', 'sump', 'lantern', 'gully', 'crane',
-    'dogleg', 'ashtray', 'thimble', 'sparrow', 'lockbox', 'churn', 'rook',
-    'pallet', 'tarp', 'winch', 'bollard', 'gantry', 'quay',
-)
+#: And where a faction's own character is sharper than its kind's. The
+#: Sixes and Carrion are both gangs and do not sound alike: one is six
+#: blocks that grew, and the other is organised around chrome the way a
+#: cult is organised around a god, and names its machines accordingly.
+HOST_NAMES_BY_FACTION: dict[str, tuple[str, ...]] = {
+    'carrion': (
+        'gristle', 'donor', 'sawbones', 'graft', 'stump', 'splint',
+        'cadaver', 'tourniquet', 'meathook', 'ossuary', 'scrapheap',
+        'spares', 'harvest', 'transplant', 'rejection', 'necrosis',
+        'sepsis', 'triage', 'coldstore', 'offcuts',
+    ),
+}
+

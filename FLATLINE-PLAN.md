@@ -2290,6 +2290,67 @@ sometimes, and the advice being honest about red rooms saves more than it
 costs. All twelve origins still finish 9 to 12 of 12, and the mid-game
 ladder is unchanged again.
 
+### D73: Who names the machines
+
+Play-test report, and it is hard to argue with: *"They sound weird, like
+I'm hacking furniture."*
+
+They did. Gang and collective hosts were drawn from one pool of twenty
+words and the pool was a canal boat inventory: kettle, ashtray, thimble,
+pallet, tarp, winch, bollard, gantry, sump, lantern. Three of them were
+already the names of programs, so a player could be standing on `lantern`
+holding a Lantern.
+
+Worse than the words: **only two of the eight faction kinds used them at
+all.** Everybody else fell through to the corporate scheme, so Nightwatch,
+the Chorus, Static, Switchboard and whatever Deepwater is all ran networks
+that looked like a logistics company's asset register. D67 says every
+faction's net should read as its own from the inside, and the first thing
+anybody reads is the name at the top of the host.
+
+So: one naming vocabulary per faction kind, because who names a machine
+says what they are.
+
+- **A gang** uses the names it shouts across a room: tommy, vic, knuckle,
+  muggins, tallboy, nutmeg.
+- **The docks** use the language of the rota: berth, muster, tally,
+  bosun, dunnage, nightgang.
+- **The Chorus** use the hours of the office: matins, lauds, compline,
+  censer, thurible, precentor.
+- **Static** use the print floor: masthead, byline, deadline, spike,
+  standfirst, deadair.
+- **Nightwatch** use the register: docket, warrant, custody, casefile,
+  chargesheet, holdingroom.
+- **Switchboard** is a telephone exchange and has never pretended to be
+  anything else: trunk, tieline, ringdown, crossbar, subscriber, tandem.
+- **Deepwater** is not made of offices: fathom, trench, hadal, nekton,
+  thermocline, scattering, marianas.
+- **A corporation** keeps the asset register, which is what the old
+  scheme was and it was right about corporations.
+
+And where a faction is sharper than its kind, it gets its own: Carrion
+and the Sixes are both gangs and do not sound alike, so Carrion names its
+machines the way it thinks about people, which is as parts. Gristle,
+donor, graft, harvest, rejection, coldstore.
+
+A family also numbers from two now. The old code rolled a suffix at
+random, which put a `vic` and a `vic3` on the same network with no `vic2`,
+and a missing host is a thing a player goes looking for.
+
+`HOST_SITE` went in the same pass: declared at the top of the file,
+read by nothing, since the first commit. The usual bug in this project,
+one more time.
+
+Two tests broke on this and neither was about naming, which is the useful
+part. Both were measuring the seed rather than the game: the ladder
+asserted that a starting build finishes four of twelve gang jobs when the
+true rate is one in four, so twelve samples was a number between nought
+and seven and it had been lucky; and a held-program check picked "any
+service that is not crypto", matched a physical one, and read a Hardware
+rank where it meant to read Intrusion. Renaming the hosts shifted the
+stream and both fell over. The rates are now measured over thirty seeds
+and the fixture asks for the family it means.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.

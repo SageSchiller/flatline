@@ -262,19 +262,35 @@ def generate(rng: Stream, faction: str, posture: int,
     scale = posture / 50.0
     net = Network(faction=faction, posture=posture)
 
-    informal = fac.kind in ('gang', 'collective')
     used_names: set[str] = set()
+
+    # Who names the machines (D73). A corporation keeps an asset register;
+    # everybody else names a box the way people name a thing they have to
+    # live with, and each lot reaches for different words.
+    pool = node_content.HOST_NAMES_BY_FACTION.get(
+        fac.key, node_content.HOST_NAMES.get(fac.kind, ()))
 
     def hostname() -> str:
         for _ in range(50):
-            if informal:
-                name = rng.pick(node_content.INFORMAL_HOSTS)
-                if rng.chance(0.4):
-                    name = f'{name}{rng.int(1, 9)}'
-            else:
-                name = (f'{rng.pick(node_content.HOST_PREFIX)}-'
-                        f'{rng.pick(node_content.HOST_ROLE)}'
-                        f'{rng.int(1, 29):02d}')
+            if pool:
+                # The first machine of a family keeps the bare name and the
+                # ones after it are numbered from two, which is how a room
+                # of them ends up called vic, vic2, vic3. Picking a number
+                # at random produced a network with a `vic` and a `vic3`
+                # and no `vic2` on it, which reads as a missing host.
+                base = rng.pick(pool)
+                if base not in used_names:
+                    used_names.add(base)
+                    return base
+                for n in range(2, 12):
+                    name = f'{base}{n}'
+                    if name not in used_names:
+                        used_names.add(name)
+                        return name
+                continue
+            name = (f'{rng.pick(node_content.HOST_PREFIX)}-'
+                    f'{rng.pick(node_content.HOST_ROLE)}'
+                    f'{rng.int(1, 29):02d}')
             if name not in used_names:
                 used_names.add(name)
                 return name
