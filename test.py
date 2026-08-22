@@ -7899,6 +7899,18 @@ def test_early() -> None:
             fresh.char, pick.objective, int(pick.posture)),
             f'seed {seed}: and the advice points at one that can be done')
 
+    # Every origin jacks in able to open a door. Rating alone once put
+    # Ex-enforcement into the net holding a mask and a truncheon with the
+    # breaker left in the library, and twelve of twelve fresh starts were
+    # told to leave on the second tick.
+    from flatline.content import programs as program_content
+    for key in origins.ORIGIN_KEYS:
+        who = Character.from_origin(key, 'x')
+        cats = {program_content.BY_KEY[k].category for k in who.deck.loaded
+                if k in program_content.BY_KEY}
+        T.ok('breaker' in cats,
+             f'{key} jacks in holding something that opens a host')
+
     # The ladder is climbable with the kit every origin starts holding:
     # the lowest auth server answers to a breaker, all the way through,
     # because a badge is a full crack and one unanswerable service on it

@@ -111,11 +111,23 @@ class Character:
         if origin_key == 'chromed':
             char.dissonance = max(char.dissonance,
                                   origins.CHROMED_START_DISSONANCE)
-        # Load what fits, strongest first, so a new character can run at once
-        # rather than having to discover the `load` command to do anything.
-        for key in sorted(char.library,
-                          key=lambda k: -programs.BY_KEY[k].rating
-                          if k in programs.BY_KEY else 0):
+        # Load what fits, breaker first and then strongest, so a new
+        # character can run at once rather than having to discover the
+        # `load` command to do anything.
+        #
+        # Breaker first is not a preference. Without one nothing on a
+        # network opens at all, and rating alone put Ex-enforcement into
+        # the net holding a mask and a truncheon with their breaker left
+        # at home: measured at twelve fresh starts, twelve could not open
+        # the first door, and the brief correctly told all twelve to leave
+        # on the second tick.
+        def _order(k: str) -> tuple[int, int]:
+            prog = programs.BY_KEY.get(k)
+            if prog is None:
+                return (2, 0)
+            return (0 if prog.category == 'breaker' else 1, -prog.rating)
+
+        for key in sorted(char.library, key=_order):
             ok, _ = char.deck.can_load(key)
             if ok:
                 char.deck.load(key)

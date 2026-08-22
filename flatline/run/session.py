@@ -1843,7 +1843,23 @@ class RunState:
     #: Below this chance the brief stops calling something a way in. A long
     #: shot is a decision and the player can price it with `odds`; a one in
     #: ten is a hundred and fifty identical ticks with a countdown running.
-    HOPELESS = 0.16
+    #:
+    #: It is a fraction of the clock rather than a fixed number, because
+    #: what makes a long shot bad is the countdown and not the odds. At
+    #: three trace out of a hundred a one in seven door is worth knocking
+    #: on seven times; at eighty it is a way of spending the rest of the
+    #: night. A flat sixteen per cent told the weakest builds to leave on
+    #: the second tick of a run they had barely started (D71).
+    HOPELESS = 0.05
+    HOPELESS_LATE = 0.34
+
+    @property
+    def hopeless(self) -> float:
+        """The odds below which the brief stops naming a door, here and
+        now. Rises with the trace: the same chance is worth taking early
+        and worth walking away from late."""
+        return self.HOPELESS + (self.HOPELESS_LATE - self.HOPELESS) * min(
+            1.0, max(0.0, self.trace_pct))
 
     def _easiest(self, node) -> str:
         """The best way into a host: the shut service with the best odds.
@@ -1874,7 +1890,7 @@ class RunState:
         # were forty identical attempts at the same locked door with a
         # countdown running, which is the game wasting somebody's evening
         # politely. Say nothing instead, and let the caller say leave.
-        return best if best_chance >= self.HOPELESS else ''
+        return best if best_chance >= self.hopeless else ''
 
     def _finish_steps(self, kind: str) -> tuple[str, ...]:
         """You are standing on it. Do the thing you came to do."""

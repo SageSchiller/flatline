@@ -2209,6 +2209,25 @@ advice through five contracts now earns about twelve hundred credits and
 ends with more than they started with, against two hundred and seventy
 across forty runs before.
 
+Then the same harness was pointed at the other eleven origins, which is
+where it found the flatly broken one. **Ex-enforcement finished 0 of 12**,
+for a reason that had nothing to do with networks: the starting loadout is
+filled "strongest first" by rating, their kit is a truncheon, a mask and a
+breaker, and the first two filled the deck. They jacked in holding nothing
+that opens a host, and the brief correctly told all twelve of them to
+leave on the second tick. A breaker now loads first, always, because it is
+not the strongest program in a kit, it is the one that makes a deck a
+deck. Ex-enforcement finishes 11 of 12.
+
+And the threshold under which the brief stops naming a door is now a
+fraction of the clock rather than a flat number. What makes a long shot
+bad is the countdown, not the odds: at three trace out of a hundred a one
+in seven door is worth knocking on seven times, and at eighty it is a way
+of spending the rest of the night.
+
+All twelve origins now finish between 9 and 11 of 12 first contracts,
+which is the spread a first night should have.
+
 The ladder above the first night is unchanged and was re-measured to
 prove it: a mid build still finishes 18-24 of 24 against a gang, 4-9
 against Kagawa, 4-10 against Meridian and 2-4 against Deepwater. Posture
