@@ -39,6 +39,22 @@ MAP_EDGES: frozenset[frozenset[str]] = frozenset(frozenset(p) for p in (
     ('glasshouse', 'hall'),
 ))
 
+#: Why the map is that shape (D67). The layout has always been authored
+#: and it has never been explained, which meant twelve names in a grid and
+#: no reason for any of them to be where they are. This is the reason, and
+#: it is what makes the map a city rather than a menu with lines on it.
+LAYOUT = (
+    'The water is west and south. The Ninth is in it, more of it every '
+    'year, and Freeport works the quays below the Shambles. The land rises '
+    'north to the Terraces, whose water towers feed the hill by gravity and '
+    'drip on the Stacks the whole way down. Marrow is the middle of it, '
+    'because a market goes where the roads cross. Kagawa put the Vertical '
+    'where the ground is solid and the Watch put the Precinct where they '
+    'could see it, and Aoyama bought the green land east of both. Past the '
+    'Glasshouse the new money starts: Meridian Row, and the old '
+    'interchange the Chorus took when the trains stopped.'
+)
+
 #: Markers after a district's name. Plain, so they survive the ASCII rung.
 MARK_HERE = '@'
 MARK_JOB = '!'

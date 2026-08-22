@@ -1558,6 +1558,10 @@ def city_map(sess) -> None:
         c.raw(line)
     c.blank()
     c.say(citymap.legend(c.caps), indent='  ')
+    c.blank()
+    # Why it is that shape. Twelve names in a grid is a menu; a city has a
+    # reason for each of them being where it is (D67).
+    c.say(f'[dim]{citymap.LAYOUT}[/]', indent='  ', subsequent='  ')
     # How much city there is. Counted, not claimed.
     from ..content import npcs as npc_content, spots as spot_content
     c.say(f'[dim]{len(districts.DISTRICTS)} districts, '
