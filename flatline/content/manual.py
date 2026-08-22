@@ -1214,6 +1214,35 @@ TOPICS: tuple[Topic, ...] = (
         group='city'),
 
     Topic(
+        'conditions', 'Tonight, inside',
+        'What the network is like tonight, which is not what it is.',
+        'A network has a posture, which is how hard it is, and a shape, which '
+        'is who built it. It also has a [accent]tonight[/]: a condition, '
+        'drawn when you jack in, announced at the door, and shown on `status` '
+        'for the rest of the run. About one run in two has one.\n\n'
+        '  [fg]maintenance window[/]  countermeasures slow to wake, trace fast\n'
+        '  [fg]audit in progress[/]   residue counts half again, pay is better\n'
+        '  [fg]lockdown[/]            every crack harder, countermeasures wake sooner\n'
+        '  [fg]another runner[/]      noise you did not make, trace a little faster\n'
+        '  [fg]dead hours[/]          trace slow, countermeasures slow to wake\n'
+        '  [fg]carrier storm[/]       moving costs a tick more, noise counts less\n'
+        '  [fg]security exercise[/]   countermeasures wake at a whisper, residue less\n'
+        '  [fg]skeleton crew[/]       every crack easier, pay is worse\n\n'
+        'Every number it moves is printed at the door and on `status`, and a '
+        'condition that touches a check shows up in `odds` as its own term. '
+        'It is weather, not a modifier hiding in a menu: the reason the same '
+        'network is a different run on a different night, and the reason '
+        '`legwork` cannot tell you everything.\n\n'
+        '[warn]The decision:[/] the condition is fixed the moment you jack in '
+        'and does not change under you. Read it. A maintenance window rewards '
+        'a fast loud run; an audit rewards a clean one; a skeleton crew '
+        'rewards going deep; a storm rewards going straight there.',
+        see=('triangle', 'ice', 'clock', 'checks'),
+        commands=('jack in', 'status', 'odds'),
+        covers=('conditions',),
+        terms=('buff', 'debuff', 'mutator', 'hazard'),
+        group='systems'),
+    Topic(
         'clock', 'The shift clock',
         'When you do something matters as much as where.',
         'The city runs on three shifts a day and every one of them is a '
@@ -1243,7 +1272,7 @@ TOPICS: tuple[Topic, ...] = (
         'it is doing it. Inside a run, `status` shows the rate you are on: '
         'that is fixed at the moment you jacked in and does not change '
         'under you.',
-        see=('city', 'triangle', 'contracts', 'heat'),
+        see=('city', 'triangle', 'contracts', 'heat', 'conditions'),
         commands=('look', 'rest', 'travel', 'status'),
         terms=('time of day', 'schedule',),
         group='city'),

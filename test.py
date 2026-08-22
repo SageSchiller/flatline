@@ -6444,10 +6444,149 @@ def test_tutorial_second_half() -> None:
          'with a closing that points at the wire and the map')
 
 
+def test_conditions() -> None:
+    """D61: tonight's condition is drawn, announced, read everywhere it
+    claims to matter, and in the sum."""
+    T.section('conditions')
+    from flatline.content import conditions as cond_content
+    from flatline.run.session import crack_check, NOISE_WAKE
+
+    def run_with(key, origin='gutter'):
+        game = Game.new(Character.from_origin(origin, 'Night'), seed=4242)
+        contract = game.city.board[0]
+        game.city.where = contract.district
+        sess, out = play([f'take {contract.cid}', 'jack in --force'],
+                         game=game)
+        sess.run.condition = cond_content.BY_KEY[key] if key else None
+        return game, sess
+
+    # Drawn per contract, the same way twice, and announced at the door when
+    # it is drawn.
+    hits = 0
+    for seed in range(40):
+        game = Game.new(Character.from_origin('gutter', 'Draw'), seed=seed)
+        contract = game.city.board[0]
+        game.city.where = contract.district
+        sess, out = play([f'take {contract.cid}', 'jack in --force'],
+                         game=game)
+        if sess.run is None:
+            continue
+        again = cond_content.pick(game.rng.fork('condition', contract.cid))
+        T.ok((sess.run.condition is None and again is None)
+             or (sess.run.condition is not None and again is not None
+                 and sess.run.condition.key == again.key),
+             f'seed {seed}: the door and the stream agree')
+        if sess.run.condition is not None:
+            hits += 1
+            T.ok('tonight' in out and sess.run.condition.name in out,
+                 f'seed {seed}: announced at the door, by name')
+            T.ok(all(term.split()[0] in out
+                     for term in sess.run.condition.terms()),
+                 f'seed {seed}: with its numbers')
+    T.ok(0 < hits < 40, f'some nights have weather ({hits}/40)')
+
+    # Trace: a maintenance window logs more, dead hours less.
+    game, sess = run_with(None)
+    state = sess.run
+    t0 = state.trace
+    state.add_trace(10)
+    plain = state.trace - t0
+    game, sess = run_with('maintenance')
+    state = sess.run
+    t0 = state.trace
+    state.add_trace(10)
+    T.ok(state.trace - t0 > plain, 'a maintenance window logs more')
+    game, sess = run_with('dead')
+    state = sess.run
+    t0 = state.trace
+    state.add_trace(10)
+    T.ok(state.trace - t0 < plain, 'dead hours log less')
+
+    # Residue: an audit counts it half again.
+    game, sess = run_with(None)
+    base = sess.run.leave_residue(10)
+    game, sess = run_with('audit')
+    T.ok(sess.run.leave_residue(10) > base, 'an audit reads everything twice')
+
+    # Wake: lockdown sooner, maintenance later, never below two.
+    game, sess = run_with(None)
+    state = sess.run
+    construct = next((c for n in state.net.nodes.values() for c in n.ice), None)
+    if construct is not None:
+        plain_wake = state.wake_threshold(construct)
+        state.condition = cond_content.BY_KEY['lockdown']
+        T.ok(state.wake_threshold(construct) < plain_wake,
+             'lockdown wakes them sooner')
+        state.condition = cond_content.BY_KEY['maintenance']
+        T.ok(state.wake_threshold(construct) > plain_wake,
+             'a maintenance window later')
+        T.ok(state.wake_threshold(construct) >= 2, 'and never below two')
+
+    # Crack: the term is in the sum, by name, so `odds` shows it.
+    game, sess = run_with('lockdown')
+    state = sess.run
+    sess.execute('scan')
+    target = next((n for n in state.net.neighbours(state.here)
+                   if n.services and n.known), None)
+    if target is not None:
+        check = crack_check(state, target, target.services[0], None)
+        T.ok(any('lockdown' in t.label for t in check.terms),
+             'lockdown is a named term in the crack sum')
+        state.condition = cond_content.BY_KEY['skeleton']
+        check2 = crack_check(state, target, target.services[0], None)
+        T.ok(check2.power > check.power, 'and a skeleton crew makes it easier')
+        sess.console.start_capture()
+        sess.execute(f'probe {target.uid}')
+        sess.execute(f'odds crack {target.uid} {target.services[0].key}')
+        out = sess.console.end_capture()
+        T.ok('skeleton' in out, 'which `odds` prints')
+
+    # Storm: moving costs a tick more.
+    game, sess = run_with(None)
+    before = sess.run.tick
+    sess.execute('scan')
+    plain_ticks = sess.run.tick - before
+    game, sess = run_with('storm')
+    before = sess.run.tick
+    sess.execute('scan')
+    T.eq(sess.run.tick - before, plain_ticks + 1, 'a scan costs a tick more '
+                                                   'in a storm')
+
+    # Ghost: somebody else makes noise on a node you can see.
+    game, sess = run_with('ghost')
+    state = sess.run
+    sess.execute('scan')
+    for _ in range(60):
+        if not state.running:
+            break
+        state.advance(1)
+    T.ok(any('something else moved' in e for e in state.events)
+         or not state.running,
+         'the other runner makes noise somewhere in sixty ticks')
+
+    # Status says what tonight is, and the summary carries it to the fee.
+    game, sess = run_with('audit')
+    _, out = play(['status'], game=game) if False else (None, '')
+    sess.console.start_capture()
+    sess.execute('status')
+    out = sess.console.end_capture()
+    T.ok('tonight' in out and 'audit' in out, '`status` names the condition')
+    T.eq(sess.run.summary()['condition'], 'audit', 'and the summary carries it')
+    from flatline.commands.run import _condition_pay
+    T.ok(_condition_pay({'condition': 'audit'}) > 1.0
+         and _condition_pay({'condition': 'skeleton'}) < 1.0
+         and _condition_pay({}) == 1.0, 'and the fee reads it')
+
+    # The manual covers it.
+    _, out = play(['help conditions'])
+    T.ok('Tonight' in out and 'maintenance window' in out,
+         '`help conditions` is the page')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
-    test_tutorial_second_half,
+    test_tutorial_second_half, test_conditions,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,

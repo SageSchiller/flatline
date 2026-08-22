@@ -12,7 +12,7 @@ updated: 2026-08-21
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,387 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. Then **D54** (six lines and four topics per person, in seventeen voices; hours, so the clock is a reason to be somewhere) and **D55** (nine threads rooted in the districts, twenty-two decisions, four postings). Then **D56**: a decision at each rival's bond latch (fourteen scenes, twenty-eight decisions, read by the hire price, the shift boundary, four events and the epilogue), and the wire carrying scenes, decisions and what a run did to the city. Then **D57** (the city drawn, `walk`) and **D58** (forty-five places, twenty-two people, the street, a hundred and fifty-four events). Then **D59**, the readout: one dim line after every tick spent in a run, as the seventh rice axis (`hud`: line, bar, terse, quiet). Then **D60**, the tutorial's second half: nine more steps, past the door into what the city does. **Phase 7** items 1 to 6, 8, 10, 18 and 19 are done; **next: run conditions (15).** Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
+> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,387 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. Then **D54** (six lines and four topics per person, in seventeen voices; hours, so the clock is a reason to be somewhere) and **D55** (nine threads rooted in the districts, twenty-two decisions, four postings). Then **D56**: a decision at each rival's bond latch (fourteen scenes, twenty-eight decisions, read by the hire price, the shift boundary, four events and the epilogue), and the wire carrying scenes, decisions and what a run did to the city. Then **D57** (the city drawn, `walk`) and **D58** (forty-five places, twenty-two people, the street, a hundred and fifty-four events). Then **D59**, the readout: one dim line after every tick spent in a run, as the seventh rice axis (`hud`: line, bar, terse, quiet). Then **D60**, the tutorial's second half: nine more steps, past the door into what the city does. Then **D61**, tonight inside: eight run conditions drawn at the door, every field read, in the sum where they touch a check. **Phase 7** items 1 to 6, 8, 10, 15, 18 and 19 are done; open: 7 (journal as a real log), 9 (previously, on resume), 11 (`odds` for more verbs), 12 to 14 (ICE portraits, attribute bars and a build label, the end-of-run card), 16 and 17. Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
@@ -1524,6 +1524,37 @@ against an empty session, and the second half arrives for anybody who
 asks for the tutorial late: the first half is satisfied by having played,
 and the tutorial starts at the first step that is not.
 
+### D61: Tonight, inside
+
+A network has a posture, which is how hard it is, and a shape, which is who
+built it (D19). It now has a third thing: a **condition**, drawn when you
+jack in, announced at the door with its numbers, shown on `status` for the
+rest of the run. About one night in two. Eight of them: a maintenance
+window, an audit in progress, lockdown, another runner inside, dead hours,
+a carrier storm, a security exercise, a skeleton crew.
+
+**Every field is read.** `content/conditions.py` declares multipliers on
+trace, noise, residue and pay, an offset on the noise a countermeasure
+needs to wake, an offset on every crack check, the verbs that cost a tick
+more tonight, and whether somebody else is in here making noise; `RunState`
+reads each of them in the one place it applies (`add_trace`, `make_noise`,
+`leave_residue`, `wake_threshold`, `_ghost_tick`, `_act`, `crack_check`,
+the fee); `check_dead_fields` walks the record like the others, and
+`check_conditions` refuses a condition that changes nothing, a multiplier
+outside 0.5 to 2, an offset that is a cliff, or a slowed verb that is not a
+run verb that costs ticks.
+
+**No hidden dice.** The condition that touches a check is a named term in
+the sum, so `odds` prints it. The numbers are printed at the door and on
+`status`. It is weather, not difficulty: the same network is a different
+run on a different night, which is the reason a fifth run against Kagawa is
+not the fourth, and the reason legwork cannot tell you everything.
+
+**Its own stream.** `Rng.fork('condition', cid)`, declared like the others
+(D3), and never the network stream: legwork regenerates a network to read
+it, and a draw taken from that stream would have made the network it read
+a different network from the one you ran. `help conditions` is the page.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -1795,9 +1826,7 @@ More districts, factions, chrome, and programs. Content, not systems.
 
 **Fun and customisation**
 
-15. **Run conditions**: six to eight states announced at the door
-    (maintenance window, audit in progress, lockdown, another runner
-    inside), each a number the engine reads.
+15. ~~Run conditions.~~ Done: D61, eight of them.
 16. **Scripts discoverable**: a `now` hint at Daemonology 2; `script` is
     the payoff of a whole skill and nobody finds it.
 17. Naming things (deck, safehouse); the build label from 13.
@@ -2574,3 +2603,19 @@ run once and left nothing pending, so skipping toward `settle` lands on
 
 `validate.py` clean, `test.py` green at **13,788 checks**. 25 tutorial
 steps.
+
+### 2026-08-21 (j): tonight, inside
+
+**D61.** Eight run conditions: drawn at the door from their own stream,
+announced with their numbers, shown on `status`, read by the engine in the
+one place each applies, in the crack sum by name so `odds` prints them,
+and held by `validate.py` to changing something and to staying inside
+weather. The other runner is the one with a tick of its own.
+
+**Two things found.** `Rng.STREAMS` is a declared list, correctly, so the
+new stream had to be declared before the first draw, which the first test
+run said plainly. And `odds` wants a probed host, which the test learned
+by asking for the odds on a host it had only scanned.
+
+`validate.py` clean, `test.py` green at **13,882 checks**. 39 manual
+topics.

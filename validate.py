@@ -895,11 +895,13 @@ def check_dead_fields(rep: Report) -> None:
     source = (_engine_source() + _command_source() + _model_source()
               + _world_source() + _content_source())
 
+    from flatline.content import conditions as cond_content
     from flatline.content import spots as spot_content
     records = [
         appearance.Feature, appearance.Slot, events.Event,
         cyberspace.Signature, npc_content.Npc, trait_content.Trait,
         icons.Icon, origins.Origin, spot_content.Spot,
+        cond_content.Condition,
     ]
     for record in records:
         for field in dataclasses.fields(record):
@@ -3695,9 +3697,64 @@ def check_city_texture(rep: Report) -> None:
               'a close call should cost a little, not a lot')
 
 
+def check_conditions(rep: Report) -> None:
+    """D61: tonight's weather inside a network changes something, says so,
+    and stays inside sane bounds.
+
+    A condition that is neutral is a lie with a name; one that moves a number
+    past these bounds is a difficulty setting wearing weather; a slow verb
+    that is not a run command is a claim the engine never reads.
+    """
+    from flatline.content import conditions as cond_content
+    from flatline.commands.run import COST
+    from flatline.rng import Rng
+
+    rep.check(len(cond_content.CONDITIONS) >= 6, 'conditions',
+              f'only {len(cond_content.CONDITIONS)} conditions; the weather '
+              f'repeats')
+    rep.check(0.2 <= cond_content.CHANCE <= 0.6, 'conditions',
+              'a condition should be something that happened tonight, not the '
+              'way networks are, and not so rare nobody meets one')
+    seen: set[str] = set()
+    for c in cond_content.CONDITIONS:
+        where = f'conditions/{c.key}'
+        rep.check(c.key not in seen, where, 'duplicate key')
+        seen.add(c.key)
+        rep.check(bool(c.name) and bool(c.blurb) and bool(c.summary), where,
+                  'is missing its name, blurb or summary')
+        rep.check(c.blurb.rstrip().endswith('.'), where,
+                  'the blurb is not a sentence')
+        rep.check(not c.neutral, where, 'changes nothing: weather with a name')
+        rep.check(0.5 <= c.trace <= 2.0 and 0.5 <= c.noise <= 2.0
+                  and 0.5 <= c.residue <= 2.0 and 0.5 <= c.pay <= 2.0, where,
+                  'a multiplier is outside 0.5 to 2')
+        rep.check(-3 <= c.wake <= 3 and -2 <= c.crack <= 2, where,
+                  'an offset is a cliff, not weather')
+        rep.check(c.weight > 0, where, 'can never be drawn')
+        for verb in c.slow:
+            rep.check(verb in COST and COST[verb][0] > 0, where,
+                      f'slows {verb!r}, which is not a run verb that costs '
+                      f'ticks')
+        rep.check(len(c.terms()) >= 1, where, 'has nothing to say at the door')
+    # The draw: deterministic per stream, sometimes nothing, and every
+    # condition reachable.
+    drawn = set()
+    for i in range(400):
+        got = cond_content.pick(Rng(i).fork('condition', f'c{i:03d}'))
+        if got is not None:
+            drawn.add(got.key)
+    rep.check(drawn == set(cond_content.CONDITION_KEYS), 'conditions',
+              f'not every condition comes up in four hundred nights: missing '
+              f'{sorted(set(cond_content.CONDITION_KEYS) - drawn)}')
+    a = cond_content.pick(Rng(9).fork('condition', 'c001'))
+    b = cond_content.pick(Rng(9).fork('condition', 'c001'))
+    rep.check(a is b, 'conditions', 'the same night draws differently twice')
+
+
 CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
     check_guide, check_consequences, check_spine, check_city_texture,
+    check_conditions,
     check_icons, check_dissonance, check_cyberspace, check_rivals, check_debt,
     check_origins, check_appearance, check_events, check_rice, check_shifts, check_district_mood, check_dead_fields, check_skills, check_factions, check_districts,
     check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_offers, check_legacy, check_bonds, check_safehouses, check_crew, check_mods, check_commands,

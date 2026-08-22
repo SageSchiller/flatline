@@ -40,7 +40,7 @@ with a line of the verbs that district makes possible.
 At the prompt, `tutorial` walks you through a first run one instruction at a
 time. `help` is one screen: what to read first, the verbs that answer "what
 now", and where the rest lives. `help commands` is all 120 verbs, `help
-topics` is all 38 explanations, and `help <anything>` finds a verb, a system,
+topics` is all 39 explanations, and `help <anything>` finds a verb, a system,
 or searches both, including every proper noun in the game.
 
 Two verbs are worth knowing before anything else. **`job`** says what you are
@@ -113,7 +113,10 @@ The three ideas everything else hangs off:
 - **Failure is a state change, not a game over.** Only black ICE ends a
   character, it only guards cores, and it always telegraphs first.
 - **No hidden dice.** `odds` prints the entire sum and the exact percentage
-  before you commit, and a failed check names the term that sank it.
+  before you commit, and a failed check names the term that sank it. The
+  same goes for the weather: about one run in two has a condition tonight,
+  announced at the door with its numbers, and one that touches a check is a
+  named term in the sum.
 - **Being memorable cuts both ways.** What you look like is a build decision
   with 102 options behind it. A face worth describing earns more standing per
   job and turns more of the evidence you left into somebody's heat, and chrome
@@ -161,7 +164,7 @@ The three ideas everything else hangs off:
 verb nobody else can use and its own starting face · 34 implants · 46 programs
 · 28 countermeasures · 9 pieces of bench work · 9 districts, each with a mark for the faction that
 holds it · 12 factions · 7 rival runners who decide about you, and one you can keep · 22 named characters who keep hours, hand out work, keep private stock and do favours on a tab · 28 storylines across 81 scenes and 100 decisions, every one of them read back by the world, with a spine through the middle that has four endings and one of them is a door ·
-102 appearance features · 9 districts, drawn, with a scene for every hour and 45 places in them to go and stand · 154 ambient city events, 71 of them consequences of something you decided · 38 manual topics ·
+102 appearance features · 9 districts, drawn, with a scene for every hour and 45 places in them to go and stand · 154 ambient city events, 71 of them consequences of something you decided · 39 manual topics ·
 10 drugs · 3 lenders · 2 games of chance in 5 rooms ·
 120 commands · 71 pieces of terminal across 7 axes.
 

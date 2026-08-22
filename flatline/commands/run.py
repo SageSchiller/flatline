@@ -110,9 +110,14 @@ def cmd_jack_in(sess, args) -> None:
         found = net.find_asset(net.objective_asset)
         if found is not None:
             found[1].label = contract.label
+    # Tonight's condition (D61), from its own stream forked on the contract,
+    # so the network above is the same network whether or not anybody looked
+    # at the weather.
+    from ..content import conditions as cond_content
+    condition = cond_content.pick(game.rng.fork('condition', contract.cid))
     state = RunState.begin(net, game.char, game.rng('combat'), c,
                            contract=contract.to_dict(),
-                           phase=game.city.phase)
+                           phase=game.city.phase, condition=condition)
 
     if 'credential' in contract.intel:
         state.tier = max(state.tier, 1)
@@ -212,6 +217,13 @@ def cmd_jack_in(sess, args) -> None:
     # What this run is for, said at the door in the words the player will use
     # to do it. The objective used to arrive as one word in the header line
     # above, which names a category of job and not this one.
+    if state.condition is not None:
+        # Announced at the door, with its numbers, because a modifier that
+        # is not printed is a hidden die wearing weather (D14, D61).
+        c.blank()
+        c.rule('tonight', role='warn')
+        c.say(f'[warn]{state.condition.name}.[/] {state.condition.blurb}')
+        c.say('[dim]' + '; '.join(state.condition.terms()) + '.[/]')
     brief = state.brief()
     c.blank()
     c.rule('the job')
@@ -360,7 +372,8 @@ def _resolve(sess) -> None:
     contract = game.city.current
     if contract is not None:
         pay, told = game.city.pay_out(game.alias, contract, summary,
-                                      game.char.mult('pay_mult'),
+                                      game.char.mult('pay_mult')
+                                      * _condition_pay(summary),
                                       game.char.memorable)
         game.char.credits += pay
         game.earned += pay
@@ -1710,6 +1723,10 @@ def cmd_status(sess, args) -> None:
                   f'{ice_content.ALERT_BLURB[state.alert]}[/]'),
         ('shift', f'{when.name.lower()} [dim]trace at '
                   f'{when.trace * 100:.0f}% of nominal[/]'),
+        ('tonight', (f'[warn]{state.condition.name.lower()}[/] [dim]'
+                     f'{"; ".join(state.condition.terms())}[/]'
+                     if state.condition is not None else '[dim]nothing in '
+                     'particular[/]')),
         ('zone', f'{node.zone} [dim](tier {node.tier}, you hold '
                  f'{state.tier})[/]'),
         ('integrity', f'{state.char.integrity_max - state.char.hurt - state.hurt}'
@@ -1836,6 +1853,9 @@ def _act(sess, verb: str, node=None, ticks: int | None = None,
         state.leave_residue(base_residue * residue_scale, node)
 
     spend = base_ticks if ticks is None else ticks
+    # A carrier storm (D61): the verbs it names cost a tick more tonight.
+    if spend and state.condition is not None and verb in state.condition.slow:
+        spend += 1
     if spend and state.free_actions > 0:
         state.free_actions -= 1
         spend = 0
@@ -1866,6 +1886,16 @@ def _act(sess, verb: str, node=None, ticks: int | None = None,
         if state.nullsig > 0:
             state.nullsig = max(0, state.nullsig - 1)
         _hud(sess)
+
+
+def _condition_pay(summary: dict) -> float:
+    """What tonight's condition does to the fee (D61). One for an ordinary
+    night, and the audit's premium or the skeleton crew's discount otherwise:
+    the patron priced the night, and the number at the door was the number."""
+    from ..content import conditions as cond_content
+    key = summary.get('condition') or ''
+    cond = cond_content.BY_KEY.get(key)
+    return cond.pay if cond is not None else 1.0
 
 
 def _hud(sess) -> None:

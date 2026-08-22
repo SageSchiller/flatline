@@ -185,6 +185,10 @@ class RunState:
     outcome: str = 'running'
     #: Human-readable record, shown by `log` and after the run.
     events: list[str] = field(default_factory=list)
+    #: Tonight's condition (D61), or None for an ordinary night. Typed
+    #: loosely: it is a `conditions.Condition` and this module does not need
+    #: to know more than its fields.
+    condition: object = None
 
     # ------------------------------------------------------------------
     # construction
@@ -193,9 +197,10 @@ class RunState:
     @classmethod
     def begin(cls, net: Network, char: Character, rng: Stream,
               console: Console, contract: dict | None = None,
-              phase: str = 'morning') -> RunState:
+              phase: str = 'morning', condition=None) -> RunState:
         state = cls(net=net, char=char, rng=rng, console=console,
-                    contract=contract, here=net.entry, phase=phase)
+                    contract=contract, here=net.entry, phase=phase,
+                    condition=condition)
         state.focus = char.focus
         node = net.node(net.entry)
         if node:
@@ -263,6 +268,8 @@ class RunState:
         # The character's own noise_mult already carries chrome riders like the
         # Threadpuller's doubling, because those are declared as penalties.
         amount *= self.char.mult('noise_mult') * node.data_type.noise_mult
+        if self.condition is not None:
+            amount *= self.condition.noise
         value = max(0, int(round(amount)))
         node.noise += value
         if value:
@@ -277,6 +284,9 @@ class RunState:
         # Cover traffic. At peak there are ten thousand legitimate sessions to
         # sort you out of, and at three in the morning there is one.
         amount *= shifts.phase(self.phase).trace
+        # Tonight (D61): a maintenance window logs more, dead hours less.
+        if self.condition is not None:
+            amount *= self.condition.trace
         self.trace = min(TRACE_MAX, self.trace + max(0.0, amount))
 
     def leave_residue(self, amount: float, node: Node | None = None) -> int:
@@ -286,9 +296,38 @@ class RunState:
                 and fac_content.BY_KEY[self.net.faction].kind == 'corp'):
             # Policy reader: you know what corporate networks log and when.
             amount *= 0.85
+        if self.condition is not None:
+            amount *= self.condition.residue
         value = max(0, int(round(amount)))
         node.residue += value
         return value
+
+    def _ghost_tick(self) -> None:
+        """The other runner (D61). Noise on a node you can see, not yours."""
+        from ..content import conditions as cond_content
+        if not self.rng.chance(cond_content.GHOST_CHANCE):
+            return
+        others = [n for n in self.net.nodes.values()
+                  if n.known and n.uid != self.here]
+        if not others:
+            return
+        node = self.rng.pick(others)
+        node.noise += cond_content.GHOST_NOISE
+        self.log(f'something else moved on {node.uid}')
+        self.console.say(f'[dim]Something else moves, on {node.uid}. '
+                         f'Not you.[/]')
+
+    def wake_threshold(self, construct) -> int:
+        """Noise a countermeasure needs on its node before it wakes.
+
+        The rating makes the good ones light sleepers; tonight's condition
+        (D61) moves the whole table, and never below two, so that nothing
+        ever wakes at nothing.
+        """
+        base = max(3, NOISE_WAKE - construct.rating)
+        if self.condition is not None and self.condition.wake:
+            base = max(2, base + self.condition.wake)
+        return base
 
     def escalate(self, steps: int = 1, why: str = '') -> None:
         levels = ice_content.ALERT_LEVELS
@@ -338,6 +377,8 @@ class RunState:
             if felt:
                 self.console.blank()
                 self.console.say(f'[trace]{felt}[/]')
+            if self.condition is not None and self.condition.ghost:
+                self._ghost_tick()
             if self.nullsig > 0:
                 self.nullsig -= 1
                 if self.nullsig == 0:
@@ -609,7 +650,7 @@ class RunState:
         for construct in node.live_ice:
             if construct.behaviour == 'trap':
                 continue
-            threshold = max(3, NOISE_WAKE - construct.rating)
+            threshold = self.wake_threshold(construct)
             if node.noise < threshold:
                 continue
             if construct.state == 'dormant':
@@ -740,7 +781,7 @@ class RunState:
                 continue  # traps spring on contact, not on the clock
 
             if construct.state == 'dormant':
-                threshold = max(3, NOISE_WAKE - construct.rating)
+                threshold = self.wake_threshold(construct)
                 if self.node.noise >= threshold and construct in self.node.ice:
                     construct.state = 'awake'
                     if not self.woken:
@@ -1518,6 +1559,7 @@ class RunState:
             'ally': dict(self.ally) if self.ally else None,
             'hurt': self.hurt,
             'events': list(self.events),
+            'condition': self.condition.key if self.condition else '',
         }
 
 
@@ -1559,4 +1601,8 @@ def crack_check(state: RunState, node: Node, svc: net_mod.ServiceInstance,
         check.add('working quietly', -2)
     if state.alert in ('red', 'lockdown'):
         check.add(f'network at {state.alert}', -2)
+    # Tonight (D61). In the sum, by name, because a modifier that is not
+    # in the sum is a hidden die.
+    if state.condition is not None and state.condition.crack:
+        check.add(state.condition.name.lower(), state.condition.crack)
     return check
