@@ -689,6 +689,37 @@ class Console:
             text += f' [{role}]{label}[/]'
         return text
 
+    def columns(self, items, role: str | None = None,
+                gap: int = 2, indent: str = '  ') -> None:
+        """A long list of short things, down the page in columns (D68).
+
+        Forty verbs in one column is a scroll; forty verbs in four is a
+        list you can read. Sized to the widest item and the terminal, and
+        it degrades to one column on a narrow one without special-casing.
+        """
+        items = [str(i) for i in items]
+        if not items:
+            return
+        widest = max(width(i) for i in items)
+        avail = self.caps.text_width - len(indent)
+        cols = max(1, min(len(items), (avail + gap) // (widest + gap)))
+        rows = (len(items) + cols - 1) // cols
+        for r in range(rows):
+            cells = []
+            for col in range(cols):
+                i = col * rows + r
+                if i >= len(items):
+                    continue
+                text = items[i]
+                pad = ' ' * max(0, widest - width(text))
+                shown = f'[{role}]{text}[/]' if role else text
+                cells.append(shown + pad)
+            self.raw(indent + (' ' * gap).join(cells).rstrip())
+
+    def chip(self, text: str, role: str = 'accent') -> str:
+        """A small inline tag: `[ held ]`. Returns markup for embedding."""
+        return f'[dim][[/][{role}]{text}[/][dim]][/]'
+
     def bullets(self, items, role: str | None = None) -> None:
         b = self.caps.g('bullet')
         for it in items:

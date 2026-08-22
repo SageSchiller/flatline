@@ -1018,18 +1018,27 @@ def cmd_board(sess, args) -> None:
     for n, contract in enumerate(city.board, 1):
         left = contract.expires - city.shift
         mark = '*' if contract.cid == city.accepted else ''
+        # How it reads against what you carry, as one word, in the colour
+        # of the answer (D68). The whole point of a board is choosing, and
+        # choosing needs the difficulty where the pay is.
+        word, role = reads_short(game.char, int(contract.posture))
         rows.append((str(n), f'{mark}{contract.cid}', contract.title,
-                     contract.patron_data.short, contract.target_data.short,
-                     contract.objective, f'{contract.pay:,}c',
+                     contract.target_data.short, contract.objective,
+                     contract_mod.SIZE_SHORT[contract.size_mod],
+                     f'[{role}]{word}[/]',
+                     f'{contract.pay:,}c',
                      'held' if contract.held else f'{left}sh'))
-    c.table(('#', 'id', 'job', 'patron', 'target', 'what', 'pay', 'left'),
-            rows, roles=('accent', 'dim', 'accent', 'info', 'err', 'dim',
-                         'credit', 'warn'))
+    c.table(('#', 'id', 'job', 'against', 'what', 'size', 'reads',
+             'pay', 'left'),
+            rows, roles=('accent', 'dim', 'accent', 'err', 'dim',
+                         'dim', None, 'credit', 'warn'))
     # The row numbers mean this board, as printed. See `Session.pick`.
     sess.remember('board', [contract.cid for contract in city.board])
     c.blank()
-    c.say('[dim]`board 1` reads the first one properly. `take 1` accepts '
-          'it. The id works too.[/]')
+    c.say('[dim]`board 1` reads the first one properly, with who is paying '
+          'and how their networks are built. `take 1` accepts it. '
+          '[fg]reads[/] is how their middling services price against the '
+          'breaker you are carrying: easy, fair, even, long, over.[/]')
 
 
 def _contract_arg(sess, token: str):
@@ -1184,22 +1193,31 @@ def city_job(sess) -> None:
 #: services give you. Said before you take the job, because posture is the
 #: difficulty and a number between twenty and seventy-two tells a new
 #: player nothing at all.
-READS = ((0.80, 'ok', 'comfortable'),
-         (0.60, 'ok', 'workable'),
-         (0.40, 'warn', 'even money, and the clock is the other half'),
-         (0.20, 'warn', 'long odds: expect to fail things twice'),
-         (0.0, 'err', 'out of your league with what you carry'))
+#: The difficulty of the sort of service a vault runs, which is what the
+#: job is behind. See `nodes.SERVICES`: keystore 5-7, sign 5-8, cipher 4-7.
+VAULT_SERVICE = 5.5
+
+#: How many of those doors stand between the front of a network and the
+#: thing you came for.
+DOORS = 3
+
+#: Two things kill runs and they are not the same thing (D68). The doors
+#: are whether your breaker opens what the job is behind; the room is how
+#: hard the place runs the clock while you do it. Measuring a hundred runs
+#: made the difference plain: at corporate posture a mid build opens nearly
+#: every door and still loses four runs in five, because the trace fills.
+#: A line that priced only the doors told those players a bank was
+#: comfortable.
+DOOR_WORDS = ((0.75, 'ok', 'open'), (0.45, 'warn', 'tight'),
+              (0.0, 'err', 'shut'))
+ROOM_WORDS = ((60, 'err', 'hostile'), (42, 'warn', 'hard'),
+              (28, 'warn', 'busy'), (0, 'ok', 'quiet'))
 
 
-def readiness(char, posture: int) -> str:
-    """How this target's middling services read against this build (D66).
-
-    Priced with the same sum `crack_check` uses, against a service of
-    average difficulty for the posture, so the line and the run cannot
-    disagree.
-    """
-    from ..run.checks import Check, DIE, OFFSET
-    difficulty = max(1, round(3.5 * (0.7 + 0.6 * posture / 50.0)))
+def _door_odds(char, posture: int) -> float:
+    """The chance of one vault-grade door, with what is loaded."""
+    from ..run.checks import DIE, OFFSET
+    difficulty = max(1, round(VAULT_SERVICE * (0.45 + 0.78 * posture / 50.0)))
     breaker = programs.best(char.deck.loaded, 'breaker')
     rank = char.skill('intrusion')
     power = rank * 2 + char.attr('logic') + char.bonus('crack_bonus')
@@ -1208,13 +1226,48 @@ def readiness(char, posture: int) -> str:
     else:
         power -= 6
     need = difficulty * 2 + OFFSET - power
-    chance = max(0.0, min(1.0, (DIE - need + 1) / DIE))
-    for floor, role, words in READS:
-        if chance >= floor:
+    return max(0.0, min(1.0, (DIE - need + 1) / DIE))
+
+
+def reads_short(char, posture: int) -> tuple[str, str]:
+    """The two-word judgement for a table: doors and room."""
+    door = _door_odds(char, posture)
+    for floor, drole, dword in DOOR_WORDS:
+        if door >= floor:
             break
-    tail = (breaker.name if breaker else 'no breaker loaded')
-    return (f'[{role}]{words}[/] [dim]({chance:.0%} on a middling service '
-            f'with {tail})[/]')
+    for floor, rrole, rword in ROOM_WORDS:
+        if posture >= floor:
+            break
+    worst = 'err' if 'err' in (drole, rrole) else (
+        'warn' if 'warn' in (drole, rrole) else 'ok')
+    return f'{dword}/{rword}', worst
+
+
+def readiness(char, posture: int) -> str:
+    """How this target reads against this build, in the two ways that
+    decide a run: whether the doors open, and how hard the room is."""
+    door = _door_odds(char, posture)
+    for floor, drole, dword in DOOR_WORDS:
+        if door >= floor:
+            break
+    for floor, rrole, rword in ROOM_WORDS:
+        if posture >= floor:
+            break
+    breaker = programs.best(char.deck.loaded, 'breaker')
+    tail = breaker.name if breaker else 'nothing loaded'
+    doors = {'open': 'their doors open for what you carry',
+             'tight': 'their doors are tight for what you carry',
+             'shut': 'their doors are shut to what you carry'}[dword]
+    room = {'quiet': 'the room is quiet: little watching it, and the clock '
+                     'is yours to spend',
+            'busy': 'the room is busy: enough watching it to make the clock '
+                    'a real question',
+            'hard': 'the room is hard: it will find you, and the trace runs '
+                    'on their terms once it has',
+            'hostile': 'the room is hostile: assume it finds you and plan '
+                       'the evening around that'}[rword]
+    return (f'[{drole}]{doors}[/] [dim]({door:.0%} a door with {tail}, and '
+            f'the job is behind about {DOORS})[/]. [{rrole}]{room}[/]')
 
 
 def _net_signature(faction: str) -> str:

@@ -79,6 +79,9 @@ PAY_CURVE = 1.6
 #: hours. A sprawl is the top of the range and it is a night's work.
 SIZE_PAY = {0.75: 0.82, 1.0: 1.0, 1.35: 1.5, 1.7: 2.1}
 
+#: The same in one short word, for a table column.
+SIZE_SHORT = {0.75: 'small', 1.0: 'usual', 1.35: 'large', 1.7: 'sprawl'}
+
 #: What the board calls each size, and the one-line warning under it.
 SIZE_WORDS = {
     0.75: ('small', 'a handful of hosts and one way in'),

@@ -8319,12 +8319,24 @@ def test_scale() -> None:
     strong.base_skills['intrusion'] = 5
     strong.base_attrs['logic'] = 8
     strong.deck.loaded = ['thunderhead']
-    T.ok('comfortable' in ui.plain(city_cmd.readiness(strong, 22)),
-         'a strong build reads comfortable against a gang')
+    T.ok('doors open' in ui.plain(city_cmd.readiness(strong, 22)),
+         'a strong build opens a gang\'s doors')
+    T.ok('quiet' in ui.plain(city_cmd.readiness(strong, 22)),
+         'and a gang is a quiet room')
     weak = Character.from_origin('burnout', 'x')
     weak.deck.loaded = []
-    T.ok('league' in ui.plain(city_cmd.readiness(weak, 72)),
-         'and a bare one is out of its league against Deepwater')
+    T.ok('shut' in ui.plain(city_cmd.readiness(weak, 72)),
+         'and a bare deck is shut out of Deepwater')
+    T.ok('hostile' in ui.plain(city_cmd.readiness(weak, 72)),
+         'which is a hostile room besides')
+    # The two axes are separate: the doors can open on a room that kills.
+    mid = Character.from_origin('gutter', 'x')
+    mid.base_skills['intrusion'] = 3
+    mid.base_attrs['logic'] = 5
+    mid.deck.loaded = ['sable']
+    word, _role = city_cmd.reads_short(mid, 45)
+    T.eq(word, 'open/hard', f'a mid build at corporate posture reads '
+                            f'{word!r}')
 
 
 def test_place() -> None:
