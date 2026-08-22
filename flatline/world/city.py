@@ -342,24 +342,35 @@ class City:
         if not debt.due(self.shift):
             return told
 
-        take = debt.collect(self.shift)
+        take = debt.assess()
         stream = rng('events')
         if char is not None and char.credits >= take:
             char.credits -= take
+            debt.settle(take, self.shift)
             told.append(f'[heat]{stream.pick(debt_mod.COLLECT_LINES)}[/] '
                         f'[dim]{take:,}c. {debt.amount:,}c outstanding.[/]')
         elif char is not None:
             # Nothing in the account, so they take it out of the room. This
             # routes through the same ladder as everything else, per D6.
-            paid = max(0, char.credits)
+            # What they take out of the room counts, at their rate: the
+            # cash first, and the incident for half of what the cash did
+            # not cover. Before this the debt dropped by the whole visit
+            # whether or not a credit changed hands, which made an empty
+            # account the cheapest way to pay.
+            paid = max(0, min(char.credits, take))
             char.credits -= paid
+            in_kind = (take - paid) // 2
+            debt.settle(paid + in_kind, self.shift)
             incident = fallout_mod.pick_up(stream, char, alias,
                                            self, debt.lender)
             told.append(f'[err]{debt_mod.IN_KIND}[/]')
             told.append(f'[err]{incident.text}[/]')
             if incident.detail:
                 told.append(incident.detail)
-            told.append(f'[dim]{debt.amount:,}c outstanding.[/]')
+            told.append(f'[dim]They count it at {paid + in_kind:,}c against '
+                        f'{take:,}c asked. {debt.amount:,}c outstanding.[/]')
+        else:
+            debt.settle(take, self.shift)
         return told
 
     def _rival_turn(self, rng: Rng, alias: Alias | None = None,

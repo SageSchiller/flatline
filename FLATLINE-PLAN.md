@@ -2954,3 +2954,7 @@ The author asked for the items the deep dive had left alone, one at a time.
 First: the Switchboard lends a newcomer 1,200c rather than nothing.
 Second: a trap springs on contact, and a crack from the next host over is
 not contact; `crack` and `chain` only spring traps on the host you stand on.
+Third: a lender's visit to an empty account counts the room at half
+(`Debt.assess`/`settle`): the cash first, the incident for half of what the
+cash did not cover. The debt used to drop by the whole visit whether or not
+a credit changed hands, which made an empty account the cheapest way to pay.

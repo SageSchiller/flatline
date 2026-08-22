@@ -7514,6 +7514,27 @@ def test_money() -> None:
              f'{lender}: a visit takes more than six shifts of interest '
              f'put on ({taken} vs {grown - 10000:.0f})')
 
+    # A visit with an empty account counts the room at half.
+    debt = debt_mod.Debt(amount=10000, lender='sixes', opened=0)
+    asked = debt.assess()
+    T.eq(debt.amount, 10000, 'assessing takes nothing')
+    debt.settle(asked // 2, 6)
+    T.eq(debt.amount, 10000 - asked // 2, 'settling takes what was settled')
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=8)
+    game.char.credits = 0
+    from flatline.world import debt as dm
+    game.debt = dm.Debt(amount=8000, lender='sixes', opened=0,
+                        last_collected=-1)
+    before = game.debt.amount
+    ask = game.debt.assess()
+    game.city.shift = dm.GRACE + dm.COLLECT_EVERY + 1
+    told = game.city._debt_turn(game.rng, game.alias, game.debt, game.char)
+    T.ok(before - game.debt.amount <= ask // 2 + 1
+         and before - game.debt.amount > 0,
+         f'an empty account pays in kind at half ({before - game.debt.amount} '
+         f'of {ask})')
+    T.ok(any('count it at' in t for t in told), 'and the line says how much')
+
     # A first dose of a hook-4 drug asks first.
     game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
     game.char.stash['grave_salt'] = 1

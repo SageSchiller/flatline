@@ -79,8 +79,8 @@ class Debt:
                          else self.opened + grace)
         return since >= COLLECT_EVERY
 
-    def collect(self, shift: int) -> int:
-        """What they are taking. The debt drops by it either way.
+    def assess(self) -> int:
+        """What a visit is for, without taking it.
 
         The fraction rises with the rate (D63 d): a visit has to take more
         than the interest put on since the last one, or the help text's
@@ -90,9 +90,20 @@ class Debt:
         rate, _ = self.terms
         fraction = max(COLLECT_FRACTION, rate * COLLECT_EVERY * 1.2)
         take = max(COLLECT_MIN, int(self.amount * fraction))
-        take = min(take, self.amount)
-        self.amount -= take
+        return min(take, self.amount)
+
+    def settle(self, amount: int, shift: int) -> int:
+        """A visit happened and this much came off. Returns what applied."""
+        applied = max(0, min(amount, self.amount))
+        self.amount -= applied
         self.last_collected = shift
+        return applied
+
+    def collect(self, shift: int) -> int:
+        """What they are taking, taken. The whole assessment, for the visit
+        where the account covers it."""
+        take = self.assess()
+        self.settle(take, shift)
         return take
 
     def pay(self, amount: int) -> int:
