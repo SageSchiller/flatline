@@ -44,6 +44,16 @@ NEWS_KEPT = 40
 TAB_NAG = 9
 TAB_NAG_COST = 3
 
+#: A standing arrangement with a faction (D65): how often the number comes
+#: round, how much danger it takes off their streets, the tier their people
+#: stop at while it stands, the base of the rate, and the heat a missed
+#: payment costs on top of the arrangement ending.
+ARRANGE_EVERY = 6
+ARRANGE_EASE = 25
+ARRANGE_TIER_CAP = 2
+ARRANGE_BASE = 300
+ARRANGE_BROKEN_HEAT = 12
+
 #: How often an ambient beat is about somebody who used to do this instead of
 #: about the city. Low: the departed are a ghost story the city tells
 #: occasionally, and a city that talks about nobody else would be a memorial.
@@ -124,6 +134,10 @@ class City:
     bolted: int = -1
     errand: dict = field(default_factory=dict)
     errands_done: int = 0
+    #: Standing arrangements with factions on the street (D65): faction ->
+    #: {'rate': credits every ARRANGE_EVERY shifts, 'paid': the shift it was
+    #: last paid}. While one stands their people lean rather than take.
+    arrangements: dict = field(default_factory=dict)
     next_cid: int = 1
     #: district -> listings, and the shift they were rolled.
     stock: dict = field(default_factory=dict)
@@ -198,6 +212,26 @@ class City:
             told.extend(self._expire(alias))
             told.extend(self._rival_turn(rng, alias, flags))
             told.extend(fallout_mod.bounty_check(alias, self, rng('events')))
+            # Arrangements come round (D65). Paid from the account; missed,
+            # they end, and the ending is remembered.
+            if char is not None:
+                for key, deal in list(self.arrangements.items()):
+                    if self.shift - int(deal.get('paid', 0)) < ARRANGE_EVERY:
+                        continue
+                    rate = int(deal.get('rate', 0))
+                    fac = factions.BY_KEY.get(key)
+                    short = fac.short if fac else key
+                    if char.credits >= rate:
+                        char.credits -= rate
+                        deal['paid'] = self.shift
+                        told.append(f'[dim]Your arrangement with {short}: '
+                                    f'{rate:,}c, collected.[/]')
+                    else:
+                        del self.arrangements[key]
+                        alias.add_heat(key, ARRANGE_BROKEN_HEAT)
+                        told.append(f'[err]You could not pay {short}. The '
+                                    f'arrangement is over, and they remember '
+                                    f'that it was you who ended it.[/]')
             # A warning on the street stands as long as the threat does
             # (D65). When a faction has stopped paying and stopped caring,
             # the sentence "next time they will not be asking" lapses with
@@ -818,6 +852,7 @@ class City:
             'tabs': {k: list(v) for k, v in self.tabs.items()},
             'bolted': self.bolted, 'errand': dict(self.errand),
             'errands_done': self.errands_done,
+            'arrangements': {k: dict(v) for k, v in self.arrangements.items()},
             'next_cid': self.next_cid,
             'stock': {k: [l.to_dict() for l in v] for k, v in self.stock.items()},
             'stock_shift': self.stock_shift,
@@ -848,6 +883,10 @@ class City:
             bolted=int(d.get('bolted', -1)),
             errand=dict(d.get('errand') or {}),
             errands_done=int(d.get('errands_done', 0)),
+            arrangements={k: {'rate': int(v.get('rate', 0)),
+                              'paid': int(v.get('paid', 0))}
+                          for k, v in (d.get('arrangements') or {}).items()
+                          if isinstance(v, dict)},
             next_cid=int(d.get('next_cid', 1)),
             stock={k: [Listing.from_dict(l) for l in v]
                    for k, v in (d.get('stock') or {}).items()},

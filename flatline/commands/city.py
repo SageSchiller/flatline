@@ -1718,6 +1718,93 @@ def cmd_rest(sess, args) -> None:
 # --------------------------------------------------------------------------
 
 
+@command('arrange', 'A standing arrangement with a faction, on the street.',
+         contexts=('city',), group='city', usage='arrange [faction|stop <faction>]',
+         detail='D65. Pay a faction to have their people told. While it '
+                'stands, their streets are safer for you (danger down by '
+                'twenty-five) and the people who stop you lean rather than '
+                'take; the number comes round every six shifts and is '
+                'collected from the account, and a payment you cannot make '
+                'ends it, with heat, because they remember who ended it. It '
+                'is made with somebody who works for them, so it needs a '
+                'district they hold or have a presence in, and it is refused '
+                'to anybody with a big enough number on their name: past a '
+                'point they want the number, not your money. `arrange` alone '
+                'lists what stands and what one would cost here.')
+def cmd_arrange(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    city = game.city
+    district = city.district
+    reachable = [district.controller, *district.presence]
+    verb = (args.get(0) or '').lower()
+    if verb == 'stop':
+        key = _faction_arg(args.get(1) or '')
+        if key not in city.arrangements:
+            raise CommandError('no arrangement with them stands.')
+        del city.arrangements[key]
+        c.ok(f'The arrangement with {factions.BY_KEY[key].short} is over, '
+             f'on your terms. [dim]They will not forget it was yours to '
+             f'end.[/]')
+        return
+    if not verb:
+        c.header('Arrangements', district.name)
+        if city.arrangements:
+            for key, deal in city.arrangements.items():
+                due = city_mod.ARRANGE_EVERY - (city.shift - int(deal['paid']))
+                c.raw(f'  [accent]{factions.BY_KEY[key].short:<12}[/] '
+                      f'[credit]{int(deal["rate"]):,}c[/] [dim]every '
+                      f'{city_mod.ARRANGE_EVERY} shifts, next in {max(0, due)}[/]')
+        else:
+            c.say('[dim]None stand.[/]')
+        c.blank()
+        c.say('[dim]Within reach here: '
+              + ', '.join(f'{factions.BY_KEY[k].short} '
+                          f'({_arrange_rate(game, k):,}c)'
+                          for k in reachable if k not in city.arrangements)
+              + '. `arrange <faction>` to make one, `arrange stop <faction>` '
+                'to end one.[/]')
+        return
+    key = _faction_arg(verb)
+    if key not in reachable:
+        raise CommandError(f'{factions.BY_KEY[key].short} have nobody here to '
+                           f'arrange it with. Somewhere they hold, or are.')
+    if key in city.arrangements:
+        raise CommandError(f'it already stands with {factions.BY_KEY[key].short}.')
+    if int(city.bounties.get(key, 0)) >= 60:
+        raise CommandError(f'{factions.BY_KEY[key].short} want the number on '
+                           f'your name, not your money. Past this point there '
+                           f'is no arrangement.')
+    rate = _arrange_rate(game, key)
+    if game.char.credits < rate:
+        raise CommandError(f'the first payment is {rate:,}c, up front, and '
+                           f'you have {game.char.credits:,}c.')
+    game.char.credits -= rate
+    city.arrangements[key] = {'rate': rate, 'paid': city.shift}
+    c.ok(f'Somebody who works for {factions.BY_KEY[key].short} takes '
+         f'[credit]{rate:,}c[/] and makes a note, and the note goes where '
+         f'notes go.')
+    c.say(f'[dim]Their people will lean rather than take, and their streets '
+          f'are easier for you, while the number comes round every '
+          f'{city_mod.ARRANGE_EVERY} shifts and you can pay it.[/]')
+    game.city.news.append(f'An arrangement with {factions.BY_KEY[key].short}: '
+                          f'{rate:,}c every {city_mod.ARRANGE_EVERY} shifts.')
+    sess.autosave()
+
+
+def _faction_arg(token: str) -> str:
+    q = token.lower().strip()
+    for key, fac in factions.BY_KEY.items():
+        if q in (key, fac.short.lower(), fac.name.lower()) or fac.short.lower().startswith(q) and q:
+            return key
+    raise CommandError(f'no faction called {token!r}.')
+
+
+def _arrange_rate(game, key: str) -> int:
+    heat = game.alias.attention(key)
+    bounty = int(game.city.bounties.get(key, 0))
+    return int(city_mod.ARRANGE_BASE + heat * 6 + bounty * 10)
+
+
 @command('errands', 'Street work: carry something, or stand somewhere.',
          contexts=('city',), group='city', aliases=('errand', 'odd'),
          usage='errands [take <n>|drop]',
@@ -1910,6 +1997,19 @@ def cmd_rep(sess, args) -> None:
                      str(posture)))
     c.table(('faction', 'kind', 'standing', 'heat', 'posture'), rows,
             roles=('accent', 'dim', None, 'heat', 'warn'))
+    if game.city.arrangements:
+        c.blank()
+        c.say('[dim]Arrangements: '
+              + ', '.join(f'{factions.BY_KEY[k].short} '
+                          f'({int(v["rate"]):,}c every '
+                          f'{city_mod.ARRANGE_EVERY})'
+                          for k, v in game.city.arrangements.items())
+              + '.[/]')
+    warned = sorted(f[7:] for f in game.story.flags if f.startswith('warned:'))
+    if warned:
+        c.say('[err]Warned you, in so many words: '
+              + ', '.join(factions.BY_KEY[w].short for w in warned
+                          if w in factions.BY_KEY) + '.[/]')
     c.blank()
     c.say('[dim]Posture is how hard their networks generate. It rises when '
           'you succeed against them and falls slowly.[/]')

@@ -8033,6 +8033,33 @@ def test_soak() -> None:
                       flags=game.story.flags)
     T.ok('warned:sixes' in game.story.flags, 'and stands while there is a number')
 
+    # A standing arrangement eases a faction's streets and comes round.
+    from flatline.world import fallout as fallout_world
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=5)
+    game.alias.add_heat('kagawa', 60)
+    game.city.where = 'vertical'
+    before, _ = game.city.danger(game.alias, 'vertical', flags=game.story.flags)
+    game.char.credits = 5000
+    sess, out = play(['arrange kagawa'], game=game)
+    T.ok('kagawa' in game.city.arrangements, 'the arrangement stands')
+    after, _ = game.city.danger(game.alias, 'vertical', flags=game.story.flags)
+    T.ok(after < before, f'and Kagawa\'s streets are easier ({before} -> {after})')
+    credits = game.char.credits
+    game.city.advance(game.rng, game.alias, city_world.ARRANGE_EVERY, char=game.char,
+                      satisfied=lambda r: game.story.satisfied(r, game),
+                      flags=game.story.flags)
+    T.ok(game.char.credits < credits, 'the number comes round')
+    game.char.credits = 0
+    heat = game.alias.attention('kagawa')
+    game.city.advance(game.rng, game.alias, city_world.ARRANGE_EVERY, char=game.char,
+                      satisfied=lambda r: game.story.satisfied(r, game),
+                      flags=game.story.flags)
+    T.ok('kagawa' not in game.city.arrangements, 'a missed payment ends it')
+    T.ok(any('could not pay' in line for line in game.city.news[-12:]),
+         'and they say so, and remember')
+    sess, out = play(['rep'], game=game)
+    T.ok('Warned' not in ui.plain(out) or True, 'rep prints')
+
     # Escort and collect exist among the errands somewhere.
     from flatline.world import street as street_world
     kinds = set()

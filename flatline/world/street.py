@@ -296,6 +296,9 @@ def on_arrival(sess, faction: str, danger: int) -> bool:
     if not rng.chance(ENCOUNTER_SHARE):
         return False
     tier = tier_for(danger)
+    if faction in game.city.arrangements:
+        from .city import ARRANGE_TIER_CAP
+        tier = min(tier, ARRANGE_TIER_CAP)
     enc = choose(rng, game, 'faction', tier, faction)
     if enc is None:
         return False

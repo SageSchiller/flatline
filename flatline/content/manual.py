@@ -1001,12 +1001,17 @@ TOPICS: tuple[Topic, ...] = (
         'watch somewhere. No deck, no trace, the same street in the way. It '
         'is how a runner eats between runs, and how somebody who is not a '
         'runner at all might eat instead.\n\n'
+        'And the street can be paid. [fg]arrange[/] a standing arrangement '
+        'with a faction whose streets you need: their people are told, their '
+        'streets are easier for you, the ones who stop you lean rather than '
+        'take, and the number comes round every six shifts. Miss it and it '
+        'ends, and they remember who ended it.\n\n'
         '[warn]The decision:[/] the city remembers, and the street is where '
         'it collects. `rep` and the map\'s x marks say where your name is '
         'worth money. Going anyway is a choice; so is `rest`, and so is '
-        '`burn`.',
+        '`burn`, and so is paying.',
         see=('death', 'heat', 'skills', 'city'),
-        commands=('errands', 'travel', 'rest', 'rep'),
+        commands=('errands', 'arrange', 'travel', 'rest', 'rep'),
         covers=('street',),
         terms=('mugging', 'ambush', 'encounter', 'beating', 'physical',
                'courier', 'odd jobs', 'violence'),

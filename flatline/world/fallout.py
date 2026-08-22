@@ -230,6 +230,10 @@ def arrival_risk(rng: Stream, alias, city, target: str,
         score = alias.attention(key) + int(city.bounties.get(key, 0)) * 1.5
         score = int(score * (0.5 + district.security / 100.0) * when
                     * story_mod.street_rider(flags, key))
+        if key in getattr(city, 'arrangements', {}):
+            # A standing arrangement (D65): their people have been told.
+            from .city import ARRANGE_EASE
+            score = max(0, score - ARRANGE_EASE)
         if score > worst:
             worst, who = score, key
     return worst, who
