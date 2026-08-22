@@ -306,7 +306,13 @@ def _inherit(sess) -> None:
 
 @command('char', 'Your build, in full.',
          group='character', aliases=('sheet', 'me'),
-         usage='char [--effects] [--attributes]')
+         usage='char [--effects] [--attributes]',
+         detail=(
+                'The whole sheet: attributes and what they derive, the skills '
+                'you have ranks in, your chrome and drift, what you look like '
+                'and how memorable that makes you, and what is unspent. '
+                '`spend` puts an unspent budget where your origin usually '
+                'would.'))
 def cmd_char(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     char = game.char
@@ -483,7 +489,13 @@ def cmd_train(sess, args) -> None:
 
 
 @command('deck', 'What your deck is made of, and what it can carry.',
-         group='character', usage='deck [name <what you call it>]')
+         group='character', usage='deck [name <what you call it>]',
+         detail=(
+                'The six components fitted, the memory they give you, the '
+                'thermal headroom overclocking spends, and what is loaded '
+                'with what each program is for. `fit` changes a component, '
+                '`mod` does bench work on one, `repair` fixes what a '
+                'countermeasure broke.'))
 def cmd_deck(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     deck = game.char.deck
@@ -644,7 +656,15 @@ def cmd_icon(sess, args) -> None:
                  'carrying is what you have. `hotswap` is the only thing that '
                  'changes a deck mid-run, and it changes hardware rather than '
                  'programs.',
-         complete=lambda sess, prefix: _library_names(sess))
+         complete=lambda sess, prefix: _library_names(sess),
+         detail=(
+                'Puts a program on the deck, out here only: the loadout is '
+                'fixed from the moment you jack in. With nothing after it, '
+                'lists the bag with what each thing is for. Memory is the '
+                'constraint that decides your playstyle, and a program above '
+                'your skill rank runs held to that rank plus two, so the '
+                'strongest thing you own is not always the strongest thing '
+                'you can drive.'))
 def cmd_load(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     if sess.run is not None:
@@ -699,7 +719,11 @@ def cmd_load(sess, args) -> None:
          contexts=('city',), group='prep', usage='unload <program>',
          blocked='The loadout is fixed from the moment you jack in, in both '
                  'directions.',
-         complete=lambda sess, prefix: _loaded_names(sess))
+         complete=lambda sess, prefix: _loaded_names(sess),
+         detail=(
+                'Takes a program off the deck to make room. With nothing '
+                'after it, lists what is loaded, numbered. Only out here: '
+                'what you are carrying when you jack in is what you have.'))
 def cmd_unload(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     if sess.run is not None:
@@ -731,7 +755,12 @@ def cmd_unload(sess, args) -> None:
          contexts=('city',), group='character', usage='install <ware>',
          blocked='Surgery is a clinic, a table, and a shift of your life. It '
                  'is not something you do to yourself in a chair with a deck '
-                 'in your head.')
+                 'in your head.',
+         detail=(
+                'Fits chrome at a clinic: a shift, a fee, and Dissonance you '
+                'do not get back. Bandwidth is the hard limit and slots are '
+                'the tight one. `uninstall` takes it out again and the drift '
+                'stays, which is the whole of D11 in one sentence.'))
 def cmd_install(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     if 'clinic' not in game.city.district.services:
@@ -810,7 +839,13 @@ def cmd_chrome(sess, args) -> None:
 
 @command('market', 'What is for sale here.',
          contexts=('city',), group='city', aliases=('shop',),
-         usage='market [programs|ware|components]')
+         usage='market [programs|ware|components]',
+         detail=(
+                'What is for sale here, priced for you specifically: the '
+                'district\'s markup, what the controlling faction thinks of '
+                'you, your Guile, your drift, and the hour. `buy <name> '
+                '--why` breaks the number down. Stock rotates every six '
+                'shifts, which is a reason to travel and a reason to hurry.'))
 def cmd_market(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     district = game.city.district
@@ -856,7 +891,13 @@ def cmd_market(sess, args) -> None:
 @command('buy', 'Buy something from the local market.',
          blocked='Nobody in here is selling, and your credits are out there '
                  'with the rest of you.',
-         contexts=('city',), group='city', usage='buy <name> [--why]')
+         contexts=('city',), group='city', usage='buy <name> [--why]',
+         detail=(
+                'Takes one off the shelf. Programs and chrome go in the bag, '
+                'drugs in the stash, and a component is fitted immediately '
+                'with the old one going into the bag. `inspect <name>` first: '
+                'it prints what a thing does, what it costs you, and whether '
+                'you can drive it.'))
 def cmd_buy(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     if not len(args):
@@ -971,7 +1012,12 @@ def cmd_fit(sess, args) -> None:
 
 
 @command('sell', 'Sell something. Needs a fence or a market.',
-         contexts=('city',), group='city', usage='sell <name>')
+         contexts=('city',), group='city', usage='sell <name>',
+         detail=(
+                'Sells a program, a piece of chrome or a spare component out '
+                'of your bag, at a punishing rate. Gear is for using, not for '
+                'arbitrage. What you carried out of a network is different: '
+                'that sells automatically through whoever hired you.'))
 def cmd_sell(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     if not any(s in game.city.district.services for s in ('fence', 'market')):
@@ -1001,7 +1047,15 @@ def cmd_sell(sess, args) -> None:
 
 
 @command('board', 'Work currently on offer.',
-         contexts=('city',), group='city', aliases=('jobs',), usage='board [id]')
+         contexts=('city',), group='city', aliases=('jobs',), usage='board [id]',
+         detail=(
+                'Everything currently on offer, generated from the state of '
+                'the city: who dislikes whom enough to pay for it, and what '
+                'they think of you. `reads` is the column that matters: doors '
+                'is whether your breaker opens what the job is behind, room '
+                'is how hard the place runs the clock while you do it. '
+                'Contracts expire, and other runners are taking these while '
+                'you read.'))
 def cmd_board(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     city = game.city
@@ -1529,7 +1583,14 @@ def city_steps(game) -> list[tuple[str, str]]:
 
 
 @command('take', 'Accept a contract.',
-         contexts=('city',), group='city', usage='take <id|row number>')
+         contexts=('city',), group='city', usage='take <id|row number>',
+         detail=(
+                'Accepts a contract and makes it yours until you finish it, '
+                'drop it, or it expires. One at a time. Rival runners take '
+                'what you leave on the board, so reading all five before '
+                'choosing has a price. `board <id>` first: it prints the '
+                'walk, the size, how the target\'s doors read against your '
+                'breaker, and how their networks are built.'))
 def cmd_take(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     if game.city.accepted:
@@ -1563,7 +1624,11 @@ def cmd_take(sess, args) -> None:
 
 
 @command('drop', 'Abandon the accepted contract.',
-         contexts=('city',), group='city', usage='drop')
+         contexts=('city',), group='city', usage='drop',
+         detail=(
+                'Gives back the contract you accepted. The patron notices. '
+                'Better than carrying a job you cannot do into a network that '
+                'will kill you for trying.'))
 def cmd_drop(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     contract = game.city.current
@@ -1735,7 +1800,14 @@ def _district_label(sess, key: str, walked: set, goal: str) -> str:
          usage='travel <district>',
          blocked='Your body is in a chair in the district you jacked in from, '
                  'and it is going to stay there until you are back in it.',
-         complete=lambda sess, prefix: list(districts.DISTRICT_KEYS))
+         complete=lambda sess, prefix: list(districts.DISTRICT_KEYS),
+         detail=(
+                'One shift to a neighbouring district, and prints what you '
+                'went through to get there. It refuses to walk you into a '
+                'district where somebody is paying to find you: `--anyway` '
+                'overrides that and means it. `walk <district>` crosses the '
+                'whole city a shift at a time and stops if the street stops '
+                'you.'))
 def cmd_travel(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     if not len(args):
@@ -1962,7 +2034,13 @@ def cmd_walk(sess, args) -> None:
 @command('rest', 'Lie low. Heals, cools heat, and passes time.',
          contexts=('city',), group='city', usage='rest [shifts]',
          blocked='Time in here is measured in ticks and the trace is spending '
-                 'them. `steady` is the closest thing to a breath you get.')
+                 'them. `steady` is the closest thing to a breath you get.',
+         detail=(
+                'Spends shifts doing nothing, which heals Integrity and cools '
+                'heat. A safehouse of your own doubles the healing; '
+                'Fieldcraft rank 2 adds to it again. Sleeping rough somewhere '
+                'a faction wants you is how people get found, and the street '
+                'knows where you sleep.'))
 def cmd_rest(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     shifts = max(1, min(12, args.int_at(0, 1, 'a number of shifts')))
@@ -2237,7 +2315,12 @@ def cmd_alias(sess, args) -> None:
 
 
 @command('burn', 'Abandon this identity and establish another.',
-         contexts=('city',), group='prep', usage='burn [name] [--confirm]')
+         contexts=('city',), group='prep', usage='burn [name] [--confirm]',
+         detail=(
+                'Abandons this identity and starts another. Heat and standing '
+                'both go with it: everything you built under the name and '
+                'everything anybody is holding against it. The last resort, '
+                'and sometimes the cheapest thing in the game.'))
 def cmd_burn(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     alias = game.alias
@@ -2265,7 +2348,13 @@ def cmd_burn(sess, args) -> None:
 
 
 @command('rep', 'How the city feels about you, in full.',
-         group='info', usage='rep')
+         group='info', usage='rep',
+         detail=(
+                'How the whole city feels about you: standing with each '
+                'faction, the heat on your current name, their security '
+                'posture, any arrangements you are paying for, and who has '
+                'warned you in the street. Standing buys prices, work and '
+                'back rooms; heat buys trouble.'))
 def cmd_rep(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     c.header('Standing', game.alias.name)

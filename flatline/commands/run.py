@@ -560,7 +560,16 @@ def _resolve(sess) -> None:
 
 
 @command('scan', 'Look at what this node is connected to.',
-         group='recon', contexts=('run',), ticks=1, usage='scan [--quiet]')
+         group='recon', contexts=('run',), ticks=1, usage='scan [--quiet]',
+         detail=(
+                'One tick, and the first noise you make. It marks every host '
+                'within reach of the one you are standing on: type only, '
+                'never contents. Reach is one hop, plus one for every two '
+                'ranks of Architecture, plus a third of your hunter program\'s '
+                'rating. `scan --quiet` reaches for your quietest hunter '
+                'instead of your best and costs an extra tick for a fraction '
+                'of the noise, which is usually the better trade in a room '
+                'that has already noticed you.'))
 def cmd_scan(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     depth = 1 + state.char.bonus('scan_depth')
@@ -625,7 +634,15 @@ def cmd_scan(sess, args) -> None:
 
 @command('probe', 'Enumerate a node: services, data, and what is watching.',
          group='recon', contexts=('run',), ticks=1, usage='probe [host]',
-         complete=lambda sess, prefix: _known_hosts(sess))
+         complete=lambda sess, prefix: _known_hosts(sess),
+         detail=(
+                'Enumerates one host you have found: what services it runs '
+                'and how hard they are, what data is on it, and what is '
+                'watching it. A loaded Auspex, or an ex-enforcement eye, '
+                'identifies the countermeasures by name rather than as '
+                'something unidentified, which is the difference between '
+                'knowing a Coffin is there and finding out. Cheap, and the '
+                'thing new players skip.'))
 def cmd_probe(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     uid = args.get(0) or state.here
@@ -802,7 +819,15 @@ def cmd_here(sess, args) -> None:
 @command('connect', 'Move to an adjacent node you have opened.',
          group='access', contexts=('run',), aliases=('cd',), ticks=1,
          usage='connect <host> [--ghost] [--present]',
-         complete=lambda sess, prefix: _known_hosts(sess))
+         complete=lambda sess, prefix: _known_hosts(sess),
+         detail=(
+                'Move to a host you have opened. One tick and a little noise. '
+                '`connect --ghost` at Stealth 2 makes no noise at all and '
+                'costs an extra tick, which is the trade the whole stealth '
+                'line is built on. A warden standing on the far side is '
+                'answered here with `--present` if it takes credentials, and '
+                'otherwise there is another way in and `map` will show you '
+                'where.'))
 def cmd_connect(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     uid = args.require(0, 'a host to connect to')
@@ -1210,7 +1235,15 @@ def decrypt_check(state) -> Check:
 
 @command('pull', 'Take data out.',
          group='action', contexts=('run',), ticks=2,
-         usage='pull [asset|--all] [--sealed]')
+         usage='pull [asset|--all] [--sealed]',
+         detail=(
+                'Takes data out through the payload you have loaded, two '
+                'ticks a record. An encrypted one needs a Cryptography check '
+                'first; if that cannot land, `pull <asset> --sealed` takes it '
+                'shut for two fifths of what it is worth, and a sealed '
+                'objective pays the patron\'s fee at a discount rather than '
+                'not at all. `pull --all` empties the node. The haul sells '
+                'afterwards through whoever hired you.'))
 def cmd_pull(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     node = state.node
@@ -1292,7 +1325,14 @@ def cmd_pull(sess, args) -> None:
 
 
 @command('push', 'Leave something behind: an implant or an edit.',
-         group='action', contexts=('run',), ticks=2, usage='push [asset]')
+         group='action', contexts=('run',), ticks=2, usage='push [asset]',
+         detail=(
+                'Leaves something behind: an implant that will still be there '
+                'next quarter, or an edit that has always said this. Two '
+                'ticks, a payload, and a check that reads Intrusion for an '
+                'implant and Sabotage for a corruption. It has to happen on '
+                'the host the contract named, and the brief will tell you '
+                'which that is.'))
 def cmd_push(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     node = state.node
@@ -1325,7 +1365,14 @@ def cmd_push(sess, args) -> None:
 
 
 @command('wipe', 'Destroy an asset.',
-         group='action', contexts=('run',), ticks=2, usage='wipe [asset]')
+         group='action', contexts=('run',), ticks=2, usage='wipe [asset]',
+         detail=(
+                'Destroys a record. Two ticks, a Sabotage check, and it '
+                'spends the payload the contract demanded at the door. A '
+                'failure leaves the delete in the log and the thing it was '
+                'meant to delete still there, which is the worst of both. Do '
+                'not `pull` the record you were paid to destroy: taking it '
+                'puts it somewhere `wipe` cannot reach.'))
 def cmd_wipe(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     node = state.node
@@ -1904,7 +1951,13 @@ def cmd_focus(sess, args) -> None:
 
 
 @command('status', 'Where you stand.',
-         group='info', usage='status')
+         group='info', usage='status',
+         detail=(
+                'Where the run stands: the trace as a bar and as a rate, the '
+                'noise on this host, the tick, the alert, tonight\'s '
+                'condition, what you have banked in free actions, your '
+                'Integrity and Focus, the residue you are carrying and the '
+                'haul. It costs nothing and it is always safe to ask.'))
 def cmd_status(sess, args) -> None:
     c = sess.console
     if sess.run is None:

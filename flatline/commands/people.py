@@ -372,7 +372,12 @@ def cmd_news(sess, args) -> None:
 
 
 @command('talk', 'Say something to somebody.',
-         group='city', contexts=('city',), usage='talk <name>')
+         group='city', contexts=('city',), usage='talk <name>',
+         detail=(
+                'Says something to somebody who is here. People keep hours '
+                'and are not always about. They have topics they will talk '
+                'about, and somebody standing in a district where something '
+                'can be found will tell you what they have heard, once.'))
 def cmd_talk(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     npc = _find(sess, args.rest())
@@ -798,7 +803,12 @@ def _do_favour(sess, fav) -> tuple[bool, str]:
 
 
 @command('journal', 'What you have got yourself into.',
-         group='info', aliases=('threads',), usage='journal [name]')
+         group='info', aliases=('threads',), usage='journal [name]',
+         detail=(
+                'Everything you have got yourself into, as a log: what is '
+                'waiting on a decision, what you decided and what it cost, '
+                'and which threads are still open. The flags are the story '
+                'layer, and this is them, read back.'))
 def cmd_journal(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     story = game.story
@@ -901,7 +911,11 @@ def _cost_of(choice) -> str:
 
 
 @command('choose', 'Decide the thing that is waiting on you.',
-         group='city', contexts=('city',), usage='choose [option]')
+         group='city', contexts=('city',), usage='choose [option]',
+         detail=(
+                'Answers the thing that is waiting on you. There is no going '
+                'back on one, the whole city reads them afterwards, and the '
+                'ending reads all of them.'))
 def cmd_choose(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     found = game.story.open_choice()

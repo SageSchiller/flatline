@@ -8,6 +8,7 @@ stays true.
 from __future__ import annotations
 
 import pathlib
+import re
 
 from .. import save as save_mod
 from ..config import APP_TITLE
@@ -170,9 +171,9 @@ def _help_topic(sess, topic) -> None:
             # Lines that are already laid out as a table keep their spacing;
             # prose gets wrapped.
             if line.startswith('  '):
-                c.raw(line)
+                c.raw(_colour_nouns(line))
             else:
-                c.say(line)
+                c.say(_colour_nouns(line))
         c.blank()
     if topic.commands:
         c.say('[dim]Commands: '
@@ -181,6 +182,36 @@ def _help_topic(sess, topic) -> None:
         c.say('[dim]See also: ' + ', '.join(
             f'`help {"--topic " if REGISTRY.lookup(k) else ""}{k}`'
             for k in topic.see) + '[/]')
+
+
+#: The nouns that have a colour everywhere else in the game and had one
+#: almost nowhere in the manual (D68). Coloured at render time rather than
+#: in the prose, so a page written today is consistent with one written in
+#: March, and only outside existing markup, so nothing nests by accident.
+NOUN_ROLES = {
+    'trace': 'trace', 'noise': 'noise', 'residue': 'residue',
+    'heat': 'heat', 'credits': 'credit', 'dissonance': 'accent2',
+}
+_NOUNS = re.compile(r'\b(' + '|'.join(NOUN_ROLES) + r')\b', re.IGNORECASE)
+
+
+def _colour_nouns(text: str) -> str:
+    """Wrap the game's own nouns in the game's own colours, outside tags."""
+    out, depth, i = [], 0, 0
+    for m in re.finditer(r'\[[^\]]*\]', text):
+        chunk = text[i:m.start()]
+        out.append(_NOUNS.sub(
+            lambda w: f'[{NOUN_ROLES[w.group(1).lower()]}]{w.group(1)}[/]',
+            chunk) if depth == 0 else chunk)
+        tag = m.group(0)
+        out.append(tag)
+        depth += -1 if tag == '[/]' else 1
+        i = m.end()
+    tail = text[i:]
+    out.append(_NOUNS.sub(
+        lambda w: f'[{NOUN_ROLES[w.group(1).lower()]}]{w.group(1)}[/]',
+        tail) if depth == 0 else tail)
+    return ''.join(out)
 
 
 #: The longest a leading `[warn]...[/]` can be and still be a heading
