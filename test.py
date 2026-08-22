@@ -8050,12 +8050,12 @@ def test_soak() -> None:
                       flags=game.story.flags)
     T.ok(game.char.credits < credits, 'the number comes round')
     game.char.credits = 0
-    heat = game.alias.attention('kagawa')
-    game.city.advance(game.rng, game.alias, city_world.ARRANGE_EVERY, char=game.char,
-                      satisfied=lambda r: game.story.satisfied(r, game),
-                      flags=game.story.flags)
+    told = game.city.advance(game.rng, game.alias, city_world.ARRANGE_EVERY,
+                             char=game.char,
+                             satisfied=lambda r: game.story.satisfied(r, game),
+                             flags=game.story.flags)
     T.ok('kagawa' not in game.city.arrangements, 'a missed payment ends it')
-    T.ok(any('could not pay' in line for line in game.city.news[-12:]),
+    T.ok(any('could not pay' in line for line in told),
          'and they say so, and remember')
     sess, out = play(['rep'], game=game)
     T.ok('Warned' not in ui.plain(out) or True, 'rep prints')

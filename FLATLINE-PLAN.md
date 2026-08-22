@@ -1895,6 +1895,15 @@ way. `now` carries the package; the wire remembers it.
 
 `help street`; the death topic's ladder has the street on it.
 
+**Arrangements.** `arrange <faction>`: pay a faction to have their people
+told. While it stands their streets are twenty-five easier, the people who
+stop you lean rather than take (tier capped at two), and the number (base
+300c plus six per point of heat and ten per point of bounty) comes round
+every six shifts from the account; a payment you cannot make ends it with
+heat, because they remember who ended it; past a bounty of sixty there is
+no arrangement, because they want the number. `rep` lists what stands and
+who has warned you.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -3119,3 +3128,10 @@ press in a doorway when it fails). An errands counter in the meta layer. A
 soak test that does what `now` says for sixty commands across fourteen
 seeds and four origins, answering the street when it stops them, and must
 never crash. `test.py` green at **14,956 checks**.
+
+### 2026-08-21 (w): paying the street
+
+Standing arrangements with factions (`arrange`): a money sink that is a
+real decision against heat and bounties, collected on the shift tick,
+easing `arrival_risk` and capping the encounter tier. `now` says rest when
+you are hurt. `test.py` green at **14,970 checks**.
