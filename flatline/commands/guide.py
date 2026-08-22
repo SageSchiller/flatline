@@ -162,7 +162,7 @@ def _now_city(sess):
     else:
         steps.extend(city_cmds.city_steps(game)[:2])
         also = ['job', 'map', 'deck', 'market', 'errands', 'look', 'help']
-    if char.runs == 0 and (char.points or char.xp):
+    if char.runs == 0 and (char.points or char.xp) and suggest(char):
         steps.append(('spend', f'{char.points} attribute point'
                                f'{"s" if char.points != 1 else ""} and '
                                f'{char.xp} experience are unspent. This '
@@ -588,6 +588,22 @@ def suggest(char) -> list[tuple[str, str]]:
         if not options:
             break
         best = min(options, key=lambda s: (ranks[s.key],
+                                           -weights.get(s.attr, 0),
+                                           skill_content.SKILLS.index(s)))
+        train(best.key)
+
+    # And whatever is still affordable anywhere, cheapest first. Without
+    # this a character with four experience and nothing cheap inside the
+    # origin's shape got an empty plan, `spend` refused it, and `now` went
+    # on recommending `spend`: an advice loop with a refusal at the end of
+    # it. A plan that reaches outside the shape is worse advice than one
+    # inside it and better advice than none.
+    while True:
+        options = [s for s in skill_content.SKILLS
+                   if price(s.key) is not None and price(s.key) <= xp]
+        if not options:
+            break
+        best = min(options, key=lambda s: (price(s.key), ranks[s.key],
                                            -weights.get(s.attr, 0),
                                            skill_content.SKILLS.index(s)))
         train(best.key)

@@ -8101,12 +8101,79 @@ def test_soak() -> None:
          f'all four kinds of errand turn up ({sorted(kinds)})')
 
 
+
+def test_advice() -> None:
+    """D64 (c): what `now` says is always something the game will accept.
+
+    Every dead end here was found by making a character do exactly what the
+    advice said until it stopped getting anywhere."""
+    T.section('the advice never loops')
+    from flatline.commands import city as city_cmd
+    from flatline.commands import guide
+    from flatline.world import fallout as fallout_world
+
+    # A plan exists whenever experience can buy anything at all.
+    for origin in origins.ORIGIN_KEYS:
+        char = Character.from_origin(origin, 'a')
+        char.points = 0
+        for ranks in (0, 1, 2):
+            char.base_skills = {k: ranks for k in skills.SKILL_KEYS}
+            cheapest = skills.RANK_COST.get(ranks + 1)
+            for xp in (2, 4, 7, 12, 16):
+                char.xp = xp
+                plan = guide.suggest(char)
+                T.ok(plan or cheapest is None or xp < cheapest,
+                     f'{origin}: {xp} experience with everything at {ranks} '
+                     f'has a plan (next rank costs {cheapest})')
+
+    # The advice never names a travel the street will refuse.
+    hunted = 0
+    for seed in range(14):
+        game = Game.new(Character.from_origin('gutter', 'a'), seed=seed)
+        contract = game.city.board[0]
+        game.city.accepted = contract.cid
+        contract.taken = True
+        game.char.credits = 20000
+        game.alias.add_heat(contract.target, 90)
+        for key in list(districts.DISTRICT_KEYS):
+            game.alias.add_heat(districts.BY_KEY[key].controller, 90)
+        game.city.bounties = {d.controller: 60 for d in districts.DISTRICTS}
+        steps = city_cmd.city_steps(game)
+        for cmd, _why in steps:
+            head = cmd.split(';')[0].strip()
+            if head.startswith(('travel', 'walk')):
+                target = head.split()[-1]
+                danger, _who = game.city.danger(game.alias, target,
+                                                flags=game.story.flags)
+                T.ok(danger < fallout_world.INCIDENT_FLOOR,
+                     f'seed {seed}: advice sends you into {target} at danger '
+                     f'{danger}')
+            if head.startswith(('rest', 'arrange')):
+                hunted += 1
+    T.ok(hunted > 0, 'a hunted runner is told to lie low or to pay')
+
+    # And every command it names is a real one the shell knows.
+    for seed in range(10):
+        game = Game.new(Character.from_origin('courier', 'a'), seed=seed)
+        for accepted in (False, True):
+            if accepted and game.city.board:
+                game.city.accepted = game.city.board[0].cid
+                game.city.board[0].taken = True
+            for cmd, why in city_cmd.city_steps(game):
+                words = cmd.split(';')[0].strip().split()
+                known = (REGISTRY.lookup(words[0]) is not None
+                         or (len(words) > 1 and
+                             REGISTRY.lookup(' '.join(words[:2])) is not None))
+                T.ok(known, f'{cmd!r} starts with a real command')
+                T.ok(bool(why), f'{cmd!r} says why')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
     test_intrusion, test_catalogue, test_money, test_relics, test_street,
-    test_soak,
+    test_soak, test_advice,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,

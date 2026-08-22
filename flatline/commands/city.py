@@ -1225,11 +1225,18 @@ def city_steps(game) -> list[tuple[str, str]]:
     # twelve experience fails every check in the network they just walked
     # to, and nothing tells them why.
     if game.char.points or game.char.xp >= 4:
-        steps.append(('spend',
-                      f'{game.char.points} attribute point'
-                      f'{"s" if game.char.points != 1 else ""} and '
-                      f'{game.char.xp} experience unspent: every check in '
-                      f'there reads them'))
+        from .guide import suggest
+        if suggest(game.char):
+            steps.append(('spend',
+                          f'{game.char.points} attribute point'
+                          f'{"s" if game.char.points != 1 else ""} and '
+                          f'{game.char.xp} experience unspent: every check in '
+                          f'there reads them'))
+        elif game.char.xp >= 2:
+            steps.append(('train',
+                          f'{game.char.xp} experience unspent, and nothing '
+                          f'the origin\'s shape suggests: `train` lists what '
+                          f'a rank costs'))
     # Hurt is a step before any job (D65): the street hits harder when you
     # are, and a run starts with what you carry in.
     char = game.char
@@ -1364,7 +1371,43 @@ def city_steps(game) -> list[tuple[str, str]]:
     where = districts.BY_KEY[contract.district]
     hops = game.city.shifts_to(contract.district)
     if hops:
-        steps.append((game.city.walk_to(contract.district),
+        # The walk, unless the walk is a refusal. `travel` will not take you
+        # somewhere a faction is paying to find you, and advice that names a
+        # command the game is about to refuse is the one thing advice must
+        # never do: `now` said `travel` and the street said no, for ever.
+        route = game.city.walk_to(contract.district)
+        # Every hop, not the first: `walk` is one command and several
+        # streets, and it stops at the first one that is hunting you.
+        blocked, first = '', ''
+        riders = game.char.riders()
+        for hop in game.city.route(contract.district):
+            danger, who = game.city.danger(game.alias, hop,
+                                           flags=game.story.flags)
+            if 'streetwise' in riders:
+                danger = int(danger * 0.6)
+            if 'findable' in riders:
+                danger = int(danger * 1.3)
+            if danger >= fallout.INCIDENT_FLOOR:
+                blocked, first = who, hop
+                break
+        if blocked:
+            fac = factions.BY_KEY[blocked]
+            if (blocked not in game.city.arrangements
+                    and game.char.credits >= _arrange_rate(game, blocked)
+                    and blocked in (districts.BY_KEY[first].controller,
+                                    *districts.BY_KEY[first].presence)):
+                steps.append((f'arrange {blocked}',
+                              f'{fac.short} are paying to find you in '
+                              f'{districts.BY_KEY[first].name} and the walk '
+                              f'goes through it: an arrangement makes their '
+                              f'streets passable'))
+            steps.append(('rest 3',
+                          f'{fac.short} are hunting you on the way there. '
+                          f'Heat cools while you lie low; `burn` ends the '
+                          f'name instead, and `{route} --anyway` goes '
+                          f'through them'))
+            return steps
+        steps.append((route,
                       f'the job is in {where.name}, {hops} shift'
                       f'{"s" if hops != 1 else ""} away'))
         steps.append(('jack in', 'once you are there'))
