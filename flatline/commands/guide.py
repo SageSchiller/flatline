@@ -162,7 +162,11 @@ def _now_city(sess):
     else:
         steps.extend(city_cmds.city_steps(game)[:2])
         also = ['job', 'map', 'deck', 'market', 'errands', 'look', 'help']
-    if char.runs == 0 and (char.points or char.xp) and suggest(char):
+    # `city_steps` opens with the same advice when the budget is unspent,
+    # and a list that says `spend` twice reads as two different things to
+    # do rather than one said twice.
+    if (char.runs == 0 and (char.points or char.xp) and suggest(char)
+            and not any(cmd == 'spend' for cmd, _ in steps)):
         steps.append(('spend', f'{char.points} attribute point'
                                f'{"s" if char.points != 1 else ""} and '
                                f'{char.xp} experience are unspent. This '
