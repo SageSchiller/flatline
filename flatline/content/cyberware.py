@@ -84,7 +84,9 @@ WARE: tuple[Ware, ...] = (
          'sure which way round it went.',
          effects={'reflex': 1},
          drawback='It misfires under load. Any tick in which you take three or '
-                  'more actions has a chance of dropping one of them.',
+                  'more actions has about a one-in-three chance of dropping '
+                  'one of them: the free action is spent and the tick is '
+                  'charged anyway.',
          penalty={},
          rider='misfire'),
     Ware('deep_jack', 'Sendai Deepjack', 'Sendai Interface',
@@ -137,7 +139,8 @@ WARE: tuple[Ware, ...] = (
          penalty={'pretext_bonus': -3}),
     Ware('threadpuller', 'Kohler-Reyes Threadpuller', 'Kohler-Reyes',
          'cortex', 3, 13, 8900, 3,
-         'Run two programs against one target at once. The classic '
+         'Run two programs against one target at once: your second-best '
+         'breaker rides every crack at its full rating. The classic '
          'multithreading implant and still the loudest thing on the market.',
          effects={},
          drawback='Both threads announce themselves. Everything you do through '

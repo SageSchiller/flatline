@@ -68,7 +68,7 @@ STEPS: tuple[Step, ...] = (
         'Type `char` to read the build.',
         'Five attributes, and four numbers derived from them. Bandwidth is '
         'how much chrome fits in you, Focus is precision actions per run, '
-        'Tempo is actions per tick, and Integrity is how much damage you '
+        'Tempo banks free actions as you work, and Integrity is how much damage you '
         'absorb before a run ends badly.',
         done=lambda s: bool(_char(s)) and 'char' in getattr(s, 'seen', set()),
         payoff='Those numbers are what every check in the game is built on.',

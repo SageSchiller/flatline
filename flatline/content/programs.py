@@ -45,8 +45,13 @@ class Program:
     tier: int            # 1 street, 2 professional, 3 restricted
     blurb: str
     effects: dict = field(default_factory=dict)
-    #: Terse mechanical text. Shown in `load` listings where space is tight.
+    #: Terse mechanical text. Shown by `load` and `inspect`.
     note: str = ''
+    #: Payloads only: the objectives this one is built for (D63). Any payload
+    #: will do any job, badly: one that is not built for the objective takes
+    #: a penalty on the check and drags on the pull, and `jack in` says so at
+    #: the door. Empty for every other category.
+    jobs: tuple[str, ...] = ()
 
 
 PROGRAMS: tuple[Program, ...] = (
@@ -151,14 +156,17 @@ PROGRAMS: tuple[Program, ...] = (
     Program('siphon', 'Siphon', 'payload', 2, 3, 0.9, 1300, 1,
             'Pulls data out through the connection you already have. Slower '
             'than a bulk copy, and it does not need a bulk copy\'s privileges.',
-            note='Required for most exfiltration contracts.'),
+            note='Built for exfiltration. Anything else, it does badly.',
+            jobs=('exfiltrate',)),
     Program('rootcap', 'Rootcap', 'payload', 3, 4, 1.5, 4400, 2,
             'Leaves something behind that will still be there next quarter.',
-            note='Required for implant contracts. High residue.'),
+            note='Built for implants. Loud, and it drags on a pull.',
+            jobs=('implant',)),
     Program('revision', 'Revision', 'payload', 3, 5, 1.25, 5900, 3,
             'Edits a record so that it has always said this.',
             effects={'residue_mult': 0.8},
-            note='Required for corruption contracts.'),
+            note='Built for corruption. Quiet on the way out.',
+            jobs=('corrupt',)),
 
     # -- wipers ------------------------------------------------------------
     Program('housekeeper', 'Housekeeper', 'wiper', 2, 3, 0.9, 1700, 1,
@@ -263,7 +271,8 @@ PROGRAMS: tuple[Program, ...] = (
             'Starts a small fault that becomes a large one somewhere nobody '
             'is watching. Sabotage gear, and it does not need you present '
             'for the interesting part.',
-            note='Satisfies wipe contracts. Extremely loud.'),
+            note='Built for wipes. Extremely loud.',
+            jobs=('wipe',)),
     Program('bellwether', 'Bellwether', 'armour', 2, 4, 0.0, 4600, 2,
             'Rings before anything reaches you. It does not stop the hit, it '
             'stops the hit being a surprise.',

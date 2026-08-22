@@ -2219,7 +2219,7 @@ def test_scripting() -> None:
     T.ok(sess.run is not None, 'the run started')
 
     sess.scripts['t'] = script_mod.Script(
-        name='t', lines=['scan', 'stop if trace > 0', 'pull --all'])
+        name='t', lines=['scan', 'stop if noise > 0', 'pull --all'])
     sess.console.start_capture()
     sess.run_script('t')
     out = sess.console.end_capture()
@@ -4222,11 +4222,14 @@ def test_brief() -> None:
                 # meant to work: nothing reveals a warden except trying the
                 # door, and trying it costs nothing precisely so that finding
                 # out is free. Two in a row is the advice not learning.
-                before = sess.run.tick
+                # D63: a free action (Tempo, a banked tick) moves the
+                # action counter and not the clock, so the counter is the
+                # signal, and a refusal is the one thing that moves neither.
+                before = sess.run.actions
                 console.start_capture()
                 sess.execute(step)
                 said = ui.plain(console.end_capture())
-                spent = sess.run is None or sess.run.tick > before
+                spent = sess.run is None or sess.run.actions > before
                 if not spent and step == stuck_on:
                     T.failures.append(
                         f'brief: {objective} advised `{step}` twice running '
@@ -6721,10 +6724,343 @@ def test_polish() -> None:
     T.ok('The Hole' in out, 'and the screen says so')
 
 
+
+# --------------------------------------------------------------------------
+# every number reads (D63)
+# --------------------------------------------------------------------------
+
+
+def test_reads() -> None:
+    """D63: every declared modifier and rider has a reader, and the reader
+    does what the declaration says."""
+    T.section('every number reads')
+    from flatline.run import session as session_mod
+    from flatline.commands import run as run_cmd
+
+    # The deck budget hears chrome, bench work, and nothing that is loaded.
+    char = Character.from_origin('gutter', 'x')
+    base = char.deck.memory
+    char.installed.append('blacksite_stack')
+    char.refresh_deck()
+    T.eq(char.deck.memory, base + 3, 'a Blacksite Stack is three memory')
+    char.deck.mods[char.deck.parts['memory']] = ['widened']
+    T.eq(char.deck.memory, base + 5, 'widened is two more')
+    char.installed.append('coolant_mesh')
+    cap = char.deck.heat_cap
+    char.refresh_deck()
+    T.eq(char.deck.heat_cap, cap + 4, 'a Coolant Mesh is four heat cap')
+    char.deck.loaded = []
+    T.eq(char.deck.memory, base + 5, 'programs never change the budget')
+    fresh = Character.from_dict(char.to_dict())
+    T.eq(fresh.deck.memory, base + 5, 'the budget is right straight from a save')
+
+    def run_for(char, seed=11, faction='sixes', posture=30):
+        net = net_mod.generate(Rng(seed).fork('network', 'r'), faction, posture)
+        console = quiet_console()
+        console.start_capture()
+        state = RunState.begin(net, char, Rng(seed)('combat'), console)
+        return state, console
+
+    # The tick bank: a multiplier is worth exactly what it says, over time.
+    char = Character.from_origin('gutter', 'x')
+    state, console = run_for(char)
+    state.drag = 0.5
+    state.advance(1)
+    t1 = state.tick
+    state.advance(1)
+    T.eq(state.tick, t1, 'at half cost the second tick is free')
+    T.ok('cost nothing' in ui.plain(console.end_capture()),
+         'and it says so')
+    console.start_capture()
+    state.drag = 2.0 / state.char.mult('tick_mult')
+    state.tick_bank = 0.0
+    t2 = state.tick
+    state.advance(1)
+    T.eq(state.tick, t2 + 2, 'at double cost a tick owes a tick')
+    console.end_capture()
+
+    # Tempo banks free actions, and the bank pays for a verb.
+    char = Character.from_origin('courier', 'x')  # reflex-heavy
+    char.base_attrs['reflex'] = 8
+    T.eq(char.tempo, 3, 'reflex 8 is tempo 3')
+    game = Game.new(char, seed=4411)
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    sess, _ = play([f'take {contract.cid}', 'jack in --force'], game=game)
+    T.ok(sess.run is not None, 'the run started')
+    sess.run.tempo_bank = 1.0
+    tick = sess.run.tick
+    sess.console.start_capture()
+    sess.execute('scan')
+    out = ui.plain(sess.console.end_capture())
+    T.eq(sess.run.tick, tick, 'a banked action costs no tick')
+    T.ok('Tempo' in out, 'and the line says Tempo')
+    T.ok(sess.run.actions > 0, 'the action counter moved even so')
+    sess.run.tempo_bank = 0.0
+    sess.execute('scan')
+    T.ok(sess.run.tempo_bank > 0, 'spending a tick banks tempo')
+    sess.console.start_capture()
+    sess.execute('status')
+    T.ok('banked' in ui.plain(sess.console.end_capture()),
+         'status has a banked row')
+
+    # Evade: a lock-on is a printed check, and gear moves it.
+    char = Character.from_origin('gutter', 'x')
+    char.base_attrs['reflex'] = 9
+    char.base_skills['stealth'] = 5
+    state, console = run_for(char)
+    hunter = net_mod.IceInstance(uid='k-1', key='kestrel', rating=1)
+    hunter.state = 'awake'
+    hunter.telegraphed = True
+    state.node.ice.append(hunter)
+    state._strike(hunter)
+    out = ui.plain(console.end_capture())
+    T.ok('closes on where you were' in out,
+         'reflex 9 and stealth 5 slip a rating-1 lock-on')
+    T.ok(hunter not in state.locked, 'and it is not locked on')
+    console.start_capture()
+    char.base_attrs['reflex'] = 1
+    char.base_skills['stealth'] = 0
+    big = net_mod.IceInstance(uid='k-2', key='kestrel', rating=8)
+    big.state = 'awake'
+    big.telegraphed = True
+    state.node.ice.append(big)
+    state._strike(big)
+    out = ui.plain(console.end_capture())
+    T.ok(big in state.locked, 'a rating-8 hunter against reflex 1 has you')
+    T.ok('impossible' in out or 'slip' in out or '%' in out,
+         'the odds were printed')
+
+    # heat_mult and rep_mult land where the residue and the rep land.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=77)
+    contract = game.city.board[0]
+    summary = {'faction': contract.target, 'residue': 10, 'outcome': 'clean',
+               'objective': True, 'alert': 'green', 'haul_value': 0,
+               'ticks': 10, 'haul': [], 'posture': 30}
+    before = len(game.city.pending)
+    game.city.apply_run(game.alias, dict(summary), game.rng, 0, heat_mult=1.0)
+    plain = [p.heat for p in game.city.pending[before:]]
+    game.city.apply_run(game.alias, dict(summary), game.rng, 0, heat_mult=2.0)
+    doubled = [p.heat for p in game.city.pending[before + len(plain):]]
+    T.ok(plain and doubled and max(doubled) > max(plain) * 1.8,
+         f'heat_mult doubles the heat in flight ({max(plain or [0]):.1f} -> '
+         f'{max(doubled or [0]):.1f})')
+    rep0 = game.alias.reputation(contract.patron)
+    game.city.pay_out(game.alias, contract, summary, 1.0, 0, rep_mult=1.0)
+    rep1 = game.alias.reputation(contract.patron)
+    game.city.pay_out(game.alias, contract, summary, 1.0, 0, rep_mult=2.0)
+    rep2 = game.alias.reputation(contract.patron)
+    T.ok((rep2 - rep1) > (rep1 - rep0), 'rep_mult earns more standing')
+
+    # The dissociated rider: a Static Line high puts the hit on the deck.
+    from flatline.content import drugs as drug_content
+    char = Character.from_origin('gutter', 'x')
+    char.chem = drug_content.dose({}, 'static_line')
+    T.ok('dissociated' in char.riders(), 'the high carries the rider')
+    state, console = run_for(char)
+    hurt = state.hurt
+    state.take_damage(6, black=True, source='test')
+    T.eq(state.hurt, hurt, 'black feedback did not reach the body')
+    T.ok(any(state.char.deck.damage.values()), 'it landed on the deck')
+    console.end_capture()
+
+    # Deadman Grip: the run ends, you do not.
+    char = Character.from_origin('gutter', 'x')
+    char.installed.append('deadman_grip')
+    state, console = run_for(char)
+    most = int(char.integrity_max * 0.7)
+    state.take_damage(most, black=True, source='test')
+    T.eq(state.outcome, 'severed', 'the grip cut the connection')
+    T.ok('grip cuts you out' in ui.plain(console.end_capture()),
+         'and said so')
+
+    # Threadpuller: the second breaker rides along.
+    char = Character.from_origin('gutter', 'x')
+    char.installed.append('threadpuller')
+    char.deck.loaded = ['crowbar', 'crowbar']
+    state, console = run_for(char)
+    node = next(n for n in state.net.nodes.values() if n.services)
+    svc = node.services[0]
+    check = session_mod.crack_check(state, node, svc, programs.BY_KEY['crowbar'])
+    T.ok(any('second thread' in t.label for t in check.terms),
+         'dual thread adds the second breaker')
+    console.end_capture()
+
+    # Nightwatch serial: staff until somebody checks the list.
+    char = Character.from_origin('gutter', 'x')
+    char.installed.append('threat_overlay')
+    state, console = run_for(char, faction='nightwatch', posture=40)
+    T.eq(state.tier, 1, 'the serial opens a tier on a Nightwatch network')
+    sentry = net_mod.IceInstance(uid='w-1', key='watchman', rating=2)
+    sentry.state = 'awake'
+    sentry.telegraphed = True
+    state.node.ice.append(sentry)
+    state._strike(sentry)
+    T.eq(state.tier, 0, 'the first filing checks the list and takes it back')
+    T.ok('returned-equipment list' in ui.plain(console.end_capture()),
+         'and says so')
+
+    # A construct acting is a noise; an Auditor awake multiplies residue.
+    char = Character.from_origin('gutter', 'x')
+    state, console = run_for(char)
+    auditor = net_mod.IceInstance(uid='a-1', key='auditor', rating=3)
+    state.node.ice.append(auditor)
+    plain = state.leave_residue(10)
+    auditor.state = 'awake'
+    loud = state.leave_residue(10)
+    T.ok(loud > plain, f'an awake Auditor files more ({plain} -> {loud})')
+    auditor.telegraphed = True
+    noise = state.node.noise
+    state._strike(auditor)
+    T.ok(state.node.noise > noise, 'a strike is itself a noise on the host')
+    console.end_capture()
+
+    # Misfire: the third action in a tick can drop.
+    keep = session_mod.MISFIRE_CHANCE
+    session_mod.MISFIRE_CHANCE = 1.0
+    try:
+        char = Character.from_origin('gutter', 'x')  # has the reflex loop
+        T.ok('misfire' in char.riders(), 'the gutter runner carries the loop')
+        game = Game.new(char, seed=9191)
+        contract = game.city.board[0]
+        game.city.where = contract.district
+        sess, _ = play([f'take {contract.cid}', 'jack in --force'], game=game)
+        sess.run.acted_this_tick = 2
+        sess.run.tempo_bank = 1.0
+        tick = sess.run.tick
+        sess.console.start_capture()
+        sess.execute('scan')
+        out = ui.plain(sess.console.end_capture())
+        T.ok('misfires' in out, 'the loop misfired on the third action')
+        T.ok(sess.run is None or sess.run.tick > tick,
+             'and the tick was charged anyway')
+    finally:
+        session_mod.MISFIRE_CHANCE = keep
+
+    # Architecture reaches further.
+    def known_after_scan(arch: int, seed: int = 31) -> int:
+        char = Character.from_origin('academic', 'x')
+        char.base_skills['architecture'] = arch
+        char.deck.loaded = []
+        game = Game.new(char, seed=seed)
+        contract = max(game.city.board, key=lambda c: c.posture)
+        game.city.where = contract.district
+        sess, _ = play([f'take {contract.cid}', 'jack in --force', 'scan'],
+                       game=game)
+        return sum(1 for n in sess.run.net.nodes.values() if n.known)
+    T.ok(known_after_scan(4) >= known_after_scan(0),
+         'architecture 4 sees at least as much from the door')
+    T.ok(any(known_after_scan(4, s) > known_after_scan(0, s)
+             for s in (31, 32, 33, 34, 35)),
+         'and more, on some network')
+
+    # Wipe is a check; corrupt is sabotage; the wrong payload is improvised.
+    char = Character.from_origin('academic', 'x')
+    char.base_skills['sabotage'] = 2
+    char.base_skills['intrusion'] = 2
+    state, console = run_for(char)
+    pc = run_cmd.push_check(state, 'corrupt', programs.BY_KEY['revision'])
+    T.ok(any(t.label == 'sabotage' for t in pc.terms), 'corrupt reads Sabotage')
+    pi = run_cmd.push_check(state, 'implant', programs.BY_KEY['rootcap'])
+    T.ok(any(t.label == 'intrusion' for t in pi.terms), 'implant reads Intrusion')
+    T.ok(any('not built' in t.label
+             for t in run_cmd.push_check(state, 'implant',
+                                         programs.BY_KEY['siphon']).terms),
+         'a Siphon on an implant is improvised')
+    wc = run_cmd.wipe_check(state, programs.BY_KEY['kindling'])
+    T.ok(any(t.label == 'sabotage' for t in wc.terms), 'wipe reads Sabotage')
+    T.ok(any(t.label == 'Kindling' for t in wc.terms), 'and spends the payload')
+    T.ok(any('no payload' in t.label
+             for t in run_cmd.wipe_check(state, None).terms),
+         'and says when there is none')
+    console.end_capture()
+
+    # Impersonate: everything that checks reasons lets you be.
+    char = Character.from_origin('gutter', 'x')
+    state, console = run_for(char)
+    state.impersonating = 3
+    sentry = net_mod.IceInstance(uid='w-2', key='watchman', rating=2)
+    sentry.state = 'awake'
+    sentry.telegraphed = True
+    state.node.ice.append(sentry)
+    alert = state.alert
+    state._ice_tick()
+    T.eq(state.alert, alert, 'an awake sentry does nothing while you impersonate')
+    state.impersonating = 0
+    state._ice_tick()
+    T.ok(state.alert != alert, 'and files the moment you stop')
+    console.end_capture()
+
+    # tell_lead holds the strike back a tick; black ICE says what it is.
+    char = Character.from_origin('gutter', 'x')
+    char.installed.append('threat_overlay')  # tell_lead 1
+    state, console = run_for(char)
+    black = net_mod.IceInstance(uid='c-1', key='coffin', rating=6)
+    black.state = 'awake'
+    state.node.ice.append(black)
+    state._ice_tick()  # tell
+    T.ok(black.telegraphed, 'it told')
+    hurt = state.hurt
+    state._ice_tick()  # lead: still lining up
+    T.eq(state.hurt, hurt, 'the lead tick holds the strike back')
+    out = ui.plain(console.end_capture())
+    T.ok('still lining up' in out, 'and says so')
+    T.ok('the kind that kills' in out, 'black ICE is named as lethal on the tell')
+
+    # The alert turning is a Composure check.
+    char = Character.from_origin('gutter', 'x')
+    char.base_attrs['nerve'] = 1
+    state, console = run_for(char)
+    state.tick = 3
+    state.escalate(2)
+    out = ui.plain(console.end_capture())
+    T.ok('You freeze' in out, 'nerve 1 freezes when the room goes red')
+
+    # Mirror: daemons hesitate.
+    keep = session_mod.MIRROR_HESITATION
+    session_mod.MIRROR_HESITATION = 1.0
+    try:
+        char = Character.from_origin('gutter', 'x')
+        char.icons.append('mirror')
+        char.icon = 'mirror'
+        state, console = run_for(char)
+        state.daemons.append({'uid': 'd-1', 'node': state.here,
+                              'program': 'errand', 'task': 'hold', 'life': 4})
+        state._daemon_tick()
+        T.ok('hesitates' in ui.plain(console.end_capture()),
+             'a daemon under a Mirror icon hesitates')
+    finally:
+        session_mod.MIRROR_HESITATION = keep
+
+    # The door warns about a payload that is not built for the job.
+    char = Character.from_origin('gutter', 'x')
+    char.library.append('rootcap')
+    char.deck.loaded = []
+    game = Game.new(char, seed=515)
+    contract = next((c for c in game.city.board
+                     if c.objective == 'exfiltrate'), None)
+    if contract is not None:
+        game.city.where = contract.district
+        sess, out = play([f'take {contract.cid}', 'load rootcap', 'jack in'],
+                         game=game)
+        T.ok('not built for' in ui.plain(out), 'jack in warns about Rootcap on '
+                                                 'an exfiltration')
+
+    # Legwork: the resonance line prints for resonance and nothing else.
+    from flatline.content import dissonance as drift
+    game = Game.new(Character.from_origin('defector', 'x'), seed=6)
+    game.char.credits = 9000
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    _, out = play([f'take {contract.cid}', 'legwork topology'], game=game)
+    T.ok(drift.RESONANCE_TEXT.split('.')[0] not in ui.plain(out),
+         'asking people about topology is not resonance')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
-    test_tutorial_second_half, test_conditions, test_polish,
+    test_tutorial_second_half, test_conditions, test_polish, test_reads,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,

@@ -1722,6 +1722,9 @@ def cmd_legwork(sess, args) -> None:
     bonus = game.char.bonus('legwork_bonus')
     if key == 'resonance':
         bonus += 1  # you are not looking at it, you are listening to it
+        c.blank()
+        c.say(f'[accent2]{drift.RESONANCE_TEXT}[/]')
+        c.blank()
     else:
         # Everything else here is asking people things, and how much people
         # tell you depends on who they think they are talking to, and on
@@ -1729,9 +1732,6 @@ def cmd_legwork(sess, args) -> None:
         bonus += appearance.social_bonus(game.char.presence)
         bonus += int(game.char.attr('guile') * LEGWORK_PER_GUILE)
         bonus += shifts.phase(game.city.phase).legwork
-        c.blank()
-        c.say(f'[accent2]{drift.RESONANCE_TEXT}[/]')
-        c.blank()
     contract.intel[gives] = _legwork_result(net, gives, bonus, game)
     contract.intel.setdefault(key, contract.intel[gives])
     c.ok(f'{key.title()} done.')

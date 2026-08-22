@@ -87,9 +87,12 @@ SKILLS: tuple[Skill, ...] = (
                       'Focus, which does not regenerate inside a run.'),
             Technique('sidechannel', 'Sidechannel', 4, 'sidechannel',
                       'Derive a key from observed traffic on a node you hold.',
-                      'Free, silent, and slow: it needs three ticks of residency '
-                      'on a node carrying live traffic. The pure-stealth answer '
-                      'to a vault that a Warfare build would simply break.'),
+                      'Silent and slow: three ticks of residency on a node you '
+                      'hold, and a Cryptography check against the hardest '
+                      'thing on it. Win and every encrypted service there '
+                      'opens at once; lose and you have spent three quiet '
+                      'ticks. The pure-stealth answer to a vault that a '
+                      'Warfare build would simply break.'),
         )),
     Skill(
         'subterfuge', 'Subterfuge', 'guile',
@@ -105,9 +108,12 @@ SKILLS: tuple[Skill, ...] = (
                       'raises the alert level rather than merely making noise.'),
             Technique('impersonate', 'Impersonate', 4, 'impersonate',
                       'Assume a captured credential\'s owner wholesale.',
-                      'ICE ignores you for a number of ticks equal to your Guile. '
-                      'Not stealth: you are extremely visible and entirely '
-                      'authorised, which is a different and better thing.'),
+                      'Everything that checks credentials ignores you for a '
+                      'number of ticks equal to your Guile: sentries, probes, '
+                      'hunters, wardens, herders. Black ICE checks nothing '
+                      'and is not fooled. Not stealth: you are extremely '
+                      'visible and entirely authorised, which is a different '
+                      'and better thing.'),
         )),
     Skill(
         'hardware', 'Hardware', 'grit',

@@ -125,13 +125,16 @@ class Character:
     # effects
     # ------------------------------------------------------------------
 
-    def effects(self) -> dict:
-        """Everything modifying this character right now.
+    def __post_init__(self) -> None:
+        self.refresh_deck()
 
-        Order does not matter: additive keys sum and multiplicative keys
-        multiply, both commutatively, which is exactly why `fx` splits them.
-        """
-        parts = [self.deck.effects()]
+    def _body_effects(self) -> list[dict]:
+        """The modifier blocks that are the person rather than the kit:
+        chrome, origin, traits, icon. Shared by `effects` and by the deck
+        budget, which reads memory and cooling from exactly these and never
+        from programs or chemistry, so that loading a program cannot change
+        the room for programs and a high wearing off cannot unload one."""
+        parts: list[dict] = []
         for key in self.installed:
             ware = cyberware.BY_KEY.get(key)
             if ware:
@@ -149,6 +152,27 @@ class Character:
         if icon:
             parts.append(icon.effects)
             parts.append(icon.penalty)
+        return parts
+
+    def refresh_deck(self) -> None:
+        """Tell the deck what the body adds to its budgets (D63).
+
+        Called from `effects`, so it is fresh whenever anything has asked
+        what this character can do, and from construction, so `deck.memory`
+        is right before anybody has asked anything."""
+        body = fx.merge(*self._body_effects()) if self._body_effects() else {}
+        self.deck.extra = {k: int(body.get(k, 0)) for k in ('memory', 'heat_cap')
+                           if body.get(k, 0)}
+
+    def effects(self) -> dict:
+        """Everything modifying this character right now.
+
+        Order does not matter: additive keys sum and multiplicative keys
+        multiply, both commutatively, which is exactly why `fx` splits them.
+        """
+        self.refresh_deck()
+        parts = [self.deck.effects()] + self._body_effects()
+        if icons.BY_KEY.get(self.icon):
             # An icon further from a human shape than your drift can carry
             # fights you the whole time you wear it.
             parts.append(icons.coherence_penalty(self.icon, self.dissonance))

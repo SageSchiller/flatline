@@ -35,6 +35,12 @@ class Deck:
     #: What you call it (D62). Cosmetic, persisted, read by nothing but the
     #: screens that mention the deck.
     name: str = ''
+    #: What the body adds to the budgets: memory and cooling from chrome,
+    #: traits, origin, and icon. Set by `Character.refresh_deck`, never
+    #: saved, because it is derived from the character and a stale copy of
+    #: it is exactly the bug this field exists to end (D63: a Blacksite
+    #: Stack sold three memory for two years and the deck never heard).
+    extra: dict = field(default_factory=dict)
 
     # -- construction ------------------------------------------------------
 
@@ -102,8 +108,13 @@ class Deck:
     @property
     def memory(self) -> int:
         """Total program memory. Never below zero, because a masking layer
-        that eats slots must not be able to produce a negative budget."""
-        return max(0, int(self._component_effects().get('memory', 0)))
+        that eats slots must not be able to produce a negative budget.
+
+        Components, the bench work done to them, and what the body adds.
+        Programs never count: loading one must not change how much room
+        there is for programs."""
+        return max(0, int(self._component_effects().get('memory', 0)
+                          + self.extra.get('memory', 0)))
 
     @property
     def memory_used(self) -> int:
@@ -121,7 +132,8 @@ class Deck:
 
     @property
     def heat_cap(self) -> int:
-        return int(self._component_effects().get('heat_cap', 0))
+        return max(0, int(self._component_effects().get('heat_cap', 0)
+                          + self.extra.get('heat_cap', 0)))
 
     @property
     def heat_headroom(self) -> int:
@@ -129,15 +141,18 @@ class Deck:
         return self.heat_cap - self.heat
 
     def _component_effects(self) -> dict:
-        """Components only. Memory and cooling must not depend on what is
-        loaded, or loading a program could change how much room there is for
-        programs, which is the kind of loop that eats an afternoon."""
+        """Components and their bench work only. Memory and cooling must not
+        depend on what is loaded, or loading a program could change how much
+        room there is for programs, which is the kind of loop that eats an
+        afternoon. Mods count: `widened` is two memory and was, until D63,
+        two memory the budget never saw."""
         parts: list[dict] = []
         for slot, comp in self.components():
             scale = (3 - self.damage.get(slot, 0)) / 3
             parts.append(comp.effects if scale >= 1.0
                          else _scaled(comp.effects, scale))
             parts.append(comp.penalty)
+            parts.append(mod_content.effects(self.mods.get(comp.key, ())))
         return fx.merge(*parts)
 
     # -- programs ----------------------------------------------------------

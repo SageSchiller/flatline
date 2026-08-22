@@ -61,8 +61,27 @@ NOISE_ESCALATE = 18
 #: Residue converted to faction heat after the run, per point.
 RESIDUE_TO_HEAT = 0.55
 
-#: Damage a component takes per ICE strike that lands on the deck.
+#: Damage a component takes per ICE strike that lands on the deck, and the
+#: strike size at which a hit does two levels rather than one (D63). Before
+#: this every non-lethal construct did exactly one level, so a Coroner at
+#: damage 6 and a Kestrel at 4 were the same construct with different prose.
 DECK_HIT = 1
+DECK_HIT_HEAVY = 6
+
+#: Fraction of a free action each real tick banks, by Tempo (D63). Tempo 2
+#: is a free verb every third tick; Tempo 3 every second. Capped there
+#: because a fourth action per tick outruns the tell system, and reading
+#: tells is supposed to be the ceiling of the combat layer.
+TEMPO_RATE = {1: 0.0, 2: 1 / 3, 3: 0.5}
+
+#: Chance a Salvaged Reflex Loop drops the third or later action in a tick.
+MISFIRE_CHANCE = 0.35
+
+#: Below this fraction of Integrity a Deadman Grip cuts the connection.
+DEADMAN_FRACTION = 0.35
+
+#: Chance per tick that a daemon under a Mirror icon does nothing.
+MIRROR_HESITATION = 0.25
 
 OUTCOMES = ('running', 'clean', 'burned', 'severed', 'flatline')
 
@@ -191,6 +210,29 @@ class RunState:
     condition: object = None
     #: Constructs whose portrait has been shown (D62). Once each.
     portrayed: set = field(default_factory=set)
+    #: Fractions of a tick owed or owing (D63). A `tick_mult` of 0.95 used
+    #: to round away on every one-, two- and three-tick verb, which made the
+    #: two cheapest upgrades in the catalogue cosmetic; now the five percent
+    #: is banked and the twentieth tick is free. Negative is drag owed.
+    tick_bank: float = 0.0
+    #: Free actions banked by Tempo (D63). Tempo was printed on the sheet and
+    #: read by nothing; now every real tick spent banks a fraction of an
+    #: action, and a whole one pays for the next verb. See `TEMPO_RATE`.
+    tempo_bank: float = 0.0
+    #: Actions taken since the clock last moved, for the Salvaged Reflex
+    #: Loop's misfire; and every action taken tonight, which only ever goes
+    #: up. A free action moves the second and not the clock, so anything
+    #: asking "did the game attempt that" reads `actions`, not `tick`.
+    acted_this_tick: int = 0
+    actions: int = 0
+    #: The Nightwatch serial has been checked against the list. Once.
+    serial_checked: bool = False
+    #: Hits the loaded armour has absorbed tonight (D63). An armour program
+    #: is good for as many saves as its rating, and then it is gone.
+    armour_wear: int = 0
+    #: Constructs that have tried to lock on and missed, so that the same
+    #: evade line is not printed every tick they retry.
+    evaded: set = field(default_factory=set)
 
     # ------------------------------------------------------------------
     # construction
@@ -222,6 +264,14 @@ class RunState:
             # The net is your first language. One action already spent before
             # anybody else has finished arriving.
             state.free_actions = 1
+        if 'nightwatch_serial' in riders and net.faction == 'nightwatch':
+            # Issue hardware with an issue serial (D63). Their network reads
+            # it as one of their own and opens a tier to it, right up until
+            # the first construct that files on you checks the number.
+            state.tier += 1
+            console.say('[info]Something in you answers to a Nightwatch '
+                        'serial, and the perimeter reads you as staff. '
+                        'Until somebody checks the list.[/]')
         return state
 
     # ------------------------------------------------------------------
@@ -294,12 +344,18 @@ class RunState:
     def leave_residue(self, amount: float, node: Node | None = None) -> int:
         node = node or self.node
         amount *= self.char.mult('residue_mult')
-        if (self.char.origin == 'defector'
+        if ('policy_reader' in self.char.riders()
                 and fac_content.BY_KEY[self.net.faction].kind == 'corp'):
             # Policy reader: you know what corporate networks log and when.
             amount *= 0.85
         if self.condition is not None:
             amount *= self.condition.residue
+        # D63: a construct that declares `residue_mult` is one that files.
+        # While an Auditor is awake on a host, everything done there leaves
+        # more behind; the rider was declared on the type and read nowhere.
+        for construct in node.ice:
+            if construct.state in ('awake', 'locked'):
+                amount *= float(construct.data.effects.get('residue_mult', 1.0))
         value = max(0, int(round(amount)))
         node.residue += value
         return value
@@ -353,7 +409,8 @@ class RunState:
     def escalate(self, steps: int = 1, why: str = '') -> None:
         levels = ice_content.ALERT_LEVELS
         i = levels.index(self.alert)
-        if self.char.origin == 'expolice' and self.net.faction == 'nightwatch':
+        if ('read_the_room' in self.char.riders()
+                and self.net.faction == 'nightwatch'):
             # Read the room: you know their escalation playbook.
             if self.rng.chance(0.5):
                 return
@@ -366,6 +423,20 @@ class RunState:
                          f'[dim]{ice_content.ALERT_BLURB[self.alert]}[/]')
         if why:
             self.console.say(f'[dim]{why}[/]')
+        if self.alert in ('red', 'lockdown') and self.tick > 0:
+            # D63: Composure was read once, at the moment of dying. Now it
+            # is read when the room turns. A printed check; a failure is a
+            # tick lost to standing still, which is what panic costs.
+            steady = Check(name='keep your head', resistance=12)
+            steady.add('composure', self.char.composure)
+            steady.add('nerve', self.char.attr('nerve'))
+            steady.resolve(self.rng)
+            if not steady.success:
+                self.console.say(f'[warn]You freeze.[/] [dim]{steady.summary()}'
+                                 f' A tick goes by before your hands '
+                                 f'remember what they are for.[/]')
+                self.log('froze at the alert')
+                self.advance(1)
         # What it costs and what answers it, once per level. A banner that
         # only says something bad has happened leaves the player to guess
         # whether the move is to leave, to hurry, or to carry on, and the
@@ -382,7 +453,26 @@ class RunState:
     def advance(self, ticks: int = 1) -> None:
         """Spend time. Everything that is not the player's decision happens here."""
         cost = self.char.mult('tick_mult') * self.drag
-        real = max(1, int(round(ticks * cost)))
+        # D63: the fraction is banked rather than rounded. A multiplier of
+        # 0.9 is a tick back every tenth tick, exactly; 1.15 is a tick owed
+        # every seventh. Nothing is free until the bank says so, and drag is
+        # paid the moment a whole tick of it is owed.
+        real = ticks
+        if ticks and cost != 1.0:
+            self.tick_bank += ticks * (1.0 - cost)
+            # A hair of tolerance: 0.95 times its own reciprocal is not 1.0
+            # in floating point, and a bank that owes 0.9999 forever is a
+            # multiplier that never quite counts.
+            while self.tick_bank >= 1.0 - 1e-9 and real > 0:
+                self.tick_bank -= 1.0
+                real -= 1
+            while self.tick_bank <= -1.0 + 1e-9:
+                self.tick_bank += 1.0
+                real += 1
+        if real <= 0:
+            self.console.say('[dim]Quick. That one cost nothing.[/]')
+            return
+        self.acted_this_tick = 0
         for _ in range(real):
             if not self.running:
                 return
@@ -458,6 +548,14 @@ class RunState:
                 daemon['arg'] = arg or daemon.get('arg', '')
             else:
                 effective = daemon['task']
+
+            if ('mirror_confusion' in self.char.riders()
+                    and self.rng.chance(MIRROR_HESITATION)):
+                # The Mirror icon reflects allies too (D63): a daemon that
+                # cannot tell which of you is you does nothing this tick.
+                self.console.say(f'[dim]{daemon["uid"]} hesitates. It cannot '
+                                 f'tell which of you is you.[/]')
+                continue
 
             if effective == 'hold':
                 # Keeps a node quiet by absorbing the traffic you generated.
@@ -802,6 +900,12 @@ class RunState:
             data = construct.data
             if data.behaviour == 'trap':
                 continue  # traps spring on contact, not on the clock
+            if self.impersonating > 0 and data.behaviour != 'black':
+                # Impersonate (D63, as the technique always said): you are
+                # somebody with a reason to be here, and everything that
+                # checks reasons lets you be. Black ICE does not check
+                # anything. It is not a guard; it is a fact about the vault.
+                continue
 
             if construct.state == 'dormant':
                 threshold = self.wake_threshold(construct)
@@ -818,10 +922,26 @@ class RunState:
                 continue
 
             if construct.state in ('awake', 'locked'):
-                if construct.telegraphed:
-                    self._strike(construct)
-                else:
+                if not construct.telegraphed:
                     self._tell(construct)
+                elif construct.warned < self._lead():
+                    # Ticks of advance warning (D63). The key has always been
+                    # described as ticks of warning and it only ever decided
+                    # whether the tell was named; now each point holds the
+                    # strike back a tick, which is what warning is for.
+                    construct.warned += 1
+                    self.console.say(f'[dim]{construct.data.name} is still '
+                                     f'lining up. You have a tick.[/]')
+                else:
+                    self._strike(construct)
+
+    def _lead(self) -> int:
+        lead = self.char.bonus('tell_lead')
+        if 'read_the_room' in self.char.riders():
+            lead += 1  # ex-enforcement: you have read their manual
+        if self.playbook:
+            lead += 1
+        return max(0, lead)
 
     def _tell(self, construct: IceInstance) -> None:
         """One line, the tick before it acts. Never says what it will do."""
@@ -829,11 +949,8 @@ class RunState:
         if not data.tells:
             return
         construct.telegraphed = True
-        lead = self.char.bonus('tell_lead')
-        if self.char.origin == 'expolice':
-            lead += 1
-        if self.playbook:
-            lead += 1
+        construct.warned = 0
+        lead = self._lead()
         line = self.rng.pick(data.tells)
         name = data.name if (construct.known or lead > 0) else 'something'
         self.console.blank()
@@ -841,6 +958,14 @@ class RunState:
         if construct.known or lead > 0:
             self.console.say(f'[dim]that reads as {name}.[/]')
             construct.known = True
+        if data.behaviour == 'black' and 'black_tell' not in self.spent:
+            # Said once a run, the first time something lethal winds up. The
+            # tell system is fair in the letter only if the correct response
+            # is something a player can know, and nothing used to say it.
+            self.spent.add('black_tell')
+            self.console.say('[warn]That is the kind that kills. It has you '
+                             'the tick after the tell: `connect` off this '
+                             'host now, or be somewhere it cannot follow.[/]')
         self.log(f'tell: {name}')
 
     def _strike(self, construct: IceInstance) -> None:
@@ -856,6 +981,23 @@ class RunState:
         # being escalated generically, which made their whole distinguishing
         # feature decorative.
         jump = int(data.effects.get('alert_jump', 1))
+        # D63: a construct acting is itself a noise on the host, which is
+        # how one awake Scrapper becomes three. `IceType.noise` was declared
+        # for every type and read by nothing.
+        if data.noise:
+            self.node.noise += max(1, int(round(data.noise * 0.4)))
+
+        if data.behaviour in ('probe', 'sentry'):
+            if ('nightwatch_serial' in self.char.riders()
+                    and self.net.faction == 'nightwatch'
+                    and not self.serial_checked):
+                # The number gets checked against the list of returned
+                # equipment, and it is on it.
+                self.serial_checked = True
+                self.tier = max(0, self.tier - 1)
+                self.console.say('[warn]It runs your serial against the '
+                                 'returned-equipment list. You are on it.[/]')
+                jump += 1
 
         if data.behaviour == 'probe':
             self.add_trace(data.trace + construct.rating)
@@ -931,6 +1073,26 @@ class RunState:
                                  'a copy.[/]')
                 construct.telegraphed = False
                 return
+            # D63: the lock-on is a check, printed like every other check.
+            # `evade_bonus` was a key five implants, four programs, and two
+            # traits sold and nothing read. Resistance sits above what a
+            # fresh runner can beat, so it is a chance and not a defence,
+            # and it goes up with the construct.
+            evade = Check(name='slip the lock-on',
+                          resistance=construct.rating * 2 + 4)
+            evade.add('reflex', self.char.attr('reflex'))
+            evade.add('stealth', self.char.skill('stealth'))
+            evade.add('evade gear', self.char.bonus('evade_bonus'))
+            evade.resolve(self.rng)
+            if evade.success:
+                self.console.say(f'[ok]It closes on where you were.[/] '
+                                 f'[dim]{evade.summary()}[/]')
+                construct.telegraphed = False
+                self.log(f'evaded: {data.name}')
+                return
+            if construct.uid not in self.evaded:
+                self.evaded.add(construct.uid)
+                self.console.say(f'[dim]{evade.summary()}[/]')
             self.locked.append(construct)
             construct.state = 'locked'
         self.add_trace(data.trace)
@@ -1002,8 +1164,10 @@ class RunState:
         amount = max(0, int(round(amount * self.char.mult('ice_dr'))))
         if not amount:
             return
-        # Psyche rank 4: you are not present for this. The deck is.
-        if self.dissociated > 0:
+        # Psyche rank 4, or a Static Line high (D63: the drug declared the
+        # rider and nothing read it): you are not present for this. The deck
+        # is.
+        if self.dissociated > 0 or 'dissociated' in self.char.riders():
             black = False
             to_body = False
             slot = self.rng.pick(list(self.char.deck.parts))
@@ -1016,9 +1180,14 @@ class RunState:
 
         if not to_body:
             slot = self.rng.pick(list(self.char.deck.parts))
-            level = self.char.deck.hurt(slot, DECK_HIT)
+            # D63: a big construct hits harder. Two levels at and above
+            # `DECK_HIT_HEAVY`, after armour, so armour is the difference
+            # between a Coroner scratching a part and breaking it.
+            levels = DECK_HIT + (1 if amount >= DECK_HIT_HEAVY else 0)
+            level = self.char.deck.hurt(slot, levels)
             self.console.warn(f'The {slot} takes it '
-                              f'[dim](damage {level}/3)[/].')
+                              f'[dim](damage {level}/3'
+                              + (', hard' if levels > 1 else '') + ')[/].')
             self.log(f'deck damage: {slot} from {source}')
             if all(self.char.deck.damage.get(s, 0) >= 3
                    for s in self.char.deck.parts):
@@ -1040,6 +1209,18 @@ class RunState:
                          f'{self.char.integrity_max}.[/]')
         self.log(f'integrity -{amount} from {source}')
         if remaining > 0:
+            if ('deadman' in self.char.riders()
+                    and remaining <= self.char.integrity_max * DEADMAN_FRACTION):
+                # D63: the grip does what its drawback always said. It is
+                # not clever and it does not ask: the run ends, you do not.
+                self.console.blank()
+                self.console.raw('[warn][bold]The grip cuts you out.[/][/]')
+                self.console.say('Your pulse did something the relay did not '
+                                 'like, and the relay did not ask. You are on '
+                                 'the floor with the cable in your hand and '
+                                 'the job unfinished, which was the deal.')
+                self.log('deadman grip severed the connection')
+                self.finish('severed')
             return
 
         if black:
@@ -1607,6 +1788,21 @@ def crack_check(state: RunState, node: Node, svc: net_mod.ServiceInstance,
     check.add(attr, state.char.attr(attr))
     if program:
         check.add(program.name, program.rating * 2)
+        if 'dual_thread' in state.char.riders():
+            # Threadpuller (D63): two programs against one target. The
+            # second-best of the category rides along at its full rating,
+            # and the implant's noise penalty is already paying for it.
+            # One copy of the chosen program steps aside; a second copy of
+            # the same thing is exactly what a spare is for.
+            keys = list(state.char.deck.loaded)
+            if program.key in keys:
+                keys.remove(program.key)
+            others = [programs.BY_KEY[k] for k in keys
+                      if k in programs.BY_KEY
+                      and programs.BY_KEY[k].category == program.category]
+            if others:
+                second = max(others, key=lambda p: p.rating)
+                check.add(f'second thread: {second.name}', second.rating)
     else:
         check.add(f'no {category} loaded', -6)
     if svc.family == 'crypto':

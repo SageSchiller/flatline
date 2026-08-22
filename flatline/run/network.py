@@ -53,6 +53,8 @@ class IceInstance:
     state: str = 'dormant'
     #: Set when a tell has been printed and the strike is due next tick.
     telegraphed: bool = False
+    #: Ticks it has held the strike back since the tell, for `tell_lead`.
+    warned: int = 0
     damage_taken: int = 0
     #: True once the player has identified it (probe, Auspex, or ex-cop eye).
     known: bool = False

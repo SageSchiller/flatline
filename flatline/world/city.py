@@ -425,7 +425,7 @@ class City:
         to the standard size, so the passive was true for about one shift.
         """
         size = contract_mod.BOARD_SIZE
-        if char is not None and char.origin == 'protege':
+        if char is not None and 'known_quantity' in char.riders():
             size += 1  # Known quantity
         return size
 
@@ -630,7 +630,7 @@ class City:
     # -- consequences --------------------------------------------------
 
     def apply_run(self, alias: Alias, summary: dict, rng: Rng,
-                  memorable: int = 0) -> list[str]:
+                  memorable: int = 0, heat_mult: float = 1.0) -> list[str]:
         """Turn a finished run into city state. The D5 payoff.
 
         Immediate effects land now. Residue is queued and lands a shift later,
@@ -663,6 +663,7 @@ class City:
             # describing you to somebody who is writing it down, and a face
             # that fits nine thousand people is worth real protection here.
             heat *= appearance.heat_mult(memorable)
+            heat *= heat_mult
 
             # Forensics rank 4: the heat is real, it just lands on somebody
             # else. This does not reduce the consequence, it redirects it, and
@@ -697,8 +698,13 @@ class City:
 
     def pay_out(self, alias: Alias, contract: Contract, summary: dict,
                 pay_mult: float = 1.0,
-                memorable: int = 0) -> tuple[int, list[str]]:
-        """Settle a contract. Returns credits paid and what to tell the player."""
+                memorable: int = 0,
+                rep_mult: float = 1.0) -> tuple[int, list[str]]:
+        """Settle a contract. Returns credits paid and what to tell the player.
+
+        `rep_mult` is the character's own modifier (D63): the key was sold by
+        chrome and traits and read by nothing. `heat_mult` is its twin and
+        lives in `apply_run`, where the residue becomes heat."""
         told: list[str] = []
         if not summary.get('objective'):
             told.append(f'[err]{contract.patron_data.short} does not pay for '
@@ -714,7 +720,8 @@ class City:
         # Work gets attributed to somebody. Being a person worth naming means
         # the story that goes round afterwards has your name in it.
         alias.adjust_rep(contract.patron,
-                         max(1, round(8 * appearance.rep_mult(memorable))))
+                         max(1, round(8 * appearance.rep_mult(memorable)
+                                      * rep_mult)))
         alias.adjust_rep(contract.target, -10)
         told.append(f'[credit]{pay:,}c[/] from {contract.patron_data.short}.')
         return pay, told

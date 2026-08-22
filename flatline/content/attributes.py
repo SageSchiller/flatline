@@ -41,7 +41,8 @@ ATTRIBUTES: tuple[Attribute, ...] = (
         'You cannot break what you do not understand. Services read as noise.'),
     Attribute(
         'reflex', 'Reflex', 'REF',
-        'Actions per tick, evasion, reacting to ICE that has already noticed you.',
+        'Free actions banked as you work, slipping a lock-on, reacting to ICE '
+        'that has already noticed you.',
         'Everything happens to you before you happen to it.'),
     Attribute(
         'nerve', 'Nerve', 'NRV',
@@ -86,9 +87,11 @@ def focus(logic: int) -> int:
 
 
 def tempo(reflex: int) -> int:
-    """Actions per tick during live engagement. Capped at 3 because a fourth
-    action per tick outruns the ICE tell system, and reading tells is supposed
-    to be the ceiling of the combat layer rather than something you skip."""
+    """How fast free actions bank during live engagement: at 2, one verb in
+    three costs nothing; at 3, one in two (see `run.session.TEMPO_RATE`).
+    Capped at 3 because a fourth action per tick outruns the ICE tell system,
+    and reading tells is supposed to be the ceiling of the combat layer
+    rather than something you skip."""
     return min(3, 1 + reflex // 4)
 
 

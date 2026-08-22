@@ -100,6 +100,19 @@ def cmd_jack_in(sess, args) -> None:
             f'a {contract.objective} contract needs a {need} program loaded '
             f'and you have none: {fix}. `jack in --force` goes in without '
             f'one, and the job cannot be finished that way.')
+    if need == 'payload':
+        # D63: the right payload for the job, or a warning at the door
+        # rather than a penalty three zones deep.
+        loaded = programs.best(game.char.deck.loaded, 'payload')
+        built = [p for p in programs.by_category('payload')
+                 if contract.objective in p.jobs]
+        if (loaded and loaded.jobs and contract.objective not in loaded.jobs
+                and built):
+            c.say(f'[warn]{loaded.name} is not built for a '
+                  f'{contract.objective}.[/] [dim]It will do it, badly: '
+                  f'{IMPROVISED_PENALTY:+d} on the check and louder on the '
+                  f'pull. {", ".join(p.name for p in built)} is the tool for '
+                  f'this.[/]')
 
     stream = game.rng.fork('network', contract.cid)
     net = net_mod.generate(stream, contract.target, int(contract.posture),
@@ -373,7 +386,8 @@ def _resolve(sess) -> None:
     game.story.flags.add(f'ran:{summary["faction"]}')
 
     fallout_lines = game.city.apply_run(game.alias, summary, game.rng,
-                                        game.char.memorable)
+                                        game.char.memorable,
+                                        heat_mult=game.char.mult('heat_mult'))
     for line in fallout_lines:
         c.say(line)
     # Posture moves and heat arriving are news (D56): they printed once
@@ -385,7 +399,8 @@ def _resolve(sess) -> None:
         pay, told = game.city.pay_out(game.alias, contract, summary,
                                       game.char.mult('pay_mult')
                                       * _condition_pay(summary),
-                                      game.char.memorable)
+                                      game.char.memorable,
+                                      rep_mult=game.char.mult('rep_mult'))
         game.char.credits += pay
         game.earned += pay
         for line in told:
@@ -528,10 +543,17 @@ def _resolve(sess) -> None:
 def cmd_scan(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     depth = 1 + state.char.bonus('scan_depth')
-    hunter = programs.best(state.char.deck.loaded, 'hunter')
+    # Architecture (D63): ranks 1, 3 and 5 used to buy nothing between the
+    # techniques. Now every second rank is a hop of reach, because reading
+    # the shape of a segment is the skill's whole description.
+    depth += state.char.skill('architecture') // 2
+    quiet = args.has('quiet')
+    # `--quiet` reaches for the quietest hunter, not the strongest: that is
+    # the whole reason to carry a Wiretap beside an Auspex.
+    hunter = (programs.quietest(state.char.deck.loaded, 'hunter') if quiet
+              else programs.best(state.char.deck.loaded, 'hunter'))
     if hunter:
         depth += max(0, hunter.rating // 3)
-    quiet = args.has('quiet')
 
     found = _reveal(state, state.here, depth)
     state.scanned.add(state.here)
@@ -573,7 +595,7 @@ def cmd_probe(sess, args) -> None:
         check.add('forensics', state.char.skill('forensics') * 2)
         if hunter:
             check.add(hunter.name, hunter.rating)
-        if state.char.origin == 'defector':
+        if 'policy_reader' in state.char.riders():
             check.add('you have read the standard', 3)
         check.resolve(state.rng)
         if check.success:
@@ -581,7 +603,7 @@ def cmd_probe(sess, args) -> None:
     for construct in node.ice:
         if hunter and hunter.key == 'auspex':
             construct.known = True
-        elif state.char.origin == 'expolice':
+        elif 'read_the_room' in state.char.riders():
             construct.known = True
 
     _act(sess, 'probe', node=node,
@@ -1050,14 +1072,30 @@ def cmd_sidechannel(sess, args) -> None:
     crypto = [s for s in node.services if s.family == 'crypto' and not s.cracked]
     if not crypto:
         raise CommandError('nothing here is encrypted enough to leak.')
+    # D63: a check, against the hardest thing on the host. It used to be
+    # three silent ticks that opened everything, which outvalued Pivot and
+    # made the rank-4 decision no decision. Quiet either way; the gamble is
+    # the time.
+    hardest = max(s.difficulty for s in crypto)
+    check = Check(name='sidechannel', resistance=hardest * 2 - 2)
+    check.add('cryptography', state.char.skill('cryptography') * 2)
+    check.add('logic', state.char.attr('logic'))
+    check.add('crypto gear', state.char.bonus('crypto_bonus'))
+    check.resolve(state.rng)
     _act(sess, 'sidechannel', ticks=3)
     if not state.running:
+        return
+    if not check.success:
+        c.err('Three ticks of traffic and none of it leaked anything you '
+              'could use.')
+        c.say(check.explain())
         return
     for svc in crypto:
         svc.cracked = True
     node.open = True
     c.ok(f'{len(crypto)} encrypted service'
          f'{"s" if len(crypto) != 1 else ""} on {node.uid} gave up a key.')
+    c.say(f'[dim]{check.explain()}[/]')
 
 
 @command('impersonate', 'Become the owner of a credential you hold.',
@@ -1136,19 +1174,23 @@ def cmd_pull(sess, args) -> None:
             check.add('cryptography', state.char.skill('cryptography') * 2)
             check.add('logic', state.char.attr('logic'))
             check.add('gear', state.char.bonus('crypto_bonus'))
-            if state.char.origin == 'academic':
+            if 'first_principles' in state.char.riders():
                 check.add('first principles', 3)
             check.resolve(state.rng)
             if not check.success:
                 c.err(f'{asset.name} is sealed and stays sealed.')
                 c.say(check.explain())
-                _act(sess, 'pull', node=node, noise_scale=payload.signature)
+                _act(sess, 'pull', node=node,
+                 noise_scale=payload.signature
+                 * _improvised_noise(payload, 'exfiltrate'))
                 continue
         asset.taken = True
         state.haul.append(asset.uid)
         mark = ' [accent2](the job)[/]' if asset.objective else ''
         c.ok(f'{asset.name} pulled, [credit]{asset.value:,}c[/] nominal.{mark}')
-        _act(sess, 'pull', node=node, noise_scale=payload.signature)
+        _act(sess, 'pull', node=node,
+                 noise_scale=payload.signature
+                 * _improvised_noise(payload, 'exfiltrate'))
         if not state.running:
             return
     if state.contract and state.contract.get('objective') == 'exfiltrate':
@@ -1172,10 +1214,7 @@ def cmd_push(sess, args) -> None:
     if kind not in ('implant', 'corrupt'):
         kind = 'implant'
 
-    check = Check(name=kind, resistance=state.net.posture // 5 + 6)
-    check.add('intrusion', state.char.skill('intrusion') * 2)
-    check.add('logic', state.char.attr('logic'))
-    check.add(payload.name, payload.rating * 2)
+    check = push_check(state, kind, payload)
     check.resolve(state.rng)
 
     _act(sess, 'push', node=node, noise_scale=payload.signature)
@@ -1207,11 +1246,28 @@ def cmd_wipe(sess, args) -> None:
     if not targets:
         raise CommandError(f'nothing matches {query!r}')
     asset = targets[0]
+    # D63: wipe is a check and it spends the payload. It used to be two
+    # ticks of automatic success that never touched the program the
+    # contract demanded at the door. Sabotage, because destroying a record
+    # so that it reads as a fault is the trade, and the payload's signature
+    # decides how loudly it goes.
+    payload = programs.best(state.char.deck.loaded, 'payload')
+    check = wipe_check(state, payload)
+    check.resolve(state.rng)
+    _act(sess, 'wipe', node=node,
+         noise_scale=payload.signature if payload else 1.0)
+    if not state.running:
+        return
+    if not check.success:
+        c.err(f'{asset.name} is still there. The delete is in the log and '
+              f'the thing it was meant to delete is not.')
+        c.say(check.explain())
+        state.leave_residue(3, node)
+        return
     asset.taken = True
     state.done['wipe'] = asset.uid
-    _act(sess, 'wipe', node=node)
-    if state.running:
-        c.ok(f'{asset.name} is gone. Loudly.')
+    c.ok(f'{asset.name} is gone. Loudly.')
+    c.say(f'[dim]{check.explain()}[/]')
 
 
 @command('scrub', 'Reduce the evidence you have left on this node.',
@@ -1754,6 +1810,7 @@ def cmd_status(sess, args) -> None:
         ('integrity', f'{state.char.integrity_max - state.char.hurt - state.hurt}'
                       f'/{state.char.integrity_max}'),
         ('focus', str(state.focus)),
+        ('banked', _banked(state)),
         ('residue', f'[residue]{state.residue_total} across the network[/]'),
         ('haul', f'{len(state.haul)} assets'),
     ])
@@ -1918,6 +1975,58 @@ def cmd_log(sess, args) -> None:
 # --------------------------------------------------------------------------
 
 
+#: What a payload that is not built for the job costs on the check (D63), and
+#: how much louder it is on a pull. Small enough that a Siphon still implants
+#: in a pinch; large enough that the right tool is a decision.
+IMPROVISED_PENALTY = -3
+IMPROVISED_NOISE = 1.4
+
+
+def push_check(state, kind: str, payload) -> Check:
+    """The implant or corrupt check, itemised (D63). A corruption is
+    Sabotage, not Intrusion: breaking a record so that it reads as a disk
+    fault is that skill's whole description, and until now its ranks bought
+    nothing but the techniques. Implant stays an Intrusion job: you are
+    putting something in, not making something look like it fell over."""
+    check = Check(name=kind, resistance=state.net.posture // 5 + 6)
+    if kind == 'corrupt':
+        check.add('sabotage', state.char.skill('sabotage') * 2)
+        check.add('guile', state.char.attr('guile'))
+    else:
+        check.add('intrusion', state.char.skill('intrusion') * 2)
+        check.add('logic', state.char.attr('logic'))
+    check.add(payload.name, payload.rating * 2)
+    _improvised(check, payload, kind)
+    return check
+
+
+def wipe_check(state, payload) -> Check:
+    """The wipe check (D63). Sabotage again, and the payload counts: the
+    contract demanded one at the door and the verb never touched it."""
+    check = Check(name='wipe', resistance=state.net.posture // 5 + 5)
+    check.add('sabotage', state.char.skill('sabotage') * 2)
+    check.add('guile', state.char.attr('guile'))
+    if payload:
+        check.add(payload.name, payload.rating * 2)
+        _improvised(check, payload, 'wipe')
+    else:
+        check.add('no payload loaded', -4)
+    return check
+
+
+def _improvised(check, payload, objective: str) -> None:
+    """Add the improvised-payload term to a check, if it applies."""
+    if payload is not None and payload.jobs and objective not in payload.jobs:
+        check.add(f'{payload.name} is not built for this', IMPROVISED_PENALTY,
+                  actionable=True)
+
+
+def _improvised_noise(payload, objective: str) -> float:
+    if payload is not None and payload.jobs and objective not in payload.jobs:
+        return IMPROVISED_NOISE
+    return 1.0
+
+
 def _act(sess, verb: str, node=None, ticks: int | None = None,
          noise_scale: float = 1.0, residue_scale: float = 1.0) -> None:
     """Apply an action's cost. The one place noise, residue, and time meet."""
@@ -1946,6 +2055,28 @@ def _act(sess, verb: str, node=None, ticks: int | None = None,
     # made step 1 pure heat for no benefit and made step 2 reduce every
     # one-tick action to zero. At zero ticks `advance` never runs, so the
     # trace stopped, the ICE stopped, and the whole run clock stopped with it.
+    state.acted_this_tick += 1
+    state.actions += 1
+    riders = state.char.riders()
+    if (spend and state.acted_this_tick >= 3 and 'misfire' in riders
+            and (state.tempo_bank >= 1.0 or state.oc_credit >= 1.0)
+            and state.rng.chance(session_mod.MISFIRE_CHANCE)):
+        # Salvaged Reflex Loop (D63): the third action in a tick is the one
+        # it drops. The credit that would have paid for it is spent and the
+        # tick is charged anyway.
+        if state.tempo_bank >= 1.0:
+            state.tempo_bank -= 1.0
+        else:
+            state.oc_credit -= 1.0
+        sess.console.warn('The reflex loop misfires. That one cost a tick '
+                          'after all.')
+    elif spend and state.tempo_bank >= 1.0:
+        # Tempo (D63): a whole banked action pays for this one.
+        take = min(int(state.tempo_bank), spend)
+        state.tempo_bank -= take
+        spend -= take
+        if not spend:
+            sess.console.say('[dim]Tempo. That one was free.[/]')
     if spend and state.overclock and state.oc_credit >= 1.0:
         take = min(int(state.oc_credit), spend)
         state.oc_credit -= take
@@ -1955,6 +2086,8 @@ def _act(sess, verb: str, node=None, ticks: int | None = None,
         state.advance(spend)
         if state.overclock:
             state.oc_credit += spend * state.overclock
+        tempo = max(1, min(3, state.char.tempo))
+        state.tempo_bank += spend * session_mod.TEMPO_RATE[tempo]
         # Acting inside a Nullsig window costs it an extra point on top of the
         # tick it already spends, which is the "every action shortens it" half
         # of the technique. Applied *after* advance, so the tick you paid for
@@ -1973,6 +2106,29 @@ def _condition_pay(summary: dict) -> float:
     key = summary.get('condition') or ''
     cond = cond_content.BY_KEY.get(key)
     return cond.pay if cond is not None else 1.0
+
+
+def _banked(state) -> str:
+    """What is owed to you, in actions (D63). Tempo, the tick bank, overclock
+    credit and free actions are four names for the same thing: a verb that
+    will not cost a tick. Printed as one sum, with the sources dim, so a
+    player can see the clock is not the only thing moving."""
+    whole = (int(state.tempo_bank) + int(max(0.0, state.tick_bank))
+             + int(state.oc_credit) + state.free_actions)
+    parts = []
+    tempo = max(1, min(3, state.char.tempo))
+    if tempo > 1:
+        parts.append(f'tempo {tempo}: {state.tempo_bank:.2f}')
+    if state.tick_bank:
+        parts.append(f'{"quick" if state.tick_bank > 0 else "drag"} '
+                     f'{abs(state.tick_bank):.2f}')
+    if state.overclock:
+        parts.append(f'overclock {state.oc_credit:.1f}')
+    if state.free_actions:
+        parts.append(f'free {state.free_actions}')
+    head = (f'[ok]{whole} free action{"s" if whole != 1 else ""}[/]' if whole
+            else '[dim]nothing yet[/]')
+    return head + (f' [dim]({", ".join(parts)})[/]' if parts else '')
 
 
 def _hud(sess) -> None:

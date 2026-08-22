@@ -12,7 +12,7 @@ updated: 2026-08-21
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,387 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. Then **D54** (six lines and four topics per person, in seventeen voices; hours, so the clock is a reason to be somewhere) and **D55** (nine threads rooted in the districts, twenty-two decisions, four postings). Then **D56**: a decision at each rival's bond latch (fourteen scenes, twenty-eight decisions, read by the hire price, the shift boundary, four events and the epilogue), and the wire carrying scenes, decisions and what a run did to the city. Then **D57** (the city drawn, `walk`) and **D58** (forty-five places, twenty-two people, the street, a hundred and fifty-four events). Then **D59**, the readout: one dim line after every tick spent in a run, as the seventh rice axis (`hud`: line, bar, terse, quiet). Then **D60**, the tutorial's second half: nine more steps, past the door into what the city does. Then **D61**, tonight inside: eight run conditions drawn at the door, every field read, in the sum where they touch a check. Then **D62**, the rest of the list: the journal as a log, previously on resume, `odds` for strike and for what any verb costs tonight, ICE portraits, attribute bars and a build label, the end-of-run card, scripts discoverable, naming the deck and the safehouse. **Every Phase 7 item is done.** What is next is whatever playing it turns up. Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
+> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **13,980 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. Then **D54** (six lines and four topics per person, in seventeen voices; hours, so the clock is a reason to be somewhere) and **D55** (nine threads rooted in the districts, twenty-two decisions, four postings). Then **D56**: a decision at each rival's bond latch (fourteen scenes, twenty-eight decisions, read by the hire price, the shift boundary, four events and the epilogue), and the wire carrying scenes, decisions and what a run did to the city. Then **D57** (the city drawn, `walk`) and **D58** (forty-five places, twenty-two people, the street, a hundred and fifty-four events). Then **D59**, the readout: one dim line after every tick spent in a run, as the seventh rice axis (`hud`: line, bar, terse, quiet). Then **D60**, the tutorial's second half: nine more steps, past the door into what the city does. Then **D61**, tonight inside: eight run conditions drawn at the door, every field read, in the sum where they touch a check. Then **D62**, the rest of the list: the journal as a log, previously on resume, `odds` for strike and for what any verb costs tonight, ICE portraits, attribute bars and a build label, the end-of-run card, scripts discoverable, naming the deck and the safehouse. **Every Phase 7 item is done.** What is next is whatever playing it turns up. Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
@@ -1590,6 +1590,87 @@ had that was not saying what it knew.
   <what you call it>`. Cosmetic, persisted, on every screen that mentions
   them.
 
+### D63: The mechanics read back
+
+A deep dive on the numbers themselves, asked for on 2026-08-21: stats,
+hacking, gear, drugs, all of it, made to make sense, with nothing thin or
+unread, and balance corrected where it was off. Four audits were run over
+the source first (gear and market; stats, skills, checks and chrome; vices
+and money; ICE, generation and the verb economy), and the same finding came
+back from all four in different clothes: **the game was declaring numbers
+the engine never read.** Tempo was printed on the sheet, sold by three
+implants, two traits and a drug, and consumed by nothing; `evade_bonus` was
+sold eleven times and read zero; `heat_mult` and `rep_mult` the same; a
+Blacksite Stack's three memory and a Coolant Mesh's four heat cap never
+reached the deck, nor did any bench mod's; four chrome riders (misfire,
+the Nightwatch serial, dual thread, the deadman) were names with no code
+under them; a Static Line high declared a rider only the Psyche technique
+set; Architecture and Sabotage had no reads outside their techniques;
+Impersonate said ICE would ignore you and ICE did not; Sidechannel was
+three silent ticks that opened everything; Script's "one tick less" was
+not there; `tell_lead` only decided whether the tell was named; and a
+`tick_mult` of 0.95, the two cheapest upgrades in the catalogue, rounded
+away on every one-, two- and three-tick verb, so the Standard Core and the
+Standard Bus were cosmetic.
+
+**(a) Every number reads.** Landed as one pass with one rule: a declared
+number or rider gets a reader, and the reader does what the declaration
+says.
+
+- **The deck budget hears the body.** `Deck.extra`, set by
+  `Character.refresh_deck` from chrome, traits, origin and icon (never
+  programs, never chemistry), and `_component_effects` now merges bench
+  work. Memory and cooling from anywhere count.
+- **Tempo banks free actions.** `TEMPO_RATE`: at 2, a third of a verb per
+  real tick; at 3, half. A whole one pays for the next verb. `status` has a
+  `banked` row that sums tempo, the tick bank, overclock credit and free
+  actions.
+- **The tick bank.** `advance` banks the fraction a multiplier is worth
+  instead of rounding it; a whole tick saved is a free verb, a whole tick
+  owed is charged. 0.95 is now a tick back every twentieth tick, exactly.
+- **Evade is a printed check.** A hunter or black construct lunges:
+  `reflex + stealth + evade gear` against `rating x 2 + 4`, itemised like
+  every other check (D14). Succeed and it closes on where you were.
+- **`heat_mult` and `rep_mult`** read where the residue becomes heat
+  (`City.apply_run`) and where the patron pays standing (`pay_out`).
+- **Riders.** Misfire: the third action in a tick has a one-in-three chance
+  of costing the tick anyway. Nightwatch serial: a tier opened at the door
+  of a Nightwatch network and taken back, with an extra alert level, the
+  first time something files on you. Dual thread: the second-best breaker
+  rides every crack at its rating (a second copy of the same breaker
+  counts, which is what a spare is for). Deadman: below 35% Integrity the
+  grip severs the run and you live. Dissociated (Static Line): feedback
+  lands on the deck. Mirror: a daemon under a Mirror icon hesitates one
+  tick in four. The six origin passives that were keyed on the origin name
+  now read their riders; two riders that only duplicated an effect
+  (`salvager`, `company_hardware`) are gone.
+- **Skills.** Architecture adds a hop of scan reach per two ranks.
+  Sabotage is the skill for `corrupt` and for `wipe`, both of which are
+  checks now (`push_check`, `wipe_check`); wipe spends the payload the door
+  demanded and fails loudly. Sidechannel is a Cryptography check against
+  the hardest thing on the host. Impersonate is enforced in `_ice_tick`
+  for everything that checks reasons; black ICE checks nothing. Script
+  banks one tick. `tell_lead` holds the strike back a tick per point.
+- **The room turning is a Composure check.** At red and lockdown,
+  `composure + nerve` against 12; fail and you freeze for a tick. Nerve
+  was read once, at the moment of dying.
+- **Small honesties.** A construct acting is a noise on its host
+  (`IceType.noise` was read by nothing); an awake Auditor multiplies the
+  residue left there; the first black tell of a run says what it is and
+  what to do; `scan --quiet` reaches for the quietest hunter; payloads
+  carry `jobs` and one not built for the objective is `-3` and louder, said
+  at the door; the resonance line prints for resonance and not for
+  everything else.
+- **The guard.** `validate.check_reads`: every key in the effects
+  vocabulary and every rider any catalogue can set must appear, quoted,
+  somewhere that is not content; and no attribute may govern fewer than
+  two skills. One dead vocabulary key (`actions_first_tick`) went.
+  `test_reads` drives each of the above.
+
+Parts (b) through (e) follow in this decision: the intrusion layer, the
+catalogue and what a player can learn about it, the vices and the money,
+and the relics.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -2669,3 +2750,21 @@ ally's exposure to countermeasures, which wake the same way and deserve the
 same mark, and the assertion was the only reason anybody looked.
 
 `validate.py` clean, `test.py` green at **13,908 checks**.
+
+### 2026-08-21 (l): the mechanics read back, part one
+
+The author asked for a deep dive on the mechanics: stats, hacking, gear,
+drugs, all of it, nothing thin or unread, balance fixed, and special items
+to reward exploration. Four read-only audits went over the source first,
+one per subsystem, and every one of them came back with the same class of
+finding this project has been fighting since `presence`: numbers declared
+and never read. **D63 (a)** is the engine half: the deck hears chrome and
+bench work, Tempo banks free actions, multipliers bank their fractions
+instead of rounding them away, a lock-on is a printed check, four chrome
+riders and a drug rider do what they said, Architecture and Sabotage have
+reads, Impersonate and Sidechannel and Script do what their text says,
+black ICE names itself on the tell, Composure is read when the room turns.
+`check_reads` now holds every effect key and every rider to having a
+reader outside content, which is the guard this whole bug class wanted.
+
+`validate.py` clean, `test.py` green at **13,980 checks**.

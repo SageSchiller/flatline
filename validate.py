@@ -3773,6 +3773,73 @@ def check_conditions(rep: Report) -> None:
     rep.check(a is b, 'conditions', 'the same night draws differently twice')
 
 
+
+# --------------------------------------------------------------------------
+# every number reads (D63)
+# --------------------------------------------------------------------------
+
+_WIDE_SOURCE: str = ''
+
+
+def _wide_source() -> str:
+    """Everything that is not content: the run layer, the commands, the
+    world, the model, and the session. The recurring bug in this project is
+    content declaring a number the engine never reads; this is the haystack
+    the reader has to be found in."""
+    global _WIDE_SOURCE
+    if not _WIDE_SOURCE:
+        import pathlib
+        paths = []
+        for folder in ('flatline/run', 'flatline/commands', 'flatline/world',
+                       'flatline/model'):
+            paths += sorted(pathlib.Path(folder).glob('*.py'))
+        paths += [pathlib.Path('flatline/session.py'),
+                  pathlib.Path('flatline/shell.py'),
+                  pathlib.Path('flatline/script.py')]
+        _WIDE_SOURCE = '\n'.join(p.read_text(encoding='utf-8')
+                                 for p in paths if p.exists())
+    return _WIDE_SOURCE
+
+
+def check_reads(rep: Report) -> None:
+    """D63: a modifier key or a rider that nothing outside content reads is a
+    lie with a number on it. `tempo` shipped on the sheet, on three implants,
+    two traits and a drug, and was consumed by nothing; `evade_bonus` was
+    sold eleven times. Every key in the effects vocabulary and every rider
+    string any catalogue can set must appear, quoted, somewhere that is not
+    content. Attribute and skill keys are read generically by `attr()` and
+    `skill()` and are exempt."""
+    from flatline.content import attributes as attr_content
+    from flatline.content import drugs, skills as skill_content
+    from flatline.content import traits as trait_content
+    source = _wide_source()
+    generic = set(attr_content.ATTR_KEYS)
+    for key in fx.ALL:
+        if key in generic or key.startswith('skill_'):
+            continue
+        rep.check(f"'{key}'" in source, 'reads',
+                  f'effect key {key!r} is declared and nothing outside '
+                  f'content reads it')
+    riders: set[str] = set()
+    riders |= set(cyberware.RIDERS)
+    riders |= set(trait_content.RIDERS)
+    riders |= set(icons.RIDERS)
+    riders |= set(origins.RIDERS)
+    riders |= {d.rider for d in drugs.DRUGS if d.rider}
+    for rider in sorted(riders):
+        rep.check(f"'{rider}'" in source, 'reads',
+                  f'rider {rider!r} is declared and nothing outside content '
+                  f'reads it')
+    # The skills-per-attribute rule the attributes docstring promises: no
+    # attribute may govern fewer than two skills, or the sheet has a number
+    # that only one technique ever asks about.
+    governed: dict[str, int] = {k: 0 for k in attr_content.ATTR_KEYS}
+    for sk in skill_content.SKILLS:
+        governed[sk.attr] = governed.get(sk.attr, 0) + 1
+    for attr, n in governed.items():
+        rep.check(n >= 2, 'reads', f'{attr} governs only {n} skill(s)')
+
+
 CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
     check_guide, check_consequences, check_spine, check_city_texture,
@@ -3782,7 +3849,7 @@ CHECKS = (
     check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_offers, check_legacy, check_bonds, check_safehouses, check_crew, check_mods, check_commands,
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_palette_separation, check_markup, check_balance,
-    check_heat, check_guile, check_roster,
+    check_heat, check_guile, check_roster, check_reads,
 )
 
 

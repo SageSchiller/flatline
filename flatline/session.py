@@ -567,6 +567,11 @@ class Session:
         state = self.run
         dispatched = 0
         self.in_script = True
+        if state is not None and state.running and len(steps) > 1:
+            # Script (D63, as the technique always said): one tick less
+            # than the sum of its parts. Banked, so the first one-tick step
+            # the script takes is the one that costs nothing.
+            state.tick_bank += 1.0
         try:
             for step in steps:
                 if not self.running:

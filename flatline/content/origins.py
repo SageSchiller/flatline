@@ -116,7 +116,6 @@ ORIGINS: tuple[Origin, ...] = (
             'The Sixes consider you theirs. They have not asked for anything '
             'yet. They will.'),
         effects={'repair_mult': 0.7},
-        rider='salvager',
         signature='jury',
         signature_name='Jury-rig',
         signature_detail=(
@@ -279,7 +278,6 @@ ORIGINS: tuple[Origin, ...] = (
             'every shift. They are extremely patient and they have never once '
             'had to be anything else.'),
         effects={'repair_mult': 0.5},
-        rider='company_hardware',
         signature='requisition',
         signature_name='Requisition',
         signature_detail=(
@@ -409,8 +407,8 @@ SIGNATURES: frozenset[str] = frozenset({
 })
 
 RIDERS: frozenset[str] = frozenset({
-    'policy_reader', 'salvager', 'known_quantity', 'first_principles',
-    'read_the_room', 'native', 'company_hardware', 'veteran_eye',
+    'policy_reader', 'known_quantity', 'first_principles',
+    'read_the_room', 'native', 'veteran_eye',
     'no_history', 'streetwise',
 })
 
