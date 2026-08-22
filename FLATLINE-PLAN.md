@@ -2958,3 +2958,6 @@ Third: a lender's visit to an empty account counts the room at half
 (`Debt.assess`/`settle`): the cash first, the incident for half of what the
 cash did not cover. The debt used to drop by the whole visit whether or not
 a credit changed hands, which made an empty account the cheapest way to pay.
+Fourth: a runner's loan is a tab (`City.tabs`): they mention it every nine
+shifts it stands, in front of people, at three disposition a mention; `ask
+<name> repay` pays it down and clearing it gives half the favour's cost back.

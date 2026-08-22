@@ -40,6 +40,10 @@ RESIDUE_DELAY = 1
 #: How much of the world's news is kept. A scrollback rather than a record.
 NEWS_KEPT = 40
 
+#: A runner's loan: how often they mention it, and what a mention costs.
+TAB_NAG = 9
+TAB_NAG_COST = 3
+
 #: How often an ambient beat is about somebody who used to do this instead of
 #: about the city. Low: the departed are a ghost story the city tells
 #: occasionally, and a city that talks about nobody else would be a memorial.
@@ -110,6 +114,10 @@ class City:
     #: a faction, which is the right grain for somebody who has been winning
     #: at the same table for a month.
     tables: dict = field(default_factory=dict)
+    #: rival key -> [credits owed, shift it was lent]. A runner's loan is a
+    #: tab, not a gift: they mention it every `TAB_NAG` shifts it stands,
+    #: and the mentioning costs you their opinion. `ask <name> repay`.
+    tabs: dict = field(default_factory=dict)
     next_cid: int = 1
     #: district -> listings, and the shift they were rolled.
     stock: dict = field(default_factory=dict)
@@ -405,6 +413,18 @@ class City:
         if alias is not None:
             told.extend(rival_mod.bond_turn(rng('rivals'), self.rivals, alias,
                                             flags or ()))
+        # The mentioning is the interest. Every TAB_NAG shifts a tab stands,
+        # the runner who lent it says something, and it costs you.
+        for key, (amount, since) in list(self.tabs.items()):
+            rival = self.rival(key)
+            if rival is None or not rival.alive or amount <= 0:
+                continue
+            stood = self.shift - since
+            if stood > 0 and stood % TAB_NAG == 0:
+                rival.adjust_disposition(-TAB_NAG_COST)
+                told.append(f'[warn]{rival.name} mentions the {amount:,}c. '
+                            f'Lightly. In front of somebody.[/] [dim]`ask '
+                            f'{rival.key} repay`.[/]')
         self.news.extend(told)
         del self.news[:-NEWS_KEPT]
         return told
@@ -758,6 +778,7 @@ class City:
             'safehouse': dict(self.safehouse),
             'crew': dict(self.crew),
             'tables': dict(self.tables),
+            'tabs': {k: list(v) for k, v in self.tabs.items()},
             'next_cid': self.next_cid,
             'stock': {k: [l.to_dict() for l in v] for k, v in self.stock.items()},
             'stock_shift': self.stock_shift,
@@ -782,6 +803,9 @@ class City:
             safehouse=dict(d.get('safehouse') or {}),
             crew=dict(d.get('crew') or {}),
             tables={k: int(v) for k, v in (d.get('tables') or {}).items()},
+            tabs={k: [int(v[0]), int(v[1])]
+                  for k, v in (d.get('tabs') or {}).items()
+                  if isinstance(v, (list, tuple)) and len(v) == 2},
             next_cid=int(d.get('next_cid', 1)),
             stock={k: [Listing.from_dict(l) for l in v]
                    for k, v in (d.get('stock') or {}).items()},

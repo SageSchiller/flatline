@@ -7535,6 +7535,31 @@ def test_money() -> None:
          f'of {ask})')
     T.ok(any('count it at' in t for t in told), 'and the line says how much')
 
+    # A runner's loan is a tab: tracked, mentioned, repayable.
+    from flatline.world import city as city_world
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=9)
+    rival = next(r for r in game.city.rivals if r.alive)
+    rival.disposition = 80
+    credits = game.char.credits
+    sess, out = play([f'ask {rival.key} loan'], game=game)
+    T.ok(game.char.credits > credits, 'the loan arrives')
+    T.ok(rival.key in game.city.tabs, 'and it is a tab')
+    owed = game.city.tabs[rival.key][0]
+    T.ok('repay' in ui.plain(out), 'and it says how to pay it back')
+    disp = rival.disposition
+    game.city.shift += city_world.TAB_NAG - 1
+    game.city.tabs[rival.key][1] = game.city.shift - city_world.TAB_NAG
+    told = game.city._rival_turn(game.rng, game.alias, game.story.flags)
+    T.ok(any('mentions' in t for t in told), 'they mention it when it stands')
+    T.ok(rival.disposition < disp, 'and the mentioning costs you')
+    game.char.credits = owed + 100
+    disp = rival.disposition
+    sess, out = play([f'ask {rival.key} repay'], game=game)
+    T.ok(rival.key not in game.city.tabs, 'repaid in full clears the tab')
+    T.ok(rival.disposition > disp, 'and they remember that you paid')
+    saved = city_world.City.from_dict(game.city.to_dict())
+    T.eq(saved.tabs, game.city.tabs, 'tabs round-trip')
+
     # A first dose of a hook-4 drug asks first.
     game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
     game.char.stash['grave_salt'] = 1

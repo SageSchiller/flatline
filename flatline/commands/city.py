@@ -25,6 +25,7 @@ from ..rng import random_seed
 from .. import save as save_mod
 from .. import ui
 from ..shell import Args, CommandError, command
+from ..world import city as city_mod
 from ..world import debt as debt_mod
 from ..world import fallout
 from ..world import rivals as rival_world
@@ -2370,10 +2371,12 @@ def cmd_ask(sess, args) -> None:
         c.say('[dim]`needs` is the disposition they have to be at. '
               '`ask <name> <favour>`.[/]')
         c.blank()
-        rows = [(r.data.handle, f'{r.disposition:+d}', r.band)
+        rows = [(r.data.handle, f'{r.disposition:+d}', r.band,
+                 (f'{game.city.tabs[r.key][0]:,}c'
+                  if r.key in game.city.tabs else ''))
                 for r in pool if r.alive]
-        c.table(('who', 'disposition', ''), rows,
-                roles=('accent', None, 'dim'))
+        c.table(('who', 'disposition', '', 'you owe'), rows,
+                roles=('accent', None, 'dim', 'credit'))
         return
 
     query = args[0].lower()
@@ -2384,10 +2387,13 @@ def cmd_ask(sess, args) -> None:
         raise CommandError(f'nobody called {query!r}')
 
     kind = args[1].lower()
+    if 'repay'.startswith(kind) and len(kind) >= 3:
+        _repay(sess, rival, args)
+        return
     matches = [k for k in rival_content.FAVOURS if k.startswith(kind)]
     if len(matches) != 1:
         raise CommandError('which favour: '
-                           + ', '.join(rival_content.FAVOURS))
+                           + ', '.join(rival_content.FAVOURS) + ', repay')
     kind = matches[0]
 
     ok, why = rival_world.can_ask(rival, kind, game.char)
@@ -2406,6 +2412,33 @@ def cmd_ask(sess, args) -> None:
               'somebody.[/]')
     rival.adjust_disposition(-cost)
     _grant_favour(sess, rival, kind)
+
+
+def _repay(sess, rival, args) -> None:
+    """Pay a runner's tab down. Clearing it gives back half of what the
+    favour cost in their opinion of you: they remember that you paid."""
+    game, c = sess.game, sess.console
+    owed, since = game.city.tabs.get(rival.key, [0, 0])
+    if owed <= 0:
+        raise CommandError(f'you do not owe {rival.name} anything.')
+    amount = args.int_at(2, owed, 'an amount') if len(args) > 2 else owed
+    amount = max(0, min(amount, owed, game.char.credits))
+    if amount <= 0:
+        raise CommandError(f'you owe {rival.name} {owed:,}c and have '
+                           f'{game.char.credits:,}c.')
+    game.char.credits -= amount
+    left = owed - amount
+    if left > 0:
+        game.city.tabs[rival.key] = [left, since]
+        c.ok(f'{amount:,}c to {rival.name}. [dim]{left:,}c still on the '
+             f'tab.[/]')
+        return
+    del game.city.tabs[rival.key]
+    back = rival_world.favour_cost('loan') // 2
+    rival.adjust_disposition(back)
+    c.ok(f'{amount:,}c to {rival.name}, and that is the tab cleared.')
+    c.say(f'[dim]They remember that you paid. Disposition {rival.disposition:+d}.[/]')
+    game.city.news.append(f'You cleared your tab with {rival.name}.')
 
 
 def _grant_favour(sess, rival, kind: str) -> None:
@@ -2434,10 +2467,13 @@ def _grant_favour(sess, rival, kind: str) -> None:
     if kind == 'loan':
         amount = 800 + rival.data.skill * 350
         game.char.credits += amount
+        owed, since = game.city.tabs.get(rival.key, [0, game.city.shift])
+        game.city.tabs[rival.key] = [owed + amount, game.city.shift]
         c.ok(f'[credit]{amount:,}c[/] from {rival.name}, on the '
              f'understanding that it is a loan.')
-        c.say('[dim]They will mention it later. The mentioning is the '
-              'interest.[/]')
+        c.say(f'[dim]They will mention it, every {city_mod.TAB_NAG} shifts '
+              f'it stands, in front of people, and the mentioning is the '
+              f'interest. `ask {rival.key} repay` when you can.[/]')
         return
 
     if kind == 'program':
