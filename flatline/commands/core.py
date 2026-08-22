@@ -161,12 +161,12 @@ def _help_topic(sess, topic) -> None:
             para = para[para.index('[/]') + 3:].lstrip()
             # The sentence carried on from the heading, so it starts in
             # lower case; standing on its own under a rule it should not.
-            for i, ch in enumerate(para):
-                if ch.isalpha():
-                    para = para[:i] + ch.upper() + para[i + 1:]
-                    break
-                if ch not in '[]/a-z':
-                    break
+            # Only plain prose gets the capital: a paragraph that opens with
+            # markup opens with a command name, which is lower case on
+            # purpose, and reaching into the tag for a letter to raise turns
+            # `[fg]errands[/]` into a visible `[Fg]errands`.
+            if para[:1].isalpha():
+                para = para[0].upper() + para[1:]
         for line in para.split('\n'):
             # Lines that are already laid out as a table keep their spacing;
             # prose gets wrapped.

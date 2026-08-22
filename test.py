@@ -805,6 +805,21 @@ def test_help() -> None:
     for name, _ in manual.ORIENTATION:
         T.ok(name in landing, f'and offers {name} to somebody who is lost')
 
+    # Markup survives rendering. A paragraph that opens with a sub-heading
+    # used to have its next letter raised for the capital, and when the next
+    # letter was inside `[fg]errands[/]` the tag came out as a visible
+    # `[Fg]errands`. Every role, every topic, every time.
+    roles = ('fg', 'dim', 'muted', 'border', 'ok', 'warn', 'err', 'info',
+             'accent', 'accent2', 'trace', 'noise', 'residue', 'ice',
+             'credit', 'heat')
+    broken = []
+    for topic in manual.TOPICS:
+        _, page = play([f'help {topic.key}'])
+        for role in roles:
+            if f'[{role.capitalize()}]' in page or f'[{role.upper()}]' in page:
+                broken.append(f'{topic.key}:{role}')
+    T.eq(broken, [], 'no help topic leaks a mangled markup tag')
+
     # The two index pages exist and are where everything actually lives.
     _, verbs = play(['help commands'])
     for cmd in REGISTRY.in_context('city'):
