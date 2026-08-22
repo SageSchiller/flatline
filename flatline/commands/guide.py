@@ -149,12 +149,19 @@ def _now_city(sess):
         steps.append(('choose', 'something is waiting on a decision from '
                                 'you'))
     if contract is None:
-        steps.append(('board', 'work on offer. `board 1` reads the first '
-                               'one, `take 1` accepts it'))
-        also = ['look', 'market', 'map', 'char', 'help']
+        # Which job, not just the board (D64 c): the softest thing on it
+        # that this kit can do, with the posture said out loud.
+        steps.extend(city_cmds.city_steps(game)[:2])
+        if not steps or not any(cmd.startswith('take') for cmd, _ in steps):
+            steps.append(('board', 'work on offer. `board 1` reads the first '
+                                   'one, `take 1` accepts it'))
+        else:
+            steps.append(('board', 'or read the rest of it: `board 1` reads '
+                                   'the first one'))
+        also = ['look', 'errands', 'market', 'map', 'char', 'help']
     else:
         steps.extend(city_cmds.city_steps(game)[:2])
-        also = ['job', 'map', 'deck', 'market', 'look', 'help']
+        also = ['job', 'map', 'deck', 'market', 'errands', 'look', 'help']
     if char.runs == 0 and (char.points or char.xp):
         steps.append(('spend', f'{char.points} attribute point'
                                f'{"s" if char.points != 1 else ""} and '
@@ -654,6 +661,6 @@ def apply_plan(sess, plan) -> None:
              + f'. [dim]{char.xp} experience left.[/]')
     for tech in unlocked:
         c.say(f'[accent]{tech.name} unlocked.[/] '
-              f'[dim]{tech.verb or "modifies an existing command"}: '
+              f'[dim]{tech.verb or "no new verb: it changes what happens"}: '
               f'{tech.summary}[/]', indent='  ', subsequent='  ')
     sess.autosave()

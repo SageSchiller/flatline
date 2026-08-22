@@ -1104,7 +1104,7 @@ def cmd_techniques(sess, args) -> None:
         c.say('[dim]None yet. Ranks 2 and 4 of every skill unlock one.[/]')
         return
     for tech in have:
-        verb = tech.verb or 'modifies an existing command'
+        verb = tech.verb or 'no new verb: it changes what happens'
         c.blank()
         c.raw(f'[accent]{tech.name}[/]  [dim]{verb}[/]')
         c.say(tech.summary, indent='  ')
