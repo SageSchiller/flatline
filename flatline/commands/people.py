@@ -297,12 +297,46 @@ def cmd_talk(sess, args) -> None:
     c.blank()
     c.say(line)
     _noticed(sess)
+    _lead(sess, npc)
     if npc.topics:
         c.blank()
         c.say('[dim]They will talk about: '
               + ', '.join(sorted(npc.topics)) + '. `ask '
               + npc.key + ' <topic>`.[/]')
     _check_story(sess)
+
+
+def _lead(sess, npc) -> None:
+    """What somebody standing here has heard (D65 depth).
+
+    The rumour that leads to a relic is ambient weather, which means it
+    arrives when the city feels like it. This is the other channel, and the
+    one a player controls: talk to somebody in a district where something
+    can be found and they say the thing they have heard, once each. It is
+    the payoff for meeting people, and it is why a district with somebody
+    in it is worth walking to.
+    """
+    game, c = sess.game, sess.console
+    where = npc.where or game.city.where
+    story = game.story
+    for spot in spots.in_district(where):
+        for find in spot.finds:
+            if not find.rumour:
+                continue
+            if f'found:{find.item}' in story.flags:
+                continue
+            if f'heard:{find.item}' in story.flags:
+                continue
+            if not all(story.satisfied(rule, game) for rule in find.requires):
+                continue
+            story.flags.add(f'heard:{find.item}')
+            c.blank()
+            c.say(f'[accent2]They have heard something.[/] [dim]{find.rumour}[/]')
+            c.say(f'[dim]It would be somewhere in {spot.name}.[/]')
+            game.city.news.append(f'[accent2]Heard in '
+                                  f'{districts.BY_KEY[where].name}:[/] '
+                                  f'{find.rumour[:90]}...')
+            return
 
 
 def ask_npc(sess, args) -> bool:

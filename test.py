@@ -7794,6 +7794,21 @@ def test_relics() -> None:
     T.ok(('nobody',) in gives, 'the Quiet Kid gives Nobody')
     T.ok(('yourlog',) in gives, 'reading the log keeps it')
 
+    # People are a lead: talk to somebody where something can be found.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=31)
+    game.city.where = 'ninth'
+    game.story.meet('tuck')
+    game.char.runs = 2
+    sess, out = play(['talk tuck'], game=game)
+    plain = ui.plain(out)
+    T.ok('They have heard something' in plain, 'talking gets you the rumour')
+    T.ok('generator' in plain or 'map of every cable' in plain,
+         'and it says roughly where')
+    T.ok('heard:survey' in game.story.flags, 'and it is remembered')
+    sess, out = play(['talk tuck'], game=game)
+    T.ok('They have heard something' not in ui.plain(out), 'once each')
+    T.ok(game.story.satisfied('heard:survey', game), 'heard: is a rule')
+
     # inspect tells the history.
     _, out = play(['inspect thessaly'])
     plain = ui.plain(out)

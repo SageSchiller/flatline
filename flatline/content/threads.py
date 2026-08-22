@@ -33,7 +33,7 @@ from dataclasses import dataclass, field
 #: finished, see `Posting`).
 CONDITIONS = ('runs', 'diss', 'shift', 'credits', 'heat', 'met', 'rep',
               'ran', 'origin', 'debt', 'trait', 'did', 'bond', 'found',
-              'street', 'warned')
+              'street', 'warned', 'heard')
 
 
 @dataclass(frozen=True, slots=True)

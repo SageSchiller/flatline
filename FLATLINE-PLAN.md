@@ -3186,3 +3186,11 @@ has been up six floors every day for forty years, from the Widow), six
 more places to stand in the new districts, and a validate rule that every
 district has something in it to find. 24 relics, 60 places.
 `test.py` green at **15,077 checks**.
+
+### 2026-08-21 (aa): people are leads
+
+Talking to somebody in a district where something can be found gets you
+the rumour, once each (`heard:<item>`), with the place named, and it goes
+on the wire. The ambient rumour is the city telling you when it feels like
+it; this is the channel the player controls, and it is the payoff for
+meeting people. `help relics` says so. `test.py` green at **15,082 checks**.
