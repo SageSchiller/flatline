@@ -78,10 +78,10 @@ class Story:
             return f'met:{value}' in self.flags
         if kind == 'ran':
             return f'ran:{value}' in self.flags
-        if kind in ('did', 'bond'):
-            # A posting finished, or a runner decided about you. The flag
-            # carries its own colons, so it is matched whole rather than
-            # parsed.
+        if kind in ('did', 'bond', 'found'):
+            # A posting finished, a runner decided about you, or a relic
+            # found (D63 e). The flag carries its own colons, so it is
+            # matched whole rather than parsed.
             return rule in self.flags
         if kind == 'runs':
             return game.char.runs >= int(value)

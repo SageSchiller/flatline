@@ -55,6 +55,11 @@ class Program:
     #: Engine-implemented special behaviour while loaded (D63 c). Must be in
     #: `RIDERS`, and `validate.check_reads` holds the engine to reading it.
     rider: str = ''
+    #: One of a kind (D63 e). Never in a market: found somewhere, given by
+    #: somebody, or handed over by a decision. `lore` is its history, shown
+    #: by `inspect` and when it is found.
+    unique: bool = False
+    lore: str = ''
 
 
 PROGRAMS: tuple[Program, ...] = (
@@ -304,6 +309,137 @@ PROGRAMS: tuple[Program, ...] = (
 )
 
 
+#: The ones there is one of (D63 e). Not sold. Found, given, or decided.
+RELICS: tuple[Program, ...] = (
+    Program('thessaly', 'Thessaly', 'breaker', 3, 5, 0.65, 7400, 3,
+            'A breaker with a dead runner\'s handle in the header and a '
+            'comment block at the top that somebody wrote at four in the '
+            'morning, addressed to nobody, explaining why a thing that should '
+            'not work does. It still does.',
+            effects={'residue_mult': 1.2},
+            note='Strong and nearly quiet. It signs its work; she always did.',
+            unique=True,
+            lore='The Ninth still talks about her in the past tense without '
+                 'ever saying what happened, and the handle is scratched into '
+                 'the paint by the transit gate with a date under it. She was '
+                 'faster than all of them and she never once cleaned up, on '
+                 'the grounds that anybody good enough to read the logs was '
+                 'good enough to know it was her anyway. The breaker keeps the '
+                 'habit. Every crack it makes leaves a little more behind than '
+                 'it should, and somewhere in that little more is her name.'),
+    Program('fourohsix', 'Four-Oh-Six', 'hunter', 2, 5, 0.5, 5600, 3,
+            'An index of four hundred and six runs that ended, sorted by what '
+            'ended them. Point it at a host and it tells you which of the '
+            'four hundred and six this one looks like.',
+            effects={'scan_depth': 1, 'tell_lead': 1},
+            note='Reads what killed the last four hundred and six people who '
+                 'tried.',
+            unique=True,
+            lore='The Archivist gives it to people who agree to be in it. '
+                 'That is the whole of the arrangement: your log joins the '
+                 'others when it ends, and until then you carry everybody '
+                 'else\'s. It is not sentimental. It is the single most '
+                 'useful piece of reconnaissance in the city, because a '
+                 'construct that has killed somebody has a way of doing it, '
+                 'and the way is in here, four hundred and six times over.'),
+    Program('nobody', 'Nobody', 'mask', 2, 5, 0.0, 6900, 3,
+            'The Quiet Kid\'s route file. It does not hide you. It arranges '
+            'for there to have been nobody to hide.',
+            effects={'trace_mult': 0.72, 'rep_mult': 0.85},
+            note='Passive. Nobody gets the credit either.',
+            unique=True,
+            lore='Nobody knows the Quiet Kid\'s handle, which is the point of '
+                 'the Quiet Kid, and nobody knows how many jobs the Kid has '
+                 'done because the jobs do not read as having been done by '
+                 'anyone. This is how. It arrived in your deck without a '
+                 'message attached, after you said yes to working together, '
+                 'which is the most the Kid has ever said to anybody. It '
+                 'works exactly as well for you as it does for them, with '
+                 'the same cost: the work is nobody\'s, and so is the name '
+                 'it would have made you.'),
+    Program('desk', 'The Desk', 'forger', 3, 5, 0.4, 6200, 3,
+            'Grieve\'s names. Every pretext it writes belongs to a person '
+            'who exists, with a file that checks out, because it is their '
+            'file.',
+            effects={'pretext_bonus': 4, 'heat_mult': 1.1},
+            note='Somebody real answers for every name on it.',
+            unique=True,
+            lore='Grieve keeps a desk, and what is on the desk is people: '
+                 'clerks and auditors and night-shift supervisors, real ones, '
+                 'with real credentials, who do not know they are on it. '
+                 'Working with Grieve means working from the desk. A door '
+                 'that asks who you are gets an answer that survives being '
+                 'checked, and somewhere in the city a clerk gets a question '
+                 'they cannot answer about a night they were at home. Grieve '
+                 'says they are never hurt. Grieve says a lot of things in '
+                 'that voice.'),
+    Program('yourlog', 'The Log', 'wiper', 3, 5, 0.5, 7000, 3,
+            'Eleven years of a network\'s own record of itself, which you '
+            'read, and which has been reading you back since. It knows where '
+            'logs are kept because it is one.',
+            effects={'residue_mult': 0.55, 'composure': -2},
+            note='The best wiper you will carry, and it is heavy.',
+            unique=True,
+            lore='You carried it out of Deepwater and you read it, which was '
+                 'the one thing the people who wanted it had asked you not '
+                 'to do. It is not a program in the usual sense. It is a '
+                 'record of everything a network did for eleven years, '
+                 'including the part where it noticed you, and it is '
+                 'extremely good at finding where a network keeps its record '
+                 'of you because it is that kind of thing itself. Carrying '
+                 'it costs something you cannot put a number on, so the game '
+                 'puts one on it, and the number is two.'),
+    Program('samizdat', 'Samizdat', 'daemon', 2, 4, 0.7, 4800, 3,
+            'The log, published, became a thing that keeps publishing. Set '
+            'it loose on a host and it holds the host by telling everybody '
+            'about it.',
+            effects={'residue_mult': 0.9},
+            note='A daemon that is also a rumour.',
+            unique=True,
+            lore='You published Deepwater\'s log and it did what published '
+                 'things do in this city, which is get copied by people who '
+                 'do not want to be the only ones holding it. One of the '
+                 'copies came back to you as this: a daemon built out of the '
+                 'log\'s own habits, which are to sit somewhere, watch, and '
+                 'tell. It holds a node the way a crowd holds a street. '
+                 'Nobody wrote it, exactly. It happened to the log.'),
+    Program('pike', 'Pike', 'weapon', 2, 5, 1.0, 5800, 3,
+            'Old Pike wrote the counter to the thing that bears his name, '
+            'tested it once against a copy, and never ran it in anger. It is '
+            'the cleanest piece of warfare code in the city and nobody has '
+            'improved on it.',
+            effects={'ice_damage': 4},
+            note='Hits like a rating-six weapon at a third of the memory.',
+            unique=True,
+            lore='Pike is a hunter construct, Sendai and Nightwatch issue, and '
+                 'it is called that because the man at the cranes designed '
+                 'the first one and the people who bought it thought naming '
+                 'it after him was a kindness. He wrote this the same year, '
+                 'because a man who builds a thing should know how to stop '
+                 'it, and then he put it in a drawer and went back to the '
+                 'cranes. He hands it over without looking away from them. '
+                 'He has watched you for eight runs and that is apparently '
+                 'enough.'),
+    Program('survey', 'The Survey', 'hunter', 1, 3, 0.6, 1900, 1,
+            'Tuck\'s map of every cable in the Ninth, on something that is '
+            'not paper. It is a map of a district, and it turns out a '
+            'district and a network are the same shape.',
+            effects={'scan_depth': 1},
+            note='One memory. Reaches a hop further, for nothing.',
+            unique=True,
+            lore='Tuck mapped the Ward\'s cabling over nine years because '
+                 'nobody else was going to and because the pumps depend on '
+                 'it. The map is kept in the generator shed, in the sense '
+                 'that Tuck put it somewhere and it is there. What a hunter '
+                 'program does is read how somebody decided to arrange '
+                 'things, and Tuck\'s map is the purest example of that in '
+                 'the city, so loaded into a deck it does the same job, '
+                 'modestly, forever. It is the first thing worth having that '
+                 'the Ninth ever gave anybody for free.'),
+)
+
+PROGRAMS = PROGRAMS + RELICS
+
 BY_KEY: dict[str, Program] = {p.key: p for p in PROGRAMS}
 PROGRAM_KEYS: tuple[str, ...] = tuple(BY_KEY)
 
@@ -332,6 +468,7 @@ def quietest(loaded: list[str], category: str) -> Program | None:
     """
     have = [BY_KEY[k] for k in loaded if k in BY_KEY and BY_KEY[k].category == category]
     return min(have, key=lambda p: (p.signature, -p.rating)) if have else None
+
 
 
 #: Program riders (D63 c). Each is read by the run layer while the program

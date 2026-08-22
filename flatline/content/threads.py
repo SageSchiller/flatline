@@ -32,7 +32,7 @@ from dataclasses import dataclass, field
 #: 'rep:<faction>:N', 'ran:<faction>', 'did:<thread.stage>' (a posting
 #: finished, see `Posting`).
 CONDITIONS = ('runs', 'diss', 'shift', 'credits', 'heat', 'met', 'rep',
-              'ran', 'origin', 'debt', 'trait', 'did', 'bond')
+              'ran', 'origin', 'debt', 'trait', 'did', 'bond', 'found')
 
 
 @dataclass(frozen=True, slots=True)
@@ -228,7 +228,7 @@ THREADS: tuple[Thread, ...] = (
                              'tune is.\n\n'
                              'You are not sure, afterwards, which of you '
                              'wrote the next entry.',
-                             sets=('dw_read',),
+                             sets=('dw_read',), gives=('yourlog',),
                              drift=6),
                       Choice('archive', 'Give it to the Archivist',
                              'You take it to the fence with the back room. If '
@@ -288,7 +288,7 @@ THREADS: tuple[Thread, ...] = (
                              'disputes it and within a week it is simply not '
                              'a thing people bring up, and you cannot find '
                              'anybody who will tell you why.',
-                             sets=('dw_published',),
+                             sets=('dw_published',), gives=('samizdat',),
                              rep={'static': 25, 'meridian': -10},
                              credits=3000),
                   )),
@@ -665,7 +665,7 @@ THREADS: tuple[Thread, ...] = (
                              'immediately, "not yet, obviously," and are '
                              'embarrassed for the only time you will ever '
                              'see.',
-                             sets=('archive_consented',)),
+                             sets=('archive_consented',), gives=('fourohsix',)),
                       Choice('no', 'Say no',
                              '"Of course." They mean it. "It is the only '
                              'thing anybody gets to decide about this and it '
@@ -893,7 +893,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
                              'look at your face and says the name of the bar.'
                              '\n\nMara never raises it again. She does not '
                              'have to.',
-                             sets=('favour_done', 'dw_heard'),
+                             sets=('favour_done', 'dw_heard'), gives=('io_landline',),
                              rep={'fixers': 35},
                              disposition={'vesper': 15}),
                       Choice('ask', 'Ask what it is first',

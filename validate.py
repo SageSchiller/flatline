@@ -906,7 +906,7 @@ def check_dead_fields(rep: Report) -> None:
     records = [
         appearance.Feature, appearance.Slot, events.Event,
         cyberspace.Signature, npc_content.Npc, trait_content.Trait,
-        icons.Icon, origins.Origin, spot_content.Spot,
+        icons.Icon, origins.Origin, spot_content.Spot, spot_content.Find,
         cond_content.Condition,
     ]
     for record in records:
@@ -1525,7 +1525,7 @@ def check_drugs(rep: Report) -> None:
         rep.check(1 <= drug.tier <= 3, where, f'tier {drug.tier}')
         rep.check(drug.price > 0, where, 'is free')
         rep.check(0 <= drug.hook <= 4, where, f'hook {drug.hook}')
-        rep.check(bool(drug.sold), where, 'is sold nowhere')
+        rep.check(bool(drug.sold) or drug.unique, where, 'is sold nowhere')
         for service in drug.sold:
             rep.check(service in districts.SERVICES, where,
                       f'sold at {service!r}, which is not a district service')
@@ -1547,7 +1547,7 @@ def check_drugs(rep: Report) -> None:
         reachable = any(
             service in drug.sold and drug.tier <= d.max_tier
             for d in districts.DISTRICTS for service in d.services)
-        rep.check(reachable, where,
+        rep.check(reachable or drug.unique, where,
                   'no district both stocks its tier and has a seller for it')
 
     rep.check(len(hookless) <= 1, 'drugs',
@@ -3404,7 +3404,8 @@ def check_consequences(rep: Report) -> None:
     def reads(rule: str, who: str, where: str) -> None:
         flag = _story_flag(rule)
         if flag is None:
-            kind = rule.split(':')[0]
+            inner = rule[4:] if rule.startswith('not:') else rule
+            kind = inner.split(':')[0]
             rep.check(kind in thread_content.CONDITIONS
                       or kind in ('met', 'ran'), where,
                       f'{rule!r} is not a rule anything can evaluate')
@@ -3425,6 +3426,10 @@ def check_consequences(rep: Report) -> None:
         for rule in n.requires:
             if rule.split(':')[0] not in npc_content.NUMERIC_RULES:
                 reads(rule, f'npc {n.key}', f'npcs/{n.key}')
+    from flatline.content import spots as spot_content
+    for f in spot_content.FINDS:
+        for rule in f.requires:
+            reads(rule, f'find {f.item}', f'spots/finds/{f.item}')
     for w in offers.WORK:
         for rule in w.requires:
             reads(rule, f'work {w.npc}', f'offers/work/{w.npc}')
@@ -3803,6 +3808,86 @@ def check_conditions(rep: Report) -> None:
 
 
 # --------------------------------------------------------------------------
+# relics (D63 e)
+# --------------------------------------------------------------------------
+
+
+def check_relics(rep: Report) -> None:
+    """D63 e: a thing there is one of has a history, a way to get it, and no
+    price tag anywhere.
+
+    Every `unique` item in any catalogue is given by exactly one route (a
+    `Find` at a place, or a `Choice.gives`), has a lore paragraph, and never
+    appears in a market roll. Every find names a unique item that exists,
+    an hour that exists, rules the story can evaluate, a moment and a rumour
+    in the right tone, and lives in a place. `found:<item>` flags are read
+    only through the rumour's `not:` rule, which is what makes the rumour
+    stop."""
+    from flatline.content import drugs as drug_content
+    from flatline.content import spots as spot_content
+    from flatline.content import arcs as arc_content
+    from flatline.world import market as market_mod
+
+    catalogues = (('program', programs.PROGRAMS), ('ware', cyberware.WARE),
+                  ('component', hardware.COMPONENTS),
+                  ('drug', drug_content.DRUGS))
+    uniques: dict[str, object] = {}
+    for kind, table in catalogues:
+        for item in table:
+            if getattr(item, 'unique', False):
+                uniques[item.key] = item
+    rep.check(len(uniques) >= 12, 'relics',
+              f'only {len(uniques)} relics in the whole city')
+
+    given: dict[str, list[str]] = {k: [] for k in uniques}
+    for f in spot_content.FINDS:
+        if f.item in given:
+            given[f.item].append(f'find at {spot_content.spot_of(f).key}')
+    for t in thread_content.THREADS:
+        for st in t.stages:
+            for ch in st.choices:
+                for key in ch.gives:
+                    if key in given:
+                        given[key].append(f'choice {t.key}.{st.key}.{ch.key}')
+    for key, item in uniques.items():
+        where = f'relics/{key}'
+        rep.check(len(given[key]) == 1, where,
+                  f'is given by {len(given[key])} routes ({given[key]}); '
+                  f'a relic has exactly one')
+        rep.check(len(getattr(item, 'lore', '')) >= 200, where,
+                  'has no history worth the name')
+        for kind, _ in catalogues:
+            for k, _tier, _price in market_mod._catalogue(kind):
+                rep.check(k != key, where, f'can be rolled by a {kind} market')
+        for service in ('market', 'clinic', 'fence', 'fixer', 'workshop'):
+            for k, _tier, _price in market_mod._catalogue('drug', service):
+                rep.check(k != key, where, f'can be rolled by a {service}')
+
+    phases = set(shifts.PHASE_KEYS)
+    for f in spot_content.FINDS:
+        where = f'spots/finds/{f.item}'
+        rep.check(f.item in uniques, where,
+                  f'{f.item!r} is not a unique item in any catalogue')
+        for hour in f.hours:
+            rep.check(hour in phases, where, f'hour {hour!r} is not a phase')
+        rep.check(len(f.text) >= 80, where, 'the moment is too short to land')
+        rep.check(bool(f.rumour), where, 'has no rumour, so nothing leads here')
+        rep.check(f.tone in events.TONES, where, f'tone {f.tone!r}')
+        rep.check(bool(f.requires), where,
+                  'has no conditions: it would be found on the first visit')
+    # The flags are read only through the rumours' `not:` rules.
+    for e in events.EVENTS:
+        for rule in tuple(e.requires) + tuple(e.any_of):
+            if 'found:' in rule:
+                rep.check(rule.startswith('not:found:'), f'events/{e.key}',
+                          f'reads {rule!r}; a found flag is only ever a reason '
+                          f'for a rumour to stop')
+    rep.check(bool(arc_content.PARTNER_GIFTS), 'relics',
+              'nobody you work with ever gives you anything')
+
+
+
+# --------------------------------------------------------------------------
 # every number reads (D63)
 # --------------------------------------------------------------------------
 
@@ -3878,7 +3963,7 @@ CHECKS = (
     check_ice, check_nodes, check_contracts, check_drugs, check_lenders, check_games, check_offers, check_legacy, check_bonds, check_safehouses, check_crew, check_mods, check_commands,
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_palette_separation, check_markup, check_balance,
-    check_heat, check_guile, check_roster, check_reads,
+    check_heat, check_guile, check_roster, check_reads, check_relics,
 )
 
 

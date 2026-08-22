@@ -5711,7 +5711,8 @@ def test_consequences() -> None:
 
     # Gated events: never without the story, the right branch with it.
     plain = events.eligible('shambles', 'morning')
-    T.ok(plain and all(not (e.requires or e.any_of) for e in plain),
+    T.ok(plain and all(not (e.requires or e.any_of)
+                       or e.key.startswith('rumour_') for e in plain),
          'without a story only weather is eligible')
     game = fresh()
     game.story.flags.add('lark_dead')
@@ -5727,6 +5728,7 @@ def test_consequences() -> None:
             seen.add(e.key)
     T.ok('lark_jacket' in seen, 'and it does come up when the shift is drawn')
     T.ok(all(events.BY_KEY[k].requires == () or k == 'lark_jacket'
+             or k.startswith('rumour_')
              for k in seen), 'and nothing else gated on a decision does')
     # Through the city itself, with the story handed in.
     game = fresh()
@@ -7513,11 +7515,102 @@ def test_money() -> None:
     T.ok('the cure is the habit' in ui.plain(out), 'chem says what the cure costs')
 
 
+
+def test_relics() -> None:
+    """D63 e: things there is one of."""
+    T.section('relics')
+    from flatline.content import spots, events, drugs as drug_content
+    from flatline.content import threads as thread_content
+    from flatline.world import market as market_mod
+
+    uniques = ([p.key for p in programs.PROGRAMS if p.unique]
+               + [w.key for w in cyberware.WARE if w.unique]
+               + [c.key for c in hardware.COMPONENTS if c.unique]
+               + [d.key for d in drug_content.DRUGS if d.unique])
+    T.ok(len(uniques) >= 12, f'there are relics ({len(uniques)})')
+
+    # Never in a market, in any district, over many cycles.
+    rolled = set()
+    for seed in range(20):
+        for d in districts.DISTRICTS:
+            for listing in market_mod.restock(Rng(seed)('market'), d.key, seed):
+                rolled.add(listing.key)
+    T.ok(not (rolled & set(uniques)),
+         f'no market ever rolls a relic ({sorted(rolled & set(uniques))})')
+
+    # A find: the hour, the rules, once, and the rumour stops.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=21)
+    game.city.where = 'ninth'
+    find = spots.FIND_BY_ITEM['survey']
+    spot = spots.spot_of(find)
+    T.eq(spot.key, 'generator', 'the Survey is in the generator shed')
+    sat = lambda r: game.story.satisfied(r, game)
+    T.ok('rumour_survey' in {e.key for e in events.eligible('ninth', 'morning', sat)},
+         'the rumour is in the air before')
+    sess, out = play(['visit generator'], game=game)
+    T.ok('survey' not in game.char.library, 'nothing is found before the rules hold')
+    game.story.flags.add('met:tuck')
+    game.char.runs = 2
+    sess, out = play(['visit generator'], game=game)
+    plain = ui.plain(out)
+    T.ok('survey' in game.char.library, 'met Tuck and two runs in, the map is yours')
+    T.ok('something here is yours' in plain and 'The Survey' in plain,
+         'and the moment printed')
+    T.ok('found:survey' in game.story.flags, 'the flag is set')
+    T.ok(any('Survey' in n for n in game.city.news), 'and the wire has it')
+    sess, out = play(['visit generator'], game=game)
+    T.eq(game.char.library.count('survey'), 1, 'and it is found once')
+    T.ok('rumour_survey' not in {e.key for e in events.eligible('ninth', 'morning', sat)},
+         'the rumour stops')
+    T.ok(game.story.satisfied('found:survey', game), 'found: is a rule')
+
+    # The hour matters: Thessaly is a night thing.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=22)
+    game.city.where = 'marrow'
+    game.char.runs = 6
+    while game.city.phase == 'night':
+        game.city.shift += 1
+    play(['visit transit'], game=game)
+    T.ok('thessaly' not in game.char.library, 'not by day')
+    while game.city.phase != 'night':
+        game.city.shift += 1
+    play(['visit transit'], game=game)
+    T.ok('thessaly' in game.char.library, 'at night, under the rail')
+
+    # A drug relic lands in the stash; a decision hands a relic over.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=23)
+    game.city.where = 'ninth'
+    game.story.flags.add('met:vending')
+    game.char.runs = 4
+    while game.city.phase != 'night':
+        game.city.shift += 1
+    play(['visit alcove'], game=game)
+    T.eq(game.char.stash.get('formula_zero'), 1, 'Formula No. 0 is in the stash')
+    gives = [ch.gives for t in thread_content.THREADS
+             for st in t.stages for ch in st.choices if ch.gives]
+    T.ok(('fourohsix',) in gives, 'the Archivist gives Four-Oh-Six')
+    T.ok(('nobody',) in gives, 'the Quiet Kid gives Nobody')
+    T.ok(('yourlog',) in gives, 'reading the log keeps it')
+
+    # inspect tells the history.
+    _, out = play(['inspect thessaly'])
+    plain = ui.plain(out)
+    T.ok('one of a kind' in plain and 'transit gate' in plain,
+         'inspect says it is one of a kind and tells the history')
+    _, out = play(['help relics'])
+    T.ok('one of a kind' in ui.plain(out), 'help relics exists')
+
+    # Rumours are weather without a story and in their own district.
+    fresh = {e.key for e in events.eligible('shambles', 'morning')}
+    T.ok('rumour_lark_piece' in fresh, 'a rumour is weather before any decision')
+    T.ok('rumour_thessaly' not in fresh, 'and stays in its own district')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
-    test_intrusion, test_catalogue, test_money,
+    test_intrusion, test_catalogue, test_money, test_relics,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,

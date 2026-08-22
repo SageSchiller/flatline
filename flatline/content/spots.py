@@ -31,6 +31,33 @@ class Spot:
     #: NPC keys you would usually find here. Presence is still decided by the
     #: world layer; this says where in the district to look.
     who: tuple[str, ...] = ()
+    #: Things to be found here (D63 e): one of a kind, at the right hour,
+    #: after the right thing. See `Find`.
+    finds: tuple = ()
+
+
+@dataclass(frozen=True, slots=True)
+class Find:
+    """Something one of a kind, where it is, and what has to be true.
+
+    D63 e. A relic is found rather than bought: at a place (`visit`), at an
+    hour, once the story rules hold, once per character ever. The rumour is
+    an ambient event, localised to the district, that stops the moment the
+    thing is found; it is the breadcrumb, and it is the only one.
+    """
+
+    #: Catalogue key: a program, chrome, component or drug with `unique=True`.
+    item: str
+    #: Story rules, `Story.satisfied` syntax, all of which must hold.
+    requires: tuple[str, ...] = ()
+    #: Phases it can be found in. Empty means any hour.
+    hours: tuple[str, ...] = ()
+    #: Second person, present tense: the moment you find it.
+    text: str = ''
+    #: What the district says about it, before you do. An ambient event.
+    rumour: str = ''
+    #: The rumour's tone, for the budget.
+    tone: str = 'wry'
 
 
 SPOTS: tuple[Spot, ...] = (
@@ -47,14 +74,35 @@ SPOTS: tuple[Spot, ...] = (
          'got here. Everything in the Ninth that is for sale is here, and most '
          'of it works, and the people selling it know exactly which of it does '
          'not and will tell you for the price of being asked politely.',
-         who=('tuck',)),
+         who=('tuck',),
+         finds=(Find('cool_cloth', requires=('sparrow_taught',),
+                     text='Sparrow finds you between two vans and hands you a '
+                          'cloth, folded, damp, with the air of somebody passing '
+                          'on a trade secret. "For the case. It works." It does, '
+                          'a bit. She waits until you have put it in the bag.',
+                     rumour='Sparrow is said to have solved thermal load with a '
+                            'wet cloth, and to have been right about how often '
+                            'that works, which is most of the time, which is '
+                            'the problem.',
+                     tone='absurd'),)),
     Spot('alcove', 'the alcove', 'ninth',
          'A recess between two stairwells with a vending machine in it that '
          'has a name, a small pile of coins at its base, and a scroll of flat '
          'capitals it would like you to read. Somebody has put a stool in '
          'front of it. Somebody else has put a second stool.{{The stools face '
          'the machine.}}',
-         who=('vending',)),
+         who=('vending',),
+         finds=(Find('formula_zero', requires=('met:vending', 'runs:4'),
+                     hours=('night',),
+                     text='The machine hums, and something drops into the tray '
+                          'that is not on the front of the machine, and you '
+                          'have not paid. The display says RESTOCKED. It did not '
+                          'say that a moment ago.',
+                     rumour='The vending machine in the Ninth is said to have '
+                            'dispensed something it does not list, once, at '
+                            'night, to somebody who had not paid, and to have '
+                            'been restocked since.',
+                     tone='absurd'),)),
 
     # -- Marrow ---------------------------------------------------------------
     Spot('noodle_bar', 'the noodle bar', 'marrow',
@@ -144,7 +192,18 @@ SPOTS: tuple[Spot, ...] = (
          'died for ninety seconds on a Sendai table and has not entirely '
          'agreed to be back. People come here to sit. Nothing is said for '
          'long stretches, and the stretches are the point.',
-         who=('remnant',)),
+         who=('remnant',),
+         finds=(Find('remnant_graft', requires=('dw_name', 'diss:30'),
+                     hours=('night',),
+                     text='The room is empty and you are far enough gone to '
+                          'think of opening the drawer. It is not locked. There '
+                          'is one piece in it, the one that came out last, and '
+                          'it is warm, which it should not be.',
+                     rumour='Somebody says Remnant kept one piece back, the '
+                            'one that came out last, and that it is in the dark '
+                            'room in a drawer that is not locked because nobody '
+                            'who goes in there opens drawers.',
+                     tone='grim'),)),
     Spot('bench', 'the cold bench', 'glasshouse',
          'The Glasshouse workshop: a steel bench, a loupe on an arm, and a '
          'technician who will fix your deck and talk to it while she does, '
@@ -167,7 +226,19 @@ SPOTS: tuple[Spot, ...] = (
          night='At night the cranes keep their lights on and the water does '
                'what water does under them, and the old man has gone, and '
                'the bollard is still warm if you get there soon enough.',
-         who=('pike_sr', 'crane')),
+         who=('pike_sr', 'crane'),
+         finds=(Find('pike', requires=('met:pike_sr', 'runs:8'),
+                     hours=('morning',),
+                     text='Old Pike does not look away from the cranes. He '
+                          'holds out a chip between two fingers until you take '
+                          'it, and says that he wrote it the year they named '
+                          'the thing after him, and never ran it, and that '
+                          'eight runs is enough to be going on with.',
+                     rumour='Old Pike, at the cranes, is said to have written '
+                            'something once and never run it, and to hand it '
+                            'to people he has watched for long enough. The '
+                            'people who say so have not been handed it.',
+                     tone='wry'),)),
     Spot('mess', 'the dockers\' mess', 'freeport',
          'A long room over the water with a bar at one end and a bench record '
          'on the wall with a dead man\'s name still on it, by vote. The losing '
@@ -199,13 +270,33 @@ SPOTS: tuple[Spot, ...] = (
          'not, and the Blue Surgeon works in it with the door open and does '
          'not use anaesthetic and talks the whole time. The queue outside has '
          'been there since four. It will be there at four tomorrow.',
-         who=('surgeon',)),
+         who=('surgeon',),
+         finds=(Find('surgeons_own', requires=('lark_saved', 'surgeon_owed'),
+                     text='The Blue Surgeon puts a vial on the counter between '
+                          'you without looking up from the ledger. No label. '
+                          '"For the next time." At this clinic it is not a '
+                          'pleasantry.',
+                     rumour='The Blue Surgeon is said to give something to '
+                            'people who have paid for somebody else\'s life, in '
+                            'a vial, without a label, for the next time.',
+                     tone='grim'),)),
     Spot('crate', 'the crate', 'shambles',
          'A crate outside the clinic where somebody your age sits, or sat, '
          'with six pieces of chrome and two of them load-bearing. People leave '
          'things on it. It is the nearest thing the Shambles has to a bench, '
          'and the only one anybody remembers who sat there.',
-         who=('lark',)),
+         who=('lark',),
+         finds=(Find('lark_piece', requires=('lark_dead',),
+                     text='Somebody has been through the crate. They took the '
+                          'charger and the tin. They missed the thing taped '
+                          'inside the lid, because it was not worth money, and '
+                          'it comes away in your hand still warm from the sun '
+                          'on the lid.',
+                     rumour='Somebody went through Lark\'s crate afterwards, '
+                            'looking for things worth money. Somebody else says '
+                            'they missed something, and will not say what, and '
+                            'has not gone back for it.',
+                     tone='grim'),)),
     Spot('cabinets', 'the cabinets', 'shambles',
          'Every shop on Carrion\'s street has a cabinet at the front with the '
          'things that came out of somebody recently, serial numbers showing, '
@@ -252,12 +343,33 @@ SPOTS: tuple[Spot, ...] = (
          'Two floors up, on a landing, a man is testing a generator for a '
          'landlord who is not paying for the diesel, and has been testing it '
          'since before you got here. It runs. He tests it anyway. Below him '
-         'the stairwell has a line of tape on it from last month.'),
+         'the stairwell has a line of tape on it from last month.',
+         finds=(Find('survey', requires=('met:tuck', 'runs:2'),
+                     text='Behind the fuel drum, in a plastic sleeve, on '
+                          'something that is not paper: a map of every cable in '
+                          'the Ninth, in Tuck\'s hand, with the pumps circled. '
+                          'It is not hidden. It is where Tuck put it.',
+                     rumour='Tuck is said to keep a map of every cable in the '
+                            'Ninth on something that is not paper, and to have '
+                            'lost it, in the sense of having put it somewhere.',
+                     tone='wry'),)),
     Spot('transit', 'the transit gate', 'marrow',
          'The gate to the interchange, with a handle scratched into the paint '
          'by it, and a date, and under that a word that has been scratched '
          'out again by somebody else. People touch the handle going through. '
-         'Nobody will tell you whose it was and two of them know.'),
+         'Nobody will tell you whose it was and two of them know.',
+         finds=(Find('thessaly', requires=('runs:6',), hours=('night',),
+                     text='Under the rail, where the handle is scratched into '
+                          'the paint, somebody has taped a drive. It has been '
+                          'there long enough for the tape to go brown. Nobody '
+                          'has taken it because nobody who stands here at '
+                          'night reads the paint, and you did.',
+                     rumour='There is a handle scratched into the paint by '
+                            'the transit gate, and a date under it, and '
+                            'somebody says there is something taped under the '
+                            'rail that nobody has taken, and then changes the '
+                            'subject.',
+                     tone='grim'),)),
     Spot('back_bar', 'the back bar', 'marrow',
          'The bar behind the noodle bar, reached through the kitchen, where '
          'the runners who have a safehouse drink with the ones who do not and '
@@ -285,7 +397,18 @@ SPOTS: tuple[Spot, ...] = (
          'A counter with a queue and a window and somebody behind it who '
          'writes everything out properly, on paper, with a heading. The '
          'prescriptions are technically prescriptions. The technically is '
-         'doing a great deal of work.'),
+         'doing a great deal of work.',
+         finds=(Find('aftercare_bead', requires=('met:orderly', 'rep:aoyama:10'),
+                     hours=('afternoon',),
+                     text='The orderly looks at you for a while and then takes '
+                          'a bead off a tray that is not for you and puts it '
+                          'in your hand and closes your hand on it. "Under the '
+                          'skin. Wrist. It reports, but it also works."',
+                     rumour='The Green dispensary is said to keep a tray of '
+                            'beads for patients who have stopped coming. They '
+                            'go in under the skin of the wrist. Nobody has asked '
+                            'what they are for.',
+                     tone='wry'),)),
     Spot('interface_bar', 'the interface bar', 'glasshouse',
          'A bar where the chairs talk to your deck and the drinks are priced '
          'by what your deck says back. Runners with good masking drink cheap '
@@ -371,3 +494,27 @@ def scene_for(spot: Spot, phase: str) -> str:
     if phase == 'night' and spot.night:
         return spot.night
     return spot.blurb
+
+
+#: Every find, in catalogue order of the places (D63 e).
+FINDS: tuple[Find, ...] = tuple(f for sp in SPOTS for f in sp.finds)
+FIND_BY_ITEM: dict[str, Find] = {f.item: f for f in FINDS}
+
+
+def spot_of(find: Find) -> Spot:
+    return next(sp for sp in SPOTS if find in sp.finds)
+
+
+def available(spot: Spot, phase: str, satisfied, flags) -> list[Find]:
+    """What can be found here now: the hour is right, the rules hold, and it
+    has not been found. `satisfied(rule)` is the story's rule check bound to
+    the game."""
+    out = []
+    for find in spot.finds:
+        if f'found:{find.item}' in flags:
+            continue
+        if find.hours and phase not in find.hours:
+            continue
+        if all(satisfied(rule) for rule in find.requires):
+            out.append(find)
+    return out

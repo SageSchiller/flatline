@@ -1261,8 +1261,23 @@ RUNNER_CONSEQUENCES: tuple[Event, ...] = (
           weight=CONSEQUENCE_WEIGHT),
 )
 
+
+
+def _rumours() -> tuple:
+    """The relics' breadcrumbs (D63 e): one ambient event per find, in the
+    district the thing is in, that stops the moment it is found."""
+    from .spots import FINDS, spot_of
+    return tuple(
+        Event(f'rumour_{f.item}', f.tone, f.rumour, weight=2.4,
+              districts=(spot_of(f).district,),
+              requires=(f'not:found:{f.item}',))
+        for f in FINDS if f.rumour)
+
+
+RUMOURS: tuple = _rumours()
+
 EVENTS = (EVENTS + MORE_WEATHER + CONSEQUENCES + ARC_CONSEQUENCES
-          + RUNNER_CONSEQUENCES)
+          + RUNNER_CONSEQUENCES + RUMOURS)
 
 BY_KEY: dict[str, Event] = {e.key: e for e in EVENTS}
 EVENT_KEYS: tuple[str, ...] = tuple(BY_KEY)
@@ -1287,6 +1302,12 @@ def eligible(district: str, phase: str, satisfied=None) -> list[Event]:
             continue
         if e.requires or e.any_of:
             if satisfied is None:
+                # A rumour (D63 e) is weather until the thing is found: its
+                # only rule is `not:found:<item>`, which holds for anybody
+                # who has not, which without a story is everybody.
+                if (e.key.startswith('rumour_') and not e.any_of
+                        and all(r.startswith('not:found:') for r in e.requires)):
+                    out.append(e)
                 continue
             if not all(satisfied(r) for r in e.requires):
                 continue

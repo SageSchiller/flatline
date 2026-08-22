@@ -81,19 +81,22 @@ class Listing:
 
 
 def _catalogue(kind: str, service: str = ''):
+    # A relic (D63 e) is never merchandise: found, given, or decided.
     if kind == 'program':
-        return [(p.key, p.tier, p.price) for p in programs.PROGRAMS]
+        return [(p.key, p.tier, p.price) for p in programs.PROGRAMS
+                if not p.unique]
     if kind == 'ware':
-        return [(w.key, w.tier, w.price) for w in cyberware.WARE]
+        return [(w.key, w.tier, w.price) for w in cyberware.WARE if not w.unique]
     if kind == 'drug':
         # Filtered by who is selling. A clinic and a fence both deal, and
         # they deal in different things: the difference between the two
         # counters is most of what the catalogue is saying about the city.
         return [(d.key, d.tier, d.price) for d in drugs.DRUGS
-                if not service or service in d.sold]
+                if not d.unique and (not service or service in d.sold)]
     # Components priced at zero are the "nothing fitted" options and must
     # never appear as merchandise.
-    return [(c.key, c.tier, c.price) for c in hardware.COMPONENTS if c.price > 0]
+    return [(c.key, c.tier, c.price) for c in hardware.COMPONENTS
+            if c.price > 0 and not c.unique]
 
 
 def restock(rng: Stream, district_key: str, shift: int) -> list[Listing]:
@@ -161,7 +164,8 @@ def restock(rng: Stream, district_key: str, shift: int) -> list[Listing]:
     # every clinic district regardless of the buyer, because stock is a
     # property of the world; whether it is *visible* is a property of you.
     if 'clinic' in district.services:
-        deep_pool = [(w.key, w.price) for w in cyberware.WARE if w.tier >= 3]
+        deep_pool = [(w.key, w.price) for w in cyberware.WARE
+                     if w.tier >= 3 and not w.unique]
         for key, price in rng.sample(deep_pool, min(3, len(deep_pool))):
             out.append(Listing(
                 kind='ware', key=key,

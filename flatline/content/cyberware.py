@@ -66,6 +66,11 @@ class Ware:
     penalty: dict = field(default_factory=dict)
     #: Free-text mechanical rider the engine special-cases by key.
     rider: str = ''
+    #: One of a kind (D63 e). Never in a market: found somewhere, given by
+    #: somebody, or handed over by a decision. `lore` is its history, shown
+    #: by `inspect` and when it is found.
+    unique: bool = False
+    lore: str = ''
 
 
 WARE: tuple[Ware, ...] = (
@@ -392,6 +397,68 @@ WARE: tuple[Ware, ...] = (
          penalty={'tell_lead': -2, 'scan_depth': -1}),
 )
 
+
+
+#: The ones there is one of (D63 e). Not sold over any counter.
+RELICS: tuple[Ware, ...] = (
+    Ware('remnant_graft', 'Remnant\'s Graft', 'unbranded, reworked',
+         'cortex', 2, 1, 9000, 3,
+         'The piece Remnant had taken out last, the day they stopped. It '
+         'went back in somebody else, which is you, and it does not drift. '
+         'Nobody who has looked at it can say why.',
+         effects={'composure': 4, 'trace_mult': 0.9},
+         drawback='It does not drift, and Remnant will not say what that '
+                  'cost, and you are a little slower to find your own hands.',
+         penalty={'focus': -1},
+         unique=True,
+         lore='Remnant had everything taken out over eleven months and kept '
+              'one piece, in a drawer in the dark room that is not locked '
+              'because nobody who goes in there opens drawers. It is the one '
+              'that was in longest. Dissonance is a record of what you have '
+              'done to yourself, and this piece carries almost none, which '
+              'by every rule in the city should not be possible; Remnant\'s '
+              'theory, offered once and not repeated, is that it did its '
+              'drifting already, in them, and has nothing left to do in '
+              'anybody else. You found it on a night when the room was empty '
+              'and you were far enough gone yourself to think of looking.'),
+    Ware('lark_piece', 'What Came Out of Lark', 'Aoyama, second-hand',
+         'neural', 2, 9, 2400, 2,
+         'A reflex shunt, load-bearing by the end. It was keeping Lark '
+         'upright and it does not know you are not Lark.',
+         effects={'reflex': 1, 'tick_mult': 0.9},
+         drawback='It expects a body that was already failing, and it takes '
+                  'a little of yours to make up the difference.',
+         penalty={'integrity': -2},
+         unique=True,
+         lore='Lark died because nobody paid, and somebody went through the '
+              'crate outside the clinic afterwards looking for things worth '
+              'money, and missed the thing taped inside the lid because it '
+              'was not worth money: it was worth Lark, for about a fortnight '
+              'at the end. It is good chrome. It is faster than it has any '
+              'right to be and it costs you a little every night, which is '
+              'the same deal Lark had, at the same clinic, from the same '
+              'people. The Blue Surgeon will fit it without comment.'),
+    Ware('aftercare_bead', 'Aftercare Bead', 'Aoyama Biotech, Greenward',
+         'subdermal', 1, 3, 1800, 2,
+         'A bead under the skin of the wrist, the kind the Green gives '
+         'patients who have stopped coming in. It steadies you. It also '
+         'reports.',
+         effects={'composure': 2, 'price_mult': 0.96},
+         drawback='Aftercare means somebody is keeping notes. What it files '
+                  'about you converts into heat a little faster.',
+         penalty={'heat_mult': 1.1},
+         unique=True,
+         lore='The dispensary keeps a tray of them for people who were '
+              'discharged and did not come back, which is most people, and '
+              'the orderly gave you one because you had been polite to the '
+              'orderly more than once, which is rare enough on that floor to '
+              'count as a relationship. It does what it says: a small '
+              'steadiness, a small discount at any counter Aoyama supplies, '
+              'and a small file, somewhere in the Green, that grows by a '
+              'line every time you do something a file would want to know.'),
+)
+
+WARE = WARE + RELICS
 
 BY_KEY: dict[str, Ware] = {w.key: w for w in WARE}
 WARE_KEYS: tuple[str, ...] = tuple(BY_KEY)

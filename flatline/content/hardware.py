@@ -47,6 +47,11 @@ class Component:
     penalty: dict = field(default_factory=dict)
     #: Thermal output. The cooling budget has to cover the sum of these.
     heat: int = 0
+    #: One of a kind (D63 e). Never in a market: found somewhere, given by
+    #: somebody, or handed over by a decision. `lore` is its history, shown
+    #: by `inspect` and when it is found.
+    unique: bool = False
+    lore: str = ''
 
 
 COMPONENTS: tuple[Component, ...] = (
@@ -227,6 +232,46 @@ COMPONENTS: tuple[Component, ...] = (
                        'caught with one is its own charge.',
               penalty={'heat_mult': 1.2}),
 )
+
+
+#: The ones there is one of (D63 e). Not sold over any counter.
+RELICS: tuple[Component, ...] = (
+    Component('cool_cloth', 'A Wet Cloth', 'cooling', 1, 5,
+              'It is a wet cloth. It goes over the case. Sparrow solved '
+              'thermal load this way, and was right about how often it works, '
+              'which is most of the time, which is the problem.',
+              effects={'heat_cap': 3}, heat=0,
+              drawback='It is a wet cloth.',
+              penalty={},
+              unique=True,
+              lore='You taught Sparrow how a deck actually works, and she '
+                   'listened, and then she gave you this, folded, still damp, '
+                   'with the air of somebody handing over a trade secret. It '
+                   'does in fact cool a deck. It cools a deck by about a '
+                   'third of what the cheapest sink in the catalogue manages, '
+                   'and it weighs nothing, and it was free, and it is '
+                   'impossible to look at it fitted to a nine-thousand-credit '
+                   'rig without hearing her explain it. There is no better '
+                   'item in the game and there are many stronger ones.'),
+    Component('io_landline', 'Mara\'s Landline', 'io', 2, 3300,
+              'A number on the old exchange that rings back. Nobody traces a '
+              'landline, because nobody remembers they exist.',
+              effects={'tick_mult': 0.92, 'trace_mult': 0.85}, heat=1,
+              drawback='Everybody in the building hears one ring.',
+              penalty={'noise_mult': 1.1},
+              unique=True,
+              lore='Mara ran the noodle bar and before that she ran something '
+                   'else, and the something else left her with a number on '
+                   'the copper exchange that still answers. You did a thing '
+                   'for her that was not a transaction and she gave you the '
+                   'number, which is a transaction, in her way. Routed through '
+                   'it a connection is older than anything that is watching '
+                   'for connections, and the trace has to go the long way '
+                   'round through a switch that was built to carry voices. '
+                   'The bell, though. There is always the bell.'),
+)
+
+COMPONENTS = COMPONENTS + RELICS
 
 BY_KEY: dict[str, Component] = {c.key: c for c in COMPONENTS}
 COMPONENT_KEYS: tuple[str, ...] = tuple(BY_KEY)

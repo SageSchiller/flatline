@@ -162,12 +162,17 @@ The three ideas everything else hangs off:
 ## What is in it
 
 12 skills with 24 techniques · 26 traits · 10 origins, each with a signature
-verb nobody else can use and its own starting face · 34 implants · 46 programs
-· 28 countermeasures · 9 pieces of bench work · 9 districts, each with a mark for the faction that
+verb nobody else can use and its own starting face · 37 implants · 54 programs
+· 32 deck components · 15 of all of those one of a kind, never sold, found at a place at an hour or handed over by a decision, each with a history · 28 countermeasures · 9 pieces of bench work · 9 districts, each with a mark for the faction that
 holds it · 12 factions · 7 rival runners who decide about you, and one you can keep · 22 named characters who keep hours, hand out work, keep private stock and do favours on a tab · 28 storylines across 81 scenes and 100 decisions, every one of them read back by the world, with a spine through the middle that has four endings and one of them is a door ·
-102 appearance features · 9 districts, drawn, with a scene for every hour and 45 places in them to go and stand · 154 ambient city events, 71 of them consequences of something you decided · 39 manual topics ·
-10 drugs · 3 lenders · 2 games of chance in 5 rooms ·
-120 commands · 71 pieces of terminal across 7 axes.
+102 appearance features · 9 districts, drawn, with a scene for every hour and 45 places in them to go and stand · 163 ambient city events, 71 of them consequences of something you decided and 9 of them rumours that stop when the thing is found · 40 manual topics ·
+12 drugs · 3 lenders · 2 games of chance in 5 rooms ·
+122 commands · 71 pieces of terminal across 7 axes.
+
+Every number on every one of those is read by the engine, and `validate.py`
+holds it to that: every modifier key and every rider string in the content
+has to appear in the code that is not content, or the build fails. `inspect`
+anything before you pay for it.
 
 Footnotes are a real feature of the console. `{{like this}}` in any content
 string gets lifted out and printed under the block, and they nest, because the

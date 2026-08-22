@@ -12,11 +12,11 @@ updated: 2026-08-21
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is open.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **14,034 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. About 33,000 lines. Three passes landed on 2026-08-21: **D50**, the onboarding layer (an empty line answers with `now`, `new` is a three-question conversation, `spend`, row numbers as names, "did you mean", the `Here:` line); **D51**, a decision must be read: every story decision has readers (presence, offers, consequence events, the streets, the board, the ending) and a line in the epilogue, enforced by `validate.py`; and **D52**, the spine: Deepwater in five acts with four endings, one of them a door only crossings open, and `Posting`/`did:` as the general mechanism for a scene that happens inside a run. Then **D53**, the city deeper: a scene for every district at every hour, twenty-seven places to stand in (`visit`), the street letting you know below an incident (`close_call`), `news` reading the wire nobody could see, and fourteen more events with the absurd share lifted off its floor. Then **D54** (six lines and four topics per person, in seventeen voices; hours, so the clock is a reason to be somewhere) and **D55** (nine threads rooted in the districts, twenty-two decisions, four postings). Then **D56**: a decision at each rival's bond latch (fourteen scenes, twenty-eight decisions, read by the hire price, the shift boundary, four events and the epilogue), and the wire carrying scenes, decisions and what a run did to the city. Then **D57** (the city drawn, `walk`) and **D58** (forty-five places, twenty-two people, the street, a hundred and fifty-four events). Then **D59**, the readout: one dim line after every tick spent in a run, as the seventh rice axis (`hud`: line, bar, terse, quiet). Then **D60**, the tutorial's second half: nine more steps, past the door into what the city does. Then **D61**, tonight inside: eight run conditions drawn at the door, every field read, in the sum where they touch a check. Then **D62**, the rest of the list: the journal as a log, previously on resume, `odds` for strike and for what any verb costs tonight, ICE portraits, attribute bars and a build label, the end-of-run card, scripts discoverable, naming the deck and the safehouse. **Every Phase 7 item is done.** What is next is whatever playing it turns up. Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
+> **State as of 2026-08-21.** **Phases 0 through 5 are done and D17's finish line is passed; Phase 7 is closed; D63 is the mechanics deep dive.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **14,067 checks** (the seven soak scripts from 2026-08-15 live outside the repo and were last run then), and `./build.sh` produces a `dist/flatline.pyz` that runs standalone with nothing installed. The latest work is **D63**, in five parts, all landed 2026-08-21: (a) every declared number and rider has a reader, guarded by `check_reads`; (b) the intrusion layer's holes closed (`mask` decays, sealed records, armour wears, faction style knobs, the soft warden route); (c) `inspect`, a bare `load`, `fit`, passives counting once, program riders, six mid-tier parts; (d) Threes capped, collections outpace interest, hook-4 drugs ask; (e) fifteen relics with histories, nine found at places and six given by decisions, with rumours that stop. Before that, D50 through D62 on the same day: the onboarding layer, decisions that are read, the Deepwater spine, the city deeper, voices and hours, district arcs, the rival bond, the drawn map, the HUD, the tutorial's second half, run conditions, and the rest of the Phase 7 list. **Every Phase 7 item is done.** What is next is whatever playing it turns up. Before that, 2026-08-15: **D48** made Guile a read stat and fixed a float-vs-int heat-decay bug, and **D49** made each character addressable by their own handle.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
 >
-> **What is not done:** nothing structural. Every system the plan set out to build is built, and the catalogue has had one breadth pass (12 skills with 24 techniques, 26 traits, 34 chrome, 46 programs, 28 ICE, 8 icons, 7 rivals, 18 NPCs, 18 story threads, 10 origins, 9 districts, 12 factions, 23 manual topics). More districts and origins are the obvious next content, but **the right way to choose is to play it and notice what is missing**, which nobody has done yet. Treat any further content added without play as a guess.
+> **What is not done:** nothing structural. Every system the plan set out to build is built, and the catalogue has had two passes (12 skills with 24 techniques, 26 traits, 37 chrome, 54 programs of which 15 are relics, 32 components, 12 drugs, 28 ICE, 8 icons, 7 rivals, 18 NPCs, 18 story threads, 10 origins, 9 districts, 12 factions, 23 manual topics). More districts and origins are the obvious next content, but **the right way to choose is to play it and notice what is missing**, which nobody has done yet. Treat any further content added without play as a guess.
 >
 > **What this is.** A netrunner sim you play by typing at a fake terminal. Two layers: a persistent city that keeps score, and procedurally generated corporate networks you break into one contract at a time. The character system is classless and deep enough that two players at the same credit total play nothing alike.
 >
@@ -1761,7 +1761,46 @@ says.
   and `chem` says the cure is the habit. `help chemistry` says Focus is
   counted at the door.
 
-Part (e) follows in this decision: the relics.
+**(e) The relics: things there is one of.** Asked for in the same breath:
+special items, unique, with their own backstories, hard to get or found in
+an unexpected way, to reward exploration.
+
+- **`unique` and `lore`** on every catalogue dataclass. A relic is never
+  merchandise (`market._catalogue` and the back room both skip it), and
+  `inspect` prints its history under its numbers with "one of a kind".
+- **`spots.Find`**: a relic at a place, at an hour, once the story rules
+  hold, once per character ever (`found:<item>` flag, a rule kind). `visit`
+  hands it over with a moment of text and a wire line; `give_item` puts a
+  drug in the stash and everything else in the bag, for finds and for
+  `Choice.gives` alike. Nine finds: the Survey in the generator shed (met
+  Tuck, two runs), Thessaly under the transit rail at night (six runs),
+  Pike at the cranes in the morning (met Old Pike, eight runs), Remnant's
+  Graft in the dark room at night (Deepwater's name, Dissonance 30), What
+  Came Out of Lark in the crate (Lark dead), the Aftercare Bead at the
+  dispensary (met the orderly, Aoyama standing), A Wet Cloth at the stalls
+  (you taught Sparrow), Formula No. 0 from the machine at night (met it,
+  four runs), Surgeon's Own at the clinic (Lark saved, the Surgeon owed).
+- **Six given by decisions**: Four-Oh-Six for consenting to the archive,
+  The Log for reading it, Samizdat for publishing it, Mara's Landline for
+  the favour, Nobody for working with the Quiet Kid, The Desk for working
+  with Grieve (`arcs.PARTNER_GIFTS`).
+- **Rumours.** One ambient event per find (`events.RUMOURS`, built from the
+  finds), in the district the thing is in, that stops the moment it is
+  found; it is weather until then, so a character who decided nothing still
+  hears it. The tone budget holds (five grim, four wry and absurd).
+- **Each one does something nothing on a shelf does and costs something:**
+  Thessaly signs its work (residue x1.2); Nobody takes the credit with the
+  trace (rep x0.85); The Desk is somebody real answering (heat x1.1); The
+  Log is heavy (composure -2); Remnant's Graft does not drift (Dissonance
+  1) and costs a point of Focus; Lark's piece takes two Integrity; the
+  bead reports; the cloth is a wet cloth; the landline rings.
+- **`check_relics`**: at least twelve; each given by exactly one route;
+  two hundred characters of history; never rolled by any market or any
+  counter; every find names a unique thing, an hour that exists, rules the
+  story can evaluate, a moment, a rumour in a tone; `found:` read only
+  through a rumour's `not:`. `check_consequences` counts a find as a reader
+  of the decisions it waits on. `help relics`.
+
 
 ### D17: The finish line
 
@@ -2891,3 +2930,17 @@ lender's visit now takes more than its interest put on; a hook-4 drug asks
 before the first dose; Ash Tea says what it cost the other habits.
 
 `validate.py` clean, `test.py` green at **14,034 checks**.
+
+### 2026-08-21 (p): the mechanics read back, part five
+
+**D63 (e)**, the relics: fifteen things there is one of, each with a
+history, nine found at a place at an hour after something has happened and
+six handed over by decisions in the story, with a rumour per find that is
+weather until the thing is found and then stops. `check_relics` holds the
+layer to exactly one route each and never a price tag. With that the deep
+dive the author asked for is landed in five commits, and the thing worth
+writing down is that all four audits found the same bug in different
+clothes, numbers declared and never read, and the guard for it now lives
+in `validate.py` rather than in anybody\'s memory.
+
+`validate.py` clean, `test.py` green at **14,067 checks**.

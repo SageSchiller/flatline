@@ -92,6 +92,11 @@ class Drug:
     #: Clears every comedown in progress. Exactly one thing does this and it
     #: is the worst idea in the catalogue.
     cures_crash: bool = False
+    #: One of a kind (D63 e). Never in a market: found somewhere, given by
+    #: somebody, or handed over by a decision. `lore` is its history, shown
+    #: by `inspect` and when it is found.
+    unique: bool = False
+    lore: str = ''
 
 
 DRUGS: tuple[Drug, ...] = (
@@ -261,6 +266,62 @@ DRUGS: tuple[Drug, ...] = (
              'wears off. Ozymandias would like you to know this is normal and '
              'that a second can is available.'),
 )
+
+
+#: The ones there is one of (D63 e). Sold nowhere.
+RELICS: tuple[Drug, ...] = (
+    Drug('formula_zero', 'Ozymandias Formula No. 0',
+         'The one before the one that does nothing. The machine does not '
+         'list it and will not dispense it to anybody who has paid.',
+         1, 45,
+         high={'composure': 3, 'focus': 1},
+         crash={'composure': -3, 'focus': -1},
+         withdrawal={'composure': -1},
+         up=2, down=2, hook=1,
+         sold=(),
+         onset='It tastes of the machine. Something in you stops arguing '
+               'with something else in you, and the argument had been going '
+               'on so long you had mistaken it for weather.',
+         turn='It goes the way a radio goes when you walk out of range: '
+              'gradually, and then you notice it has been gone a while.',
+         unique=True,
+         lore='Ozymandias, the vending machine in the Ninth, sells Formula '
+              'No. 1, which does nothing and is honest about it. Formula No. '
+              '0 is what it was before the lawyers, and the machine has one '
+              'left, and it gave it to you at night, unprompted, the way a '
+              'person who has been standing at a bus stop for nine years '
+              'might give a stranger the last thing in their pocket. Nobody '
+              'has told the machine it is a machine. The restocking notices '
+              'taped to it are in its own handwriting.'),
+    Drug('surgeons_own', 'Surgeon\'s Own',
+         'What the Blue Surgeon takes, in the hours when there is a table '
+         'and a person on it and the person is the kind who does not get '
+         'anaesthetic. A vial, no label.',
+         3, 1500,
+         high={'composure': 5, 'ice_dr': 0.85},
+         crash={'nerve': -3, 'focus': -2, 'tick_mult': 1.2},
+         withdrawal={'composure': -3, 'nerve': -2},
+         up=2, down=3, hook=2,
+         sold=(),
+         onset='Everything is exactly as far away as it needs to be. You '
+               'could do surgery. You could watch surgery. They are about '
+               'the same.',
+         turn='The distance comes back in all at once, with interest, and '
+              'your hands are somebody else\'s for a while.',
+         unique=True,
+         lore='You paid for Lark\'s life, or you arranged for it to be '
+              'paid for, and the Blue Surgeon, who keeps accounts on people '
+              'the way other people keep them on money, gave you this the '
+              'next time you were at the clinic: a vial, no label, and the '
+              'words "for the next time", which at that clinic is not a '
+              'pleasantry. It is what they use to do eleven hours of '
+              'careful work on somebody who is screaming. Inside a run it '
+              'does the same thing, which is keep you steady while '
+              'something goes through you, and afterwards it does what '
+              'eleven hours of that does to the Surgeon.'),
+)
+
+DRUGS = DRUGS + RELICS
 
 BY_KEY: dict[str, Drug] = {d.key: d for d in DRUGS}
 DRUG_KEYS: tuple[str, ...] = tuple(BY_KEY)

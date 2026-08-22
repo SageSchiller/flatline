@@ -151,6 +151,44 @@ def _places_line(sess, district) -> None:
           + ' [dim](`visit <place>`, which costs nothing)[/]', subsequent='  ')
 
 
+def give_item(game, key: str) -> tuple[str, bool]:
+    """Put a catalogue thing in the right place (D63 e): programs, chrome
+    and components in the bag, a drug in the stash. Returns (name, unique).
+    One function, because a decision and a place both hand things over and
+    a drug that went into the bag as a program was the bug waiting."""
+    from ..content import cyberware, drugs, hardware, programs
+    if key in drugs.BY_KEY:
+        game.char.stash[key] = game.char.stash.get(key, 0) + 1
+        item = drugs.BY_KEY[key]
+        return item.name, bool(getattr(item, 'unique', False))
+    game.char.library.append(key)
+    item = next((table.BY_KEY[key] for table in (programs, cyberware, hardware)
+                 if key in table.BY_KEY), None)
+    if item is None:
+        return key, False
+    return item.name, bool(getattr(item, 'unique', False))
+
+
+def _finds(sess, spot) -> None:
+    """What is here to be found, now, for you (D63 e). Once each, ever."""
+    game, c = sess.game, sess.console
+    story = game.story
+    here = spots.available(spot, game.city.phase,
+                           lambda rule: story.satisfied(rule, game), story.flags)
+    for find in here:
+        story.flags.add(f'found:{find.item}')
+        name, _ = give_item(game, find.item)
+        c.blank()
+        c.rule('something here is yours', role='accent2')
+        c.say(find.text)
+        c.blank()
+        c.say(f'[accent2][bold]{name}[/][/] [dim]is in the bag. There is one '
+              f'of it. `inspect {find.item}` for what it is and where it '
+              f'came from.[/]')
+        game.city.news.append(f'[accent2]{name}:[/] found at {spot.name}.')
+        sess.record_progress()
+
+
 @command('visit', 'Go and stand somewhere in this district.',
          group='city', contexts=('city',), aliases=('enter', 'goto'),
          usage='visit [place|row number]',
@@ -218,6 +256,7 @@ def cmd_visit(sess, args) -> None:
                   f'{npc_content.hours_label(npc).capitalize()}.[/]')
         else:
             c.say(f'[dim]{npc.name} is not here at the moment.[/]')
+    _finds(sess, spot)
     _check_story(sess)
 
 
@@ -784,13 +823,11 @@ def cmd_choose(sess, args) -> None:
         word = 'in' if choice.credits > 0 else 'gone'
         c.say(f'[credit]{abs(choice.credits):,}c[/] {word}.')
     if choice.gives:
-        from ..content import cyberware, hardware, programs
         for key in choice.gives:
-            game.char.library.append(key)
-            name = next((table.BY_KEY[key].name
-                         for table in (hardware, programs, cyberware)
-                         if key in table.BY_KEY), key)
-            c.say(f'[dim]{name} is in the bag.[/]')
+            name, unique = give_item(game, key)
+            c.say(f'[dim]{name} is in the bag.[/]'
+                  + (' [accent2]`inspect` it: there is one of it.[/]'
+                     if unique else ''))
     for faction, delta in choice.rep.items():
         game.alias.adjust_rep(faction, delta)
         c.say(f'[dim]{factions.BY_KEY[faction].short} '

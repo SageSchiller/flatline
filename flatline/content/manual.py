@@ -686,7 +686,7 @@ TOPICS: tuple[Topic, ...] = (
         '\n\n'
         '[warn]The decision:[/] doing nothing is a real strategy with a real '
         'price, and knowing when to pay it is most of the city layer.',
-        see=('heat', 'rivals', 'contracts', 'reading', 'clock'),
+        see=('heat', 'rivals', 'contracts', 'reading', 'clock', 'relics'),
         commands=('travel', 'walk', 'map', 'rest', 'board', 'look', 'visit',
                   'news'),
         covers=('districts', 'shifts', 'spots'),
@@ -964,6 +964,33 @@ TOPICS: tuple[Topic, ...] = (
         commands=('borrow', 'debt'),
         covers=('lenders',),
         terms=('loanshark', 'shark', 'interest', 'creditor', 'repay'),
+        group='city'),
+    Topic(
+        'relics', 'Things there is one of',
+        'What is not for sale, where it might be, and why it is worth having.',
+        'Most of what you will ever carry came off a shelf, and the shelf '
+        'will have another one next week. A few things did not. They are one '
+        'of a kind, they are never in any market, and each of them has a '
+        'history: a dead runner\'s breaker with her handle in the header, a '
+        'map of a district that turns out to be a map of networks, the piece '
+        'somebody had taken out last and kept, a vial without a label.\n\n'
+        'They are found rather than bought. A place, at an hour, after '
+        'something has happened: [fg]visit[/] somewhere at night that you have '
+        'only stood in by day, go back to a place after a thing you did, '
+        'listen to what a district keeps saying about itself. A few are '
+        'given, by people you decided to work with, or by a decision in a '
+        'story that was never about the item. None of it is announced. The '
+        'city talks about them the way it talks about anything, which is '
+        'sideways and once, and the talk stops when the thing is found.\n\n'
+        'Every one of them does something nothing on a shelf does, and every '
+        'one of them costs something, because that is the rule for '
+        'everything in this game. [fg]inspect[/] one and it tells you its '
+        'history as well as its numbers.\n\n'
+        '[warn]The decision:[/] whether to go and look. Standing somewhere at '
+        'the wrong hour costs nothing but the hour.',
+        see=('city', 'threads', 'programs'),
+        commands=('visit', 'inspect', 'look'),
+        terms=('unique', 'rare', 'special', 'artifact', 'artefact', 'legendary'),
         group='city'),
     Topic(
         'chemistry', 'Drugs, tolerance, and habit',

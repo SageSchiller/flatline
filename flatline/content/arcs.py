@@ -795,6 +795,15 @@ _RUNNER_SCENES = (
 BUYOFF = 2500
 
 
+#: What working with somebody puts in your bag (D63 e). Two of the seven:
+#: the Quiet Kid's route file and Grieve's desk. The rest give the hire
+#: price, which is also a gift, and the ending.
+PARTNER_GIFTS: dict[str, tuple[str, ...]] = {
+    'quietkid': ('nobody',),
+    'grieve': ('desk',),
+}
+
+
 def _runner_stages() -> tuple[Stage, ...]:
     out = []
     for key, name, partner, yes, apart, nemesis, pay, stand in _RUNNER_SCENES:
@@ -804,7 +813,8 @@ def _runner_stages() -> tuple[Stage, ...]:
             requires=(f'bond:{key}:partner',),
             sets=(f'asked_{key}',),
             choices=(
-                Choice('in', 'Work with them', yes, sets=(f'with_{key}',)),
+                Choice('in', 'Work with them', yes, sets=(f'with_{key}',),
+                       gives=PARTNER_GIFTS.get(key, ())),
                 Choice('apart', 'Keep it professional', apart,
                        sets=(f'apart_{key}',)),
             )))
