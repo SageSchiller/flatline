@@ -1022,23 +1022,26 @@ def cmd_board(sess, args) -> None:
         # of the answer (D68). The whole point of a board is choosing, and
         # choosing needs the difficulty where the pay is.
         word, role = reads_short(game.char, int(contract.posture))
-        rows.append((str(n), f'{mark}{contract.cid}', contract.title,
-                     contract.target_data.short, contract.objective,
+        rows.append((f'{mark}{n}', contract.title,
+                     contract.target_data.short,
+                     SHORT_OBJECTIVE.get(contract.objective,
+                                         contract.objective),
                      contract_mod.SIZE_SHORT[contract.size_mod],
                      f'[{role}]{word}[/]',
                      f'{contract.pay:,}c',
                      'held' if contract.held else f'{left}sh'))
-    c.table(('#', 'id', 'job', 'against', 'what', 'size', 'reads',
-             'pay', 'left'),
-            rows, roles=('accent', 'dim', 'accent', 'err', 'dim',
+    c.table(('#', 'job', 'against', 'what', 'size', 'reads', 'pay', 'left'),
+            rows, roles=('accent', 'accent', 'err', 'dim',
                          'dim', None, 'credit', 'warn'))
     # The row numbers mean this board, as printed. See `Session.pick`.
     sess.remember('board', [contract.cid for contract in city.board])
     c.blank()
-    c.say('[dim]`board 1` reads the first one properly, with who is paying '
-          'and how their networks are built. `take 1` accepts it. '
-          '[fg]reads[/] is how their middling services price against the '
-          'breaker you are carrying: easy, fair, even, long, over.[/]')
+    c.say('[dim]`board 1` reads the first one properly: who is paying, how '
+          'their networks are built, and the walk. `take 1` accepts it.[/]')
+    c.say('[dim][fg]reads[/] is doors and room. Doors is whether your '
+          'breaker opens what the job is behind; room is how hard the place '
+          'runs the clock while you do it. Most runs are lost to the '
+          'second.[/]')
 
 
 def _contract_arg(sess, token: str):
@@ -1201,6 +1204,11 @@ VAULT_SERVICE = 5.5
 #: thing you came for.
 DOORS = 3
 
+#: The objective, short enough for a column.
+SHORT_OBJECTIVE = {'exfiltrate': 'exfil', 'surveil': 'watch',
+                   'implant': 'implant', 'corrupt': 'corrupt',
+                   'wipe': 'wipe', 'escort': 'escort'}
+
 #: Two things kill runs and they are not the same thing (D68). The doors
 #: are whether your breaker opens what the job is behind; the room is how
 #: hard the place runs the clock while you do it. Measuring a hundred runs
@@ -1208,7 +1216,7 @@ DOORS = 3
 #: every door and still loses four runs in five, because the trace fills.
 #: A line that priced only the doors told those players a bank was
 #: comfortable.
-DOOR_WORDS = ((0.75, 'ok', 'open'), (0.45, 'warn', 'tight'),
+DOOR_WORDS = ((0.70, 'ok', 'open'), (0.35, 'warn', 'tight'),
               (0.0, 'err', 'shut'))
 ROOM_WORDS = ((60, 'err', 'hostile'), (42, 'warn', 'hard'),
               (28, 'warn', 'busy'), (0, 'ok', 'quiet'))
@@ -1255,19 +1263,19 @@ def readiness(char, posture: int) -> str:
             break
     breaker = programs.best(char.deck.loaded, 'breaker')
     tail = breaker.name if breaker else 'nothing loaded'
-    doors = {'open': 'their doors open for what you carry',
-             'tight': 'their doors are tight for what you carry',
-             'shut': 'their doors are shut to what you carry'}[dword]
-    room = {'quiet': 'the room is quiet: little watching it, and the clock '
-                     'is yours to spend',
-            'busy': 'the room is busy: enough watching it to make the clock '
+    doors = {'open': 'Their doors open for what you carry',
+             'tight': 'Their doors are tight for what you carry',
+             'shut': 'Their doors are shut to what you carry'}[dword]
+    room = {'quiet': 'The room is quiet: little is watching it, and the '
+                     'clock is yours to spend',
+            'busy': 'The room is busy: enough is watching to make the clock '
                     'a real question',
-            'hard': 'the room is hard: it will find you, and the trace runs '
+            'hard': 'The room is hard: it will find you, and the trace runs '
                     'on their terms once it has',
-            'hostile': 'the room is hostile: assume it finds you and plan '
+            'hostile': 'The room is hostile: assume it finds you, and plan '
                        'the evening around that'}[rword]
     return (f'[{drole}]{doors}[/] [dim]({door:.0%} a door with {tail}, and '
-            f'the job is behind about {DOORS})[/]. [{rrole}]{room}[/]')
+            f'the job is behind about {DOORS})[/]\n[{rrole}]{room}[/]')
 
 
 def _net_signature(faction: str) -> str:
