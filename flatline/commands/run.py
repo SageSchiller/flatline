@@ -950,7 +950,12 @@ def cmd_crack(sess, args) -> None:
             c.say(f'[dim]What sank it: {culprit.label}.[/]')
         if check.fumble:
             state.escalate(1, 'A failed attempt was logged loudly.')
-    state.check_traps(node)
+    if node.uid == state.here:
+        # Traps spring on contact, and a crack from the next host over is
+        # not contact: you have not set foot on it. Before this a remote
+        # crack sprang a trap you were never standing on, which punished
+        # exactly the careful move.
+        state.check_traps(node)
 
 
 def _crack_chain(sess, args) -> None:
@@ -1034,7 +1039,8 @@ def _crack_chain(sess, args) -> None:
               f'{state.tier}.[/]')
     if any(check.fumble for _, check in checks):
         state.escalate(1, 'A failed attempt was logged loudly.')
-    state.check_traps(node)
+    if node.uid == state.here:
+        state.check_traps(node)
 
 
 @command('pretext', 'Talk a service into letting you in.',

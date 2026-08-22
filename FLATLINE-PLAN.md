@@ -2952,3 +2952,5 @@ in `validate.py` rather than in anybody\'s memory.
 
 The author asked for the items the deep dive had left alone, one at a time.
 First: the Switchboard lends a newcomer 1,200c rather than nothing.
+Second: a trap springs on contact, and a crack from the next host over is
+not contact; `crack` and `chain` only spring traps on the host you stand on.

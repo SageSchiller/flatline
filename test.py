@@ -7302,6 +7302,30 @@ def test_intrusion() -> None:
     finally:
         rival_world.pick_escort = keep
 
+    # A remote crack does not spring a trap on a host you are not on.
+    char = Character.from_origin('gutter', 'x')
+    char.base_attrs['reflex'] = 1
+    for seed in range(20):
+        game = Game.new(char, seed=seed)
+        contract = game.city.board[0]
+        game.city.where = contract.district
+        sess, _ = play([f'take {contract.cid}', 'jack in --force', 'scan'],
+                       game=game)
+        state = sess.run
+        nxt = next((u for u in state.node.edges
+                    if state.net.nodes[u].services
+                    and not state.net.nodes[u].open), None)
+        if nxt is None:
+            continue
+        trap = net_mod.IceInstance(uid='g-r', key='gallows', rating=9)
+        state.net.nodes[nxt].ice.append(trap)
+        svc = state.net.nodes[nxt].services[0]
+        sess.execute(f'crack {nxt} {svc.key}')
+        T.eq(trap.state, 'dormant', 'a crack from next door springs nothing')
+        break
+    else:
+        T.ok(False, 'found a neighbour to crack remotely')
+
     # connect remembers where you came from.
     game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
     contract = game.city.board[0]
