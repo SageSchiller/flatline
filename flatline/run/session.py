@@ -27,6 +27,7 @@ from ..content import cyberspace
 from ..content import shifts
 from ..content import factions as fac_content
 from ..content import ice as ice_content
+from ..content import incidents as incident_content
 from ..content import nodes as node_content
 from ..content import programs
 from ..content import skills as skill_content
@@ -266,6 +267,19 @@ class RunState:
     since_filed: int = 0
     #: Set by `make_noise` and cleared each tick, so the tick knows.
     noisy_tick: bool = False
+    #: Tick the last incident fired on, and what is attached to the run
+    #: right now because of one (D77).
+    incident_at: int = -99
+    hook: str = ''
+    seen_incidents: set = field(default_factory=set)
+    #: Hosts already scrubbed once, so the brief advises it once and does
+    #: not stand there advising it against a check that keeps missing.
+    scrubbed: set = field(default_factory=set)
+    #: (verb, host) pairs a technique has already been tried on. The brief
+    #: offers a technique as an opening move, once; if the check misses,
+    #: the ordinary advice takes over rather than standing there repeating
+    #: an expensive verb at a door that is not opening (D78).
+    tried: set = field(default_factory=set)
     #: Assets pulled shut, without the decrypt (D63 b). Worth less, and the
     #: patron pays less for the one they wanted open.
     sealed: set = field(default_factory=set)
@@ -621,6 +635,7 @@ class RunState:
             self._escort_tick()
             self._ally_tick()
             self._ice_tick()
+            self._incident_tick()
             self._surveil_tick()
             self._decay_noise()
             self._check_trace()
@@ -1008,6 +1023,163 @@ class RunState:
             self.console.blank()
             self.console.ok('You have enough. Every minute past this is a '
                             'minute you are spending for free.')
+
+    def opened(self, node) -> None:
+        """A host just opened. The one place that fact is announced to the
+        rest of the run, so an incident can wait for it (D77)."""
+        if self.hook == 'tail':
+            self.hook = ''
+            woke = [c for c in node.ice if c.alive and c.state == 'dormant']
+            self.console.say('[err]The mark on your route arrives with '
+                             'you.[/]')
+            for construct in woke:
+                construct.state = 'awake'
+                self._tell(construct)
+            if not woke:
+                self.console.say('[dim]There was nothing in here to find '
+                                 'you. This time.[/]')
+
+    def _incident_tick(self) -> None:
+        """Something the network does on its own clock (D77).
+
+        Rolled once a tick, after the countermeasures have had theirs, so
+        an incident lands on the room as it actually is rather than on the
+        room as it was at the top of the tick.
+        """
+        if self.tick < incident_content.GRACE or not self.running:
+            return
+        if self.tick - self.incident_at < incident_content.COOLDOWN:
+            return
+        chance = (incident_content.CHANCE
+                  * incident_content.BY_ALERT.get(self.alert, 1.0))
+        if not self.rng.chance(min(0.5, chance)):
+            return
+        pick = self._incident_pool()
+        if not pick:
+            return
+        weights = {i.key: i.weight for i in pick}
+        it = incident_content.BY_KEY[self.rng.weighted(weights)]
+        self.incident_at = self.tick
+        self._apply_incident(it)
+
+    def _incident_pool(self) -> list:
+        """Which incidents belong in this room, at this moment."""
+        fac = fac_content.BY_KEY.get(self.net.faction)
+        kind = fac.kind if fac else ''
+        node = self.node
+        out = []
+        for it in incident_content.INCIDENTS:
+            if it.zones and node.zone not in it.zones:
+                continue
+            if it.kinds and kind not in it.kinds:
+                continue
+            if it.alert and self.alert not in it.alert:
+                continue
+            if it.needs_ice and not [c for c in node.ice if c.alive]:
+                continue
+            if it.needs_haul and not self.haul:
+                continue
+            if self.trace_pct < it.min_trace:
+                continue
+            if it.hook and self.hook:
+                continue  # one attached thing at a time
+            if it.key in self.seen_incidents and it.kind == 'good':
+                continue  # a gift twice in one run is a discount
+            out.append(it)
+        return out
+
+    def _apply_incident(self, it) -> None:
+        """Print it and do it, with every number on the line that does it."""
+        role = {'good': 'ok', 'turn': 'accent2'}.get(it.kind, 'ice')
+        self.console.blank()
+        self.console.rule(it.name.lower(), role='muted')
+        self.console.say(f'[{role}]{it.text}[/]')
+        self.seen_incidents.add(it.key)
+        self.log(f'incident: {it.key}')
+        told: list[str] = []
+
+        if it.trace:
+            self.add_trace(it.trace)
+            told.append(f'[trace]trace {it.trace:+.0f}[/]')
+        if it.noise:
+            self.make_noise(it.noise)
+            told.append(f'[noise]noise {it.noise:+d} here[/]')
+        if it.residue:
+            self.leave_residue(it.residue)
+            told.append(f'[residue]residue {it.residue:+d}[/]')
+        if it.focus:
+            self.focus = max(0, self.focus + it.focus)
+            told.append(f'[warn]focus {it.focus:+d}[/]')
+        if it.integrity:
+            told.append(f'[err]integrity {it.integrity:+d}[/]')
+        if it.tempo:
+            self.free_actions += it.tempo
+            told.append(f'[ok]{it.tempo} free action'
+                        f'{"s" if it.tempo != 1 else ""}[/]')
+        if told:
+            self.console.raw('  ' + ' · '.join(told))
+        # The ones that need a sentence rather than a number.
+        if it.alert_step:
+            if it.alert_step > 0:
+                self.escalate(it.alert_step, it.name)
+            else:
+                for _ in range(-it.alert_step):
+                    self.cool()
+        if it.wakes:
+            woke = [c for c in self.node.ice
+                    if c.alive and c.state == 'dormant']
+            for construct in woke:
+                construct.state = 'awake'
+                self._tell(construct)
+        if it.reveals:
+            self._incident_reveal(it.reveals)
+        if it.opens:
+            self._incident_open()
+        if it.integrity:
+            self.take_damage(-it.integrity, black=False,
+                             source=it.name.lower())
+        if it.hook:
+            self.hook = it.hook
+            self.console.say(f'[warn]{incident_content.HOOKS[it.hook]}.[/]')
+
+    def _incident_reveal(self, what: str) -> None:
+        """A gift of information, which is the cheapest thing a network can
+        give you and often the most useful."""
+        if what == 'hosts':
+            fresh = [n for n in self.net.nodes.values() if not n.known]
+            fresh.sort(key=lambda n: n.uid)
+            for node in fresh[:3]:
+                node.known = True
+            if fresh[:3]:
+                self.console.raw('  [ok]' + ', '.join(n.uid for n in fresh[:3])
+                                 + '[/] [dim]are on the map now.[/]')
+            return
+        if what == 'ice':
+            hidden = [c for n in self.net.nodes.values() if n.known
+                      for c in n.ice if c.alive and not c.known]
+            for construct in hidden[:3]:
+                construct.known = True
+            if hidden[:3]:
+                self.console.raw('  [ok]' + ', '.join(
+                    c.data.name for c in hidden[:3])
+                    + '[/] [dim]are named now, and where.[/]')
+
+    def _incident_open(self) -> None:
+        """Somebody left a door open. The nearest shut service, on this host
+        or one hop out, is open now."""
+        here = [self.node] + [self.net.node(u) for u in self.node.edges]
+        for node in here:
+            if node is None or not node.known:
+                continue
+            shut = [s for s in node.services if not s.cracked]
+            if not shut:
+                continue
+            svc = min(shut, key=lambda s: s.difficulty)
+            svc.cracked = True
+            if node.cracked_all or node is self.node:
+                node.open = True
+            self.console.raw(f'  [ok]{svc.data.name} on {node.uid} is open.[/]')
+            return
 
     def _ice_tick(self) -> None:
         """Wake, telegraph, and strike. The fairness contract lives here."""
@@ -1577,7 +1749,7 @@ class RunState:
                 done=False, steps=('jack out',))
 
         where = self._objective_where(target, found)
-        steps = self._objective_steps(kind, target, found)
+        steps = self._better_step(self._objective_steps(kind, target, found))
         # Why there is nothing to try, when there is nothing to try (D67).
         if steps == ('jack out',) and not self.objective_met():
             why = self._hopeless_where()
@@ -2026,6 +2198,96 @@ class RunState:
             if path:
                 return path
         return ui.shortest_path(edges, self.here, uid)
+
+    def _better_step(self, steps: tuple[str, ...]) -> tuple[str, ...]:
+        """The plain move, improved by something this character can do.
+
+        The brief taught the loop every runner starts with and never
+        taught any other: scan, probe, crack, connect, do the thing,
+        leave. Twenty-eight techniques hang off the skills and the advice
+        named two of them, so somebody who spent eleven experience on
+        Intrusion 4 was never once told to `pivot`, and their build read
+        as a slightly better number on the same six verbs (D78).
+
+        This is the one place that asks "is there something you hold that
+        beats this?" and it only ever answers with a verb the character
+        has actually bought.
+        """
+        if not steps or not self.contract and not self.haul:
+            pass
+        first = steps[0] if steps else ''
+        char = self.char
+        node = self.node
+
+        # Leaving with a mess on the floor. Forensics 2 is the difference
+        # between a clean run and a run their forensics finish for them.
+        if first == 'jack out' and self.objective_met():
+            if (char.has_technique('scrub') and self.residue_here() >= 4
+                    and self.here not in self.scrubbed):
+                return ('scrub',) + steps
+        # A door that wants a badge, and a face that can present one. The
+        # target is the host the warden is standing on, not the one you are
+        # standing on, and both verbs want it probed first: advice the game
+        # refuses is the one thing advice must never be.
+        blocked, hop = self._blocked_by_warden()
+        if blocked is not None and hop is not None:
+            if (char.has_technique('pivot') and node.open
+                    and hop.known and not hop.open):
+                return (f'pivot {hop.uid}',) + steps
+            challenge = self.credential_challenge(blocked)
+            if (char.has_technique('pretext') and hop.mapped
+                    and ('pretext', hop.uid) not in self.tried
+                    and challenge is not None and not challenge.impossible):
+                shut = [s for s in hop.services if not s.cracked]
+                if shut:
+                    return (f'pretext {hop.uid} {shut[0].key}',) + steps
+        # Two doors on one host and one action that opens both.
+        if first.startswith('crack ') and char.has_technique('chain'):
+            parts = first.split()
+            if len(parts) >= 3 and '--chain' not in first:
+                target = self.net.node(parts[1])
+                if target is not None:
+                    shut = [s for s in target.services if not s.cracked
+                            and self._odds_for(target, s) >= self.hopeless]
+                    if (len(shut) >= 2
+                            and ('chain', target.uid) not in self.tried):
+                        # No service named: `--chain` takes two, and given
+                        # one name it refuses rather than guessing.
+                        return (f'crack {target.uid} --chain',) + steps[1:]
+        # A host whose only way in is cryptography, and the ranks to derive
+        # a key from traffic instead of breaking a door.
+        if first.startswith('crack ') and char.has_technique('sidechannel'):
+            parts = first.split()
+            target = self.net.node(parts[1]) if len(parts) >= 2 else None
+            if target is not None and target.uid == self.here:
+                shut = [s for s in target.services if not s.cracked]
+                if shut and all(node_content.SERVICE_BY_KEY[s.key].family
+                                == 'crypto' for s in shut):
+                    return ('sidechannel',) + steps
+        return steps
+
+    def _blocked_by_warden(self):
+        """The warden on the next hop that will not let you past, and the
+        host it is standing on. (None, None) when the way is clear."""
+        route = self.route_to(self.net.objective_node)
+        for uid in (route[:1] or []):
+            hop = self.net.node(uid)
+            if hop is None:
+                continue
+            for construct in hop.ice:
+                if (construct.behaviour == 'warden' and construct.alive
+                        and construct.known):
+                    return construct, hop
+        return None, None
+
+    def residue_here(self) -> int:
+        return int(getattr(self.node, 'residue', 0))
+
+    def _odds_for(self, node, svc) -> float:
+        """The chance of the best programme against one service."""
+        skill_key, category = node_content.FAMILIES[svc.family]
+        program = programs.best(self.char.deck.loaded, category)
+        return crack_check(self, node, svc, program, quiet=True).chance
 
     def _blocked(self, node) -> bool:
         """A host you have looked at and cannot get through.

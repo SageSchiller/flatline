@@ -2490,6 +2490,69 @@ Four threads say anything at all on the stage they open at, and each is a
 true lead. The rest are quiet, which is right: they are waiting on work
 rather than on people.
 
+### D77: Things that happen while you are in there
+
+A network had a posture, a shape and a condition, and all three were
+decided before the player jacked in. Nothing moved on its own once they
+were inside, so a run was the player's decisions against a board that sat
+still, and the word for that turned out to be boring.
+
+An incident is the fourth thing: something the network does mid-run, on
+its own clock, about once in a dozen ticks and more often when the room
+is up. Twenty-seven of them. Sixteen are bad, six are good and worth
+having rather than smaller punishments, and five are not finished when
+they print.
+
+Those last five are where the thinking is, and they exist because the
+alternative was a menu. **Nothing here opens a prompt.** An incident
+changes the board and the next thing you type is the answer to it:
+
+- something copies you, so the next action is twice as loud and leaves
+  twice as much: do the cheap thing now, not the expensive one
+- the floor gives, so the next *noise* you make here costs Integrity and
+  being still costs nothing: `wait` a tick
+- a crawler marks your route, so the next host you open wakes with you in
+  it: open the one you were going to fight anyway
+- a gap opens and the next thing is free: spend it on the dearest thing
+  you have
+- somebody else is loud, and the next noise you make does not register
+
+`status` always says what is attached and what answers it. Every number an
+incident moves is printed on the line that moves it, because D14 does not
+stop being true because the modifier arrived at tick nine.
+
+### D78: The brief teaches the loop you start with and no other
+
+Twenty-eight techniques hang off the fourteen skills, two per skill at
+ranks two and four. The brief's entire vocabulary was `scan`, `probe`,
+`crack`, `connect`, the objective verb, and `jack out`. It named exactly
+two techniques, and one of those was added in D72.
+
+So a player who spent eleven experience on Intrusion 4 was never once
+told to `pivot`. Their build was a slightly better number on the same six
+verbs, which is why the measured ladder was flat: a starting build and a
+maxed build finished within a couple of runs of each other against
+anything hard, and the ranks nobody was told to use were the reason.
+
+`_better_step` is the one place that asks whether the character holds
+something that beats the plain move, and it only ever answers with a verb
+they have actually bought: `crack --chain` when two doors on one host are
+both worth trying, `pivot` when a warden holds the next hop and a
+neighbour is open, `pretext` when the warden takes credentials and the
+face can present them, `sidechannel` when the only way in is cryptography,
+`scrub` before leaving a host with a mess on it.
+
+Measured, thirty seeds a cell, against a gang: **6, 11 and 19 completions
+for a starting, mid and top build**, where before it was flat. Against
+Kagawa the top build now finishes four times what the middle one does.
+
+Two rules keep it honest. A technique is an *opening* move, offered once
+per host: if the check misses, the ordinary advice takes over rather than
+standing there repeating an expensive verb at a door that is not opening.
+And the target is the host the warden is on, probed, not the host you are
+standing on, because `test_brief` exists precisely to catch advice the
+game then refuses, and it caught both of those.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.

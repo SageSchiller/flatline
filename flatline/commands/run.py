@@ -963,6 +963,7 @@ def cmd_crack(sess, args) -> None:
         svc.cracked = True
         was_open = node.open
         node.open = True
+        state.opened(node)
         c.ok(f'{svc.data.name} on [accent]{node.uid}[/] is open.')
         if not was_open:
             c.info(f'{node.uid} will take a connection now.')
@@ -1054,11 +1055,13 @@ def _crack_chain(sess, args) -> None:
         return
 
     c.blank()
+    state.tried.add(('chain', node.uid))
     opened = 0
     for svc, check in checks:
         if check.success:
             svc.cracked = True
             node.open = True
+            state.opened(node)
             opened += 1
             c.ok(f'{svc.data.name} on [accent]{node.uid}[/] is open.')
         else:
@@ -1090,6 +1093,7 @@ def cmd_pretext(sess, args) -> None:
         raise CommandError('you are rendering as a scheduled job. Processes '
                            'do not talk, and trying would drop the disguise.')
     node, svc = _target_service(state, args)
+    state.tried.add(('pretext', node.uid))
     if svc.cracked:
         raise CommandError('that is already open')
 
@@ -1114,6 +1118,7 @@ def cmd_pretext(sess, args) -> None:
     if check.success:
         svc.cracked = True
         node.open = True
+        state.opened(node)
         c.ok(f'They let you in. {svc.data.name} on '
              f'[accent]{node.uid}[/] is open.')
     else:
@@ -1138,6 +1143,7 @@ def cmd_pivot(sess, args) -> None:
         raise CommandError('you do not hold this node firmly enough to trade '
                            'on its trust')
     node.open = True
+    state.opened(node)
     node.known = True
     state.previous = state.here
     state.here = uid
@@ -1189,6 +1195,7 @@ def cmd_sidechannel(sess, args) -> None:
     for svc in crypto:
         svc.cracked = True
     node.open = True
+    state.opened(node)
     c.ok(f'{len(crypto)} encrypted service'
          f'{"s" if len(crypto) != 1 else ""} on {node.uid} gave up a key.')
     c.say(f'[dim]{check.explain()}[/]')
@@ -1439,6 +1446,7 @@ def cmd_scrub(sess, args) -> None:
     check.resolve(state.rng)
 
     before = node.residue
+    state.scrubbed.add(node.uid)
     removed = int(before * (0.75 if check.success else 0.3))
     node.residue = max(0, before - removed)
     _act(sess, 'scrub', node=node, noise_scale=wiper.signature if wiper else 1.0)
@@ -2264,10 +2272,41 @@ def _act(sess, verb: str, node=None, ticks: int | None = None,
     state = sess.run
     base_ticks, base_noise, base_residue = COST[verb]
     node = node or state.node
+    # What an incident attached to the run, resolving on the next thing
+    # you do (D77). All of it lands here because this is the one place
+    # noise, residue and time meet, and all of it is printed.
+    hook, free_tick = state.hook, False
+    if hook:
+        state.hook = ''
+        if hook == 'quiet':
+            noise_scale = 0.0
+            state.console.say('[ok]That went out under somebody else\'s '
+                              'noise.[/]')
+        elif hook == 'echo':
+            noise_scale *= 2.0
+            residue_scale *= 2.0
+            state.console.say('[warn]It does it too, half a second behind, '
+                              'and both of them are yours.[/]')
+        elif hook == 'grace':
+            free_tick = True
+            state.console.say('[ok]The gap holds. That one was free.[/]')
+        elif hook == 'lean':
+            if base_noise * noise_scale > 0:
+                state.console.say('[err]The floor does not hold when you '
+                                  'push.[/]')
+                state.take_damage(1, black=False, source='the floor')
+            else:
+                state.console.say('[ok]You are still, and it holds.[/]')
+        elif hook == 'tail':
+            # Kept until it has something to bite: the mark is on the route
+            # and it is the *next host you open* that wakes.
+            state.hook = 'tail'
     if noise_scale:
         state.make_noise(base_noise * noise_scale, node)
     if residue_scale and base_residue:
         state.leave_residue(base_residue * residue_scale, node)
+    if free_tick:
+        ticks = 0
 
     spend = base_ticks if ticks is None else ticks
     # A carrier storm (D61): the verbs it names cost a tick more tonight.
@@ -2947,6 +2986,7 @@ def cmd_firstprinciples(sess, args) -> None:
     if crypto:
         crypto[0].cracked = True
         node.open = True
+        state.opened(node)
         opened = crypto[0].data.name
     else:
         sealed[0].encrypted = False
@@ -3047,6 +3087,7 @@ def cmd_remember(sess, args) -> None:
         raise CommandError('that is not still in front of you.')
     svc.cracked = True
     node.open = True
+    state.opened(node)
     state.last_failure = None
     _act(sess, 'crack', node=node, noise_scale=0.5)
     if state.running:
@@ -3092,6 +3133,7 @@ def cmd_backway(sess, args) -> None:
         state.spent.discard('sig:backway')
         raise CommandError(f'you have not seen {uid} yet.')
     node.open = True
+    state.opened(node)
     state.previous = state.here
     state.here = uid
     _act(sess, 'connect', node=node, noise_scale=0.0)

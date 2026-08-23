@@ -1413,6 +1413,47 @@ TOPICS: tuple[Topic, ...] = (
                'how big', 'signature', 'network', 'networks'),
         group='systems'),
     Topic(
+        'incidents', 'Things that happen while you are in there',
+        'The network does not sit still while you work.',
+        'A posture, a shape and a condition are all decided before you jack '
+        'in, and none of them moves while you are inside. An [accent]'
+        'incident[/] is the one that does: something the network does '
+        'mid-run, on its own clock, roughly once every dozen ticks and more '
+        'often when the room is up.\n\n'
+        '[warn]Most of them are bad.[/] A shift change doubles the traffic '
+        'and you are in the middle of it. A backup job walks every file on '
+        'the host and will notice a gap where one used to be. Somebody '
+        'upstairs opens a ticket with the word "intermittent" in it. Each '
+        'prints exactly what it moved on the line that moved it.\n\n'
+        '[warn]Some of them are good, and worth having.[/] An engineer '
+        'leaves a session open behind them. A router answers a question out '
+        'loud and three hosts land on your map. A bad shift handover cools '
+        'the room a level. A backup finishes and the whole segment breathes '
+        'out, and so does your trace.\n\n'
+        '[accent2]And a few are not finished when they print.[/] Those '
+        'attach something to the run that the *next thing you do* resolves, '
+        'and that is where the thinking is. Something copies you, so the '
+        'next action is twice as loud and leaves twice as much: do the '
+        'cheap thing now, not the expensive one. The floor gives, so the '
+        'next noise you make here costs Integrity and being still costs '
+        'nothing: `wait` a tick. A crawler marks your route, so the next '
+        'host you open wakes with you in it: open the one you were going to '
+        'fight anyway. A gap opens and the next thing is free: spend it on '
+        'the most expensive thing you have. `status` always says what is '
+        'attached and what answers it.\n\n'
+        'Nothing here opens a menu and nothing here is a die you cannot '
+        'see. An incident changes the board, and the answer is a verb you '
+        'already know.\n\n'
+        '[warn]The decision:[/] an incident is the argument for keeping a '
+        'tick in hand. A run planned to the last tick has no answer to a '
+        'shift change; a run with one spare tick has several.',
+        see=('conditions', 'triangle', 'ice', 'clock'),
+        commands=('status', 'wait', 'mask', 'scrub'),
+        terms=('incident', 'incidents', 'hook', 'echo', 'interruption',
+               'what just happened', 'something happened'),
+        covers=('incidents',),
+        group='systems'),
+    Topic(
         'conditions', 'Tonight, inside',
         'What the network is like tonight, which is not what it is.',
         'A network has a posture, which is how hard it is, and a shape, which '
@@ -1436,7 +1477,7 @@ TOPICS: tuple[Topic, ...] = (
         'and does not change under you. Read it. A maintenance window rewards '
         'a fast loud run; an audit rewards a clean one; a skeleton crew '
         'rewards going deep; a storm rewards going straight there.',
-        see=('triangle', 'ice', 'clock', 'checks'),
+        see=('incidents', 'triangle', 'ice', 'clock', 'checks'),
         commands=('jack in', 'status', 'odds'),
         covers=('conditions',),
         terms=('buff', 'debuff', 'mutator', 'hazard'),
