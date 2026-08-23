@@ -2631,6 +2631,48 @@ offering it after that, because speed is worth noise early and never
 worth it late. That alone took a network from lockdown at tick ten to
 finishing.
 
+### D81: Something to do when it is winding up
+
+D2 says netrunning, never combat: no guns, no street fights, all conflict
+program against countermeasure. That rule is not the problem. The problem
+was that the conflict it does allow was locked behind one skill and
+invisible to everybody else.
+
+`strike` is Warfare 2 and `overload` is Warfare 4. Every other build's
+answer to a construct winding up was to leave, and the seven armour
+programs made a number smaller and did nothing else, which is the least
+interesting thing a piece of kit can do.
+
+**`brace` needs no rank.** It is the tick a tell buys you, spent on the
+hit instead of on running from it: the next thing that reaches you does
+half, and it lasts this tick and the next. That is the whole verb. It is
+deliberately available to a first-night gutter with a Crowbar, because
+"get out or get hit" is not a decision and "take it properly, or run, or
+hit it if you can" is three.
+
+**And armour answers back.** Braced, what a loaded armour program stops
+goes back down the line into whatever sent it, which can kill it. A build
+with no Warfare in it now has a way to hurt a countermeasure, and a
+reason to carry armour on purpose rather than as a smaller number.
+
+The brief offers `brace` when something is telegraphed and the build has
+nothing that hits, which is exactly the case that used to end in `jack
+out`.
+
+**The same shape, outside.** The street was one check: you answered, it
+resolved, and the rest happened to you. A bad answer that is going to
+cost you three Integrity or more now buys one more decision, and nobody
+throws a punch in it. `cover` is taking it properly, on Grit and
+Fieldcraft, and halves it. `give` is making yourself not worth the
+trouble, priced by the rung. An empty line is taking it as it comes.
+
+Cover was written at six plus two a rung, which put the fourth rung out
+of reach of every build in the game and made the option decoration. At
+four plus two a rung it reads: nothing for a fresh gutter, three nights
+in five for a Grit build that bought Fieldcraft, and reliable for
+somebody who specialised. Which is the first time in this game that Grit
+and Fieldcraft have bought anything a player can watch happen.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.

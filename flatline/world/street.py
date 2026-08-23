@@ -258,6 +258,77 @@ def _answer(sess, enc, faction: str, danger: int, text: str,
            won=check.success)
 
 
+#: Below this, a bad answer is a bad answer and the street gets on with
+#: it. At or above it there is time to do one thing about it, which is
+#: the physical half of D81: the same design as `brace`, out here.
+FLINCH_AT = 3
+
+
+def _flinch(sess, enc, faction, outcome, rng, hurt, then) -> None:
+    """It has gone wrong and there is one thing you can still do.
+
+    The street was a single check: you chose, it resolved, and what
+    happened next happened to you. That is fine for the small ones and
+    thin for the ones that put you in a clinic, and it left every point
+    of Grit and every rank of Fieldcraft doing nothing but sitting in a
+    sum you never saw twice.
+
+    So a bad answer that is going to cost you buys one more decision.
+    Nobody throws a punch here and nobody is going to: `cover` is taking
+    it properly, `give` is making it not worth their time, and both are
+    printed checks like everything else (D81).
+    """
+    game, c = sess.game, sess.console
+    char = game.char
+    cost = min(char.credits, 120 + 90 * enc.tier)
+    # Hard at the top and never impossible: at six plus two a rung the
+    # fourth rung was out of reach of every build in the game, which
+    # makes the option decoration. A Grit build that has bought Fieldcraft
+    # can turn with the worst of it about two nights in five.
+    cover = Check(name='cover', resistance=4 + 2 * enc.tier)
+    cover.add('grit', char.attr('grit'))
+    cover.add('fieldcraft', char.skill('fieldcraft') * 2)
+    if char.has_technique('scar'):
+        cover.add('scar tissue', 2)
+    c.blank()
+    c.say(f'[err]It is going to land, and it is going to be about {hurt} '
+          f'of you.[/]')
+    c.raw(f'  [accent]cover[/]    Get an arm up and turn with it  '
+          f'[dim]{cover.summary()}[/]')
+    if cost >= 120:
+        c.raw(f'  [accent]give[/]     Make it not worth the trouble  '
+              f'[credit]{cost:,}c[/]')
+    c.blank()
+    c.say('[dim]An empty line is taking it as it comes.[/]')
+    keys = ['cover'] + (['give'] if cost >= 120 else [])
+
+    def answered(s, text: str) -> None:
+        low = (text or '').strip().lower()
+        soft = 0
+        if low.startswith('c'):
+            cover.resolve(game.rng('combat'))
+            c.blank()
+            c.say(cover.explain())
+            if cover.success:
+                soft = max(1, hurt // 2)
+                c.say('[ok]You turn with it and most of it goes past.[/]')
+            else:
+                c.say('[err]You get it wrong and it goes in properly.[/]')
+        elif low.startswith('g') and cost >= 120:
+            char.credits -= cost
+            soft = hurt
+            c.blank()
+            c.say(f'[credit]{cost:,}c[/] [dim]changes hands. They were '
+                  f'never here for you.[/]')
+        else:
+            c.blank()
+            c.say('[dim]You take it as it comes.[/]')
+        then(max(0, hurt - soft))
+
+    sess.ask(f'{", ".join(keys)}? ', answered, on_cancel='',
+             choices=tuple(keys), must_answer=True)
+
+
 def _apply(sess, enc, faction: str, outcome, rng, won: bool) -> None:
     """What an outcome does to you. The warning rule lives here."""
     game, c = sess.game, sess.console
@@ -279,6 +350,24 @@ def _apply(sess, enc, faction: str, outcome, rng, won: bool) -> None:
     if hurt > 0 and char.has_technique('shrug'):
         hurt = max(1, hurt // 2)
         told.append('[dim]Shrug: half of it.[/]')
+    # One more decision before it lands, when it is going to be worth
+    # deciding about (D81). Everything after this point is the same, so
+    # the rest of the outcome runs as a continuation.
+    if not won and hurt >= FLINCH_AT:
+        _flinch(sess, enc, faction, outcome, rng, hurt,
+                lambda left: _land(sess, enc, faction, outcome, rng, won,
+                                   left, told))
+        return
+    _land(sess, enc, faction, outcome, rng, won, hurt, told)
+
+
+def _land(sess, enc, faction: str, outcome, rng, won: bool, hurt: int,
+          told: list) -> None:
+    """What the outcome does, once it is decided how it is taken."""
+    game, c = sess.game, sess.console
+    char = game.char
+    fac = factions.BY_KEY.get(faction)
+    who = faction or 'street'
     killed = False
     if hurt > 0:
         left = char.integrity - hurt

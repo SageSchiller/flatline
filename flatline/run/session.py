@@ -288,6 +288,10 @@ class RunState:
     #: Ticks an implant still needs before it has taken (D80). An implant
     #: that is pushed and abandoned is a thing left on a desk.
     rooting: int = 0
+    #: Ticks of `brace` left, and what is holding the line (D81). The one
+    #: answer to a countermeasure that needs no rank.
+    braced: int = 0
+    bracing_with: str = ''
     #: Assets pulled shut, without the decrypt (D63 b). Worth less, and the
     #: patron pays less for the one they wanted open.
     sealed: set = field(default_factory=set)
@@ -649,6 +653,10 @@ class RunState:
             self._daemon_tick()
             self._escort_tick()
             self._ally_tick()
+            if self.braced > 0:
+                self.braced -= 1
+                if self.braced == 0:
+                    self.bracing_with = ''
             self._ice_tick()
             self._incident_tick()
             self._surveil_tick()
@@ -1201,6 +1209,33 @@ class RunState:
             self.console.raw(f'  [ok]{svc.data.name} on {node.uid} is open.[/]')
             return
 
+    def _answer_back(self, stopped: int, source: str) -> None:
+        """What an armour program does with the part it stopped (D81).
+
+        Armour was seven programs that made a number smaller and nothing
+        else, which is the least interesting thing a piece of kit can do.
+        Braced, it is a counter: what it holds goes back into whatever
+        sent it, which gives a build with no Warfare in it a way to hurt
+        a countermeasure and a reason to carry armour on purpose.
+        """
+        target = next((c for c in self.locked if c.alive), None)
+        if target is None:
+            target = next((c for c in self.node.ice
+                           if c.alive and c.state in ('awake', 'locked')),
+                          None)
+        if target is None:
+            return
+        target.damage_taken += stopped
+        if target.damage_taken >= target.hp:
+            target.state = 'dead'
+            if target in self.locked:
+                self.locked.remove(target)
+            self.console.ok(f'It went back down the line and {target.data.name} '
+                            f'stops.')
+        else:
+            self.console.say(f'[ok]{stopped} of it goes back the way it came. '
+                             f'{target.data.name} felt that.[/]')
+
     def _root_tick(self) -> None:
         """An implant takes a while to become part of the thing it is in.
 
@@ -1548,6 +1583,15 @@ class RunState:
 
     def take_damage(self, amount: int, black: bool, source: str = '') -> None:
         amount = max(0, int(round(amount * self.char.mult('ice_dr'))))
+        if self.braced > 0 and amount:
+            # D81: the tick a tell buys you, spent on the hit. Halved, and
+            # an armour program sends some of it back the way it came.
+            stopped = amount - amount // 2
+            amount = amount // 2
+            self.console.say(f'[ok]Braced. {stopped} of it does not reach '
+                             f'you.[/]')
+            if self.bracing_with and stopped:
+                self._answer_back(stopped, source)
         if not amount:
             return
         # Psyche rank 4, or a Static Line high (D63: the drug declared the
@@ -1932,6 +1976,13 @@ class RunState:
         Every run is the same five beats, which is why this can be worked out
         rather than authored: find it, reach it, open it, do the thing, leave.
         """
+        # Something is winding up, anywhere, and this build has nothing
+        # that hurts it: brace is the answer every build has (D81), and it
+        # comes before the job because the job does not happen to somebody
+        # who took the hit standing up wrong.
+        winding = [c for c in self.node.ice if c.alive and c.telegraphed]
+        if winding and self.braced <= 0 and not self._huntable():
+            return ('brace',)
         if self.objective_met():
             return ('jack out',)
         if target is None:

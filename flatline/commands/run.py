@@ -44,6 +44,7 @@ COST = {
     'mask': (1, 0, 0),
     'sidechannel': (3, 0, 1),
     'wait': (1, 0, 0),
+    'brace': (1, 0, 0),
     'jack out': (1, 2, 1),
 }
 
@@ -1450,6 +1451,43 @@ def cmd_wipe(sess, args) -> None:
     state.escalate(1, 'a record that was there is not')
     c.say('[warn]A deletion is not a fault and cannot be dressed as one. '
           'They know. The job now is the door.[/]')
+
+
+@command('brace', 'Take the hit on your terms instead of theirs.',
+         group='defence', contexts=('run',), ticks=1, usage='brace',
+         detail=(
+                'The tick a tell buys you, spent on the hit rather than on '
+                'running from it. Halves the next thing that reaches you '
+                'this tick and the next, and an armour program turns some '
+                'of what it stops back on whatever sent it. No skill rank: '
+                'this is the one answer to a countermeasure that every '
+                'build has, which is the point of it. Striking is Warfare '
+                'and getting out is free; this is for the runs where '
+                'neither is available and something is winding up anyway.'))
+def cmd_brace(sess, args) -> None:
+    state, c = sess.require_run(), sess.console
+    coming = [i for node in state.net.nodes.values() for i in node.ice
+              if i.alive and i.telegraphed] + list(state.locked)
+    if not coming:
+        raise CommandError('nothing is winding up. Bracing against nothing '
+                           'is a tick you do not get back.')
+    armour = programs.best(state.char.deck.loaded, 'armour')
+    state.braced = 2
+    _act(sess, 'brace')
+    if not state.running:
+        return
+    c.blank()
+    c.ok('You stop trying to be somewhere else and take it where you are.')
+    c.say('[dim]The next thing that reaches you does half. It lasts this '
+          'tick and the next.[/]')
+    if armour is not None:
+        rank = state.char.skill('warfare')
+        state.bracing_with = armour.key
+        c.say(f'[accent]{armour.name}[/] [dim]is holding the line, and what '
+              f'it stops goes back the way it came.[/]')
+    else:
+        c.say('[dim]Nothing loaded to hold it with, so this is teeth and '
+              'nothing else. An armour program would answer back.[/]')
 
 
 @command('scrub', 'Reduce the evidence you have left on this node.',

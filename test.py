@@ -8305,6 +8305,85 @@ def test_advancement() -> None:
              'the board explains the mark it prints')
 
 
+def test_combat() -> None:
+    """D81: an answer to a countermeasure that every build has."""
+    T.section('taking a hit')
+    from flatline.run import network as net_mod
+    from flatline.content import ice as ice_content
+    from flatline.run.network import IceInstance
+
+    def winding(loadout):
+        c = Character.from_origin('gutter', 'x')
+        c.deck.parts['memory'] = 'mem_cascade'
+        c.deck.loaded = list(loadout)
+        c.library = list(loadout)
+        net = net_mod.generate(Rng(4).fork('network', 'br'), 'kagawa', 45)
+        con = quiet_console()
+        sess = Session(console=con, slot='cbt'); sess.game = Game.new(c, seed=4)
+        run = RunState.begin(net, c, Rng(4)('combat'), con,
+                             contract={'objective': 'exfiltrate', 'title': 'T'})
+        sess.run = run
+        it = ice_content.by_behaviour('hunter')[0]
+        ins = IceInstance(uid='t1', key=it.key, rating=4)
+        ins.state = 'awake'
+        run.node.ice.append(ins)
+        con.start_capture()
+        run._tell(ins)
+        return sess, run, ins, con
+
+    # It needs no rank, and the brief offers it when nothing else answers.
+    sess, run, ins, con = winding(['crowbar', 'siphon', 'bulwark'])
+    T.eq(run.brief().steps[:1], ('brace',),
+         'the brief offers brace when something is winding up')
+    sess.execute('brace')
+    T.ok(run.braced > 0, 'and bracing lasts more than the tick it costs')
+    before = run.hurt
+    run.take_damage(8, black=False, source='test')
+    said = ui.plain(con.end_capture())
+    T.ok('does not reach you' in said, 'half of it does not land')
+    T.ok(run.hurt - before < 8, f'and the hit is smaller ({run.hurt - before})')
+    T.ok('goes back the way it came' in said or ins.damage_taken > 0,
+         'and armour sends what it stopped back')
+    T.ok(ins.damage_taken > 0, 'which hurts the thing that sent it')
+
+    # Without armour it still halves, and says it is only teeth.
+    sess, run, ins, con = winding(['crowbar', 'siphon'])
+    sess.execute('brace')
+    run.take_damage(8, black=False, source='test')
+    bare = ui.plain(con.end_capture())
+    T.ok('does not reach you' in bare, 'bracing works with nothing loaded')
+    T.eq(ins.damage_taken, 0, 'but nothing goes back without armour')
+
+    # Bracing against nothing is refused rather than wasted.
+    c = Character.from_origin('gutter', 'x')
+    net = net_mod.generate(Rng(5).fork('network', 'b2'), 'sixes', 22)
+    con = quiet_console()
+    sess = Session(console=con, slot='cbt2'); sess.game = Game.new(c, seed=5)
+    sess.run = RunState.begin(net, c, Rng(5)('combat'), con,
+                              contract={'objective': 'exfiltrate', 'title': 'T'})
+    for node in net.nodes.values():
+        node.ice = [i for i in node.ice if False]
+    con.start_capture()
+    sess.execute('brace')
+    T.ok('winding up' in ui.plain(con.end_capture()),
+         'bracing against nothing is refused')
+
+    # Out here: the same shape, and Grit and Fieldcraft finally read.
+    from flatline.run.checks import Check
+    for grit, field, want in ((4, 0, 0.0), (6, 2, 0.4), (8, 4, 0.9)):
+        check = Check(name='cover', resistance=4 + 2 * 4)
+        check.add('grit', grit)
+        check.add('fieldcraft', field * 2)
+        if field >= 2:
+            check.add('scar tissue', 2)
+        T.ok(check.chance >= want,
+             f'grit {grit}/fieldcraft {field} covers at the top rung '
+             f'({check.chance:.0%})')
+    from flatline.world import street as street_world
+    T.ok(street_world.FLINCH_AT >= 1,
+         'and only a hit worth deciding about buys the decision')
+
+
 def test_collector() -> None:
     """D70: an arrangement is world state a thread can read."""
     T.section('the collector')
@@ -8398,6 +8477,14 @@ def test_street() -> None:
         sess.console.start_capture()
         street_world.begin(sess, street_content.BY_KEY['finish'], 'kagawa', 80)
         sess.execute('stand')
+        # A bad answer at this rung now buys one more decision before it
+        # lands (D81), so the harness has to make it: taking it as it
+        # comes is the empty line, which is what this test has always
+        # been about.
+        guard = 0
+        while sess.pending is not None and guard < 4:
+            guard += 1
+            sess.execute('')
         return sess, game, ui.plain(sess.console.end_capture())
     died_unwarned = 0
     warned_after = 0
@@ -9226,6 +9313,7 @@ SUITES = (
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
     test_intrusion, test_catalogue, test_money, test_relics, test_street,
     test_collector, test_early, test_tension, test_hostnames,
+    test_combat,
     test_advancement,
     test_journal_hint,
     test_playthrough_fixes,
