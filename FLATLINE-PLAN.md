@@ -2725,6 +2725,68 @@ has gone out of reach is told to carry something out rather than leave
 empty handed. The job sheet has always said a run with nothing on it pays
 for whatever you can carry. The advice never once said it.
 
+### D83: Playing it again, with everything in
+
+Seven things, all from a fresh character on the current build. Five are
+about the same mistake made in three places: the advice knew how to
+recommend buying a thing and did not know what happened next.
+
+**Told to buy a payload, then left holding it.** The standing nudge from
+D82 says buy one, you buy it, the load fails for memory, and the advice
+moves on to the next contract without mentioning it. The unload step
+existed, inside the branch that fires when an accepted contract needs a
+program, so buying one *before* taking a job fell straight through it.
+
+**Seventeen contracts in, still on the starting breaker.** Five thousand
+credits banked and the deck was the two rating-two Crowbars it started
+with. A breaker's rating is the biggest single term in every door check
+in the game and nothing had ever mentioned that a better one exists,
+because the advice only ever spoke about programs a contract demanded,
+and no contract demands a *better* one.
+
+Both of those are now one helper, `_fit_step`, used by both: it knows
+that owning is not carrying, and it says `load` or names the thing to
+unload for it.
+
+**And then it recommended buying the shop's whole stock.** With an
+unloaded Sable in the bag the nudge compared against the best breaker
+*owned* rather than the best one on the deck, so it recommended the next
+one up, and would have gone on doing that for as long as the money
+lasted. It reads the deck now.
+
+**And a shop that had not got it.** `buy drillbit` against a market whose
+answer is "nothing here matches 'drillbit'" is a loop, and it ran until
+the turn budget stopped it. Affordability and a market in the district
+are not the same as stock. Both nudges read the actual listings now.
+
+**Gear was advised after the walk.** The loadout is fixed the moment you
+jack in, so anything that changes the deck has to be said before anything
+that moves you toward a network. `now` shows two steps, so an unloaded
+Sable sat behind `jack in` where nobody would ever see it.
+
+Two from the run itself.
+
+**A gift spent on nothing.** The `quiet` hook waits for the next *noise*
+now rather than the next action: `brace`, `wait` and `observe` were
+eating it and announcing that something had gone out under somebody
+else's noise, about an action that made none. Same for `echo`, which was
+doubling a zero.
+
+**Braced, then left.** The brief advised `brace` and then `jack out` on
+consecutive ticks, which is a tick spent taking a hit on a night it had
+already decided to abandon. It only offers it on a run that is carrying
+on.
+
+One left open on purpose. For this playthrough's build against a
+posture-26 network, exfiltrate and wipe finish ten in twenty four,
+implant eight, and **surveil two and corrupt none**. I guessed the cause
+was the alert rules those two got in D80 and measured it: cooling faster
+changed nothing at all, so the alert is not the constraint. Tracing a
+failure shows the run ending because it runs out of openable doors, which
+is the same capability wall as the corporate one. It wants an honest look
+at door difficulty against breaker rating rather than a number nudged
+until one objective looks better.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.

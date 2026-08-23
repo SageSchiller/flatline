@@ -1509,6 +1509,49 @@ def _hunted_on_route(game, target: str) -> tuple[str, str]:
     return '', ''
 
 
+def _fit_step(game, category: str, why: str):
+    """Advice for a program that is owned and not on the deck.
+
+    Buying is one step and carrying is another, and the advice used to
+    only ever know the first. Told to buy a payload, you bought it and
+    were left holding it; told to buy a better breaker, you bought it,
+    could not fit it, and were told to buy the next one up (D83). One
+    helper, used by both, so the recommendation always carries through to
+    the thing being usable.
+    """
+    deck = game.char.deck
+    owned = [programs.BY_KEY[k] for k in game.char.library
+             if k in programs.BY_KEY
+             and programs.BY_KEY[k].category == category]
+    loaded = [programs.BY_KEY[k] for k in deck.loaded
+              if k in programs.BY_KEY
+              and programs.BY_KEY[k].category == category]
+    if not owned:
+        return None
+    best_owned = max(owned, key=lambda p: p.rating)
+    best_loaded = max(loaded, key=lambda p: p.rating, default=None)
+    if best_loaded is not None and best_loaded.rating >= best_owned.rating:
+        return None
+    if deck.memory_free >= best_owned.memory:
+        return (f'load {best_owned.name.lower()}',
+                f'{best_owned.name} is in the bag and the deck has room: '
+                f'{why}')
+    spare = best_owned.memory - deck.memory_free
+    drop = next((p for p in sorted(
+        (programs.BY_KEY[k] for k in deck.loaded if k in programs.BY_KEY),
+        key=lambda p: (p.category == category and p.rating >= best_owned.rating,
+                       p.rating, -p.memory))
+        if p.memory >= spare), None)
+    if drop is None:
+        return ('deck', f'{best_owned.name} needs {best_owned.memory} memory '
+                        f'and the deck has {deck.memory_free}. A bigger bank, '
+                        f'or carry less')
+    return (f'unload {drop.name.lower()}',
+            f'{best_owned.name} is in the bag and needs {best_owned.memory} '
+            f'memory with {deck.memory_free} free: {drop.name} is the least '
+            f'of what is on the deck')
+
+
 def city_steps(game) -> list[tuple[str, str]]:
     """What stands between you and the job, as (command, why), in order.
 
@@ -1588,6 +1631,47 @@ def city_steps(game) -> list[tuple[str, str]]:
     owned = {programs.BY_KEY[k].category for k in
              list(game.char.library) + list(game.char.deck.loaded)
              if k in programs.BY_KEY}
+    loaded_cats = {programs.BY_KEY[k].category
+                   for k in game.char.deck.loaded if k in programs.BY_KEY}
+    # The breaker is the biggest single term in every door in the game and
+    # nothing ever said so: seventeen contracts and five thousand credits
+    # into a playthrough the deck was still the two rating-two Crowbars it
+    # started with, because the advice only spoke about programs a
+    # contract demanded and no contract demands a *better* one (D83).
+    breaker_fit = _fit_step(game, 'breaker',
+                            'every door in the game reads its rating')
+    if breaker_fit is not None:
+        steps.append(breaker_fit)
+    else:
+        on_deck = max((programs.BY_KEY[k] for k in game.char.deck.loaded
+                       if k in programs.BY_KEY
+                       and programs.BY_KEY[k].category == 'breaker'),
+                      key=lambda p: p.rating, default=None)
+        here_now = game.city.district
+        if on_deck is not None and 'market' in here_now.services:
+            # Only what is actually on the shelf here. Affordability and a
+            # market in the district are not the same as stock, and the
+            # advice looped on `buy drillbit` against a shop that said
+            # "nothing here matches 'drillbit'" (D83).
+            for_sale = {l.key for l in game.city.listings('program')}
+            better = min((p for p in programs.by_category('breaker')
+                          if not p.unique and p.rating > on_deck.rating
+                          and p.key in for_sale
+                          and p.memory <= game.char.deck.memory
+                          and game.char.credits >= int(round(
+                              p.price * here_now.price_mult))),
+                         key=lambda p: p.price, default=None)
+            if better is not None:
+                steps.append((f'buy {better.name.lower()}',
+                              f'every door you have failed was your breaker: '
+                              f'{on_deck.name} is rating {on_deck.rating} and '
+                              f'{better.name} is {better.rating}, here for '
+                              f'about '
+                              f'{int(round(better.price * here_now.price_mult)):,}c'))
+    payload_fit = _fit_step(game, 'payload',
+                            'four of the six objectives need one')
+    if payload_fit is not None:
+        steps.append(payload_fit)
     if 'payload' not in owned:
         cheapest = min((p for p in programs.by_category('payload')
                         if not p.unique), key=lambda p: p.price, default=None)
@@ -1602,10 +1686,16 @@ def city_steps(game) -> list[tuple[str, str]]:
                 why = (f'you own no payload, and four of the six objectives '
                        f'need one. The two that do not are the hardest work '
                        f'on the board')
-                if shop.key == game.city.where:
+                on_shelf = {l.key for l in game.city.listings('program')}
+                if shop.key == game.city.where and cheapest.key in on_shelf:
                     steps.append((f'buy {cheapest.name.lower()}',
                                   f'{why}. {cheapest.name} is here for about '
                                   f'{price:,}c'))
+                elif shop.key == game.city.where:
+                    # A market here, and not this on the shelf. Naming the
+                    # buy anyway is advice the shop refuses (D83).
+                    steps.append(('market program',
+                                  f'{why}. Something here will do it'))
                 else:
                     steps.append((game.city.walk_to(shop.key),
                                   f'{why}. {cheapest.name} is about '

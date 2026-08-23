@@ -2346,6 +2346,13 @@ def _act(sess, verb: str, node=None, ticks: int | None = None,
     # you do (D77). All of it lands here because this is the one place
     # noise, residue and time meet, and all of it is printed.
     hook, free_tick = state.hook, False
+    # A hook that changes noise or residue waits for an action that has
+    # some: `brace`, `wait` and `observe` were eating the quiet one and
+    # printing that it had gone out under somebody else's noise, about an
+    # action that made none (D83).
+    if hook in ('quiet', 'echo') and not (base_noise * noise_scale
+                                          or base_residue * residue_scale):
+        hook = ''
     if hook:
         state.hook = ''
         if hook == 'quiet':

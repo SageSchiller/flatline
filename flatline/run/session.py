@@ -1834,6 +1834,15 @@ class RunState:
 
         where = self._objective_where(target, found)
         steps = self._better_step(self._objective_steps(kind, target, found))
+        # Something is winding up and this build has nothing that hurts
+        # it: brace is the answer every build has (D81). Only on a run
+        # that is carrying on, though: it was advising a tick of bracing
+        # and then leaving on the next one, which is a tick spent on a
+        # night already over (D83).
+        winding = [c for c in self.node.ice if c.alive and c.telegraphed]
+        if (winding and self.braced <= 0 and not self._huntable()
+                and steps and steps[0] != 'jack out'):
+            steps = ('brace',) + steps
         # Why there is nothing to try, when there is nothing to try (D67).
         if steps == ('jack out',) and not self.objective_met():
             why = self._hopeless_where()
@@ -1979,13 +1988,6 @@ class RunState:
         Every run is the same five beats, which is why this can be worked out
         rather than authored: find it, reach it, open it, do the thing, leave.
         """
-        # Something is winding up, anywhere, and this build has nothing
-        # that hurts it: brace is the answer every build has (D81), and it
-        # comes before the job because the job does not happen to somebody
-        # who took the hit standing up wrong.
-        winding = [c for c in self.node.ice if c.alive and c.telegraphed]
-        if winding and self.braced <= 0 and not self._huntable():
-            return ('brace',)
         if self.objective_met():
             return ('jack out',)
         if target is None:
