@@ -497,8 +497,21 @@ class City:
             if contract.expired(self.shift) and contract.cid != self.accepted:
                 told.append(f'[dim]{contract.title} '
                             f'({contract.patron_data.short}) expired.[/]')
-            else:
-                keep.append(contract)
+                continue
+            if contract.expired(self.shift) and contract.cid == self.accepted:
+                # The one you accepted is protected from the sweep, which
+                # is right: losing a job out from under somebody mid-walk
+                # is not a thing the city should do quietly. It should not
+                # be silent about it either. Said once, when it happens,
+                # because a board reading `-68sh` is the alternative and
+                # that is what it read before (D75).
+                if 'late:' + contract.cid not in self.counters:
+                    self.counters.add('late:' + contract.cid)
+                    told.append(f'[warn]{contract.title} is past its date. '
+                                f'{contract.patron_data.short} have stopped '
+                                f'expecting it.[/] [dim]Still yours to '
+                                f'finish or `drop`.[/]')
+            keep.append(contract)
         self.board = keep
         return told
 
@@ -524,65 +537,79 @@ class City:
             rng('contracts'), self.shift, alias, self.posture,
             count=self.board_size(char), start_id=self.next_cid, flags=flags)
         self.next_cid += len(self.board) + 1
-        # A first board has something the kit can do. Nine origins ship
-        # without a payload, four of the six objectives need one, and a new
-        # character whose whole board needed one was stuck at the door with
-        # 700c and no idea why. One job that needs no program: surveil.
-        #
-        # Owning a payload is not the same as being able to use it, which
-        # is the sharper version of the same bug: a corruption is resisted
-        # by posture over five plus six, a fresh build brings about three,
-        # and no payload in the shop closes a seven point gap on the first
-        # night. The question the board asks is now whether the die could
-        # carry the verb at all, which is the question the run will ask.
-        if char is not None and char.runs == 0 and self.board:
-            doable = any(contract_mod.objective_possible(
-                char, c.objective, int(c.posture)) for c in self.board)
-            if not doable:
-                old = self.board[0]
-                self.board[0] = contract_mod.make_one(
-                    rng('contracts'), int(old.cid[1:]), old.patron, old.target,
-                    self.shift, alias, self.posture,
-                    used={c.title for c in self.board[1:]},
-                    objective='surveil')
-            # And something soft to point it at. Posture is the difficulty,
-            # and a first board of nothing but corporate networks is a first
-            # week of runs that cannot be finished by the deck the game just
-            # handed out.
-            # Soft *and* small. Depth scales with the fee now, so the
-            # size of the first job is the difference between a thing in a
-            # cupboard on the office floor and a thing two access tiers
-            # down: measured over twenty four fresh characters following
-            # the game's own advice, only one board in eight offered a job
-            # that was both, and the rest were unfinishable on the night
-            # they were offered.
-            if not any(int(c.posture) <= SOFT_POSTURE and c.size_mod <= 0.8
-                       and contract_mod.objective_ready(
-                           char, c.objective, int(c.posture))
-                       for c in self.board):
-                soft = min(factions.FACTION_KEYS,
-                           key=lambda k: self.posture.get(
-                               k, factions.BY_KEY[k].posture))
-                old = self.board[-1]
-                patron = next((k for k in factions.FACTION_KEYS
-                               if k != soft
-                               and factions.BY_KEY[k].relations.get(soft, 0) < 0),
-                              old.patron)
-                # Soft, small, and something the kit can actually do: a
-                # guaranteed first job that ends at `impossible` on the
-                # objective host is the same dead end wearing a friendlier
-                # posture.
-                kind = next(
-                    (o for o in ('surveil', 'exfiltrate', 'corrupt')
-                     if contract_mod.objective_ready(
-                         char, o, int(self.posture.get(
-                             soft, factions.BY_KEY[soft].posture)))),
-                    'surveil') if char is not None else None
-                self.board[-1] = contract_mod.make_one(
-                    rng('contracts'), int(old.cid[1:]), patron, soft,
-                    self.shift, alias, self.posture,
-                    used={c.title for c in self.board[:-1]},
-                    objective=kind, size_mod=0.75)
+        self._ensure_startable(rng, alias, char, flags)
+
+    #: A runner with fewer than this many jobs behind them is still being
+    #: taught the game, and the board keeps something they could attempt.
+    #: After it, the city stops making allowances (D75).
+    EARLY_RUNS = 5
+
+    #: The hardest posture that counts as startable while they are young.
+    YOUNG_POSTURE = 36
+
+    def _ensure_startable(self, rng: Rng, alias: Alias, char, flags=None) -> None:
+        """Keep one job on the board a young runner could actually take.
+
+        The curated first board was a cliff rather than a ramp: the
+        soft-small-ready guarantee fired at `runs == 0` and never again, so
+        the second board was pure chance. One playthrough drew five `large`
+        postings at postures twenty-eight to fifty-eight and the advice
+        recommended Nightwatch at forty-eight to somebody with Intrusion 2
+        and a Crowbar. The size distribution was fine; nothing was watching
+        the *board* for whether it had a rung on it.
+
+        Run zero keeps the stricter promise, because a first night that
+        goes wrong has nothing behind it to absorb the cost. Runs one to
+        four get the weaker one: something they are equipped for, at a
+        posture that is not a corporation. After that the city is the city.
+        """
+        if char is None or not self.board:
+            return
+        runs = int(getattr(char, 'runs', 0))
+        if runs >= self.EARLY_RUNS:
+            return
+        first = runs == 0
+        ceiling = SOFT_POSTURE if first else self.YOUNG_POSTURE
+
+        def startable(c) -> bool:
+            if int(c.posture) > ceiling:
+                return False
+            # Size counts too. A large network at a soft posture is not a
+            # hard job, but it is a long one, and a runner four contracts
+            # old walking a sprawl is spending forty ticks of trace to
+            # learn that. The first night wants small; the ones after it
+            # want no bigger than ordinary.
+            if c.size_mod > (0.8 if first else 1.0):
+                return False
+            return contract_mod.objective_ready(char, c.objective,
+                                                int(c.posture))
+
+        if any(startable(c) for c in self.board):
+            return
+        # Replace the last posting that is nobody's yet: a held one came
+        # out of a scene and taking its slot would delete a story beat.
+        spare = [i for i, c in enumerate(self.board)
+                 if not c.held and c.cid != self.accepted]
+        if not spare:
+            return
+        index = spare[-1]
+        old = self.board[index]
+        soft = min(factions.FACTION_KEYS,
+                   key=lambda k: self.posture.get(
+                       k, factions.BY_KEY[k].posture))
+        posture = int(self.posture.get(soft, factions.BY_KEY[soft].posture))
+        patron = next((k for k in factions.FACTION_KEYS
+                       if k != soft
+                       and factions.BY_KEY[k].relations.get(soft, 0) < 0),
+                      old.patron)
+        kind = next((o for o in ('surveil', 'exfiltrate', 'corrupt')
+                     if contract_mod.objective_ready(char, o, posture)),
+                    'surveil')
+        self.board[index] = contract_mod.make_one(
+            rng('contracts'), int(old.cid[1:]), patron, soft,
+            self.shift, alias, self.posture,
+            used={c.title for i, c in enumerate(self.board) if i != index},
+            objective=kind, size_mod=0.75 if first else 1.0)
 
     def top_up_board(self, rng: Rng, alias: Alias, char=None,
                      flags=None) -> list[str]:
@@ -591,6 +618,11 @@ class City:
         # scene that posts something does not cost the player a slot.
         have = len([c for c in self.board if not c.held])
         if have >= want:
+            # Still worth asking whether there is a rung on it. A full
+            # board is exactly the case where nothing new arrives to be a
+            # rung, and it is the case that stranded a runner for two days
+            # of play.
+            self._ensure_startable(rng, alias, char, flags)
             return []
         fresh = contract_mod.generate_board(
             rng('contracts'), self.shift, alias, self.posture,
@@ -598,6 +630,7 @@ class City:
             avoid={c.title for c in self.board}, flags=flags)
         self.next_cid += len(fresh) + 1
         self.board.extend(fresh)
+        self._ensure_startable(rng, alias, char, flags)
         return [f'[dim]{len(fresh)} new posting'
                 f'{"s" if len(fresh) != 1 else ""} on the board.[/]']
 

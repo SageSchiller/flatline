@@ -3716,6 +3716,18 @@ def check_city_texture(rep: Report) -> None:
         pool = districts.STREET.get(d.key, ())
         rep.check(len(pool) >= 6, f'districts/{d.key}/street',
                   f'{len(pool)} things in the street; wanted six or more')
+        # Two lines that open the same way read as a stutter when the
+        # picker puts them in one sentence: the Hall had "two of
+        # Carrion's at the back of the clinic queue" and "two of
+        # Carrion's at the back, not in the queue" and printed both,
+        # because the picker only ever compared whole strings.
+        openings: dict[str, str] = {}
+        for item in pool:
+            head = ' '.join(item.lower().replace(',', ' ').split()[:4])
+            rep.check(head not in openings, f'districts/{d.key}/street',
+                      f'two lines open the same way ({head}...): '
+                      f'{openings.get(head, "")!r} and {item!r}')
+            openings[head] = item
         for shift in range(9):
             line = districts.street_line(d.key, shift)
             rep.check(line.startswith('In the street:') and line.endswith('.'),

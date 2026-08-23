@@ -107,13 +107,18 @@ def can_bolt(game, enc) -> bool:
 # --------------------------------------------------------------------------
 
 
+def _fill(game, enc, faction: str) -> dict:
+    """What the setup line's placeholders stand for."""
+    fac = factions.BY_KEY.get(faction)
+    return {'fac': fac.short if fac else 'nobody\'s',
+            'district': game.city.district.name}
+
+
 def begin(sess, enc, faction: str = '', danger: int = 0,
           why: str = '') -> None:
     """Print the setup and the answers, and wait for the next line."""
     game, c = sess.game, sess.console
-    fac = factions.BY_KEY.get(faction)
-    fill = {'fac': fac.short if fac else 'nobody\'s',
-            'district': game.city.district.name}
+    fill = _fill(game, enc, faction)
     c.blank()
     c.rule('the street', role='warn')
     if why:
@@ -142,6 +147,40 @@ def begin(sess, enc, faction: str = '', danger: int = 0,
     c.say('[dim]Type one. They are not going to wait, and an empty line is '
           'standing there.[/]')
     _wait(sess, enc, faction, danger, keys)
+
+
+#: Words that are somebody asking what is going on rather than somebody
+#: refusing to answer. They reprint the question and cost nothing: the
+#: street runs out of patience with people who will not answer, not with
+#: people who want to see the odds again (D75).
+ASIDES = ('help', '?', 'look', 'status', 'now', 'odds', 'what', 'again',
+          'repeat', 'char', 'rep')
+
+
+def _restate(sess, enc, faction: str, danger: int) -> None:
+    """Print the question again, with the sums, having been asked to."""
+    game, c = sess.game, sess.console
+    fill = _fill(game, enc, faction)
+    c.blank()
+    c.say(f'[warn]{enc.setup.format(**fill)}[/]')
+    c.blank()
+    for opt in enc.options:
+        check = check_for(game, enc, opt, faction, danger)
+        if opt.check == 'pay':
+            cost = pay_cost(game, enc)
+            can = game.char.credits >= cost
+            tail = (f'[credit]{cost:,}c[/]' if can
+                    else f'[dim]{cost:,}c, which you do not have[/]')
+        elif check is None:
+            tail = ''
+        else:
+            tail = f'[dim]{check.summary()}[/]'
+        c.raw(f'  [accent]{opt.key:<8}[/] {opt.label}  {tail}')
+    if can_bolt(game, enc):
+        c.raw(f'  [accent]{"bolt":<8}[/] Leave before it starts  '
+              f'[dim]Streetcraft 2, once a day[/]')
+    c.blank()
+    c.say('[dim]An empty line is standing there.[/]')
 
 
 def _wait(sess, enc, faction: str, danger: int, keys, tries: int = 0) -> None:
@@ -176,6 +215,14 @@ def _answer(sess, enc, faction: str, danger: int, text: str,
         keys.append('bolt')
     opt = next((o for o in enc.options if o.key == low
                 or o.key.startswith(low)), None)
+    if opt is None and low.split()[0] in ASIDES:
+        # Asking what the question was is not refusing to answer it. This
+        # used to burn one of three strikes, so a player who typed `help`
+        # at a knife in a doorway was two keystrokes from having stood
+        # there.
+        _restate(sess, enc, faction, danger)
+        _wait(sess, enc, faction, danger, keys, tries)
+        return
     if opt is None:
         if tries + 1 >= PATIENCE:
             c.err(f'{text!r} is not one of the answers, and they have '

@@ -1083,7 +1083,8 @@ def cmd_board(sess, args) -> None:
                      contract_mod.SIZE_SHORT[contract.size_mod],
                      f'[{role}]{word}[/]',
                      f'{contract.pay:,}c',
-                     'held' if contract.held else f'{left}sh'))
+                     'held' if contract.held
+                     else (f'{left}sh' if left > 0 else 'late')))
     c.table(('#', 'job', 'against', 'what', 'size', 'reads', 'pay', 'left'),
             rows, roles=('accent', 'accent', 'err', 'dim',
                          'dim', None, 'credit', 'warn'))
@@ -1397,6 +1398,30 @@ def _warned_line(game) -> str:
             f'be asking[/]')
 
 
+def _hunted_on_route(game, target: str) -> tuple[str, str]:
+    """Who is hunting you on the way to `target`, and where.
+
+    `walk` is one command and several streets and it stops at the first
+    hop where somebody is paying to find you, so the whole route has to be
+    read, not the first step of it. Returns ('', '') when the road is
+    clear.
+    """
+    from ..world import fallout
+    riders = game.char.riders()
+    for hop in game.city.route(target):
+        danger, who = game.city.danger(game.alias, hop,
+                                       flags=game.story.flags, riders=riders)
+        if 'streetwise' in riders:
+            danger = int(danger * 0.6)
+        if 'findable' in riders:
+            danger = int(danger * 1.3)
+        if danger >= fallout.INCIDENT_FLOOR and who:
+            fac = factions.BY_KEY.get(who)
+            return ((fac.short if fac else 'somebody'),
+                    districts.BY_KEY[hop].name)
+    return '', ''
+
+
 def city_steps(game) -> list[tuple[str, str]]:
     """What stands between you and the job, as (command, why), in order.
 
@@ -1437,10 +1462,34 @@ def city_steps(game) -> list[tuple[str, str]]:
     if errand and errand.get('kind') == 'courier':
         to = errand.get('to', '')
         if to in districts.BY_KEY and to != game.city.where:
-            steps.append((game.city.walk_to(to),
-                          f'deliver {errand.get("what", "the package")} to '
-                          f'{districts.BY_KEY[to].name} for '
-                          f'{int(errand.get("pay", 0)):,}c'))
+            # The same refusal the contract walk checks for, on the same
+            # terms. `walk` stops at the first hop where somebody is paying
+            # to find you, and this branch named the walk anyway: the
+            # advice said `walk hall`, the street said no, and it said it
+            # every time you asked (D75).
+            hunted, hop_name = _hunted_on_route(game, to)
+            if hunted:
+                # With the numbers, because "heat cools while you lie low"
+                # is true and useless at ninety-seven: it cools about a
+                # point a shift, so the honest reading is thirty shifts,
+                # and a player told to rest without being told that will
+                # rest twice and conclude the game is stuck.
+                hot = max(game.alias.attention(k)
+                          for k in factions.FACTION_KEYS)
+                cost = (ALIAS_COST // 2 if 'no_history' in game.char.riders()
+                        else ALIAS_COST)
+                steps.append(('rest 3',
+                              f'{hunted} are hunting you in {hop_name} and '
+                              f'the delivery goes through it. Heat is {hot} '
+                              f'and cools about a point a shift, so this is '
+                              f'slow: `burn` ends the name for {cost:,}c, '
+                              f'and `{game.city.walk_to(to)} --anyway` walks '
+                              f'into them'))
+            else:
+                steps.append((game.city.walk_to(to),
+                              f'deliver {errand.get("what", "the package")} '
+                              f'to {districts.BY_KEY[to].name} for '
+                              f'{int(errand.get("pay", 0)):,}c'))
     if contract is None:
         # Which job, not just "the board" (D64 c). A new runner takes the
         # first row, which is as likely as not a corporate network they
@@ -1591,11 +1640,15 @@ def city_steps(game) -> list[tuple[str, str]]:
                               f'{districts.BY_KEY[first].name} and the walk '
                               f'goes through it: an arrangement makes their '
                               f'streets passable'))
+            hot = max(game.alias.attention(k) for k in factions.FACTION_KEYS)
+            cost = (ALIAS_COST // 2 if 'no_history' in game.char.riders()
+                    else ALIAS_COST)
             steps.append(('rest 3',
                           f'{fac.short} are hunting you on the way there. '
-                          f'Heat cools while you lie low; `burn` ends the '
-                          f'name instead, and `{route} --anyway` goes '
-                          f'through them'))
+                          f'Heat is {hot} and cools about a point a shift, '
+                          f'so this is slow: `burn` ends the name for '
+                          f'{cost:,}c, and `{route} --anyway` walks into '
+                          f'them'))
             return steps
         steps.append((route,
                       f'the job is in {where.name}, {hops} shift'
@@ -1626,6 +1679,24 @@ def cmd_take(sess, args) -> None:
     game.city.accepted = contract.cid
     c.ok(f'Taken: [accent]{contract.title}[/] against '
          f'{contract.target_data.short}, {contract.pay:,}c.')
+    # The same warning `board <id>` gives, on the screen people actually
+    # reach. `now` says `take c005`, so the advice routes straight past
+    # the reading screen, and the first anybody heard about a missing
+    # payload was the job sheet afterwards or the objective host itself
+    # (D75).
+    from ..world.contracts import OBJECTIVE_PROGRAM
+    need = OBJECTIVE_PROGRAM.get(contract.objective)
+    if need and not game.char.deck.has_category(need):
+        owned = any(k in programs.BY_KEY
+                    and programs.BY_KEY[k].category == need
+                    for k in game.char.library)
+        c.blank()
+        if owned:
+            c.warn(f'You have no {need} loaded, and this objective needs '
+                   f'one. You own one: `load` it before you jack in.')
+        else:
+            c.warn(f'You have no {need}, and this objective needs one. '
+                   f'The loadout is fixed the moment you jack in.')
     if contract.from_npc:
         from ..content import npcs as npc_content, offers
         work = offers.BY_NPC_WORK.get(contract.from_npc)
@@ -2366,9 +2437,26 @@ def cmd_burn(sess, args) -> None:
         return
     name = args.get(0) or ''
     game.char.credits -= cost
+    # A bounty is a number attached to a name, so it goes when the name
+    # does. It did not: `city.bounties` is keyed by faction and nothing
+    # cleared it, so burning cost eighteen hundred credits and every
+    # relationship built under the old name and left the streets exactly
+    # as dangerous. The manual has always said "sometimes that is cheaper
+    # than the bounty", and it was not true of any bounty (D75).
+    retired = sorted(game.city.bounties)
+    game.city.bounties.clear()
+    # And the warnings that came with them: "next time they will not be
+    # asking" was said to somebody who no longer exists.
+    for flag in [f for f in game.story.flags if f.startswith('warned:')]:
+        game.story.flags.discard(flag)
     fresh = game.new_alias(name)
     _advance(sess, shifts)
     c.ok(f'{alias.name} is gone. You are [accent]{fresh.name}[/] now.')
+    if retired:
+        names = ', '.join(factions.BY_KEY[k].short for k in retired
+                          if k in factions.BY_KEY)
+        c.say(f'[ok]The number came off with it.[/] [dim]{names} were '
+              f'paying to find somebody who does not exist any more.[/]')
 
 
 @command('rep', 'How the city feels about you, in full.',

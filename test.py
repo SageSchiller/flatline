@@ -8131,6 +8131,73 @@ def test_cli_persistence() -> None:
                 os.environ['XDG_DATA_HOME'] = old
 
 
+def test_playthrough_fixes() -> None:
+    """D75: things a full playthrough found."""
+    T.section('what playing it found')
+    from flatline.world import contracts as contract_mod
+
+    # A young runner always has a rung on the board, not just on night one.
+    for seed in range(10):
+        game = Game.new(Character.from_origin('gutter', 'x'), seed=seed)
+        for runs in (0, 1, 3, 4):
+            game.char.runs = runs
+            game.city.refresh_board(game.rng, game.alias, game.char)
+            ceiling = 30 if runs == 0 else 36
+            size = 0.8 if runs == 0 else 1.0
+            rung = [c for c in game.city.board
+                    if int(c.posture) <= ceiling and c.size_mod <= size
+                    and contract_mod.objective_ready(
+                        game.char, c.objective, int(c.posture))]
+            T.ok(rung, f'seed {seed}, {runs} runs: the board has a rung')
+
+    # Burning the name retires the number on it, which is what the manual
+    # has always promised and what nothing did.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+    sess = Session(console=quiet_console(), slot='burnfix'); sess.game = game
+    game.char.credits = 5000
+    game.city.bounties['sixes'] = 3
+    game.story.flags.add('warned:sixes')
+    game.alias.add_heat('sixes', 80)
+    hot, _ = game.city.danger(game.alias, 'ninth', flags=game.story.flags)
+    T.ok(hot >= 45, f'the Ninth is dangerous with a bounty standing ({hot})')
+    sess.console.start_capture()
+    sess.execute('burn --confirm')
+    sess.console.end_capture()
+    cool, _ = game.city.danger(game.alias, 'ninth', flags=game.story.flags)
+    T.eq(game.city.bounties, {}, 'the bounty went with the name')
+    T.ok(cool < 45, f'and the street is walkable again ({cool})')
+    T.eq([f for f in game.story.flags if f.startswith('warned:')], [],
+         'and so did what they said to the person who is gone')
+
+    # `take` warns about gear, not only `board <id>`, because `now` sends
+    # people straight to `take`.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+    sess = Session(console=quiet_console(), slot='takewarn'); sess.game = game
+    need = next((c for c in game.city.board
+                 if contract_mod.OBJECTIVE_PROGRAM.get(c.objective)
+                 and not game.char.deck.has_category(
+                     contract_mod.OBJECTIVE_PROGRAM[c.objective])), None)
+    if need is not None:
+        sess.console.start_capture()
+        sess.execute(f'take {need.cid}')
+        said = ui.plain(sess.console.end_capture())
+        T.ok('this objective needs one' in said,
+             '`take` says when the objective needs gear you have not got')
+
+    # An accepted contract that has expired reads as late, not as -68sh.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+    sess = Session(console=quiet_console(), slot='late'); sess.game = game
+    target = game.city.board[0]
+    sess.execute(f'take {target.cid}')
+    game.city.shift = target.expires + 40
+    sess.console.start_capture()
+    sess.execute('board')
+    shown = ui.plain(sess.console.end_capture())
+    T.ok('-' not in shown.split('left')[-1],
+         'the board prints no negative time remaining')
+    T.ok('late' in shown, 'it says late instead')
+
+
 def test_collector() -> None:
     """D70: an arrangement is world state a thread can read."""
     T.section('the collector')
@@ -9052,6 +9119,7 @@ SUITES = (
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
     test_intrusion, test_catalogue, test_money, test_relics, test_street,
     test_collector, test_early, test_tension, test_hostnames,
+    test_playthrough_fixes,
     test_cli_persistence,
     test_soak, test_advice, test_scale, test_place, test_ladder,
     test_net_signatures, test_breadth, test_new_origins,

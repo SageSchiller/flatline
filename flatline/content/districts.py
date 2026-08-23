@@ -962,10 +962,10 @@ STREET: dict[str, tuple[str, ...]] = {
         'a pigeon coming down out of the roof changed by the singing',
         'a child asleep on a bench under a blanket that says SENDAI',
         'somebody sleeping under the departure boards in the warm light',
-        'a pigeon coming down out of the roof and everybody ducking '
+        'the roof pigeons going up all at once, and everybody ducking '
         'except the Chorus',
-        'two of Carrion\'s at the back, not in the queue, being looked '
-        'at',
+        'a man from Carrion counting the queue from the far end, twice, '
+        'and writing neither number down',
         'a child running the length of platform six\'s hoarding, hand '
         'on it, all the way',
     ),

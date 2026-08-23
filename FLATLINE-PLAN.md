@@ -2389,6 +2389,79 @@ you are standing, and it did that by naming the objective host, one line
 under an aim that says the host has not been reached yet. Everything else
 in the run holds to earning a name before printing it. Now this does too.
 
+### D75: A full playthrough, and the ten things it found
+
+One character, `new` to the last scene of the main line: twenty-three
+contracts, a burned name, and the Deepwater spine carried to `under`.
+Nothing here was found by a harness. All of it was found by playing.
+
+**The curated first board was a cliff, not a ramp.** The soft-small-ready
+guarantee fired at `runs == 0` and never again. The second board of this
+playthrough rolled five `large` postings at postures twenty-eight to
+fifty-eight and the advice recommended Nightwatch at forty-eight to
+somebody holding a Crowbar. The size distribution turned out to be fine
+(twenty-two per cent small over two hundred boards), so nothing was broken
+except that nothing was watching. `_ensure_startable` now runs on every
+refresh and every top-up, including when the board is full, which was the
+stranding case. Runs one to four keep a weaker promise than night one:
+something they are equipped for, at a soft posture, no bigger than
+ordinary.
+
+**Burning your name did not clear the bounty on it.** `help heat` has
+always said heat accrues to the name, that burning dumps it, and that
+"sometimes that is cheaper than the bounty". It was not true of any
+bounty: `city.bounties` is keyed by faction and nothing cleared it. I paid
+eighteen hundred credits and every relationship built under the old name,
+and the streets were exactly as dangerous, which is how I found it.
+Burning now retires the numbers and the "next time they will not be
+asking" warnings that came with them. Arrival danger in the Ninth, on the
+fixture: sixty-three to nought.
+
+**The "you cannot do this job" warning was on the screen nobody reads.**
+`board <id>` warns when an objective needs a program you have not got.
+`take <id>` did not, and `now` says `take c005`, so following the game's
+own advice routed straight past the only warning in the game about it.
+
+**The advice named a walk the street was refusing.** The contract branch
+of `city_steps` knew about bounties on the route. The errand branch did
+not, so with the Sixes hunting me in Marrow it said `walk hall`, the
+street said no, and it said it every time I asked.
+
+**"Heat cools while you lie low" was true and useless.** At ninety-seven
+with a bounty standing, that is a thirty-shift suggestion printed as the
+next thing to type. It now says the heat, the rate, what a new name costs,
+and that `--anyway` walks into them: three doors with prices instead of
+one that sounds free.
+
+**An accepted contract that expired read as `-68sh`.** The sweep protects
+the accepted contract, which is right. Printing `expires - shift` raw for
+it was not, and nothing ever said the job had gone cold.
+
+**A story decision never said what was being asked.** `theirs/ask` ended
+on "Then he tells you what they would like" and offered `yes: Do it`
+against `no: Say no`. Both outcomes are written; the decision was blind.
+Named the ask and sharpened the labels.
+
+**Asking a question at a street prompt burned a strike.** Three
+non-answers and the street stops waiting and stands you there. Any input
+counted, so typing `help` at a knife in a doorway put you two keystrokes
+from having answered. Asides reprint the setup with every option's odds
+and cost nothing now.
+
+**The Hall's street line stuttered.** Two near-identical entries about
+Carrion in one sentence, because the picker deduped on whole strings.
+Rewrote both pairs; validate now refuses two street lines in a district
+that open with the same four words.
+
+**And one left open, because it is a design call rather than a bug.** The
+last scene of the main line requires `lark_saved` along with `dw_read` and
+`archive_consented`, and the scene is explicitly *about* those three
+things, which is the best argument for keeping the gate. But a player who
+never meets Lark, or who chooses `nothing`, loses the ending permanently
+with no indication it was there. The recommendation in the issue log is to
+let the journal admit, in voice, that a thread is waiting on the world
+rather than on the player.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.

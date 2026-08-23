@@ -843,12 +843,17 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
                   'done for you.\n\n'
                   'Most of it is true. All of it happened before you were old '
                   'enough to decline it.\n\n'
-                  'Then he tells you what they would like.',
+                  'Then he tells you what they would like, and it is '
+                  'nothing. A name. Somebody left a door open in the '
+                  'Terraces on a Tuesday and half the Ninth knows which '
+                  'somebody, and the Sixes would rather hear it from '
+                  'a person they have been good to than from a person '
+                  'they have not.',
                   requires=('origin:gutter',),
                   any_of=('runs:4', 'rep:sixes:30'),
                   sets=('theirs_asked',),
                   choices=(
-                      Choice('yes', 'Do it',
+                      Choice('yes', 'Give them the name',
                              'You do it, and it is easy, and the warmth is '
                              'real afterwards. That is the part nobody warns '
                              'you about: it is a good deal every single time '
@@ -857,7 +862,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
                              sets=('theirs_owned',),
                              credits=3000,
                              rep={'sixes': 25, 'carrion': -15}),
-                      Choice('no', 'Say no',
+                      Choice('no', 'Say you do not know it',
                              'He takes it well. He takes it so well that you '
                              'spend two shifts waiting for the other thing, '
                              'and the other thing does not come, and by the '
