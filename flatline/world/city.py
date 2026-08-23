@@ -579,7 +579,11 @@ class City:
             # old walking a sprawl is spending forty ticks of trace to
             # learn that. The first night wants small; the ones after it
             # want no bigger than ordinary.
-            if c.size_mod > (0.8 if first else 1.0):
+            # Size steps up with the runs behind them, not the moment the
+            # first one is over. Handing a one-contract runner an ordinary
+            # network was the whole of the early economy: measured, run one
+            # paid every time and run two paid twice in six (D82).
+            if c.size_mod > (0.8 if runs < 3 else 1.0):
                 return False
             return contract_mod.objective_ready(char, c.objective,
                                                 int(c.posture))
@@ -609,7 +613,7 @@ class City:
             rng('contracts'), int(old.cid[1:]), patron, soft,
             self.shift, alias, self.posture,
             used={c.title for i, c in enumerate(self.board) if i != index},
-            objective=kind, size_mod=0.75 if first else 1.0)
+            objective=kind, size_mod=0.75 if runs < 3 else 1.0)
 
     def top_up_board(self, rng: Rng, alias: Alias, char=None,
                      flags=None) -> list[str]:

@@ -2673,6 +2673,58 @@ in five for a Grit build that bought Fieldcraft, and reliable for
 somebody who specialised. Which is the first time in this game that Grit
 and Fieldcraft have bought anything a player can watch happen.
 
+### D82: The stake was right. The second contract was not.
+
+The question was whether 45,000 credits is too far. Measured against the
+board it is exactly what the comment beside it has always claimed: at a
+median gang fee of 1,322 credits it is thirty-four completed gang
+contracts, at mid posture fourteen, at corporate nine. "Somewhere between
+ten and thirty successful runs." The target is honest and it has not
+moved.
+
+What was not honest was everything between the first contract and the
+thirty-fourth. Six careers driven end to end, measuring what each run
+actually paid:
+
+```
+run #     1     2     3     4     5     6     7    8+
+paid   1139     0     0     0     0     0     0     0
+```
+
+**The first contract pays every time and nothing else pays at all.** Not
+a slow economy: a cliff with one step on it.
+
+Three things made that, and none of them was the number.
+
+**Depth stepped from shallowest to deepest with nothing in between.** A
+small job sat one zone in from the door; an *ordinary* job went straight
+to the core. So the second contract of a career was two access tiers
+deeper than the first, and a realistic second-contract runner finished
+one job in twenty four against twenty in twenty four for their first.
+Depth tracks size across the whole range now. Measured at gang posture,
+the size ladder reads 24, 24, 17 and 12 of 24 across small, ordinary,
+large and sprawl, which is a gradient rather than a wall.
+
+**The advice read tenure where it meant capability.** It preferred
+smaller jobs for the first five contracts and then stopped, so a runner
+five contracts in who had spent nothing was recommended the biggest job
+on the softest network. It reads ranks bought now: about double what an
+origin ships with is where size stops being the thing most likely to end
+the night.
+
+**And nothing ever said to buy a payload.** Four of the six objectives
+need one. The two that do not are the two hardest to finish. A runner
+without one was steered around every job that wanted one, for ever, and
+the loop is: no payload, so watch work, so no money, so no payload. It is
+a standing step now, the moment it is affordable, rather than advice that
+waits for a contract to demand it. Careers that ended holding a payload
+went from none in eight to five in eight.
+
+One more, which pays for the nights that go wrong: a run whose objective
+has gone out of reach is told to carry something out rather than leave
+empty handed. The job sheet has always said a run with nothing on it pays
+for whatever you can carry. The advice never once said it.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.

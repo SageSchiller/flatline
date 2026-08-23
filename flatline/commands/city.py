@@ -1458,7 +1458,13 @@ def _suggest_contract(game):
     # as the difficulty they are weighed against: gear you have not bought
     # is a shop trip, a verb the die cannot carry is a wasted night, and
     # neither is worth walking into a corporate network to avoid.
-    green = game.char.runs < 5
+    # Tenure is not capability. Five contracts in, a runner who has spent
+    # nothing is exactly as able as they were on night one, and the advice
+    # used to start recommending the biggest job on the softest network to
+    # them the moment the counter ticked over. Ranks bought is the honest
+    # measure: about double what an origin ships with is the point where
+    # size stops being the thing most likely to end the night (D82).
+    green = sum(game.char.base_skills.values()) < 12
     return min(board, key=lambda c: (int(c.posture)
                                      + (0 if equipped(c) else 12)
                                      + (0 if possible(c) else 20),
@@ -1571,6 +1577,39 @@ def city_steps(game) -> list[tuple[str, str]]:
                               f'deliver {errand.get("what", "the package")} '
                               f'to {districts.BY_KEY[to].name} for '
                               f'{int(errand.get("pay", 0)):,}c'))
+    # A payload is the difference between two objectives and six. Four of
+    # the six need one; the two that do not are the two hardest to finish;
+    # and a runner without one is steered round every job that wants one,
+    # for ever. The loop that comes out of that is: no payload, so watch
+    # work, so no money, so no payload. Measured over six careers, income
+    # after the third contract was nought (D82). So it is a standing step
+    # the moment it is affordable, rather than advice that waits for a
+    # contract to demand it.
+    owned = {programs.BY_KEY[k].category for k in
+             list(game.char.library) + list(game.char.deck.loaded)
+             if k in programs.BY_KEY}
+    if 'payload' not in owned:
+        cheapest = min((p for p in programs.by_category('payload')
+                        if not p.unique), key=lambda p: p.price, default=None)
+        if cheapest is not None:
+            here = game.city.district
+            shops = [d for d in districts.DISTRICTS if 'market' in d.services]
+            shop = here if 'market' in here.services else (
+                min(shops, key=lambda d: game.city.shifts_to(d.key))
+                if shops else here)
+            price = int(round(cheapest.price * shop.price_mult))
+            if game.char.credits >= price:
+                why = (f'you own no payload, and four of the six objectives '
+                       f'need one. The two that do not are the hardest work '
+                       f'on the board')
+                if shop.key == game.city.where:
+                    steps.append((f'buy {cheapest.name.lower()}',
+                                  f'{why}. {cheapest.name} is here for about '
+                                  f'{price:,}c'))
+                else:
+                    steps.append((game.city.walk_to(shop.key),
+                                  f'{why}. {cheapest.name} is about '
+                                  f'{price:,}c at the {shop.name} market'))
     if contract is None:
         # Which job, not just "the board" (D64 c). A new runner takes the
         # first row, which is as likely as not a corporate network they

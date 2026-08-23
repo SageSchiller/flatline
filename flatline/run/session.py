@@ -292,6 +292,9 @@ class RunState:
     #: answer to a countermeasure that needs no rank.
     braced: int = 0
     bracing_with: str = ''
+    #: Guard against `_salvage_step` and `_nothing_left` calling each
+    #: other for ever (D82).
+    _salvaging: bool = False
     #: Assets pulled shut, without the decrypt (D63 b). Worth less, and the
     #: patron pays less for the one they wanted open.
     sealed: set = field(default_factory=set)
@@ -2103,6 +2106,46 @@ class RunState:
                 f'{category}, or the rank to drive one, is the difference. '
                 f'This one is not tonight.')
 
+    def _salvage_step(self) -> tuple[str, ...]:
+        """Something worth carrying out of a run that is already lost.
+
+        A contract pays nothing for an attempt, which is right, and the
+        job sheet has always said that a run with nothing on it pays for
+        whatever you can carry. The advice never once said it: a run whose
+        objective had gone out of reach was told to leave empty handed,
+        and measured over six careers that made every contract after the
+        third pay exactly nothing. A lost night should be a bad night, not
+        a zero (D82).
+        """
+        # `_steps_toward` falls back to `_nothing_left`, which is what
+        # called this, so without a guard a network with an unreachable
+        # asset on it recurses until Python gives up.
+        if self._salvaging or programs.best(self.char.deck.loaded,
+                                            'payload') is None:
+            return ()
+        best, value = None, 0
+        for node in self.net.nodes.values():
+            if not node.known or not node.open:
+                continue
+            if node.uid != self.here and not self.route_to(node.uid):
+                continue
+            for asset in node.data:
+                if asset.taken or asset.uid in self.haul:
+                    continue
+                if asset.value > value:
+                    best, value = (node, asset), asset.value
+        if best is None or value < 200:
+            return ()
+        node, asset = best
+        if node.uid != self.here:
+            self._salvaging = True
+            try:
+                toward = self._steps_toward(node.uid)
+            finally:
+                self._salvaging = False
+            return () if toward == ('jack out',) else toward
+        return (f'pull {asset.uid}',)
+
     def _nothing_left(self) -> tuple[str, ...]:
         """No way on that you can see. Look once more, then go.
 
@@ -2124,6 +2167,11 @@ class RunState:
         badge = self._tier_steps()
         if badge:
             return badge
+        # Not empty handed, if there is anything within reach worth the
+        # ticks. The contract is gone; the night does not have to be.
+        salvage = self._salvage_step()
+        if salvage:
+            return salvage
         return ('jack out',)
 
     def _tier_steps(self) -> tuple[str, ...] | None:

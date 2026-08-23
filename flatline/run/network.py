@@ -801,13 +801,25 @@ def _place_objective(rng: Stream, net: Network, objective: str,
     shallow = size_mod < 0.9 and posture <= SHALLOW_POSTURE
     entry = net.node(net.entry)
     order = list(node_content.ZONES)
+    # Depth tracks size across the whole range, rather than stepping from
+    # the shallowest to the deepest with nothing in between. A small job
+    # sat one zone in from the door and an *ordinary* one went straight to
+    # the core, so the second contract of a career was two access tiers
+    # deeper than the first: measured, the first contract finishes twenty
+    # in twenty four and an ordinary one finishes one (D82). An ordinary
+    # job is an ordinary job. The vault is what the big fees are for.
+    middling = 0.9 <= size_mod < 1.2 and posture <= SHALLOW_POSTURE
     # One zone deeper than wherever the front door turned out to be.
     # Deepwater has no perimeter and you arrive already inside it, so its
     # interior is its doorstep and putting the job there puts it in the
     # entry hall.
     floor = (order.index(entry.zone) + 1) if entry is not None else 1
-    zones = ((order[min(floor, len(order) - 1)], 'restricted') if shallow
-             else ('core', 'restricted'))
+    if shallow:
+        zones = (order[min(floor, len(order) - 1)], 'restricted')
+    elif middling:
+        zones = ('restricted', 'interior')
+    else:
+        zones = ('core', 'restricted')
     if objective == 'surveil':
         # A residency job is not a vault job (D80). Sitting in the core for
         # eight clean ticks means getting to the core first, and getting to

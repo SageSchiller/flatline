@@ -8384,6 +8384,70 @@ def test_combat() -> None:
          'and only a hit worth deciding about buys the decision')
 
 
+def test_economy() -> None:
+    """D82: the second contract is not two access tiers deeper than the first."""
+    T.section('the second contract')
+    from flatline.run import network as net_mod
+    from flatline.content import legacy
+    from flatline.commands import city as city_cmd
+
+    # Depth tracks size across the whole range. A small job sits shallow,
+    # an ordinary one sits in the middle, and the vault is what the big
+    # fees are for. It used to step straight from the first to the last.
+    depth = {}
+    for size in (0.75, 1.0, 1.35):
+        tiers = []
+        for seed in range(16):
+            net = net_mod.generate(Rng(seed).fork('network', f'e{size}'),
+                                   'sixes', 24, 'exfiltrate', size_mod=size)
+            tiers.append(net.node(net.objective_node).tier)
+        depth[size] = sum(tiers) / len(tiers)
+    T.ok(depth[0.75] < depth[1.0],
+         f'an ordinary job is deeper than a small one '
+         f'({depth[0.75]:.1f} vs {depth[1.0]:.1f})')
+    T.ok(depth[1.0] < depth[1.35],
+         f'and a large one is deeper again '
+         f'({depth[1.0]:.1f} vs {depth[1.35]:.1f})')
+
+    # The advice reads capability, not tenure: five contracts in with
+    # nothing bought is exactly as able as night one.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+    game.char.runs = 9
+    small = [c for c in game.city.board if c.size_mod <= 0.8]
+    if small and len(small) < len(game.city.board):
+        pick = city_cmd._suggest_contract(game)
+        T.ok(pick is not None, 'there is still a recommendation')
+
+    # A payload is a standing step once it is affordable, because four of
+    # the six objectives need one and the two that do not are the hardest.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+    game.char.credits = 2500
+    game.char.library = [k for k in game.char.library
+                         if k not in programs.BY_KEY
+                         or programs.BY_KEY[k].category != 'payload']
+    game.char.deck.loaded = [k for k in game.char.deck.loaded
+                             if k not in programs.BY_KEY
+                             or programs.BY_KEY[k].category != 'payload']
+    why = ' '.join(w for _, w in city_cmd.city_steps(game))
+    T.ok('payload' in why,
+         'the advice says to buy a payload once it is affordable')
+
+    # And the stake is what the design says it is, against the board.
+    T.eq(legacy.STAKE, 45000, 'the stake is unchanged')
+    # Across boards, not one board: a single board's gang work can pay a
+    # fifth either side of the median and the assertion would be about
+    # the seed rather than about the economy.
+    gang = []
+    for seed in range(20):
+        board = Game.new(Character.from_origin('gutter', 'x'), seed=seed)
+        gang.extend(c.pay for c in board.city.board if int(c.posture) <= 30)
+    T.ok(gang, 'gang work exists to price the stake against')
+    runs = legacy.STAKE / (sum(gang) / len(gang))
+    T.ok(10 <= runs <= 40,
+         f'and the stake is worth between ten and forty gang contracts '
+         f'({runs:.0f})')
+
+
 def test_collector() -> None:
     """D70: an arrangement is world state a thread can read."""
     T.section('the collector')
@@ -9313,6 +9377,7 @@ SUITES = (
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
     test_intrusion, test_catalogue, test_money, test_relics, test_street,
     test_collector, test_early, test_tension, test_hostnames,
+    test_economy,
     test_combat,
     test_advancement,
     test_journal_hint,
