@@ -47,6 +47,11 @@ TRACE_MAX = 100.0
 #: Trace added per tick before any modifier. Deliberately small: most of the
 #: pressure should come from what the player does, not from the clock alone.
 TRACE_PER_TICK = 1.1
+
+#: What carrying the thing they want does to everything else you do (D80).
+#: The exit is the job on an exfiltration, and this is the number that
+#: makes that true rather than a thing the prose asserts.
+HAUL_NOISE = 1.5
 #: What a tick costs when you made no noise in it (D66). The comment above
 #: has always said the pressure should come from what the player does
 #: rather than from the clock alone, and the clock was flat, which made it
@@ -280,6 +285,9 @@ class RunState:
     #: the ordinary advice takes over rather than standing there repeating
     #: an expensive verb at a door that is not opening (D78).
     tried: set = field(default_factory=set)
+    #: Ticks an implant still needs before it has taken (D80). An implant
+    #: that is pushed and abandoned is a thing left on a desk.
+    rooting: int = 0
     #: Assets pulled shut, without the decrypt (D63 b). Worth less, and the
     #: patron pays less for the one they wanted open.
     sealed: set = field(default_factory=set)
@@ -374,6 +382,13 @@ class RunState:
         amount *= self.char.mult('noise_mult') * node.data_type.noise_mult
         if self.condition is not None:
             amount *= self.condition.noise
+        # What you are carrying is not free to carry (D80). An exfiltration
+        # used to be over the moment you had it in hand, and the walk back
+        # out was the same walk in with a different destination. The record
+        # they want is the loudest thing on this network and it is now in
+        # your traffic: everything you do on the way out says so.
+        if self.net.objective_asset in self.haul:
+            amount *= HAUL_NOISE
         value = max(0, int(round(amount)))
         node.noise += value
         if value:
@@ -637,6 +652,7 @@ class RunState:
             self._ice_tick()
             self._incident_tick()
             self._surveil_tick()
+            self._root_tick()
             self._decay_noise()
             self._check_trace()
 
@@ -751,6 +767,10 @@ class RunState:
 
     #: How many ticks of clean residency a surveil contract wants.
     SURVEIL_TICKS = 8
+
+    #: Ticks an implant needs on the network before it has taken (D80).
+    #: You do not have to stand over it. You do have to still be in here.
+    ROOT_TICKS = 5
 
     def _escort_tick(self) -> None:
         """The runner you are covering acts, and you did not choose how.
@@ -1180,6 +1200,23 @@ class RunState:
                 node.open = True
             self.console.raw(f'  [ok]{svc.data.name} on {node.uid} is open.[/]')
             return
+
+    def _root_tick(self) -> None:
+        """An implant takes a while to become part of the thing it is in.
+
+        The shape of an implant job is not "reach it and push", it is
+        "push it and still be here afterwards", which is a different run:
+        the middle is the dangerous part and the exit is on somebody
+        else's clock rather than yours (D80).
+        """
+        if self.rooting <= 0:
+            return
+        self.rooting -= 1
+        if self.rooting > 0:
+            return
+        self.console.blank()
+        self.console.ok('It has taken. Whatever you left is part of the '
+                        'furniture now, and you can go.')
 
     def _ice_tick(self) -> None:
         """Wake, telegraph, and strike. The fairness contract lives here."""
@@ -1854,6 +1891,17 @@ class RunState:
                 where = '`observe` banks one, and red empties the lot'
             return (f'{self.observed} of {self.SURVEIL_TICKS} clean ticks '
                     f'banked: {where}')
+        if kind == 'implant':
+            if self.rooting > 0:
+                return (f'it is in and taking: {self.rooting} tick'
+                        f'{"s" if self.rooting != 1 else ""} before it is '
+                        f'part of the furniture, and you have to be in here '
+                        f'when it is')
+            if self.done.get('implant') == self.net.objective_node:
+                return 'it has taken, and you can go'
+        if kind == 'corrupt' and self.alert in ('red', 'lockdown'):
+            return ('the room is red, and an edit made now reads as an edit '
+                    'rather than as a fault')
         if kind == 'escort' and self.escort:
             return (f'{self.escort["name"]} is on {self.escort["node"]}, '
                     f'{self.escort["state"]}'
@@ -2120,6 +2168,17 @@ class RunState:
         # ran from eighteen to a hundred. Quiet is the answer and there is
         # a verb for it; if quiet cannot come because something alive is
         # making the noise, that is what to say instead.
+        # An implant that is in and taking wants you alive and inside, not
+        # standing over it (D80).
+        if kind == 'implant' and self.rooting > 0:
+            return ('wait',)
+        # An edit made while they are looking reads as an edit. The room
+        # has to settle before this is worth trying.
+        if kind == 'corrupt' and self.alert in ('red', 'lockdown'):
+            if not self._something_hunting():
+                return ('wait',)
+            hunter = self._huntable()
+            return (f'strike {hunter}',) if hunter else ('jack out',)
         if kind == 'surveil' and self.alert in ('red', 'lockdown'):
             if not self._something_hunting():
                 return ('wait',)
@@ -2134,7 +2193,12 @@ class RunState:
             'corrupt': ('push',),
             'wipe': (f'wipe {asset}' if asset else 'wipe',),
             'surveil': ('observe',),
-            'escort': ('signal move', 'signal out'),
+            # Only when there is somebody to signal. `jack in` always puts
+            # one in, but the brief is asked in states `jack in` did not
+            # build, and advising a verb at nobody is the one thing it must
+            # not do.
+            'escort': (('signal move', 'signal out') if self.escort
+                       else ('jack out',)),
         }.get(kind, ('pull',))
 
     def _something_hunting(self) -> bool:
@@ -2241,8 +2305,13 @@ class RunState:
                 shut = [s for s in hop.services if not s.cracked]
                 if shut:
                     return (f'pretext {hop.uid} {shut[0].key}',) + steps
-        # Two doors on one host and one action that opens both.
-        if first.startswith('crack ') and char.has_technique('chain'):
+        # Two doors on one host and one action that opens both. Only while
+        # the room is quiet: chaining is two cracks' worth of noise in one
+        # action, which is a bargain when nothing is listening and a way
+        # of putting a network into lockdown by tick ten when something
+        # is. Speed is worth noise early and never worth it late (D80).
+        if (first.startswith('crack ') and char.has_technique('chain')
+                and self.alert == 'green' and self.trace_pct < 0.5):
             parts = first.split()
             if len(parts) >= 3 and '--chain' not in first:
                 target = self.net.node(parts[1])
@@ -2339,7 +2408,10 @@ class RunState:
         # failing to check the thing it is about, and it is also why a player
         # could not tell whether they had done the job: neither could it.
         if kind == 'implant':
-            return self.done.get('implant') == self.net.objective_node
+            # And it has to have taken. Pushing it is the middle of the
+            # job, not the end of it (D80).
+            return (self.done.get('implant') == self.net.objective_node
+                    and self.rooting <= 0)
         if kind == 'corrupt':
             return self.done.get('corrupt') == self.net.objective_node
         if kind == 'wipe':

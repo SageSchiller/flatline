@@ -2588,6 +2588,49 @@ and the contract reading says it in a sentence. Nothing about it is a
 spoiler: which corporations use lethal countermeasures is the sort of
 thing everybody in this city knows.
 
+### D80: Six objectives, six shapes
+
+Six objectives and four of them were the same run: reach the host, type
+one word, leave. Only a surveil was structurally different, and that is
+the one that reliably produced a story, which was the clue.
+
+**An exfiltration is about the exit.** It used to be over the moment you
+had the record in hand and the walk out was the walk in with a different
+destination. What they want is the loudest thing on the network and it is
+in your traffic now: everything you do carrying it counts for half again.
+The grab is the middle of the job.
+
+**An implant has to take.** Pushing it is not finishing it. It needs five
+ticks on the network to become part of the furniture, and you have to
+still be in here when it does, anywhere in here. Standing over it is the
+worst place to wait, which makes the end of an implant job a question
+about where to spend five ticks rather than a walk to the door.
+
+**A corruption has to read as a fault.** It cannot be done while the room
+is red, because an edit made while the whole floor is looking at the disk
+is not a disk fault, it is you. The room has to settle first, and the
+verb says so rather than failing a check quietly.
+
+**A wipe is loud and cannot be anything else.** Destroying a record wakes
+everything on the host and puts the desk up a level, guaranteed, no roll.
+A deletion cannot be dressed as an accident: the shape of a wipe job is
+smash and run, and now it is.
+
+**A surveil is not a vault job.** It was placed in the core like
+everything else, which meant reaching it made exactly the amount of noise
+that puts the room red, and red empties the bank: nought completions in
+twenty four, measured with incidents on and off, so this one predated
+them. You surveil where the traffic is. Restricted or interior, and six
+in twenty four.
+
+Two things found on the way. The brief advised `signal` on an escort with
+nobody to signal, which is the one thing advice must never do. And
+`crack --chain` is two cracks' worth of noise in one action: the brief now
+offers it while the room is green and the trace is under half, and stops
+offering it after that, because speed is worth noise early and never
+worth it late. That alone took a network from lockdown at tick ten to
+finishing.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.

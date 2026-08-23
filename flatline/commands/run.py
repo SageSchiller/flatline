@@ -1317,6 +1317,10 @@ def cmd_pull(sess, args) -> None:
                 continue
         asset.taken = True
         state.haul.append(asset.uid)
+        if asset.uid == state.net.objective_asset:
+            c.say('[warn]It is in your traffic now, and it is the loudest '
+                  'thing on this network.[/] [dim]Everything you do on the '
+                  'way out counts for half again. The exit is the job.[/]')
         if shut:
             state.sealed.add(asset.uid)
         mark = ' [accent2](the job)[/]' if asset.objective else ''
@@ -1357,6 +1361,14 @@ def cmd_push(sess, args) -> None:
     if kind not in ('implant', 'corrupt'):
         kind = 'implant'
 
+    if kind == 'corrupt' and state.alert in ('red', 'lockdown'):
+        # A corruption is supposed to read as a disk fault. A disk fault
+        # that happens while the whole floor is looking at the disk is not
+        # a disk fault, it is you (D80).
+        raise CommandError('they are looking. An edit made now reads as an '
+                           'edit and not as a fault, which is the whole of '
+                           'what they are paying for. Let the room settle '
+                           'first: `wait`.')
     check = push_check(state, kind, payload)
     check.resolve(state.rng)
 
@@ -1366,10 +1378,20 @@ def cmd_push(sess, args) -> None:
     c.blank()
     if check.success:
         state.done[kind] = node.uid
-        c.ok(f'Done. It is on [accent]{node.uid}[/] and it will still be '
-             f'there next quarter.')
-        if node.uid == state.net.objective_node:
-            c.say('[ok][bold]That is the job. Get out.[/][/]')
+        if kind == 'implant' and node.uid == state.net.objective_node:
+            # It is not done when it is pushed. It is done when it has
+            # taken, and until then it is a thing left on a desk (D80).
+            state.rooting = state.ROOT_TICKS
+            c.ok(f'It is on [accent]{node.uid}[/]. Now it has to take.')
+            c.say(f'[warn]{state.ROOT_TICKS} ticks before it is part of the '
+                  f'furniture, and you have to still be in here when it '
+                  f'is.[/] [dim]Anywhere in here. Standing over it is the '
+                  f'worst place to wait.[/]')
+        else:
+            c.ok(f'Done. It is on [accent]{node.uid}[/] and it will still be '
+                 f'there next quarter.')
+            if node.uid == state.net.objective_node:
+                c.say('[ok][bold]That is the job. Get out.[/][/]')
     else:
         c.err('It will not take.')
         c.say(check.explain())
@@ -1418,6 +1440,16 @@ def cmd_wipe(sess, args) -> None:
     state.done['wipe'] = asset.uid
     c.ok(f'{asset.name} is gone. Loudly.')
     c.say(f'[dim]{check.explain()}[/]')
+    # And loudly is not a turn of phrase (D80). Destroying a record is
+    # the one objective nobody can be made to look like an accident:
+    # everything on this host knows immediately, and so does the desk.
+    woke = [x for x in node.ice if x.alive and x.state == 'dormant']
+    for construct in woke:
+        construct.state = 'awake'
+        state._tell(construct)
+    state.escalate(1, 'a record that was there is not')
+    c.say('[warn]A deletion is not a fault and cannot be dressed as one. '
+          'They know. The job now is the door.[/]')
 
 
 @command('scrub', 'Reduce the evidence you have left on this node.',

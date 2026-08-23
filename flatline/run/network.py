@@ -808,6 +808,14 @@ def _place_objective(rng: Stream, net: Network, objective: str,
     floor = (order.index(entry.zone) + 1) if entry is not None else 1
     zones = ((order[min(floor, len(order) - 1)], 'restricted') if shallow
              else ('core', 'restricted'))
+    if objective == 'surveil':
+        # A residency job is not a vault job (D80). Sitting in the core for
+        # eight clean ticks means getting to the core first, and getting to
+        # the core is exactly the amount of noise that puts the room red,
+        # and red empties the bank: measured at nought completions in
+        # twenty four, with and without incidents. You surveil where the
+        # traffic is, which is the floor the work happens on.
+        zones = ('restricted', 'interior') if not shallow else zones
     # A small job takes the shallowest zone that has anything in it, and
     # not the pick of both: the point of it is a night that does not need
     # a badge, and one asset worth more two tiers down undoes that.
