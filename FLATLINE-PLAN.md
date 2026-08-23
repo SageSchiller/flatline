@@ -2462,6 +2462,34 @@ with no indication it was there. The recommendation in the issue log is to
 let the journal admit, in voice, that a thread is waiting on the world
 rather than on the player.
 
+### D76: The journal admits when a thread is waiting on the world
+
+The one thing D75 left open. The journal could always say a thread was
+waiting on *you*, because a pending choice is visible. It could not say
+the other case, which is a thread waiting on the world: on somebody you
+have not met, or on a decision belonging to a different story. The main
+line ends on a scene that needs Lark alive, and a player who never met
+Lark lost the last scene of the game without ever learning it was there.
+
+`Story.waiting_on` reads the first unreached stage whose requirements are
+closest to met, and says what it is short of in words. It names people
+and other threads and never flags, never says what the scene is, and says
+nothing at all when the only thing missing is work the player was going
+to do anyway. Reading the spine mid-way it says the Archivist, because
+that is the nearest lead; reading it near the end, once the Archivist has
+been found, it says Lark. That is the useful order: the next step, not
+the final gate.
+
+It also knows when a door has shut. A flag that comes from a decision is
+gone for good once the decision has been made the other way, so a thread
+whose Lark is dead does not send anybody looking for Lark. It says: *There
+was more of this. There is not now.* Which is the honest sentence, and
+the one the game should be willing to say about itself.
+
+Four threads say anything at all on the stage they open at, and each is a
+true lead. The rest are quiet, which is right: they are waiting on work
+rather than on people.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.

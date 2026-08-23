@@ -844,6 +844,12 @@ def cmd_journal(sess, args) -> None:
             elif f'{thread.key}.{stage.key}' in story.pending:
                 c.say('[warn]Waiting on you.[/] [dim]`choose`.[/]', indent='  ')
                 c.blank()
+        # And what it is short of, when what it is short of is somebody
+        # rather than you (D76). Never flags, never what the scene is.
+        short = story.waiting_on(thread, game)
+        if short:
+            c.blank()
+            c.say(f'[dim]{short}[/]')
         crossing = [k for k in thread.crosses if k in story.reached]
         if crossing:
             c.say('[dim]Touches: '

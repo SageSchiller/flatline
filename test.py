@@ -8198,6 +8198,61 @@ def test_playthrough_fixes() -> None:
     T.ok('late' in shown, 'it says late instead')
 
 
+def test_journal_hint() -> None:
+    """D76: the journal admits when a thread waits on the world."""
+    T.section('waiting on the world')
+    from flatline.content import threads as thread_content
+
+    def spine(*flags, lark_stages=()):
+        game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+        st = game.story
+        for f in ('dw_heard', 'dw_logs', 'dw_name', 'dw_inside', 'dw_pattern',
+                  'dw_posting', 'dw_carried', 'dw_read', 'dw_offer',
+                  'archive_consented'):
+            st.flags.add(f)
+        st.reached['deepwater'] = ['hear', 'logs', 'name', 'inside',
+                                   'pattern', 'posting', 'carried', 'offer']
+        if lark_stages:
+            st.reached['lark'] = list(lark_stages)
+        for f in flags:
+            st.flags.add(f)
+        return st, game
+
+    st, game = spine()
+    said = st.waiting_on(thread_content.BY_KEY['deepwater'], game)
+    T.ok('Lark' in said, f'the spine names who it is short of ({said!r})')
+    T.ok('lark_saved' not in said, 'and names a person, not a flag')
+
+    st, game = spine('lark_saved', lark_stages=('meet', 'problem', 'resolve'))
+    T.eq(st.waiting_on(thread_content.BY_KEY['deepwater'], game), '',
+         'and says nothing once the scene can happen')
+
+    st, game = spine('lark_dead', lark_stages=('meet', 'problem', 'resolve'))
+    shut = st.waiting_on(thread_content.BY_KEY['deepwater'], game)
+    T.ok('not now' in shut,
+         f'and says so plainly when the door has closed ({shut!r})')
+    T.ok('Lark' not in shut,
+         'without sending anybody to look for somebody who is gone')
+
+    # It never points a thread at itself, and never leaks a flag name.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+    st = game.story
+    for thread in thread_content.THREADS:
+        st.reached[thread.key] = [thread.stages[0].key]
+        line = st.waiting_on(thread, game)
+        if not line:
+            continue
+        T.ok(thread.name not in line.replace('There is more of this', ''),
+             f'{thread.key}: does not wait on itself ({line!r})')
+        T.ok('_' not in line, f'{thread.key}: no flag names leak ({line!r})')
+
+    # A finished thread says nothing at all.
+    done = thread_content.BY_KEY['theirs']
+    st.reached['theirs'] = [s.key for s in done.stages]
+    st.flags.add('theirs_asked')
+    T.eq(st.waiting_on(done, game), '', 'a finished thread is quiet')
+
+
 def test_collector() -> None:
     """D70: an arrangement is world state a thread can read."""
     T.section('the collector')
@@ -9119,6 +9174,7 @@ SUITES = (
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
     test_intrusion, test_catalogue, test_money, test_relics, test_street,
     test_collector, test_early, test_tension, test_hostnames,
+    test_journal_hint,
     test_playthrough_fixes,
     test_cli_persistence,
     test_soak, test_advice, test_scale, test_place, test_ladder,

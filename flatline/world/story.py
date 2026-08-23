@@ -108,6 +108,51 @@ class Story:
             return len(game.city.arrangements) >= int(value)
         return False
 
+    def waiting_on(self, thread, game) -> str:
+        """What the next scene of a thread is still short of, in words.
+
+        The journal has always been able to say a thread is waiting on
+        *you*, because a pending choice is a thing you can see. It could
+        not say the other case, which is a thread waiting on the world: on
+        somebody you have not met, or on a decision belonging to a
+        different story. The main line ends on a scene that needs Lark
+        alive, and a player who never met Lark lost the last scene of the
+        game without ever learning it was there (D76).
+
+        Names people and other threads, never flags, and never says what
+        the scene is. Returns '' when there is nothing useful to say,
+        which includes the common cases: the thread is finished, or the
+        only thing missing is work you were going to do anyway.
+        """
+        done = set(self.reached.get(thread.key, ()))
+        best: list[str] | None = None
+        shut = False
+        for stage in thread.stages:
+            if stage.key in done:
+                continue
+            unmet = [r for r in stage.requires if not self.satisfied(r, game)]
+            if stage.any_of and not any(self.satisfied(r, game)
+                                        for r in stage.any_of):
+                # An any-of that is wholly unmet is a real wall, but it is
+                # a choice of walls: naming all of them reads as a list of
+                # errands. Say nothing and let the closest `requires` talk.
+                unmet = unmet or []
+            if not unmet:
+                continue
+            if any(_foreclosed(self, r) for r in unmet):
+                shut = True
+                continue
+            named = _name_rules(unmet, thread.key)
+            if named and (best is None or len(named) < len(best)):
+                best = named
+        if not best:
+            return ('There was more of this. There is not now.'
+                    if shut else '')
+        if len(best) == 1:
+            return f'There is more of this, and it is waiting on {best[0]}.'
+        joined = ', '.join(best[:-1]) + f' and {best[-1]}'
+        return f'There is more of this, and it is waiting on {joined}.'
+
     def available(self, game) -> list[tuple[str, thread_content.Stage]]:
         """Every stage that has become reachable and has not been seen.
 
@@ -285,4 +330,87 @@ def street_rider(flags, faction: str) -> float:
     for flag, who, mult in STREET_RIDERS:
         if who == faction and flag in flags:
             out *= mult
+    return out
+
+
+_OWNERS = None
+
+
+def _flag_owners() -> dict:
+    """Which thread and stage sets which flag, and whether a decision
+    does it. Built once, from the threads."""
+    global _OWNERS
+    if _OWNERS is None:
+        owners: dict = {}
+        for thread in thread_content.THREADS:
+            for stage in thread.stages:
+                for flag in stage.sets:
+                    owners.setdefault(flag, (thread.key, stage.key, False))
+                for choice in (stage.choices or ()):
+                    for flag in choice.sets:
+                        owners.setdefault(flag, (thread.key, stage.key, True))
+        _OWNERS = owners
+    return _OWNERS
+
+
+def _foreclosed(self, rule: str) -> bool:
+    """Whether a flag can no longer ever be set.
+
+    A flag that comes from a decision is gone for good once that decision
+    has been made the other way: the scene does not come round again. The
+    hint has to know, or a thread whose Lark is dead says it is waiting on
+    Lark for the rest of the game.
+    """
+    owner = _flag_owners().get(rule)
+    if owner is None:
+        return False
+    thread_key, stage_key, from_choice = owner
+    if not from_choice:
+        return False
+    if stage_key not in self.reached.get(thread_key, ()):
+        return False
+    # The stage happened. If it is still waiting on the player the flag is
+    # still possible; if it has been answered and the flag is not set, it
+    # never will be.
+    return f'{thread_key}.{stage_key}' not in self.pending
+
+
+#: Rule kinds that are simply the passage of a career. A thread waiting on
+#: one of these is waiting on nothing the player has to go and find.
+_PATIENCE_RULES = ('runs', 'shift', 'rep', 'heat', 'diss', 'debt', 'street',
+                   'arranged', 'ran')
+
+
+def _name_rules(rules, own_thread: str) -> list[str]:
+    """Turn unmet requirements into things a person could go and do."""
+    from ..content import npcs as npc_content
+    out: list[str] = []
+    owners = _flag_owners()
+    for rule in rules:
+        kind, _, value = rule.partition(':')
+        if rule.startswith('not:'):
+            continue
+        if kind in _PATIENCE_RULES:
+            continue
+        if kind == 'met':
+            # Not when the person is the thread. "Lark is waiting on Lark"
+            # is true and reads as a fault.
+            if value == own_thread:
+                continue
+            who = npc_content.BY_KEY.get(value)
+            if who is not None and who.name not in out:
+                out.append(who.name)
+            continue
+        if kind == 'did':
+            other, _, _stage = value.partition('.')
+            if other and other != own_thread:
+                other_thread = thread_content.BY_KEY.get(other)
+                if other_thread is not None and other_thread.name not in out:
+                    out.append(other_thread.name)
+            continue
+        owner = owners.get(rule)
+        if owner is not None and owner[0] != own_thread:
+            other_thread = thread_content.BY_KEY.get(owner[0])
+            if other_thread is not None and other_thread.name not in out:
+                out.append(other_thread.name)
     return out
