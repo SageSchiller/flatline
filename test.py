@@ -8253,6 +8253,58 @@ def test_journal_hint() -> None:
     T.eq(st.waiting_on(done, game), '', 'a finished thread is quiet')
 
 
+def test_advancement() -> None:
+    """D79: advancement is legible, and the systems say they are there."""
+    T.section('getting better')
+    from flatline.content import skills as skill_content
+    from flatline.content import factions as fac_content
+
+    # `train` bare is a screen, not an error listing fourteen words.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+    sess = Session(console=quiet_console(), slot='adv'); sess.game = game
+    game.char.xp = 12
+    sess.console.start_capture()
+    sess.execute('train')
+    said = ui.plain(sess.console.end_capture())
+    for key in skill_content.SKILL_KEYS:
+        T.ok(skill_content.BY_KEY[key].name in said,
+             f'the training screen lists {key}')
+    T.ok('Chain' in said, 'and names the technique a rank buys')
+    T.ok('rank' in said and 'next' in said,
+         'with the rank held and what the next one costs')
+
+    # Every skill's row names a goal, never just "a better number".
+    for key in skill_content.SKILL_KEYS:
+        skill = skill_content.BY_KEY[key]
+        T.ok(skill.techniques, f'{key} has techniques to head towards')
+
+    # Experience that would buy a verb gets said out loud.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+    sess = Session(console=quiet_console(), slot='adv2'); sess.game = game
+    game.char.runs, game.char.xp = 4, 8
+    sess.console.start_capture()
+    sess.execute('now')
+    nudge = ui.plain(sess.console.end_capture())
+    T.ok('train' in nudge, 'the advice says when experience would buy a verb')
+
+    # Lethality is doctrine, not posture, and the board says which.
+    lethal = [k for k in fac_content.FACTION_KEYS
+              if fac_content.runs_lethal(k)]
+    T.ok(lethal, 'somebody runs lethal countermeasures')
+    T.ok(not fac_content.runs_lethal('meridian'),
+         'and the bank at posture 62 does not')
+    T.ok(fac_content.runs_lethal('kagawa'),
+         'while Kagawa at posture 45 does')
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+    sess = Session(console=quiet_console(), slot='adv3'); sess.game = game
+    sess.console.start_capture()
+    sess.execute('board')
+    board = ui.plain(sess.console.end_capture())
+    if any(fac_content.runs_lethal(c.target) for c in game.city.board):
+        T.ok('lethal countermeasures' in board,
+             'the board explains the mark it prints')
+
+
 def test_collector() -> None:
     """D70: an arrangement is world state a thread can read."""
     T.section('the collector')
@@ -9174,6 +9226,7 @@ SUITES = (
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
     test_intrusion, test_catalogue, test_money, test_relics, test_street,
     test_collector, test_early, test_tension, test_hostnames,
+    test_advancement,
     test_journal_hint,
     test_playthrough_fixes,
     test_cli_persistence,

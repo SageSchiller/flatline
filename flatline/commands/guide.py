@@ -179,7 +179,57 @@ def _now_city(sess):
         steps.append(('script help', 'Daemonology 2 opened the script '
                                      'library and it is empty. `script '
                                      'example bailout` copies a working one'))
+    # Systems the player owns and has never been pointed at (D79). One
+    # nudge, when it first becomes true and actionable, on the pattern the
+    # Daemonology one already proved: a whole layer of this game can go
+    # unplayed for a career because nothing ever said it was there.
+    steps.extend(_system_nudges(sess, char))
     return line, steps, also
+
+
+def _system_nudges(sess, char) -> list[tuple[str, str]]:
+    """At most one, and only when it is both true and worth doing now."""
+    game = sess.game
+    out: list[tuple[str, str]] = []
+
+    # Experience sitting in the bank that would buy a verb.
+    ready = [k for k in skill_content.SKILL_KEYS
+             if any(t.rank == char.skill(k) + 1
+                    for t in skill_content.BY_KEY[k].techniques)
+             and char.xp >= skill_content.RANK_COST.get(char.skill(k) + 1, 999)]
+    if ready and char.runs:
+        name = skill_content.BY_KEY[ready[0]]
+        tech = next(t for t in name.techniques if t.rank == char.skill(ready[0]) + 1)
+        out.append((f'train {ready[0]}',
+                    f'{char.xp} experience will buy {tech.name}, which is a '
+                    f'verb you do not have: {tech.summary.lower().rstrip(".")}'
+                    f'. `train` lists all fourteen'))
+        return out
+
+    # Chrome, once there is money for it and nothing in you yet. The game
+    # is half about this trade and a career can pass without meeting it.
+    # Eleven of the twelve origins ship with a piece already in, so "has
+    # no chrome" is a condition that never fires. Still carrying only what
+    # the origin gave them, with money in hand, is the real signal.
+    if (len(char.installed) <= 1 and char.credits >= 1600 and char.runs >= 2
+            and 'clinic' in game.city.district.services):
+        out.append(('clinic',
+                    'you are still running on what you started with. '
+                    'Chrome is the other half of a build and it is bought '
+                    'with Dissonance, which never comes back down: the '
+                    'clinic prices both before it takes anything'))
+        return out
+
+    # A rival who has made their mind up, and a player who has never used
+    # any of the three verbs that exist for them.
+    decided = [r for r in game.city.rivals if getattr(r, 'bond', '')]
+    if decided and not game.city.hired and char.runs >= 3:
+        who = decided[0]
+        out.append((f'who {who.name.lower()}',
+                    f'{who.name} has decided something about you. They can '
+                    f'be hired for a cut, asked for a favour, or bet on'))
+    return out
+
 
 
 # --------------------------------------------------------------------------

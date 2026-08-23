@@ -456,14 +456,80 @@ def cmd_boost(sess, args) -> None:
     c.say(f'[dim]{attribute.governs}[/]')
 
 
+def _train_index(sess) -> None:
+    """Every skill, what the next rank costs, and what it buys.
+
+    Advancement was a number that went up and a command that errored with
+    a list of fourteen words. Twenty-eight techniques hang off these
+    ranks and nothing said so anywhere a player would look, which is why
+    somebody with eleven experience in the bank had no idea what to do
+    with it (D79).
+    """
+    game, c = sess.require_game(), sess.console
+    char = game.char
+    c.header('To train', f'{char.xp} experience')
+    rows = []
+    for key in skill_content.SKILL_KEYS:
+        skill = skill_content.BY_KEY[key]
+        rank = char.skill(key)
+        cost = skill_content.RANK_COST.get(rank + 1)
+        nxt = next((t for t in skill.techniques if t.rank == rank + 1), None)
+        if cost is None:
+            rows.append((skill.name, f'{rank}', '[dim]done[/]', ''))
+            continue
+        afford = char.xp >= cost
+        price = (f'[ok]{cost}[/]' if afford else f'[dim]{cost}[/]')
+        if nxt is not None:
+            gain = f'[accent]{nxt.name}[/] [dim]{nxt.summary}[/]'
+        else:
+            # No verb at the very next rank, so name the one it is on the
+            # way to. A player planning a build needs the goal, not the
+            # step, and "a better number" is not a goal.
+            later = next((t for t in skill.techniques if t.rank > rank), None)
+            gain = (f'[dim]a better number, and[/] [accent]{later.name}[/] '
+                    f'[dim]at rank {later.rank}[/]' if later
+                    else '[dim]a better number on every check it governs[/]')
+        rows.append((skill.name, f'{rank}', price, gain))
+    width = max(len(r[0]) for r in rows)
+    for name, rank, price, gain in rows:
+        pad = ' ' * (width - len(name))
+        c.say(f'[fg]{name}[/]{pad}  [dim]rank[/] {rank}  [dim]next[/] {price}'
+              f'  {gain}', indent='  ',
+              subsequent=' ' * (width + 20))
+    c.blank()
+    c.say('[dim]`train <skill>` buys the next rank. Ranks cost '
+          + ', '.join(str(skill_content.RANK_COST[r])
+                      for r in sorted(skill_content.RANK_COST))
+          + ' experience, so the fifth costs eight times the first. Two '
+            'ranks in every skill open a technique, at two and at four, '
+            'and a technique is a verb rather than a number.[/]',
+          indent='  ', subsequent='  ')
+    ready = [skill_content.BY_KEY[k] for k in skill_content.SKILL_KEYS
+             if (t := next((x for x in skill_content.BY_KEY[k].techniques
+                            if x.rank == char.skill(k) + 1), None)) is not None
+             and char.xp >= skill_content.RANK_COST.get(char.skill(k) + 1, 999)]
+    if ready:
+        c.blank()
+        c.say('[ok]Affordable now, and each of them a verb you do not have: '
+              + ', '.join(f'`train {s.key}`' for s in ready) + '.[/]',
+              indent='  ', subsequent='  ')
+
+
 @command('train', 'Buy the next rank in a skill.',
-         contexts=('city',), group='character', usage='train <skill>',
+         contexts=('city',), group='character', usage='train [skill]',
+         bare=True,
+         detail='With no argument: every skill, the rank you hold, what the '
+                'next one costs, and what it buys. Two ranks in every skill '
+                'open a technique, at two and at four, and a technique is a '
+                'verb you did not have rather than a number that got '
+                'bigger.',
          complete=lambda sess, prefix: list(skill_content.SKILL_KEYS))
 def cmd_train(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     key = (args.get(0) or '').lower()
     if not key:
-        raise CommandError('which skill: ' + ', '.join(skill_content.SKILL_KEYS))
+        _train_index(sess)
+        return
     match = [k for k in skill_content.SKILL_KEYS if k.startswith(key)]
     if len(match) != 1:
         raise CommandError(f'{key!r} is not one of: '
@@ -1076,8 +1142,12 @@ def cmd_board(sess, args) -> None:
         # of the answer (D68). The whole point of a board is choosing, and
         # choosing needs the difficulty where the pay is.
         word, role = reads_short(game.char, int(contract.posture))
+        # Whether they can kill you, which posture does not say and which
+        # is the one fact a player would want before the fee (D79).
+        lethal = ('[err]!' if factions.runs_lethal(contract.target) else '')
         rows.append((f'{mark}{n}', contract.title,
-                     contract.target_data.short,
+                     contract.target_data.short + (lethal + '[/]' if lethal
+                                                   else ''),
                      SHORT_OBJECTIVE.get(contract.objective,
                                          contract.objective),
                      contract_mod.SIZE_SHORT[contract.size_mod],
@@ -1088,6 +1158,11 @@ def cmd_board(sess, args) -> None:
     c.table(('#', 'job', 'against', 'what', 'size', 'reads', 'pay', 'left'),
             rows, roles=('accent', 'accent', 'err', 'dim',
                          'dim', None, 'credit', 'warn'))
+    if any(factions.runs_lethal(x.target) for x in city.board):
+        c.say('[dim]An [err]![/][dim] after a name means they run lethal '
+              'countermeasures. Posture is how hard the doors are; that is '
+              'whether the room can kill you, and the two are not the same '
+              'number.[/]')
     # The row numbers mean this board, as printed. See `Session.pick`.
     sess.remember('board', [contract.cid for contract in city.board])
     c.blank()
@@ -1152,6 +1227,12 @@ def _show_contract(sess, contract) -> None:
                     + (f' [accent2]({factions.style_line(contract.target_data)})[/]'
                        if contract.target_data.style else '')),
     ])
+    if factions.runs_lethal(contract.target):
+        c.blank()
+        c.warn(f'{contract.target_data.short} run lethal countermeasures. '
+               f'Black ICE tells you once, the tick before it acts, and '
+               f'after that it is the only thing in this game that kills '
+               f'you outright.')
     need = OBJECTIVE_PROGRAM.get(contract.objective)
     if need and not game.char.deck.has_category(need):
         c.blank()

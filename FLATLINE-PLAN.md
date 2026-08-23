@@ -2553,6 +2553,41 @@ And the target is the host the warden is on, probed, not the host you are
 standing on, because `test_brief` exists precisely to catch advice the
 game then refuses, and it caught both of those.
 
+### D79: How a character gets better, said out loud
+
+Three things a player could not see, all of them systems that already
+existed and worked.
+
+**`train` was an error message.** With no argument it raised "which
+skill:" and listed fourteen words. Twenty-eight techniques hang off those
+ranks and nothing anywhere said so, so somebody sitting on twelve
+experience had no way to find out what it was for. It is a screen now:
+every skill, the rank held, what the next one costs, and what it buys,
+named. Where the next rank buys no verb it names the one the skill is on
+the way to and at what rank, because a player planning a build needs the
+goal rather than the step, and "a better number" is not a goal. It ends
+with what is affordable right now.
+
+**The advice never mentioned any system but its own.** One nudge existed,
+for the script library at Daemonology 2, and it worked: it was the only
+optional layer I reliably noticed while playing. It has siblings now.
+Experience that would buy a verb says so and names the verb. A runner
+still carrying only the chrome their origin gave them, with money in
+hand and a clinic in the district, gets told that chrome is the other
+half of a build and what it costs. A rival who has made their mind up
+about you gets mentioned once, because `hire`, `ask` and `bet` are three
+verbs a career can pass without meeting.
+
+**Lethality is doctrine, and the board sold it as posture.** Kagawa at
+posture forty-five can kill you. Meridian at sixty-two cannot: seven of
+the twelve factions have no lethal construct available to them at all,
+and the board's difficulty column is derived from posture alone, so the
+number it prints is not the number that matters most. A name on the board
+now carries `!` when that lot run black ICE, the board explains the mark,
+and the contract reading says it in a sentence. Nothing about it is a
+spoiler: which corporations use lethal countermeasures is the sort of
+thing everybody in this city knows.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.

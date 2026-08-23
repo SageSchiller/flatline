@@ -320,3 +320,15 @@ def relation(a: str, b: str) -> float:
         return 1.0
     fa = BY_KEY.get(a)
     return float(fa.relations.get(b, 0.0)) if fa else 0.0
+
+def runs_lethal(key: str) -> bool:
+    """Whether this lot have a lethal countermeasure to put on a network.
+
+    Posture is advertised as the difficulty and this is the fact posture
+    does not carry: Kagawa at forty-five can kill you and Meridian at
+    sixty-two cannot, because lethal ICE is doctrine rather than budget.
+    Seven of the twelve have none at all, and a player choosing a job by
+    the number on the board had no way to know which seven (D79).
+    """
+    from . import ice as ice_content
+    return bool(ice_content.available('black', key))
