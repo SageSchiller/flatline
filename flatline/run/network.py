@@ -832,6 +832,14 @@ def _place_objective(rng: Stream, net: Network, objective: str,
     # not the pick of both: the point of it is a night that does not need
     # a badge, and one asset worth more two tiers down undoes that.
     deep = [n for n in net.nodes.values() if n.zone == zones[0]]
+    if objective == 'surveil' and not shallow:
+        # A watch gets both zones to choose from and picks the shallower.
+        # Every other objective lands wherever the thing it is about
+        # happens to be; a place-objective was narrowed to the deepest
+        # allowed zone, so a residency job sat further in than the
+        # exfiltration on the same network and reached its own objective
+        # nine times in twenty four against sixteen (D84).
+        deep = [n for n in net.nodes.values() if n.zone in zones]
     if not deep:
         deep = [n for n in net.nodes.values() if n.zone in zones]
     if not deep:
@@ -857,8 +865,24 @@ def _place_objective(rng: Stream, net: Network, objective: str,
         net.objective_node = node.uid
     else:
         # implant, surveil, escort: the objective is a place, not a thing.
-        node = max(deep, key=lambda n: (n.zone == zones[0],
-                                        len(n.services)))
+        if objective == 'surveil':
+            # Where the traffic is, not how deep it is. Every other
+            # objective lands wherever the thing it is about happens to
+            # be; a place-objective explicitly preferred the *deepest*
+            # allowed zone, so a residency job was systematically further
+            # in than the exfiltration on the same network and reached its
+            # own objective nine times in twenty four against sixteen. A
+            # watch does not need the vault, it needs the floor the work
+            # happens on (D84).
+            # No zone preference at all: wherever the traffic actually
+            # is. Preferring the deepest zone made it the hardest job in
+            # the game and preferring the shallowest made it the easiest;
+            # letting the data decide puts it in line with the rest.
+            node = max(deep, key=lambda n: (len(n.data), -len(n.services),
+                                            n.uid))
+        else:
+            node = max(deep, key=lambda n: (n.zone == zones[0],
+                                            len(n.services)))
         net.objective_node = node.uid
 
     _ensure_reachable(net)

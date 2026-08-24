@@ -2787,6 +2787,67 @@ is the same capability wall as the corporate one. It wants an honest look
 at door difficulty against breaker rating rather than a number nudged
 until one objective looks better.
 
+### D84: Measuring the wall instead of guessing at it
+
+The open question from D83 was why a residency job finished two runs in
+twenty four where its neighbours finished ten, and whether the corporate
+end of the game is a wall or a bad harness. Both answers came out of
+measurement, and both corrected something I had previously asserted.
+
+**The city's estimate and the run's sum were three apart.** D71 put the
+objective resistance in one place so the board and the run could not
+drift. The *power* half still had two copies, and they disagreed: the run
+doubles the payload term and then takes the improvised penalty off as its
+own term, and the estimate took the penalty off before doubling. Three
+points, every time, in the pessimistic direction. So the city told people
+a wipe was impossible when the run gives them thirty per cent on it, and
+steered the advice away from work that pays. `test_early` now asserts the
+two agree for every payload at every rank.
+
+**And my own conclusion in D83 was wrong.** I reported corrupt at nought
+in twenty four as a game problem. It was a harness problem: I was forcing
+a corruption on a character with Sabotage 0 holding an exfiltration
+payload, which `objective_ready` correctly refuses to recommend. Measured
+only against the objectives the game would actually let that build take,
+corrupt does not belong in the table at all.
+
+**A watch was systematically deeper than everything else.** The real
+outlier was surveil, and it was placement. Every other objective lands
+wherever the thing it is about happens to be; a place-objective was
+narrowed to the deepest zone it was allowed in and then explicitly
+preferred that zone, so a residency job sat two rooms further in than the
+exfiltration on the same network, reached its own objective nine times in
+twenty four against sixteen, and then still needed eight clean ticks
+after arriving. It picks by traffic now, with no zone preference at all.
+Three wrong hypotheses died on the way: the alert rules from D80 (cooling
+faster changes nothing at all), the host-selection key, and the residency
+rule itself. The numbers now read 10, 10, 8 and 7 of 24 for exfiltrate,
+wipe, implant and surveil, and `test_objective_parity` holds them within
+three times each other.
+
+**The corporate wall is real.** This is the one I most expected to be my
+own bad measurement, and it is not. A policy that overclocks, masks when
+loud, and strikes what locks on rather than walking away from it changes
+almost nothing: a top build goes 4 to 5 of 30 against Kagawa and 5 to 9
+against Meridian, and a mid build does not move.
+
+What it is, precisely: at gang posture a top build reaches the objective
+**thirty times out of thirty, arriving with forty trace spent**. At
+Kagawa it reaches the objective **seven times out of thirty, arriving
+with eighty-four**. Twenty-four of thirty runs are severed before they
+get there. The doors are not the problem, and the table says so: a rank
+five build opens a difficulty seven door at a hundred per cent on its own
+tier and eighty per cent three tiers above it. Nor is it the families,
+which are fifty-three per cent access on a corporate route, nor a missing
+forger, which makes it worse by displacing the mask.
+
+It is the approach. At corporate posture the trace budget is spent
+getting there, and nothing a player carries or does changes that enough
+to matter. Whether that is correct is a design decision rather than a
+bug, and it is left open deliberately: the options are a longer clock at
+high posture, shorter approaches, or the position that corporate work is
+meant to be something you survive rather than something you complete.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.

@@ -85,6 +85,11 @@ def objective_resistance(kind: str, posture: int) -> int:
     return 0
 
 
+#: What using a payload for a job it was not built for costs. The run
+#: applies it as its own term after the doubling, and so does this.
+IMPROVISED = 3
+
+
 def objective_power(char, kind: str) -> int:
     """What a character brings to that verb, before the die.
 
@@ -104,11 +109,17 @@ def objective_power(char, kind: str) -> int:
     payloads = [p for p in owned if p.category == 'payload']
     if not payloads:
         return power - 4 if kind == 'wipe' else power
+    # Mirroring `push_check` and `wipe_check` exactly: the payload term is
+    # doubled and *then* the improvised penalty comes off, as its own
+    # term. Taking the penalty off before doubling cost three points and
+    # made the estimate say impossible about jobs the real check gives you
+    # thirty per cent on, which steered the advice away from work that
+    # pays (D84).
     rank = char.skill(skill)
-    best = max(program_content.held(p, rank)
-               - (0 if (not p.jobs or kind in p.jobs) else 3)
+    best = max(program_content.held(p, rank) * 2
+               - (0 if (not p.jobs or kind in p.jobs) else IMPROVISED)
                for p in payloads)
-    return power + int(best) * 2
+    return power + int(best)
 
 
 def objective_ready(char, kind: str, posture: int) -> bool:

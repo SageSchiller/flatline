@@ -7893,6 +7893,36 @@ def test_early() -> None:
                  contract_mod.objective_resistance(kind, posture),
                  f'{kind} at posture {posture} resists the same either side')
 
+    # The estimate the city uses and the sum the run resolves are the
+    # same number, for every payload and every rank. They were three
+    # apart, because the estimate took the improvised penalty off before
+    # doubling the payload term and the run takes it off after, so the
+    # city said impossible about jobs the run gives you thirty per cent
+    # on (D84).
+    from flatline.commands.run import wipe_check, push_check
+    from flatline.content import programs as program_content
+    from flatline.run import network as net_mod
+    for loadout in (['sable', 'siphon'], ['sable', 'revision'],
+                    ['sable', 'kindling'], ['sable', 'slowfuse']):
+        for rank in (0, 2, 4):
+            who = Character.from_origin('gutter', 'e')
+            who.base_skills.update({'sabotage': rank, 'intrusion': rank})
+            who.deck.parts['memory'] = 'mem_cascade'
+            who.deck.loaded = list(loadout)
+            who.library = list(loadout)
+            net = net_mod.generate(Rng(0).fork('network', 'est'), 'sixes', 26)
+            con = quiet_console(); con.start_capture()
+            run = RunState.begin(net, who, Rng(0)('combat'), con,
+                                 contract={'objective': 'wipe', 'title': 'T'})
+            payload = program_content.best(who.deck.loaded, 'payload')
+            for kind, real in (('wipe', wipe_check(run, payload)),
+                               ('corrupt', push_check(run, 'corrupt', payload)),
+                               ('implant', push_check(run, 'implant', payload))):
+                T.eq(contract_mod.objective_power(who, kind), real.power,
+                     f'{kind} with {loadout[1]} at rank {rank}: the city and '
+                     f'the run agree on the sum')
+            con.end_capture()
+
     # A first board carries a job that is soft, small, and doable. All
     # three: each one alone was true before and the first night still
     # could not be finished.
@@ -8446,6 +8476,75 @@ def test_economy() -> None:
     T.ok(10 <= runs <= 40,
          f'and the stake is worth between ten and forty gang contracts '
          f'({runs:.0f})')
+
+
+def test_objective_parity() -> None:
+    """D84: no objective is three times harder than its neighbours."""
+    T.section('one job is not five jobs')
+    from flatline.run import network as net_mod
+    from flatline.world import contracts as contract_mod
+
+    who = Character.from_origin('gutter', 'p')
+    who.base_skills.update({'intrusion': 2, 'warfare': 2, 'hardware': 2})
+    who.base_attrs.update({'logic': 4, 'reflex': 7, 'nerve': 4, 'grit': 5,
+                           'guile': 3})
+    who.deck.loaded = ['sable', 'siphon']
+    who.library = ['crowbar', 'siphon', 'sable']
+
+    def finishes(objective, seeds=16):
+        done = 0
+        for seed in range(seeds):
+            net = net_mod.generate(Rng(seed).fork('network', objective),
+                                   'sixes', 26, objective, size_mod=1.0)
+            con = quiet_console(); con.start_capture()
+            sess = Session(console=con, slot='par')
+            sess.game = Game.new(who, seed=seed)
+            run = RunState.begin(net, who, Rng(seed)('combat'), con,
+                                 contract={'objective': objective,
+                                           'title': 'T'})
+            sess.run = run
+            for _ in range(200):
+                if sess.run is None or not run.running:
+                    break
+                brief = run.brief()
+                if brief.done:
+                    done += 1
+                    break
+                step = brief.steps[0] if brief.steps else 'jack out'
+                if step == 'jack out':
+                    break
+                sess.execute(step)
+            con.end_capture()
+        return done
+
+    # Only the objectives this build is actually equipped for: forcing a
+    # corruption on somebody with Sabotage 0 and an exfiltration payload
+    # measures the harness, not the game, and I did exactly that once.
+    rates = {}
+    for objective in ('exfiltrate', 'wipe', 'implant', 'surveil'):
+        T.ok(contract_mod.objective_ready(who, objective, 26),
+             f'the fixture build is equipped for {objective}')
+        rates[objective] = finishes(objective)
+    best = max(rates.values())
+    for objective, got in sorted(rates.items()):
+        T.ok(got * 3 >= best,
+             f'{objective} finishes {got}/16 against a best of {best}/16')
+
+    # A watch is placed where the traffic is, not in the deepest room it
+    # is allowed in: that alone was the whole gap.
+    tiers = []
+    for seed in range(16):
+        net = net_mod.generate(Rng(seed).fork('network', 'sv'), 'sixes', 26,
+                               'surveil', size_mod=1.0)
+        tiers.append(net.node(net.objective_node).tier)
+    deep = []
+    for seed in range(16):
+        net = net_mod.generate(Rng(seed).fork('network', 'ex'), 'sixes', 26,
+                               'exfiltrate', size_mod=1.0)
+        deep.append(net.node(net.objective_node).tier)
+    T.ok(sum(tiers) <= sum(deep) + 4,
+         f'a watch is not systematically deeper than an exfiltration '
+         f'({sum(tiers)} against {sum(deep)})')
 
 
 def test_collector() -> None:
@@ -9377,6 +9476,7 @@ SUITES = (
     test_tutorial_second_half, test_conditions, test_polish, test_reads,
     test_intrusion, test_catalogue, test_money, test_relics, test_street,
     test_collector, test_early, test_tension, test_hostnames,
+    test_objective_parity,
     test_economy,
     test_combat,
     test_advancement,

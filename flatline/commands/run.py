@@ -45,6 +45,13 @@ COST = {
     'sidechannel': (3, 0, 1),
     'wait': (1, 0, 0),
     'brace': (1, 0, 0),
+    # Sitting still and listening is the quietest thing in the game, and
+    # it used to borrow `scrub`'s row, which made it noisy: every banked
+    # tick counted as a loud one and ran the trace at the fast rate. A
+    # residency job needs eight of them and arrives with about eighty
+    # trace already spent, so it was paying twice for the one thing it is
+    # made of (D84).
+    'observe': (2, 0, 0),
     'jack out': (1, 2, 1),
 }
 
@@ -1656,7 +1663,7 @@ def cmd_observe(sess, args) -> None:
     if state.observed_enough:
         raise CommandError('you already have what they wanted. Get out.')
 
-    _act(sess, 'scrub', noise_scale=0.35, ticks=2)
+    _act(sess, 'observe', ticks=2)
     if not state.running:
         return
     if state.observed_enough:
