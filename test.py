@@ -8363,8 +8363,16 @@ def test_combat() -> None:
 
     # It needs no rank, and the brief offers it when nothing else answers.
     sess, run, ins, con = winding(['crowbar', 'siphon', 'bulwark'])
+    # Only against something locked on to you. A construct merely awake on
+    # this host is answered by leaving, and offering the brace instead
+    # made a corporate run into a runner standing still being hit: it was
+    # typed a hundred and twenty four times across thirty severed runs
+    # (D85).
+    T.ok('brace' not in run.brief().steps[:1],
+         'a construct that has not locked on is answered by moving')
+    run.locked.append(ins)
     T.eq(run.brief().steps[:1], ('brace',),
-         'the brief offers brace when something is winding up')
+         'the brief offers brace against something locked on to you')
     sess.execute('brace')
     T.ok(run.braced > 0, 'and bracing lasts more than the tick it costs')
     before = run.hurt

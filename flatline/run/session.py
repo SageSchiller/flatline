@@ -1839,9 +1839,20 @@ class RunState:
         # that is carrying on, though: it was advising a tick of bracing
         # and then leaving on the next one, which is a tick spent on a
         # night already over (D83).
-        winding = [c for c in self.node.ice if c.alive and c.telegraphed]
-        if (winding and self.braced <= 0 and not self._huntable()
+        # Only when it is actually going to reach you wherever you go.
+        # A construct merely awake on this host is answered by leaving it,
+        # and advising the brace instead made a corporate run into a
+        # runner standing still being hit: `brace` was typed a hundred and
+        # twenty four times across thirty severed runs and was the most
+        # repeated command in nine of them, which is the whole of what the
+        # corporate wall turned out to be (D85). Once per lock, too: the
+        # tick a tell buys you is spent once, not adopted as a way of life.
+        locked_on = [c for c in self.locked if c.alive]
+        if (locked_on and self.braced <= 0
+                and not self._huntable()
+                and 'braced' not in self.spent
                 and steps and steps[0] != 'jack out'):
+            self.spent.add('braced')
             steps = ('brace',) + steps
         # Why there is nothing to try, when there is nothing to try (D67).
         if steps == ('jack out',) and not self.objective_met():

@@ -194,7 +194,17 @@ class Network:
 
     @property
     def crowd(self) -> float:
-        """Trace multiplier from the size of the place (D66)."""
+        """Trace multiplier from the size of the place (D66).
+
+        Posture was tried here and taken back out (D85). The reasoning was
+        sound (a corporation has ten thousand legitimate sessions and a
+        gang has forty, so the harder network should also be the easier
+        one to be nobody in) and the measurement said it changed nothing:
+        a top build finished four corporate runs in thirty before and four
+        after. The thing that was actually stopping those runs was a
+        missing mask, and a constant that buys nothing is a constant that
+        should not be in the game.
+        """
         n = len(self.nodes)
         return max(CROWD_FLOOR,
                    min(CROWD_CEILING, 1.0 - (n - CROWD_AT) * CROWD_PER_HOST))

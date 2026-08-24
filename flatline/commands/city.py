@@ -1334,6 +1334,12 @@ def city_job(sess) -> None:
 #: player nothing at all.
 #: The difficulty of the sort of service a vault runs, which is what the
 #: job is behind. See `nodes.SERVICES`: keystore 5-7, sign 5-8, cipher 4-7.
+#: Above this posture the trace is what ends runs, and a mask is the
+#: difference between a hard job and an impossible one: measured over
+#: twenty four runs it roughly doubles what a top build finishes against
+#: a corporation, three in twenty four to nine (D85).
+MASK_POSTURE = 40
+
 VAULT_SERVICE = 5.5
 
 #: How many of those doors stand between the front of a network and the
@@ -1672,6 +1678,38 @@ def city_steps(game) -> list[tuple[str, str]]:
                             'four of the six objectives need one')
     if payload_fit is not None:
         steps.append(payload_fit)
+    # A mask is what makes hard work possible and nothing said so: the
+    # same failure as the payload and the breaker, one tier up (D85).
+    mask_fit = _fit_step(game, 'mask', 'it is what makes hard work possible')
+    if mask_fit is not None:
+        steps.append(mask_fit)
+    elif contract is not None and int(contract.posture) >= MASK_POSTURE:
+        held_mask = any(programs.BY_KEY[k].category == 'mask'
+                        for k in game.char.deck.loaded
+                        if k in programs.BY_KEY)
+        if not held_mask:
+            here_m = game.city.district
+            for_sale = {l.key for l in game.city.listings('program')}
+            pick = min((p for p in programs.by_category('mask')
+                        if not p.unique and p.key in for_sale
+                        and p.memory <= game.char.deck.memory
+                        and game.char.credits >= int(round(
+                            p.price * here_m.price_mult))),
+                       key=lambda p: p.price, default=None)
+            if pick is not None:
+                steps.append((f'buy {pick.name.lower()}',
+                              f'{contract.target_data.short} run at posture '
+                              f'{int(contract.posture)} and you carry no '
+                              f'mask. The trace is what ends runs up here; '
+                              f'{pick.name} is about '
+                              f'{int(round(pick.price * here_m.price_mult)):,}c'))
+    # A deck nobody repairs is not the deck you built: armour and masks
+    # degrade as they work, and nothing tells you except the runs getting
+    # worse.
+    if game.char.deck.damage and 'workshop' in game.city.district.services:
+        steps.append(('repair',
+                      'the deck is carrying damage, which degrades what it '
+                      'does rather than stopping it'))
     if 'payload' not in owned:
         cheapest = min((p for p in programs.by_category('payload')
                         if not p.unique), key=lambda p: p.price, default=None)

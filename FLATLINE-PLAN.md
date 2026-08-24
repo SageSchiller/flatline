@@ -2848,6 +2848,66 @@ bug, and it is left open deliberately: the options are a longer clock at
 high posture, shorter approaches, or the position that corporate work is
 meant to be something you survive rather than something you complete.
 
+### D85: The call on the corporate wall, and two reversals getting there
+
+I was asked to make the judgement. The judgement is: **leave the
+difficulty numbers alone and ship the legibility.** Getting there took two
+reversals of my own claims, and both belong in the record.
+
+**Reversal one: it was a harness artifact, then it wasn't, then it partly
+was.** I reported the wall as real on the grounds that a competent policy
+did not rescue it, which was true. What I had not noticed is that the
+measurement reused one character across thirty runs, and armour and masks
+*degrade as they work*. So the "top build" was, by run ten, a build with
+no working mask. With a clean deck for every run, corporate completion is
+roughly three times what I reported. It is still low. It is not what I
+said it was.
+
+**Reversal two: I added a constant and took it back out.** Posture is
+counted three times against a player (harder doors, denser ICE, longer
+walk) and never once for them, and the fiction for the fix was already
+written: ten thousand legitimate sessions is the best mask money cannot
+buy, and a corporation has ten thousand where a gang has forty. So I put
+posture into the crowd term. Measured: a top build finished four
+corporate runs in thirty before and four after. A constant that buys
+nothing does not belong in the game, so it came out again, and the
+reasoning is in the docstring where the next person will find it.
+
+**What the measurement actually found, in order of size.**
+
+A mask is the difference between a hard job and an impossible one. Clean
+deck, twenty four runs: no mask gives 20, 2, 1, 3 and 2 completions at
+postures 22, 45, 48, 62 and 72; a mask gives 24, 6, 4, 5 and 3. It
+roughly triples corporate work, and nothing anywhere told a player to
+carry one. That is the third instance of the same failure this session,
+after the payload and the breaker, and it is now fixed the same way.
+
+A deck nobody repairs stops being the deck they built, silently, because
+degradation makes things worse rather than stopping them. Also now
+advised.
+
+And `brace` was the corporate wall's loudest single contributor, which is
+mortifying because I added it two commits earlier. Offered whenever
+anything was telegraphed and the build carried no weapon, at corporate
+posture where something is winding up nearly every tick, it produced a
+runner standing still being hit: typed a hundred and twenty four times
+across thirty severed runs, and the most repeated command in nine of
+them. It is now offered only against something locked on to you, once,
+because the tick a tell buys you is spent once and not adopted as a way
+of life.
+
+**Why the numbers stay.** Every difficulty lever I tested moved
+completion by nought to three runs in twenty four. None was decisive; the
+only decisive thing was player knowledge. A game whose stated position is
+that the city does not care whether you live is allowed to make corporate
+work a one-in-four proposition, *provided the player can see the price
+before they pay it* — and between the lethality marks, the door and room
+reads on the board, and now the mask and repair advice, they can. Moving
+those numbers further would be me guessing, and this session has already
+produced three measurement-driven reversals of things I was confident
+about. The disciplined answer is to ship what is evidenced and leave the
+rest visible.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
