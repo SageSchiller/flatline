@@ -23,6 +23,10 @@ from ..run.checks import Check
 #: and past that the kind that kills (once you have been warned).
 TIER_AT = ((75, 4), (60, 3), (45, 2), (0, 1))
 
+#: What an errand teaches, in experience (D91). Small, and it is what a
+#: street build lives on until the first door opens.
+ERRAND_XP = 1
+
 #: How much of the incident roll at travel is an encounter rather than the
 #: old ladder (shakedown, beating, deck, chrome, burn). Both are the street.
 ENCOUNTER_SHARE = 0.6
@@ -192,7 +196,9 @@ def _restate(sess, enc, faction: str, danger: int) -> None:
 def _wait(sess, enc, faction: str, danger: int, keys, tries: int = 0) -> None:
     """Ask, and keep the same prompt when the answer was not one of them."""
     tier_word = street_content.TIER_NAMES[enc.tier]
-    sess.ask(f'{tier_word}, {", ".join(keys)}? ',
+    # A colon, not a comma: "a lean, run, talk, stand?" read as four
+    # options (D91).
+    sess.ask(f'{tier_word}: {", ".join(keys)}? ',
              lambda s, text: _answer(s, enc, faction, danger, text, tries),
              on_cancel='', choices=tuple(keys), must_answer=True)
 
@@ -208,8 +214,13 @@ def _answer(sess, enc, faction: str, danger: int, text: str,
     game, c = sess.game, sess.console
     low = text.strip().lower()
     if not low:
-        low = 'stand'
+        # Standing there is an answer, whichever word this one uses for it.
+        low = ('stand' if any(o.key == 'stand' for o in enc.options)
+               else enc.options[-1].key)
         c.say('[dim]You stand there.[/]')
+    elif low.split()[0] in {o.key for o in enc.options}:
+        # `talk vance` at a street that offers `talk` is `talk` (D91).
+        low = low.split()[0]
     if low == 'bolt' and can_bolt(game, enc):
         game.city.bolted = game.city.shift
         c.say('[ok]You were never there.[/] [dim]It is not a trick. It is '
@@ -595,8 +606,9 @@ def collect(sess, job: dict) -> None:
         game.char.credits += job['pay']
         game.earned += job['pay']
         game.city.errands_done += 1
+        game.char.xp += ERRAND_XP
         c.ok(f'They pay, eventually, most of it. Your cut is '
-             f'[credit]{job["pay"]:,}c[/].')
+             f'[credit]{job["pay"]:,}c[/]. [dim]{ERRAND_XP} experience.[/]')
         sess.record_progress()
         return
     c.err('They do not pay. They have friends, it turns out, and a doorway.')
@@ -626,10 +638,14 @@ def deliver(sess) -> None:
     kind = errand.get('kind')
     game.city.errand = {}
     game.city.errands_done += 1
+    # The street teaches something too (D91): a street build with every
+    # door reading shut had no way to earn the rank that opens one.
+    game.char.xp += ERRAND_XP
     controller = game.city.district.controller
     game.alias.adjust_rep(controller, 3)
     c.blank()
     c.rule('delivered', role='ok')
+    c.say(f'[dim]{ERRAND_XP} experience.[/]')
     if kind == 'escort':
         c.say(f'You get {errand.get("what", "them")} to the agreed place, '
               f'and somebody takes them in, and they do not look back, and '

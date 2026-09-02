@@ -207,7 +207,7 @@ class City:
 
     def advance(self, rng: Rng, alias: Alias, shifts: int = 1,
                 debt=None, char=None, satisfied=None,
-                flags=None) -> list[str]:
+                flags=None, dead=()) -> list[str]:
         """Move time forward. Returns everything the player should be told.
 
         `satisfied` is the story's rule check bound to the game and `flags`
@@ -279,7 +279,7 @@ class City:
             self.ambient.extend(self._ambient(rng, satisfied))
         # Top the board back up rather than replacing it, so a contract the
         # player was saving does not vanish because a shift ticked over.
-        told.extend(self.top_up_board(rng, alias, char, flags))
+        told.extend(self.top_up_board(rng, alias, char, flags, dead))
         return told
 
     def _raid_turn(self, rng: Rng, alias: Alias, char) -> list[str]:
@@ -560,7 +560,8 @@ class City:
     #: The hardest posture that counts as startable while they are young.
     YOUNG_POSTURE = 36
 
-    def _ensure_startable(self, rng: Rng, alias: Alias, char, flags=None) -> None:
+    def _ensure_startable(self, rng: Rng, alias: Alias, char, flags=None,
+                          dead=()) -> None:
         """Keep one job on the board a young runner could actually take.
 
         The curated first board was a cliff rather than a ramp: the
@@ -587,6 +588,15 @@ class City:
         def startable(c) -> bool:
             if int(c.posture) > ceiling:
                 return False
+            # A job that has already ended on this character is not a
+            # rung, and nor is one whose doors read shut for what they
+            # carry (D91): a courier at Intrusion 0 had a board of five
+            # rows, one of them "startable" by the old rule, and it was
+            # the one that had just burned them on the chair.
+            if c.cid in dead:
+                return False
+            if contract_mod.door_odds(char, int(c.posture)) < contract_mod.DOOR_TIGHT:
+                return False
             # Size counts too. A large network at a soft posture is not a
             # hard job, but it is a long one, and a runner four contracts
             # old walking a sprawl is spending forty ticks of trace to
@@ -609,7 +619,12 @@ class City:
                  if not c.held and c.cid != self.accepted]
         if not spare:
             return
-        index = spare[-1]
+        # The slot that is dead to them first, and a fresh id: the rung
+        # used to inherit the id of the posting it replaced, so a job that
+        # had burned somebody on the chair came back as a new job the
+        # history still called dead (D91).
+        index = next((i for i in spare if self.board[i].cid in dead),
+                     spare[-1])
         old = self.board[index]
         soft = min(factions.FACTION_KEYS,
                    key=lambda k: self.posture.get(
@@ -623,14 +638,15 @@ class City:
                      if contract_mod.objective_ready(char, o, posture)),
                     'surveil')
         self.board[index] = contract_mod.make_one(
-            rng('contracts'), int(old.cid[1:]), patron, soft,
+            rng('contracts'), self.next_cid, patron, soft,
             self.shift, alias, self.posture,
             used={c.title for i, c in enumerate(self.board) if i != index}
             | set(self.done_titles),
             objective=kind, size_mod=0.75 if runs < 3 else 1.0)
+        self.next_cid += 1
 
     def top_up_board(self, rng: Rng, alias: Alias, char=None,
-                     flags=None) -> list[str]:
+                     flags=None, dead=()) -> list[str]:
         want = self.board_size(char)
         # Held contracts sit on top of the board rather than in it, so a
         # scene that posts something does not cost the player a slot.
@@ -640,7 +656,7 @@ class City:
             # board is exactly the case where nothing new arrives to be a
             # rung, and it is the case that stranded a runner for two days
             # of play.
-            self._ensure_startable(rng, alias, char, flags)
+            self._ensure_startable(rng, alias, char, flags, dead)
             return []
         fresh = contract_mod.generate_board(
             rng('contracts'), self.shift, alias, self.posture,
@@ -649,7 +665,7 @@ class City:
             flags=flags)
         self.next_cid += len(fresh) + 1
         self.board.extend(fresh)
-        self._ensure_startable(rng, alias, char, flags)
+        self._ensure_startable(rng, alias, char, flags, dead)
         return [f'[dim]{len(fresh)} new posting'
                 f'{"s" if len(fresh) != 1 else ""} on the board.[/]']
 

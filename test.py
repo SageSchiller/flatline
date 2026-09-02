@@ -5892,6 +5892,9 @@ def test_spine() -> None:
     game, st = fresh()
     game.char.runs = 6
     st.flags.update({'dw_heard', 'ran:deepwater'})
+    # They have heard it (D91: one scene per thread per command, so the
+    # hearing has to be behind them or it takes the first look).
+    st.reached['deepwater'] = ['hear']
     # Two looks: the first reaches `inside`, which is the fact the posting
     # wants, and a scene unlocked by a scene arrives on the next check.
     sess, out = play(['look', 'look'], game=game)
@@ -6023,6 +6026,7 @@ def test_spine() -> None:
     game, st = fresh('Saved')
     game.char.runs = 6
     st.flags.update({'dw_heard', 'ran:deepwater'})
+    st.reached['deepwater'] = ['hear']
     play(['look', 'look'], game=game)
     game.save('spine-save')
     back = Game.load('spine-save')
@@ -6292,6 +6296,8 @@ def test_arcs() -> None:
     T.ok('hound_nemesis' in st.reached.get('runners', []) and 'expensive' in out,
          'Hound names a figure')
     st.pending = ['runners.hound_nemesis']
+    # Paying needs the money (D91): the choice is refused otherwise.
+    game.char.credits = max(game.char.credits, 20000)
     before = game.char.credits
     sess, out = play(['choose pay'], game=game)
     T.ok('paid_hound' in st.flags and game.char.credits < before,
@@ -9543,6 +9549,7 @@ def test_people_are_the_story() -> None:
     st = game.story
     st.meet('vending')
     st.flags.add('ozy_met')
+    st.reached['ozymandias'] = ['coins']
     game.city.where = 'ninth'
     T.ok(('ozymandias', 'war') not in {(t, s.key) for t, s in st.available(game)},
          'the war is not narrated until it is asked about')
@@ -9939,6 +9946,23 @@ def test_remembered_inside() -> None:
     state.rivals = []
     T.ok(not any(i.key == 'company' for i in state._incident_pool()),
          'nobody can turn up if nobody is left')
+    # Through the real incident path, for every mood: the first version
+    # printed a hook line for a hook the incident does not have and
+    # crashed on every stranger and enemy (D90).
+    from flatline.content import incidents as incident_content
+    for disposition in (40, 0, -40):
+        game, state, _ = company(disposition)
+        state.company = {}
+        state.hook = ''
+        state.console.start_capture()
+        try:
+            state._apply_incident(incident_content.BY_KEY['company'])
+            crashed = ''
+        except Exception as e:  # noqa: BLE001
+            crashed = repr(e)
+        state.console.end_capture()
+        T.ok(not crashed, f'company at {disposition:+d} applies cleanly '
+                          f'{crashed}')
     # The rival remembers the night.
     sess = Session(console=quiet_console(), slot='co'); sess.game = game
     sess.run = state
@@ -9955,6 +9979,352 @@ def test_remembered_inside() -> None:
 
 
 
+
+def test_second_look() -> None:
+    """D90: the second wave of play-tests, and what it found."""
+    T.section('the second look')
+    from flatline.commands import city as city_cmd
+
+    # `people`: the met by name, the rest counted, never named.
+    game = Game.new(Character.from_origin('gutter', 'pp'), seed=4242)
+    sess, out = play(['people'], game=game)
+    T.ok('Nobody yet' in out and 'Not met yet' in out,
+         'nobody met, everybody counted')
+    game.story.meet('mara')
+    sess, out = play(['people'], game=game)
+    T.ok('Mara Okonkwo' in out and 'Marrow' in out, 'a met person is listed')
+    T.ok('Tuck' not in out, 'an unmet one is not named')
+
+    # The bench says where scrap comes from.
+    game = Game.new(Character.from_origin('gutter', 'mm'), seed=4242)
+    game.city.where = 'ninth'
+    sess, out = play(['mod'], game=game)
+    T.ok('salvage' in out, '`mod` names `salvage` when there is no scrap')
+
+    # A place does not say "not here at the moment" in somebody's own hour
+    # about somebody who has not heard of you yet.
+    from flatline.content import npcs as npc_content, spots as spot_content
+    gated = [n for n in npc_content.NPCS
+             if any(r.startswith('runs:') for r in n.requires)]
+    T.ok(gated, 'somebody is gated on runs')
+    who = gated[0]
+    spot = next((s for s in spot_content.SPOTS if who.key in s.who), None)
+    if spot is not None:
+        game = Game.new(Character.from_origin('gutter', 'vv'), seed=4242)
+        game.city.where = spot.district
+        game.char.runs = 0
+        for phase_shift in range(4):
+            game.city.shift = phase_shift
+            if npc_content.about_now(who, game.city.phase):
+                break
+        sess, out = play([f'visit {spot.key}'], game=game)
+        T.ok('not here for you yet' in out or 'not here at this hour' in out
+             or who.name in out,
+             f'{who.name} is explained rather than merely absent')
+
+    # The recommender leans away from a third job of the same kind and
+    # toward the job the payload was built for.
+    game = Game.new(Character.from_origin('gutter', 'vr'), seed=4242)
+    board = game.city.board
+    kinds = {c.objective for c in board}
+    if 'surveil' in kinds and len(kinds) > 1:
+        for _ in range(2):
+            game.history.append({'objective': 'surveil', 'cid': 'x',
+                                 'done': True, 'outcome': 'clean'})
+        pick = city_cmd._suggest_contract(game)
+        T.ok(pick is not None, 'something is still recommended')
+
+    # The safehouse screen shows the whole ladder.
+    game = Game.new(Character.from_origin('gutter', 'sh'), seed=4242)
+    sess, out = play(['safehouse'], game=game)
+    T.ok('Elsewhere' in out and '3,200c' in out,
+         'the cheapest room in the city is named from Marrow')
+
+    # A refused credential is not presented again.
+    from flatline.run import network as net_mod
+    from flatline.run.network import IceInstance
+    game = Game.new(Character.from_origin('protege', 'pr'), seed=9)
+    net = net_mod.generate(Rng(9).fork('network', 'd90p'), 'sixes', 26,
+                           'exfiltrate', 1.0)
+    con = quiet_console()
+    sess = Session(console=con, slot='d90p'); sess.game = game
+    state = RunState.begin(net, game.char, Rng(9)('combat'), con,
+                           contract={'objective': 'exfiltrate', 'title': 'T'})
+    sess.run = state
+    entry = net.node(net.entry)
+    hop = next(net.node(u) for u in entry.edges)
+    hop.known = hop.mapped = hop.open = True
+    hop.ice = [IceInstance(uid='steward-t', key='steward', rating=3,
+                           state='awake', known=True)]
+    steps = state._steps_toward(hop.uid)
+    T.eq(steps, (f'connect {hop.uid} --present',),
+         'a protege is advised to present, once')
+    state.tried.add(('present', hop.uid))
+    steps = state._steps_toward(hop.uid)
+    T.ok('--present' not in ' '.join(steps),
+         'and not again after a refusal')
+    T.ok('refused what you showed it' in state._hopeless_where(),
+         'with the refusal named as the reason')
+
+
+
+def test_second_wave() -> None:
+    """D91 and D92: the second wave's findings, and the response that
+    arrives."""
+    T.section('the second wave')
+    from flatline.commands import city as city_cmd
+    from flatline.commands import guide
+    from flatline.content import ice as ice_content
+    from flatline.content import threads as thread_content
+    from flatline.run import network as net_mod
+    from flatline.run.network import IceInstance, DataAsset
+    from flatline.run import session as session_mod
+
+    def fixture(origin='gutter', seed=7, faction='sixes', posture=26):
+        game = Game.new(Character.from_origin(origin, 'w'), seed=seed)
+        net = net_mod.generate(Rng(seed).fork('network', 'd91'), faction,
+                               posture, 'exfiltrate', 1.0)
+        con = quiet_console()
+        sess = Session(console=con, slot='d91'); sess.game = game
+        state = RunState.begin(net, game.char, Rng(seed)('combat'), con,
+                               contract={'objective': 'exfiltrate',
+                                         'title': 'T'})
+        sess.run = state
+        if 'siphon' not in game.char.library:
+            game.char.library.append('siphon')
+        for key in list(game.char.deck.loaded):
+            game.char.deck.unload(key)
+        game.char.deck.load('crowbar')
+        game.char.deck.load('siphon')
+        return game, sess, state
+
+    # D92: a room left red long enough gets a hunter.
+    hunters = [f for f in ('kagawa', 'sendai', 'nightwatch', 'chorus')
+               if ice_content.available('hunter', f)]
+    T.ok(hunters, 'somebody fields hunters')
+    game, sess, state = fixture(faction=hunters[0], posture=40)
+    state.alert = 'red'
+    state.noisy_tick = True
+    before = len(state.node.ice)
+    state.console.start_capture()
+    for _ in range(session_mod.RESPONSE_AFTER):
+        state._response_tick()
+    out = ui.plain(state.console.end_capture())
+    T.ok(state.responded and len(state.node.ice) == before + 1,
+         'after six red ticks something is dispatched')
+    sent = state.node.ice[-1]
+    T.ok(sent.behaviour == 'hunter' and sent.state == 'awake' and sent.known,
+         'a hunter, awake, and named')
+    T.ok('dispatched' in out and sent.data.name in out, 'and said')
+    for _ in range(3):
+        state._response_tick()
+    T.eq(len(state.node.ice), before + 1, 'once a run')
+    game, sess, state = fixture(faction='sixes')
+    state.alert = 'red'
+    state.noisy_tick = True
+    for _ in range(10):
+        state._response_tick()
+    T.ok(not state.responded or ice_content.available('hunter', 'sixes'),
+         'a faction with no hunters sends nobody')
+    game, sess, state = fixture(faction=hunters[0], posture=40)
+    state.alert = 'red'
+    state.noisy_tick = True
+    for _ in range(4):
+        state._response_tick()
+    T.eq(state.red_ticks, 4, 'loud ticks at red count')
+    state.noisy_tick = False
+    state._response_tick()
+    T.eq(state.red_ticks, 4, 'quiet ones do not')
+    state.alert = 'amber'
+    state._response_tick()
+    T.eq(state.red_ticks, 0, 'cooling resets the count')
+
+    # The trace remembers the last thing that struck you.
+    game, sess, state = fixture()
+    state.last_struck_by = 'gull'
+    state.finish('severed')
+    T.eq(state.severed_by, 'gull', 'a sever by the clock still names it')
+
+    # A sealed record the salvage advice reaches for is taken shut once
+    # it has refused.
+    game, sess, state = fixture()
+    state.node.data.append(DataAsset(uid='asset-s', kind='ledger', value=900,
+                                     encrypted=True))
+    state.tried.add(('pull', 'asset-s'))
+    T.eq(state._salvage_step(), ('pull asset-s --sealed',),
+         'the salvage step takes a refused seal shut')
+
+    # `now` keeps the go step when a job is held.
+    game = Game.new(Character.from_origin('gutter', 'go'), seed=4242)
+    contract = game.city.board[0]
+    game.city.accepted = contract.cid
+    game.story.pending = ['deepwater.hear']
+    game.char.xp = 8
+    sess = Session(console=quiet_console(), slot='go'); sess.game = game
+    _, steps, _ = guide.what_now(sess)
+    T.ok(any(cmd.split()[0] in ('jack', 'walk', 'travel', 'rest', 'drop')
+             for cmd, _ in steps),
+         f'the walk or the jack in survives choose and train ({steps})')
+
+    # The recommender has a ceiling that rises with clean runs.
+    game = Game.new(Character.from_origin('gutter', 'ce'), seed=4242)
+    for c in game.city.board:
+        c.posture = 58.0
+    T.ok(city_cmd._suggest_contract(game) is None,
+         'nothing corporate is recommended to somebody with no clean runs')
+    for _ in range(6):
+        game.history.append({'cid': 'z', 'done': True, 'outcome': 'clean',
+                             'objective': 'exfiltrate'})
+    T.ok(city_cmd._suggest_contract(game) is not None
+         or all(city_cmd._door_odds(game.char, 58) <= 0.05
+                for _ in [0]),
+         'six clean runs raise it, unless the doors are shut')
+
+    # A choice that costs what you do not have is refused.
+    game = Game.new(Character.from_origin('gutter', 'ch'), seed=4242)
+    stage = next((s for t in thread_content.THREADS for s in t.stages
+                  if any(c.credits < 0 for c in s.choices)), None)
+    if stage is not None:
+        thread = next(t for t in thread_content.THREADS if stage in t.stages)
+        game.story.reached[thread.key] = [stage.key]
+        game.story.pending = [f'{thread.key}.{stage.key}']
+        dear = next(c for c in stage.choices if c.credits < 0)
+        game.char.credits = 0
+        sess, out = play(['choose', f'choose {dear.key}'], game=game)
+        T.ok('which you do not have' in out, 'the price is shown')
+        T.ok('and you have 0c' in out, 'and the choice is refused')
+        T.ok(f'{thread.key}.{stage.key}' in game.story.pending,
+             'so it is still waiting')
+
+    # A burned watch on the chair is enough to drop.
+    game = Game.new(Character.from_origin('gutter', 'chair'), seed=4242)
+    watch = next((c for c in game.city.board if c.objective == 'surveil'),
+                 None)
+    if watch is not None:
+        game.city.accepted = watch.cid
+        game.history.append({'cid': watch.cid, 'title': watch.title,
+                             'faction': watch.target, 'outcome': 'burned',
+                             'done': False, 'alert': 'red', 'ticks': 10,
+                             'trace': 25, 'pay': 0, 'short': 0, 'held': 0,
+                             'reached': True, 'chair': True, 'day': 1,
+                             'shift': 0, 'objective': 'surveil'})
+        steps = dict(city_cmd.city_steps(game))
+        T.ok('drop' in steps and 'chair' in steps['drop'],
+             'one burn on the chair is enough')
+
+    # Stage.after: the second time is not the first time.
+    game = Game.new(Character.from_origin('gutter', 'lk'), seed=4242)
+    game.city.where = 'shambles'
+    game.story.meet('lark', game.city.shift)
+    lark = thread_content.BY_KEY['lark']
+    first = lark.stages[0]
+    T.ok(first.after >= 1, 'Lark\'s first scene waits')
+    T.ok(('lark', 'meet') not in {(t, s.key)
+                                  for t, s in game.story.available(game)},
+         'not in the same breath as the meeting')
+    game.city.shift += first.after
+    T.ok(('lark', 'meet') in {(t, s.key)
+                              for t, s in game.story.available(game)},
+         'and it comes round')
+    from flatline.world.story import Story
+    T.ok(game.story.when == Story.from_dict(game.story.to_dict()).when,
+         'the stamps survive a save')
+
+    # One stage per thread per command.
+    game = Game.new(Character.from_origin('gutter', 'one'), seed=4242)
+    game.story.flags.add('dw_heard')
+    game.story.meet('archivist')
+    game.story.meet('remnant')
+    ready = [(t, s.key) for t, s in game.story.available(game) if t == 'deepwater']
+    if len(ready) >= 2:
+        sess, out = play(['look'], game=game)
+        T.eq(len(game.story.reached.get('deepwater', [])), 1,
+             'two Deepwater scenes ready, one fires')
+
+    # The street: a colon, a verb with an argument, an empty line.
+    from flatline.content import street as street_content
+    enc = next(e for e in street_content.ENCOUNTERS
+               if any(o.key == 'talk' for o in e.options))
+    game = Game.new(Character.from_origin('gutter', 'st'), seed=4242)
+    from flatline.world import street as street_world
+    sess = Session(console=quiet_console(), slot='st'); sess.game = game
+    sess.console.start_capture()
+    street_world.begin(sess, enc, 'sixes', 50)
+    T.ok(sess.pending is not None and ': ' in sess.pending.prompt
+         and ', ' not in sess.pending.prompt.split(':')[0],
+         f'the prompt reads tier: options ({sess.pending.prompt!r})')
+    sess.execute('talk vance')
+    out = ui.plain(sess.console.end_capture())
+    T.ok('is not one of the answers' not in out,
+         '`talk vance` at a street that offers talk is talk')
+
+    # Asking the question that opens a scene prints the scene, once.
+    game = Game.new(Character.from_origin('gutter', 'oz'), seed=4242)
+    game.story.meet('vending')
+    game.story.flags.add('ozy_met')
+    game.story.reached['ozymandias'] = ['coins']
+    game.city.where = 'ninth'
+    sess, out = play(['ask vending war'], game=game)
+    T.eq(out.count('THEY WERE RESTOCKED'), 1, 'the punchline lands once')
+    T.ok('ozy_war' in game.story.flags, 'and the scene fired')
+
+    # The courier trap (D91): a street build with Intrusion 0 read every
+    # door as shut, the rung kept a job that had already burned them, and
+    # errands taught nothing.
+    from flatline.world import contracts as contract_world
+    from flatline.content import attributes as attr_content
+    game = Game.new(Character.from_origin('courier', 'tr'), seed=6060)
+    game.char.points, game.char.xp = attr_content.CREATION_POINTS, skills.CREATION_XP
+    plan = guide.suggest(game.char)
+    T.ok(('train', 'intrusion') in plan, 'the plan buys one rank of Intrusion '
+                                         'for a courier')
+    T.ok(city_cmd._door_odds(game.char, 22) < contract_world.DOOR_TIGHT,
+         'a courier at Intrusion 0 reads a soft door as shut')
+    game.char.base_skills['intrusion'] = 1
+    T.ok(city_cmd._door_odds(game.char, 22) >= contract_world.DOOR_TIGHT,
+         'and one rank opens it')
+    game = Game.new(Character.from_origin('gutter', 'rung'), seed=4242)
+    rung = city_cmd._suggest_contract(game)
+    T.ok(rung is not None, 'day one has a rung')
+    game.history.append({'cid': rung.cid, 'title': rung.title,
+                         'faction': rung.target, 'outcome': 'burned',
+                         'done': False, 'alert': 'red', 'ticks': 10,
+                         'trace': 25, 'pay': 0, 'short': 0, 'held': 0,
+                         'reached': True, 'chair': True, 'day': 1,
+                         'shift': 0, 'objective': rung.objective})
+    T.ok(rung.cid in city_cmd._dead_cids(game), 'a chair burn kills the rung')
+    for c in game.city.board:
+        if c.cid != rung.cid:
+            c.posture = 70.0
+    game.city.top_up_board(game.rng, game.alias, game.char, game.story.flags,
+                           dead=city_cmd._dead_cids(game))
+    fresh = city_cmd._suggest_contract(game)
+    T.ok(fresh is not None and fresh.cid != rung.cid,
+         f'and the board grows another one ({fresh and fresh.cid})')
+    game = Game.new(Character.from_origin('courier', 'er'), seed=6060)
+    from flatline.world import street as street_world
+    offers = street_world.errands_here(game)
+    if offers:
+        xp = game.char.xp
+        sess, out = play(['errands take 1'], game=game)
+        if game.city.errand:
+            to = game.city.errand['to']
+            game.city.where = to
+            sess.console.start_capture()
+            street_world.deliver(sess)
+            sess.console.end_capture()
+        T.ok(game.char.xp >= xp + 1 or 'experience' in out,
+             'an errand teaches a point')
+
+    # The loadout keeps a striker's weapon.
+    game = Game.new(Character.from_origin('chromed', 'wp'), seed=4242)
+    game.char.base_skills['warfare'] = 2
+    game.char.library = list(set(game.char.library + ['cudgel', 'siphon']))
+    plan = city_cmd._loadout_plan(game)
+    T.ok(any(p.category == 'weapon' for p in plan),
+         f'a Warfare build carries its weapon ({[p.key for p in plan]})')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
@@ -9963,7 +10333,7 @@ SUITES = (
     test_collector, test_early, test_tension, test_hostnames,
     test_objective_parity,
     test_people_are_the_story, test_night_before, test_wall_and_clock,
-    test_remembered_inside,
+    test_remembered_inside, test_second_look, test_second_wave,
     test_economy,
     test_combat,
     test_advancement,

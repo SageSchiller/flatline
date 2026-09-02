@@ -1385,7 +1385,12 @@ MASK_POSTURE = 40
 #: few shifts is a real answer.
 HEAT_WAITS_OUT = 40
 
-VAULT_SERVICE = 5.5
+#: The recommender's posture ceiling: this, plus this much per finished
+#: run (D91). Six clean runs reach the corporate band.
+POSTURE_FLOOR = 30
+POSTURE_PER_CLEAN = 5
+
+VAULT_SERVICE = contract_mod.VAULT_SERVICE
 
 #: How many of those doors stand between the front of a network and the
 #: thing you came for.
@@ -1410,18 +1415,9 @@ ROOM_WORDS = ((60, 'err', 'hostile'), (42, 'warn', 'hard'),
 
 
 def _door_odds(char, posture: int) -> float:
-    """The chance of one vault-grade door, with what is loaded."""
-    from ..run.checks import DIE, OFFSET
-    difficulty = max(1, round(VAULT_SERVICE * (0.45 + 0.78 * posture / 50.0)))
-    breaker = programs.best(char.deck.loaded, 'breaker')
-    rank = char.skill('intrusion')
-    power = rank * 2 + char.attr('logic') + char.bonus('crack_bonus')
-    if breaker:
-        power += programs.held(breaker, rank) * 2
-    else:
-        power -= 6
-    need = difficulty * 2 + OFFSET - power
-    return max(0.0, min(1.0, (DIE - need + 1) / DIE))
+    """The chance of one vault-grade door, with what is loaded. Lives
+    with the contracts now (D91), so the board's rung can read it."""
+    return contract_mod.door_odds(char, posture)
 
 
 def reads_short(char, posture: int) -> tuple[str, str]:
@@ -1527,11 +1523,9 @@ def _suggest_contract(game):
         # off the list: the advice recommended the same severed run five
         # nights running, and the drop it suggested in between was undone
         # by the next `now` (D87).
-        tries = _attempts(game, c.cid)
-        severed = sum(1 for h in tries if h.get('outcome') == 'severed')
-        if severed >= 2 or len(tries) >= 3:
+        if _dead_to_you(game, c.cid):
             return float('inf')
-        return 12.0 * len(tries)
+        return 12.0 * len(_attempts(game, c.cid))
 
     def calendar_cost(c) -> float:
         # A job that expires before the walk gets there.
@@ -1552,11 +1546,46 @@ def _suggest_contract(game):
             and not game.char.has_technique('pivot')
             and 'native' not in game.char.riders() else 0.0)
 
+    # Variety (D90). The softest job on a gang board is a watch, always,
+    # so a first-timer was sent on three surveils running while the
+    # Siphon they were told to buy sat unused. Two of a kind in a row is
+    # a lean against a third, and the job the payload you own was built
+    # for is a lean toward it.
+    recent = [h.get('objective') for h in game.history[-2:]]
+    built_for = set()
+    for key in list(game.char.library) + list(game.char.deck.loaded):
+        p = programs.BY_KEY.get(key)
+        if p is not None and p.category == 'payload':
+            built_for.update(p.jobs)
+
+    def variety_cost(c) -> float:
+        out = 0.0
+        if len(recent) == 2 and recent[0] == recent[1] == c.objective:
+            out += 4.0
+        if c.objective in built_for and equipped(c):
+            out -= 3.0
+        return out
+
+    # A ceiling that rises with finished runs (D91). "The softest thing
+    # on the board you have the gear for" was said about Sendai at
+    # fifty-eight to a five-run academic, because everything softer had
+    # been excluded and softest is a comparison, not a judgement.
+    ceiling = POSTURE_FLOOR + POSTURE_PER_CLEAN * _clean_runs(game)
+
+    def door_cost(c) -> float:
+        odds = _door_odds(game.char, int(c.posture))
+        if odds <= 0.05:
+            return float('inf')
+        if int(c.posture) > ceiling:
+            return float('inf')
+        return 0.0
+
     def cost(c):
         return (int(c.posture)
                 + (0 if equipped(c) else 12)
                 + (0 if possible(c) else 20)
-                + history_cost(c) + calendar_cost(c) + street_cost(c) + desk,
+                + history_cost(c) + calendar_cost(c) + street_cost(c) + desk
+                + variety_cost(c) + door_cost(c),
                 c.size_mod if green else 0.0,
                 -c.pay)
 
@@ -1664,6 +1693,24 @@ def _clean_runs(game) -> int:
     return sum(1 for h in game.history if h.get('done'))
 
 
+def _dead_cids(game) -> set:
+    """Every contract on the board the history says is not this
+    character's, for the board's rung to skip."""
+    return {c.cid for c in game.city.board if _dead_to_you(game, c.cid)}
+
+
+def _dead_to_you(game, cid: str) -> bool:
+    """Whether the history says this contract is not tonight's, in one
+    place, read by the drop advice and the recommender alike (D91). The
+    two used to disagree: one burn on the chair was enough for `drop` and
+    not enough to stop the recommender naming the same job, so a follower
+    dropped and re-took it for ever."""
+    tries = _attempts(game, cid)
+    severed = sum(1 for h in tries if h.get('outcome') == 'severed')
+    return (severed >= 2 or len(tries) >= 3
+            or any(h.get('chair') for h in tries))
+
+
 #: The order in which program categories earn their memory, once the job's
 #: own need and the breaker are in. Read by `_loadout_plan`.
 LOADOUT_ORDER = ('breaker', 'payload', 'mask', 'forger', 'hunter', 'armour',
@@ -1703,17 +1750,37 @@ def _loadout_plan(game) -> list:
         need = OBJECTIVE_PROGRAM.get(contract.objective, '')
         if need and need not in order:
             order.append(need)
+    # A build that strikes carries what it strikes with (D91): the plan
+    # told a Warfare build to unload the Cudgel that later killed the
+    # construct with its name on it.
+    if char.has_technique('strike') and 'weapon' not in order:
+        order.append('weapon')
     for cat in LOADOUT_ORDER:
         if cat not in order:
             order.append(cat)
     # A mask earns its slot on hard work. Below that posture it is memory
     # a payload or a forger would use better, and on a fresh deck it is
-    # the whole of the bank.
-    posture = int(contract.posture) if contract is not None else 0
+    # the whole of the bank. The work is the job in hand, or failing that
+    # the softest thing on the board, which is what the advice will send
+    # you at next.
+    if contract is not None:
+        posture = int(contract.posture)
+    else:
+        board = [c for c in game.city.board
+                 if not c.expired(game.city.shift)]
+        posture = min((int(c.posture) for c in board), default=0)
     if posture < MASK_POSTURE and 'mask' in order:
         order.remove('mask')
         order.append('mask')
     plan, room = [], deck.memory
+    # Room for the payload the advice is about to say buy: two steps were
+    # undone across a purchase because the plan filled the bank first and
+    # then had to empty it (D91).
+    if best_of('payload') is None:
+        cheapest = min((p for p in programs.by_category('payload')
+                        if not p.unique), key=lambda p: p.price, default=None)
+        if cheapest is not None and char.credits >= cheapest.price:
+            room -= cheapest.memory
     for cat in order:
         p = best_of(cat)
         if p is not None and p.memory <= room:
@@ -1845,6 +1912,17 @@ def city_steps(game) -> list[tuple[str, str]]:
                           f'runs at {running} because Intrusion is {rank}: '
                           f'every door reads that number. Rank {rank + 1} '
                           f'costs {cost} experience and you have {char.xp}'))
+        elif (cost is not None and char.xp >= cost
+              and not any(cmd == 'spend' for cmd, _ in steps)
+              and game.city.board
+              and _door_odds(char, min(int(c.posture)
+                                       for c in game.city.board)) < 0.35):
+            # Every row reads shut and the nudge pointed at Signal (D91).
+            steps.append(('train intrusion',
+                          f'every row on the board reads tight or shut for '
+                          f'what you carry, and Intrusion is the number '
+                          f'every door reads. Rank {rank + 1} costs {cost} '
+                          f'experience and you have {char.xp}'))
     # A severed connection keeps you out of the chair (D6, D88).
     if game.city.grounded > game.city.shift:
         left = game.city.grounded - game.city.shift
@@ -2044,21 +2122,43 @@ def city_steps(game) -> list[tuple[str, str]]:
             # get there, or walks through somebody hunting you. Saying
             # `board` here sends a player back to the row that just
             # severed them; the street pays, and the board turns over.
-            return steps + [('errands',
-                             'nothing on the board is yours tonight: what '
-                             'is there has already cut you loose, or expires '
-                             'before the walk, or goes through people who '
-                             'are looking for you. Street work pays, and '
-                             'the board changes every shift')]
+            # Named, not listed (D91): `errands` alone costs no shift and
+            # a follower typed it seven times at the same board.
+            why = ('nothing on the board is yours tonight: what is there '
+                   'has already cut you loose, or expires before the walk, '
+                   'or goes through people who are looking for you, or '
+                   'reads shut for what you carry')
+            offers = street_world.errands_here(game)
+            if offers and not game.city.errand:
+                best = max(range(len(offers)), key=lambda i: offers[i]['pay'])
+                return steps + [(f'errands take {best + 1}',
+                                 f'{why}. Street work pays '
+                                 f'({offers[best]["pay"]:,}c for this one) '
+                                 f'and the board changes every shift')]
+            if game.city.errand:
+                to = game.city.errand.get('to', '')
+                if to in districts.BY_KEY and to != game.city.where:
+                    return steps + [(game.city.walk_to(to),
+                                     f'{why}. The package you are carrying '
+                                     f'pays in {districts.BY_KEY[to].name}')]
+            return steps + [('rest 1',
+                             f'{why}. A shift passes and the board turns; '
+                             f'`train intrusion` is the number every door '
+                             f'reads')]
         return steps + [('board', 'work on offer')]
     # A contract that has already cut you loose, twice (D87). The advice
     # said `jack in` after every sever, five nights running, on the same
     # network; the honest line is why, and the door out.
     tries = _attempts(game, contract.cid)
-    severed = [h for h in tries if h.get('outcome') == 'severed']
-    if len(severed) >= 2 or len(tries) >= 3:
+    chair = any(h.get('chair') for h in tries)
+    if _dead_to_you(game, contract.cid):
         last = tries[-1]
-        if any(h.get('short', 0) > 0 and not h.get('reached') for h in tries):
+        if chair:
+            reason = ('you reached the chair and the room would not let '
+                      'you use it: something awake on it, or a room that '
+                      'went red and stayed there. The same network is the '
+                      'same chair')
+        elif any(h.get('short', 0) > 0 and not h.get('reached') for h in tries):
             gap = max(h.get('short', 0) for h in tries
                       if not h.get('reached'))
             reason = (f'each time you held a badge {gap} tier'
@@ -2224,17 +2324,17 @@ def city_steps(game) -> list[tuple[str, str]]:
                        if bounty else
                        f'{fac.short} are hunting you at heat {hot}, which '
                        f'cools about a point a shift')
-                if game.char.credits >= cost:
-                    steps.append(('burn --confirm',
-                                  f'{why}, and the job walks through them. '
-                                  f'A new name costs {cost:,}c and every '
-                                  f'relationship this one has'))
                 steps.append(('drop',
                               f'{why}, and the job walks through '
                               f'{districts.BY_KEY[first].name}. Drop it and '
                               f'take work that does not, or `{route} '
                               f'--anyway` walks into them and the street '
                               f'prices it'))
+                if game.char.credits >= cost:
+                    steps.append(('burn --confirm',
+                                  f'{why}, and the job walks through them. '
+                                  f'A new name costs {cost:,}c and every '
+                                  f'relationship this one has'))
             else:
                 steps.append((f'rest {max(1, hot - HEAT_WAITS_OUT + 8)}',
                               f'{fac.short} are hunting you on the way '
@@ -2545,11 +2645,18 @@ def cmd_travel(sess, args) -> None:
     if (danger >= fallout.INCIDENT_FLOOR and not args.has('anyway')
             and who not in game.city.arrangements):
         fac = factions.BY_KEY[who]
+        hot = int(game.alias.attention(who))
+        slow = (hot >= HEAT_WAITS_OUT
+                or int(game.city.bounties.get(who, 0)) > 0)
         raise CommandError(
             f'{fac.name} have people in '
             f'{districts.BY_KEY[target].name} and a number attached to your '
             f'name. Going anyway is a real risk: `travel {target} --anyway`. '
-            f'Otherwise `rest` until it cools, or `burn` the name.')
+            + ('Otherwise `rest` until it cools, or `burn` the name.'
+               if not slow else
+               f'Heat is {hot} and cools about a point a shift, so resting '
+               f'is not the answer: `arrange {who}` if they will take your '
+               f'money, `burn` the name, or work somewhere they are not.'))
 
     known = target in game.city.visited
     # What is between here and there (D67). The city is only as big as the
@@ -2568,7 +2675,7 @@ def cmd_travel(sess, args) -> None:
         _drift(sess)
         sess.autosave()
     else:
-        _advance(sess, 1)
+        _advance(sess, 1, story=False)
     c.blank()
     c.rule(district.name)
     c.say(district.arrival)
@@ -2586,6 +2693,11 @@ def cmd_travel(sess, args) -> None:
     if free:
         c.info('You know the way. It does not cost you a shift.')
 
+    # What is here, before the street has its say: a question pending
+    # used to print the market line between the options and the prompt
+    # (D91).
+    here_you_can(sess, district)
+    people_here(sess)
     # A package for here is delivered before anything else happens (D65).
     street_world.deliver(sess)
     if danger >= fallout.INCIDENT_FLOOR:
@@ -2607,8 +2719,11 @@ def cmd_travel(sess, args) -> None:
         # Below that: the street as texture (D65). Somebody behind you,
         # somebody with a pot. Small, and not every time.
         street_world.texture(sess, danger)
-    here_you_can(sess, district)
-    people_here(sess)
+    # A scene set here fires on arrival, after the district and not before
+    # it: "waiting for you to be there" means there (D91).
+    if sess.pending is None:
+        from .people import _check_story
+        _check_story(sess)
 
 
 #: What each thing a district has is called at the prompt. A district that
@@ -2975,6 +3090,8 @@ def cmd_errands(sess, args) -> None:
         game.char.credits += pay
         game.earned += pay
         game.city.errands_done += 1
+        game.char.xp += street_world.ERRAND_XP
+        c.say(f'[dim]{street_world.ERRAND_XP} experience.[/]')
         c.ok(f'[credit]{pay:,}c[/] for the shift.')
         danger, who = game.city.danger(game.alias, game.city.where,
                                        flags=game.story.flags, riders=game.char.riders())
@@ -3325,14 +3442,14 @@ def _legwork_result(net, gives: str, bonus: int, game) -> str:
 # --------------------------------------------------------------------------
 
 
-def _advance(sess, shifts: int) -> None:
+def _advance(sess, shifts: int, story: bool = True) -> None:
     """Move time and report what the world did. Every shift-spending command
     routes through here so nothing can silently skip fallout."""
     game = sess.require_game()
     told = game.city.advance(
         game.rng, game.alias, shifts, debt=game.debt, char=game.char,
         satisfied=lambda rule: game.story.satisfied(rule, game),
-        flags=game.story.flags)
+        flags=game.story.flags, dead=_dead_cids(game))
     for line in told:
         sess.console.say(line)
     # Scenery goes last and gets its own air. It is the one thing printed here
@@ -3344,9 +3461,11 @@ def _advance(sess, shifts: int) -> None:
     _rot(sess, shifts)
     _drift(sess)
     # The world moved, so any scene whose moment has come arrives now rather
-    # than the next time you happen to look at somebody (D52).
-    from .people import _check_story
-    _check_story(sess)
+    # than the next time you happen to look at somebody (D52). Travel asks
+    # for it after the arrival instead (D91).
+    if story:
+        from .people import _check_story
+        _check_story(sess)
     sess.record_progress()
     sess.autosave()
 
@@ -4658,6 +4777,11 @@ def cmd_mod(sess, args) -> None:
 
     if not len(args):
         c.header('Bench work', f'{char.scrap} scrap, {char.credits:,}c')
+    if not char.scrap:
+        # Said here because nothing else ever did (D90).
+        c.say('[dim]Scrap comes from `salvage <thing>`: a spare program, a '
+              'piece of chrome or a component in the bag comes apart into '
+              'it.[/]')
         for slot, comp in char.deck.components(include_broken=True):
             done = char.deck.mods.get(comp.key, [])
             head = f'  [accent]{comp.name}[/] [dim]{slot}[/]'
@@ -4881,6 +5005,20 @@ def _safehouse_offers(sess) -> None:
         c.say(f'[dim]{prop.blurb}[/]', indent='  ', subsequent='  ')
     c.blank()
     c.say(f'[dim]`safehouse buy {available[0].key}`. You get one.[/]')
+    # The rest of the ladder, because a player in Marrow saw one room at
+    # nine thousand eight hundred and concluded there was no home base
+    # for the whole first week, with a floor cavity for a third of that
+    # two districts away (D90). Price is security and nothing else.
+    elsewhere = sorted((p for p in safehouses.PROPERTIES
+                        if p.where != game.city.where),
+                       key=lambda p: p.price)
+    if elsewhere:
+        c.blank()
+        c.say('[dim]Elsewhere: ' + ', '.join(
+            f'{p.name.lower()} in {districts.BY_KEY[p.where].name} at '
+            f'{p.price:,}c (security {p.security})' for p in elsewhere)
+            + '. They all hold the same; the price is how long before '
+              'somebody looks in it.[/]', subsequent='  ')
 
 
 def _safehouse_buy(sess, args) -> None:

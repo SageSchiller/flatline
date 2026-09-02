@@ -36,7 +36,10 @@ CONDITIONS = ('runs', 'diss', 'shift', 'credits', 'heat', 'met', 'rep',
               'street', 'warned', 'heard', 'arranged',
               # `asked:<npc>:<topic>`: set by `ask`, so a scene that is
               # written as a question can wait for the question (D86).
-              'asked')
+              'asked',
+              # `visited:<place>`: set by `visit`, so a scene can be written
+              # for standing somewhere (D91).
+              'visited')
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,6 +108,11 @@ class Stage:
     choices: tuple[Choice, ...] = ()
     #: Where this scene happens, for flavour and gating. '' means anywhere.
     where: str = ''
+    #: Shifts that must have passed since the thread's previous stage, or
+    #: since meeting the person the stage requires if it is the first
+    #: (D91). A scene that says "the second time you see them" cannot fire
+    #: in the same breath as the first.
+    after: int = 0
     #: A contract this scene puts on the board when it is reached. See
     #: `Posting`. Most scenes post nothing.
     posts: Posting | None = None
@@ -347,7 +355,7 @@ THREADS: tuple[Thread, ...] = (
                   'The second time you see Lark they are worse, and they '
                   'make a joke about it that is genuinely good, and the joke '
                   'is the ask.',
-                  requires=('met:lark',),
+                  after=2, requires=('met:lark',),
                   sets=('lark_met',)),
             Stage('problem', 'What is actually wrong',
                   '"Six pieces. Two of them are load-bearing and one of those '
@@ -490,7 +498,7 @@ THREADS: tuple[Thread, ...] = (
                   'Third time you meet him he is a friend of Freeport. First '
                   'time he was a friend of the Switchboard. You have started '
                   'writing them down.',
-                  requires=('met:broker', 'runs:3'),
+                  after=3, requires=('met:broker', 'runs:3'),
                   sets=('sunday_noticed',)),
             Stage('tell', 'The one thing that does not move',
                   'Every job he has offered you has been against somebody '
@@ -499,7 +507,7 @@ THREADS: tuple[Thread, ...] = (
                   'because individually each brief is a different faction '
                   'wanting a different thing, and collectively they are a '
                   'bank tidying up.',
-                  requires=('sunday_noticed',),
+                  after=4, requires=('sunday_noticed',),
                   any_of=('runs:6', 'drawer_accounts'),
                   sets=('sunday_tell',),
                   choices=(

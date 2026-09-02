@@ -44,6 +44,11 @@ from .network import IceInstance, Network, Node
 # --------------------------------------------------------------------------
 
 TRACE_MAX = 100.0
+#: Attempts at one door before the brief prefers another on the same
+#: host, if there is one (D91).
+DOOR_PATIENCE = 3
+#: Ticks at red or worse before the response arrives (D92).
+RESPONSE_AFTER = 6
 #: Trace added per tick before any modifier. Deliberately small: most of the
 #: pressure should come from what the player does, not from the clock alone.
 TRACE_PER_TICK = 1.1
@@ -173,6 +178,14 @@ class RunState:
     #: The construct that hit you last, this tick, and the one that cut
     #: you loose, if one did (D89). The city keeps the second.
     last_hit_by: str = ''
+    #: And the last one that struck you at any point tonight: when the
+    #: trace fills, that is what had you (D91). Four severs in five were
+    #: the trace and recorded nobody.
+    last_struck_by: str = ''
+    #: Ticks the room has been red or worse, and whether the response has
+    #: arrived yet (D92).
+    red_ticks: int = 0
+    responded: bool = False
     severed_by: str = ''
     #: Whether the construct with your name on it died tonight.
     grudge_killed: bool = False
@@ -290,6 +303,10 @@ class RunState:
     #: Hosts already scrubbed once, so the brief advises it once and does
     #: not stand there advising it against a check that keeps missing.
     scrubbed: set = field(default_factory=set)
+    #: (host, service) -> how many times a crack on it has held. Three
+    #: and the brief looks at another door first (D91): eight identical
+    #: attempts at amber were a long shot become a way of life.
+    failed: dict = field(default_factory=dict)
     #: (verb, host) pairs a technique has already been tried on. The brief
     #: offers a technique as an opening move, once; if the check misses,
     #: the ordinary advice takes over rather than standing there repeating
@@ -616,7 +633,13 @@ class RunState:
                 self.tick_bank += 1.0
                 real += 1
         if real <= 0:
-            self.console.say('[dim]Quick. That one cost nothing.[/]')
+            # Two free-action lines read as one mechanism with two moods
+            # (D90). This one is the clock running slow for you: chrome or
+            # a condition that makes your ticks cheaper, banked until a
+            # whole one is owed. Tempo's line is the other.
+            self.console.say('[dim]Quick. That one cost nothing: your ticks '
+                             'run short of the clock, and the bank just '
+                             'paid one.[/]')
             return
         self.acted_this_tick = 0
         for _ in range(real):
@@ -678,6 +701,7 @@ class RunState:
                     self.bracing_with = ''
             self._ice_tick()
             self._incident_tick()
+            self._response_tick()
             self._surveil_tick()
             self._root_tick()
             self._decay_noise()
@@ -1086,6 +1110,53 @@ class RunState:
                 self.console.say('[dim]There was nothing in here to find '
                                  'you. This time.[/]')
 
+    def _response_tick(self) -> None:
+        """Something is dispatched (D92).
+
+        Escalation was a trace multiplier and nothing else: three runs sat
+        at red for sixteen ticks on a route whose only live constructs
+        were sentries, and the only thing that ever ended a night was the
+        clock. So a room that stays red long enough gets a hunter, from
+        the faction's own pool, on the host you are standing on, awake,
+        with a tell. Once a run. Only from factions that field hunters,
+        which is doctrine (D63 b): a gang phone tree has nobody to send.
+        Counts loud ticks: a watch that goes quiet at red and waits it
+        out is doing the right thing and is not punished for it.
+        """
+        if self.alert not in ('red', 'lockdown'):
+            self.red_ticks = 0
+            return
+        # Loud ticks only: going quiet at red is the answer the brief
+        # gives, and the response is for people who keep working under
+        # it, not for people waiting it out.
+        if self.noisy_tick:
+            self.red_ticks += 1
+        if self.responded or self.red_ticks < RESPONSE_AFTER:
+            return
+        pool = ice_content.available('hunter', self.net.faction)
+        if not pool:
+            return
+        self.responded = True
+        it = self.rng.pick(pool)
+        lo, hi = it.rating
+        scale = self.net.posture / 50.0
+        fac = fac_content.BY_KEY.get(self.net.faction)
+        density = fac.style.get('density', 1.0) if fac else 1.0
+        rating = max(2, int(round(self.rng.int(lo, hi) * (0.75 + 0.5 * scale)
+                                  * density)))
+        construct = IceInstance(uid=f'{it.key}-sent', key=it.key,
+                                rating=rating, state='awake', known=True)
+        self.node.ice.append(construct)
+        self.console.blank()
+        self.console.say(f'[ice]Something has been dispatched. It is not '
+                         f'looking for the noise any more; it is looking '
+                         f'for you.[/]')
+        self.console.say(f'[dim]{it.name}, {it.behaviour}, rating {rating}, '
+                         f'on {self.here}. `connect` off this host, `strike` '
+                         f'it, or `mask`: it acts the tick after it '
+                         f'tells.[/]')
+        self.log(f'response: {it.name}')
+
     def _incident_tick(self) -> None:
         """Something the network does on its own clock (D77).
 
@@ -1223,9 +1294,9 @@ class RunState:
                              source=it.name.lower())
         if it.hook:
             self.hook = it.hook
+            self.console.say(f'[warn]{incident_content.HOOKS[it.hook]}.[/]')
         if it.key == 'company':
             self._company()
-            self.console.say(f'[warn]{incident_content.HOOKS[it.hook]}.[/]')
 
     def _incident_reveal(self, what: str) -> None:
         """A gift of information, which is the cheapest thing a network can
@@ -1393,7 +1464,10 @@ class RunState:
         if construct.grudge and f'grudge:{construct.uid}' not in self.spent:
             self.spent.add(f'grudge:{construct.uid}')
             fac = fac_content.BY_KEY.get(self.net.faction)
-            self.console.say(f'[err]You know this one. It put you out of a '
+            did = ('put you out of' if data.behaviour in ('hunter', 'black',
+                                                          'herder', 'trap')
+                   else 'filed you out of')
+            self.console.say(f'[err]You know this one. It {did} a '
                              f'{fac.short if fac else "their"} network, and '
                              f'it has been running since.[/]')
         if 'first_tell' not in self.spent and data.behaviour != 'black':
@@ -1430,6 +1504,7 @@ class RunState:
         self.log(f'strike: {data.name}')
         construct.known = True
         self.last_hit_by = construct.key
+        self.last_struck_by = construct.key
 
         # A construct that declares `alert_jump` escalates by that much
         # rather than by the generic one. Three of them declared it and were
@@ -1541,13 +1616,13 @@ class RunState:
             evade.resolve(self.rng)
             if evade.success:
                 self.console.say(f'[ok]It closes on where you were.[/] '
-                                 f'[dim]{evade.summary()}[/]')
+                                 f'[dim]its cover: {evade.summary()}[/]')
                 construct.telegraphed = False
                 self.log(f'evaded: {data.name}')
                 return
             if construct.uid not in self.evaded:
                 self.evaded.add(construct.uid)
-                self.console.say(f'[dim]{evade.summary()}[/]')
+                self.console.say(f'[dim]its cover: {evade.summary()}[/]')
             self.locked.append(construct)
             construct.state = 'locked'
         self.add_trace(data.trace)
@@ -1833,7 +1908,7 @@ class RunState:
             return
         self.outcome = outcome
         if outcome == 'severed':
-            self.severed_by = self.last_hit_by
+            self.severed_by = self.last_hit_by or self.last_struck_by
         self.char.hurt = min(self.char.integrity_max - 1,
                              self.char.hurt + self.hurt)
 
@@ -1905,6 +1980,7 @@ class RunState:
         # ninety it went on saying `wait` and `crack`, one long shot at a
         # time, until the connection was cut. This reads the clock once,
         # for the whole of what is left to do.
+        over = ''
         if steps and steps[0] != 'jack out' and not self.objective_met():
             over = self.night_over(kind, target, found)
             if over:
@@ -1931,7 +2007,8 @@ class RunState:
             self.spent.add('braced')
             steps = ('brace',) + steps
         # Why there is nothing to try, when there is nothing to try (D67).
-        if steps == ('jack out',) and not self.objective_met():
+        # Not when the clock has already said why (D91).
+        if steps == ('jack out',) and not self.objective_met() and not over:
             why = self._hopeless_where()
             if why:
                 where = f'{where} {why}'.strip()
@@ -1955,8 +2032,10 @@ class RunState:
                 check = push_check(self, kind, payload)
                 if check.impossible:
                     blocked = f'the {kind} will not take: {check.summary()}'
-            elif verb == 'pull' and asset and asset[1].encrypted \
-                    and not asset[1].taken and decrypt_check(self).impossible:
+            elif (verb == 'pull' and asset and asset[1].encrypted
+                    and not asset[1].taken
+                    and (decrypt_check(self).impossible
+                         or ('pull', asset[1].uid) in self.tried)):
                 steps = (f'pull {asset[1].uid} --sealed',)
                 where = (where + ' You cannot open it tonight; take it '
                          'shut for part of the fee.').strip()
@@ -2178,7 +2257,17 @@ class RunState:
         # more of the same one.
         warden = next((i for i in hop.live_ice
                        if i.behaviour == 'warden' and i.known), None)
-        if warden is not None and self.credential_challenge(warden) is not None:
+        if warden is not None:
+            challenge = self.credential_challenge(warden)
+            if challenge is None:
+                return self._nothing_left()
+            # Once, and only at odds worth the escalation a refusal costs
+            # (D90). A story player's follower typed `connect tooth
+            # --present` twelve times running, each refusal stepping the
+            # alert, because nothing remembered the last one.
+            if (('present', hop.uid) in self.tried
+                    or challenge.chance < self.hopeless):
+                return self._nothing_left()
             return (f'connect {step} --present',)
         return (f'connect {step}',)
 
@@ -2204,6 +2293,19 @@ class RunState:
                     f'the Warfare to drive it is the difference. This one '
                     f'is not tonight.')
         blocked, hop = self._blocked_by_warden()
+        if blocked is None:
+            # A warden that has already refused you is routed around, so
+            # the route no longer names it; the refusal is still the
+            # reason there is nothing to try (D90).
+            for uid in self.node.edges:
+                near = self.net.node(uid)
+                if near is None or ('present', uid) not in self.tried:
+                    continue
+                warden = next((c for c in near.ice if c.behaviour == 'warden'
+                               and c.alive), None)
+                if warden is not None:
+                    blocked, hop = warden, near
+                    break
         if blocked is not None and hop is not None:
             # It said "nothing opens for what you are carrying: the best
             # of it is 100% on badge reader" about a door that was open
@@ -2216,6 +2318,11 @@ class RunState:
                 return (f'{blocked.data.name} holds {hop.uid} and takes no '
                         f'credentials at all. {", or ".join(ways)}, or '
                         f'another way in: `map` shows whether there is one.')
+            if ('present', hop.uid) in self.tried:
+                return (f'{blocked.data.name} refused what you showed it, '
+                        f'and showing it again steps the alert every time. '
+                        f'{", or ".join(ways)}, or another way in: `map` '
+                        f'shows whether there is one.')
             if challenge.impossible:
                 return (f'{blocked.data.name} holds {hop.uid} and would not '
                         f'take anything you carry: {challenge.explain()}. A '
@@ -2279,6 +2386,14 @@ class RunState:
             finally:
                 self._salvaging = False
             return () if toward == ('jack out',) else toward
+        if asset.encrypted:
+            # Thirty `pull`s at a sealed record, each a tick, each "stays
+            # sealed" (D91). Take it shut once it has refused, or when it
+            # never could open.
+            from ..commands.run import decrypt_check
+            if (('pull', asset.uid) in self.tried
+                    or decrypt_check(self).impossible):
+                return (f'pull {asset.uid} --sealed',)
         return (f'pull {asset.uid}',)
 
     def _nothing_left(self) -> tuple[str, ...]:
@@ -2369,9 +2484,12 @@ class RunState:
         identical attempts and a filled trace.
         """
         best, best_chance = '', 0.0
-        for svc in node.services:
-            if svc.cracked:
-                continue
+        tired = {s.key for s in node.services
+                 if self.failed.get((node.uid, s.key), 0) >= DOOR_PATIENCE}
+        shut = [s for s in node.services if not s.cracked]
+        if len(tired) < len(shut):
+            shut = [s for s in shut if s.key not in tired]
+        for svc in shut:
             _, category = node_content.FAMILIES[svc.family]
             program = programs.best(self.char.deck.loaded, category)
             chance = crack_check(self, node, svc, program).chance
@@ -2518,10 +2636,24 @@ class RunState:
         makes it honest."""
         if found and target is not None and self.here != target.uid:
             route = self.route_to(target.uid)
-            hops = 0
+            hops = 0.0
             for uid in route:
                 hop = self.net.node(uid)
-                hops += 1 if (hop is not None and hop.open) else 3
+                if hop is not None and hop.open:
+                    hops += 1
+                    continue
+                # A probe, the crack at its own odds (so a one-in-three
+                # door is three attempts, not one), and the connect. The
+                # first version assumed every door opened first time and
+                # pressed on to trace ninety on corporate work (D91).
+                odds = 0.5
+                if hop is not None and hop.mapped:
+                    way = self._easiest(hop)
+                    if way:
+                        svc = next(s for s in hop.services if s.key == way)
+                        odds = max(0.1, self._odds_for(hop, svc))
+                hops += 1 + 1.0 / odds + 1
+            hops = int(round(hops))
         elif found and target is not None:
             hops = 0
         else:
@@ -2553,6 +2685,11 @@ class RunState:
         working, quiet = self.ticks_needed(kind, target, found)
         need = working * noisy_rate + quiet * quiet_rate
         left = max(0.0, TRACE_MAX - self.trace)
+        if self.alert in ('red', 'lockdown'):
+            # One working tick of margin: at two and a half times, the exit
+            # fired a tick or two before the sever five times running,
+            # which is a margin of nothing (D91).
+            left = max(0.0, left - noisy_rate)
         if need <= left * 1.15:
             return ''
         ticks = int(left / noisy_rate)
@@ -2690,8 +2827,10 @@ class RunState:
             # challenge nobody could pass is the same wall with a politer sign
             # on it. Anything in between is a long shot, and a long shot is a
             # decision the player gets to make with the odds in front of them
-            # rather than one the advice makes for them.
-            if challenge is None or challenge.impossible:
+            # rather than one the advice makes for them. One it has already
+            # refused is a wall too, for the route's purposes (D90).
+            if (challenge is None or challenge.impossible
+                    or ('present', node.uid) in self.tried):
                 return True
         return node.mapped and not node.open and not self._easiest(node)
 

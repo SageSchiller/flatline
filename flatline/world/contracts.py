@@ -122,6 +122,32 @@ def objective_power(char, kind: str) -> int:
     return power + int(best)
 
 
+#: The difficulty of the sort of service a vault runs, which is what the
+#: job is behind. See `nodes.SERVICES`: keystore 5-7, sign 5-8, cipher 4-7.
+VAULT_SERVICE = 5.5
+#: Below this chance of a vault door the board reads it as shut, and a
+#: rung for a young runner is not a rung (D91).
+DOOR_TIGHT = 0.35
+
+
+def door_odds(char, posture: int) -> float:
+    """The chance of one vault-grade door, with what is loaded. The
+    board's reads column, and the rung the board keeps for a young
+    runner, price the same door."""
+    from ..content import programs as program_content
+    from ..run.checks import DIE, OFFSET
+    difficulty = max(1, round(VAULT_SERVICE * (0.45 + 0.78 * posture / 50.0)))
+    breaker = program_content.best(char.deck.loaded, 'breaker')
+    rank = char.skill('intrusion')
+    power = rank * 2 + char.attr('logic') + char.bonus('crack_bonus')
+    if breaker:
+        power += program_content.held(breaker, rank) * 2
+    else:
+        power -= 6
+    need = difficulty * 2 + OFFSET - power
+    return max(0.0, min(1.0, (DIE - need + 1) / DIE))
+
+
 def objective_ready(char, kind: str, posture: int) -> bool:
     """Whether this is a job they could go and do tonight.
 

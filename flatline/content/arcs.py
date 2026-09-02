@@ -270,7 +270,7 @@ DISTRICT_THREADS: tuple[Thread, ...] = (
                   'They are well. They look well. That is the product.\n\n'
                   'The second time you pass, the same window, the same '
                   'finger. Once.',
-                  requires=('met:vance',),
+                  after=2, requires=('met:vance',),
                   any_of=('runs:4', 'vance_ask', 'drawer_clinic'),
                   sets=('ward_glass',),
                   where='green'),

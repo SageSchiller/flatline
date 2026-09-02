@@ -476,6 +476,8 @@ def generate(rng: Stream, faction: str, posture: int,
 
     # -- objective ---------------------------------------------------------
     _place_objective(rng, net, objective, size_mod, posture)
+    if objective == 'surveil':
+        _clear_chair(net)
     _ensure_ladder(rng, net, scale)
     _openable_route(rng, net, scale)
     _populate_route(rng, net, scale, faction, objective)
@@ -483,6 +485,34 @@ def generate(rng: Stream, faction: str, posture: int,
         _place_grudge(net, grudge, scale, faction, objective)
     _signature(rng, net, fac)
     return net
+
+
+def _clear_chair(net: Network) -> None:
+    """Nothing rolled sits on a watch's chair (D91).
+
+    D72 kept the route's added constructs off the objective host of a
+    surveil job, because eight clean ticks under something awake is
+    arithmetic and not difficulty. The ones rolled per host could still
+    land there, and did: three first-timers in two waves burned the same
+    watch three nights running on a Watchman that woke on the chair. The
+    construct is not removed. It moves one hop out, to the emptiest
+    neighbour, so the danger is on the way in, where D72 put it. No
+    random draws.
+    """
+    objective = net.objective_node
+    if not objective or objective not in net.nodes:
+        return
+    chair = net.nodes[objective]
+    if not chair.ice:
+        return
+    neighbours = [net.nodes[u] for u in chair.edges
+                  if u in net.nodes and u != net.entry]
+    if not neighbours:
+        return
+    for construct in list(chair.ice):
+        target = min(neighbours, key=lambda n: (len(n.ice), n.uid))
+        target.ice.append(construct)
+    chair.ice = []
 
 
 def _place_grudge(net: Network, key: str, scale: float, faction: str,

@@ -175,7 +175,17 @@ def _now_city(sess):
                                    f'reads the one above'))
         also = ['look', 'errands', 'market', 'map', 'char', 'help']
     else:
-        steps.extend(city_cmds.city_steps(game)[:2])
+        all_steps = city_cmds.city_steps(game)
+        steps.extend(all_steps[:2])
+        # The step that actually goes (the walk, `jack in`, or the rest a
+        # sever imposes) is never cut, for the same reason the job itself
+        # is not (D91): `choose`, `unload` and `train` filled the two
+        # lines and `now` stopped saying `jack in` on a job you held.
+        go = next(((cmd, why) for cmd, why in all_steps
+                   if cmd.split()[0] in ('jack', 'walk', 'travel', 'rest',
+                                         'drop')), None)
+        if go is not None and go not in steps:
+            steps.append(go)
         also = ['job', 'map', 'deck', 'market', 'errands', 'look', 'help']
     # `city_steps` opens with the same advice when the budget is unspent,
     # and a list that says `spend` twice reads as two different things to
@@ -228,8 +238,9 @@ def _story_nudge(sess) -> list[tuple[str, str]]:
     if here:
         thread = thread_content.BY_KEY[here[0]]
         return [('look', f'{thread.name} is waiting on somebody who is '
-                         f'standing in this street')]
-    away = story.waiting_elsewhere(game)
+                         f'in this street at this hour')]
+    away = [(t, w) for t, w in story.waiting_elsewhere(game)
+            if not city_cmds._hunted_on_route(game, w)[0]]
     if away:
         thread_key, where = away[0]
         thread = thread_content.BY_KEY[thread_key]
@@ -681,10 +692,6 @@ def suggest(char) -> list[tuple[str, str]]:
         ranks[key] += 1
         plan.append(('train', key))
 
-    for key in origin.skills:
-        while ranks[key] < 2 and price(key) is not None and price(key) <= xp:
-            train(key)
-
     # The rank that drives the breaker in the kit (D87). A program runs at
     # its rating only up to the skill plus two, so a protege's rating-three
     # Sable on Intrusion 0 is a rating-two program that costs twice the
@@ -694,10 +701,19 @@ def suggest(char) -> list[tuple[str, str]]:
     breaker = program_content.best(list(char.deck.loaded) + list(char.library),
                                    'breaker')
     if breaker is not None:
-        want = breaker.rating - program_content.HELD_ABOVE
+        # And at least one rank of it whatever the breaker (D91): a
+        # courier at Intrusion 0 and Logic 1 read every row of the board
+        # as shut, and the plan had put the twelve experience into three
+        # street skills.
+        want = max(1, breaker.rating - program_content.HELD_ABOVE)
         while (ranks['intrusion'] < want and price('intrusion') is not None
                and price('intrusion') <= xp):
             train('intrusion')
+
+
+    for key in origin.skills:
+        while ranks[key] < 2 and price(key) is not None and price(key) <= xp:
+            train(key)
 
     governed = [s for s in skill_content.SKILLS
                 if s.key in origin.skills or weights.get(s.attr, 0) > 1]

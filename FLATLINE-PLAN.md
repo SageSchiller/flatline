@@ -12,7 +12,7 @@ updated: 2026-09-01
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-09-01.** D86 to D89 landed in one session, from three play-tests run in parallel with three different briefs (a first-timer who does what `now` says, an explorer who ignores it, and a run specialist who types every verb by hand). What they found, in order of size: the story layer was gated on meeting people and nothing ever said to meet anyone, and forty-two scenes declared a district that nothing read; the advice could recommend the same severed run five nights running and never once name Intrusion; a credential warden was an unanswerable wall for the Chromed origin and the board could not see it; and D6's severed-connection cooldown had never been implemented. All fixed, with `test_people_are_the_story`, `test_night_before`, `test_wall_and_clock` and `test_remembered_inside` holding them. Two things were added rather than fixed: the construct that cut you loose is on the route next time, awake and named, and the other runners can turn up inside a network with consequences that read their opinion of you. `validate.py` clean, `test.py` green at **16,843 checks**. The next thing worth doing is another round of the same method: play it three ways and fix what the players say, because every one of the fourteen decisions since D75 came out of somebody playing rather than somebody guessing.
+> **State as of 2026-09-01.** D86 to D89 landed in one session, from three play-tests run in parallel with three different briefs (a first-timer who does what `now` says, an explorer who ignores it, and a run specialist who types every verb by hand). What they found, in order of size: the story layer was gated on meeting people and nothing ever said to meet anyone, and forty-two scenes declared a district that nothing read; the advice could recommend the same severed run five nights running and never once name Intrusion; a credential warden was an unanswerable wall for the Chromed origin and the board could not see it; and D6's severed-connection cooldown had never been implemented. All fixed, with `test_people_are_the_story`, `test_night_before`, `test_wall_and_clock` and `test_remembered_inside` holding them. Two things were added rather than fixed: the construct that cut you loose is on the route next time, awake and named, and the other runners can turn up inside a network with consequences that read their opinion of you. `validate.py` clean, `test.py` green at **16,901 checks** (D90 to D92 followed on 2026-09-02, from a second wave of the same method). The next thing worth doing is another round of the same method: play it three ways and fix what the players say, because every one of the fourteen decisions since D75 came out of somebody playing rather than somebody guessing.
 >
 > **State as of 2026-08-21, end of the long session.** **Phases 0 through 5 are done, D17's finish line is passed, Phase 7 is closed, and D63 to D65 are the deep work.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **15,311 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone. **D63, the mechanics deep dive** in six parts: every declared number and rider has a reader (`check_reads`); the intrusion layer's holes closed (`mask` decays, sealed records, armour wears, faction style knobs, soft wardens); the catalogue readable (`inspect`, a bare `load`, `fit`, passives once per kind, program riders, six mid-tier parts); the vices capped (Threes, collections, hook-4 warnings); twenty-four relics with histories; and programs held to skill rank plus two. **D64, the play test**: networks in six shapes by doctrine with the brief reading the sums; the city grown to twelve districts (the Stacks, Meridian Row, the Hall) with people, places, threads, events and relics; and the advice made into a chain that ends in a run, with seven dead ends closed and `test_advice` to keep them closed. **D65, the street is real**: encounters in four tiers answered by run, talk, pay or stand with printed checks; warning-then-lethal under the black-ICE contract; two street skills; `errands` (courier, watch, collect, escort); `arrange` to pay a faction for their streets; and the whole of it hooked into travel, rest and the close-call band. Before those, on the same day: D50 to D62, the onboarding layer, decisions that are read, the Deepwater spine, the city deeper, voices and hours, district arcs, the rival bond, the drawn map, the HUD, the tutorial's second half, run conditions, and the rest of the Phase 7 list.
 >
@@ -3114,6 +3114,150 @@ warms them, tipping the room cools them.
 Both live entirely in systems that already existed. Neither adds a number
 a player cannot read.
 
+### D90: The second look
+
+The first three play-tests left a list of things that were not bugs so
+much as questions nobody had answered, and the second wave (the same
+method, on the committed build) found one more loop before the session
+limit cut all three of them off mid-career. In order of size:
+
+**The present loop.** The brief advised `connect <host> --present` at a
+warden whenever the warden took credentials, with no memory of having
+been refused and no floor on the odds, and every refusal steps the alert.
+A story player's follower typed it twelve times on one host. Now it is
+advised once per warden, only at odds above the brief's own long-shot
+line, a refusal is remembered (`tried`), a refused warden is routed
+around like an impossible one, and `_hopeless_where` names the refusal
+as the reason when it is.
+
+**A list of people.** The map said twenty-nine people were worth finding
+and nothing listed them. `people` is the ones you have met, with the
+district they keep to and their hours, and the rest counted by district
+and never named, because meeting somebody is `look`'s moment and a name
+in a table is not a meeting.
+
+**Places that told the truth about who was not there.** A spot said "not
+here at this hour, afternoons and nights" and then, in the afternoon,
+"not here at the moment", which read as the place lying. The second case
+was somebody who has not heard of you yet, and now it says so.
+
+**Variety in the recommender.** The softest job on a gang board is a
+watch, always, so a first-timer was sent on three surveils running while
+the Siphon the advice told them to buy sat unused for ten runs. Two of a
+kind in a row is now a lean against a third, and a job the payload you
+own was built for is a lean toward it.
+
+**Smaller.** The bench says where scrap comes from (`salvage`), which
+nothing did. The safehouse screen shows the whole ladder from anywhere,
+so a player in Marrow no longer concludes the cheapest room in the city
+is nine thousand eight hundred when a floor cavity two districts away is
+a third of that. The second free-action line says what it is (your ticks
+running short of the clock, banked) so it stops reading as Tempo in a
+different mood. The README's counts caught up.
+
+### D91: The second wave
+
+The three second-wave testers, resumed after the limit: a first-timer
+(courier), a mid-game runner (burnout, cheated to a mid build), and a
+story hunter (academic). Between them, twenty-eight more findings on the
+D86-D89 build. The crash first: the rival incident printed the hook line
+for a hook it does not have and fell over on every stranger and enemy,
+because the line had ended up under the wrong `if`. My own test called
+the branch directly and missed the path; it now goes through
+`_apply_incident` for all three moods.
+
+**Loops the first wave did not reach.** `pull` at a sealed record, thirty
+times in one run, from the salvage advice, which never read the seal; now
+a refused seal is remembered and taken shut. `crack` at one door eight
+times at amber; three failures and the brief prefers another door on the
+host (`DOOR_PATIENCE`). `connect --present` twelve times (D90). The
+"softest thing on the board" said about Sendai at fifty-eight to a
+five-run academic, because softest is a comparison: the recommender has a
+ceiling now, thirty plus five per finished run, and a door that reads
+nought is off the list. Every row reading shut with the nudge pointing at
+Signal: the advice names Intrusion when the board reads shut, and the
+plan buys at least one rank of it.
+
+**The window that cut the wrong line, again.** `now` shows two city steps
+and `jack in` was the third when a job was held, as `take` had been
+before D86 and `drop` was behind `burn`. The step that goes (the walk,
+`jack in`, `rest`, `drop`) is never cut, and `drop` comes before `burn`.
+
+**Scenes that narrated a history you did not have.** Three stages of Lark
+in one visit; "third time you meet him" on the first. One stage per thread
+per command now, and `Stage.after`: shifts since the thread's previous
+stage, or since meeting the person it requires if it is the first, read
+from stamps the story keeps (`when`). Four stages carry it. Scenes also
+fire after the district on arrival rather than above it, and arriving
+where a scene waits is enough (the nudge said "waiting for you to be
+there" and then needed a `look`).
+
+**Honest text.** A choice that costs money you do not have shows the
+price and is refused rather than clamping to nought. The street's prompt
+reads "a lean: run, talk, stand?" rather than as four options, a verb
+with an argument at a street that offers that verb is that verb, and an
+empty line stands there whatever the option is called. A topic that opens
+a scene prints the scene rather than both. `look` in somebody's off hours
+counts the strangers who keep hours here. The talk hint stopped leaking
+`kestrel_kid`. The evade sum on a construct closing on you is labelled as
+its cover and not left to read as your strike failing. The night-over
+exit and the door reason no longer print together, and at red the exit
+keeps one working tick of margin, because five times it fired the tick
+before the sever.
+
+**Grudges that form.** Four severs in five were the trace filling with no
+construct recorded. The last thing that struck you at any point tonight
+is what the trace remembers, and the tell says "filed you out" for
+something that files and "put you out" for something that hunts. Killing
+one is worth standing with the patron.
+
+**The courier trap.** A street build spends its opening experience on
+street skills, reads every row of the board as shut at Intrusion 0, and
+had no way to earn the rank that opens a door: errands taught nothing,
+and the rung the board keeps for a young runner did not read the doors,
+so the one "startable" job was the one that had just burned them on the
+chair, re-recommended the moment it was dropped. Now the plan buys one
+rank of Intrusion whatever the origin, `door_odds` lives with the
+contracts and the rung reads it and the history (one definition of "dead
+to you", shared by the drop advice and the recommender), an errand pays
+a point of experience, and the fallback when nothing on the board is
+yours names an errand or a rest rather than listing errands for ever.
+Measured on the courier that found it: errand, one rank, a bought Sable,
+then three clean nights.
+
+**The chair is clear.** D72 kept the route's added constructs off a
+watch's chair and left the ones rolled per host where they fell, and
+three first-timers across two waves burned the same watch three nights
+running on a Watchman that woke on the chair. A rolled construct on a
+surveil objective now moves one hop out, to the emptiest neighbour, so
+the danger is on the way in, where D72 put it. No random draws, so every
+other network is the network it was; surveil parity holds at nine of
+sixteen.
+
+**The loadout plan reads the build.** A Warfare build carries its
+weapon; a mask earns its slot against the softest thing on the board when
+no job is held, not against nothing; and memory is reserved for the
+payload the advice is about to say buy, so two steps are not undone
+across a purchase.
+
+### D92: The response arrives
+
+Escalation was a trace multiplier and nothing else. The mid-game tester
+sat at red for sixteen ticks on a route whose only live constructs were
+sentries and a snare, and the only thing that ever ended a night was the
+clock; and because nothing ever struck, nothing was remembered.
+
+Now a room that stays red long enough gets a hunter: after six loud ticks
+at red or worse, one from the faction's own pool arrives on the host you
+are standing on, awake, named, with a tell, once a run. Loud ticks only,
+so a watch that goes quiet at red and waits it out (the brief's own
+advice) is not punished for it; the response is for people who keep
+working under a red room, which is the loop every tester called dull.
+Only from factions that field hunters, which is doctrine (D63 b): a gang
+phone tree has nobody to send. The first version counted quiet ticks too
+and took surveil parity from nine to one in sixteen, which is the
+measurement that produced the rule.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -4490,3 +4634,24 @@ that cut you loose is on the route next time, awake and named, and the
 other runners can turn up inside a network with what it means decided by
 their opinion of you. Four new suites. `validate.py` clean, `test.py`
 green at **16,843 checks**.
+
+### 2026-09-02 (a): the second look
+
+D90. The three second-wave testers were cut off by the session limit
+before they could report, but one had already reproduced a loop the first
+wave missed: `connect --present` advised twelve times at one warden, each
+refusal stepping the alert. Fixed with memory and a floor on the odds.
+Plus the cheap answers to the first wave's open list: `people`, honest
+presence text, variety in the recommender, the scrap hint, the safehouse
+ladder, the free-action line. `test_second_look`.
+
+### 2026-09-02 (b): the second wave, and the response
+
+D91 and D92. The resumed testers: a crash in the rival incident (the hook
+line under the wrong `if`), two more advice loops (a sealed record, one
+door), the recommender with no ceiling, `now` cutting the go step, scenes
+narrating a history you did not have (`Stage.after`, one per thread per
+command), grudges that never formed, and a loadout plan that evicted a
+striker's weapon. Then the response: six loud ticks at red and a hunter
+arrives. `test_second_wave`. `validate.py` clean, `test.py` green at
+**16,901 checks**.

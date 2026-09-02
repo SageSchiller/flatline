@@ -145,7 +145,8 @@ def cmd_jack_in(sess, args) -> None:
                  if contract.objective in p.jobs]
         if (loaded and loaded.jobs and contract.objective not in loaded.jobs
                 and built):
-            c.say(f'[warn]{loaded.name} is not built for a '
+            c.say(f'[warn]{loaded.name} is not built for '
+                  f'{"an" if contract.objective[0] in "aeiou" else "a"} '
                   f'{contract.objective}.[/] [dim]It will do it, badly: '
                   f'{IMPROVISED_PENALTY:+d} on the check and louder on the '
                   f'pull. {", ".join(p.name for p in built)} is the tool for '
@@ -379,6 +380,9 @@ def cmd_jack_out(sess, args) -> None:
 
 #: Shifts a severed connection keeps you out of the chair (D6, D88).
 SEVER_COOLDOWN = 2
+#: Standing with the patron for killing the construct that had your name
+#: on it (D91): it is a story they tell.
+GRUDGE_KILL_REP = 4
 #: How many finished titles the board declines to re-use straight away.
 DONE_TITLES = 8
 
@@ -479,6 +483,11 @@ def _resolve(sess) -> None:
         game.city.grudges.pop(summary['faction'], None)
         c.say(f'[dim]{fac_content.BY_KEY[summary["faction"]].short} will '
               f'build another. They will not build that one.[/]')
+        paying = game.city.current
+        if paying is not None:
+            game.alias.adjust_rep(paying.patron, GRUDGE_KILL_REP)
+            c.say(f'[ok]Somebody paid to hear about it: {GRUDGE_KILL_REP} '
+                  f'standing with {paying.patron_data.short}.[/]')
     company = summary.get('company')
     if company:
         rival = game.city.rival(company.get('key', ''))
@@ -537,6 +546,17 @@ def _resolve(sess) -> None:
                         and (state.here == state.net.objective_node
                              or (state.net.node(state.net.objective_node)
                                  or state.node).open)),
+        # A watch or an edit that ended on the chair under a red room or
+        # something awake: the same network next time is the same chair,
+        # so one of these is enough to know (D91).
+        'chair': bool(state.net.objective_node
+                      and state.here == state.net.objective_node
+                      and not summary.get('objective')
+                      and (contract.objective if contract else '')
+                      in ('surveil', 'corrupt')
+                      and (summary['alert'] in ('red', 'lockdown')
+                           or any(c.alive and c.state != 'dormant'
+                                  for c in state.node.ice))),
     }
     game.history.append(record)
     if contract is not None:
@@ -1031,7 +1051,11 @@ def cmd_connect(sess, args) -> None:
             c.blank()
             c.err(f'{warden.data.name} does not accept it.')
             c.say(challenge.explain())
+            state.tried.add(('present', uid))
             state.escalate(1, 'A credential was presented and refused.')
+            c.say('[dim]It will not read the same thing twice, and every '
+                  'refusal steps the alert. Another way in, or `pivot` at '
+                  'Intrusion 4.[/]')
             return
         c.blank()
         c.ok(f'{warden.data.name} reads what you are carrying and stands '
@@ -1129,6 +1153,8 @@ def cmd_crack(sess, args) -> None:
     else:
         c.err(f'{svc.data.name} holds.')
         state.last_failure = (node.uid, svc.key)
+        state.failed[(node.uid, svc.key)] = \
+            state.failed.get((node.uid, svc.key), 0) + 1
         c.say(check.explain())
         culprit = check.culprit()
         if culprit and culprit.value < 0:
@@ -1183,7 +1209,14 @@ def _crack_chain(sess, args) -> None:
             raise CommandError('name two different services, or none and I '
                                'will take the two easiest')
     else:
-        picked = sorted(closed, key=lambda s: s.difficulty)[:2]
+        # By the odds the sum gives, not the declared difficulty: a
+        # rating-two badge reader on Hardware 0 and a roster with no
+        # forger loaded were "the two easiest" and both hopeless (D91).
+        def chance(svc) -> float:
+            _, category = node_content.FAMILIES[svc.family]
+            program = programs.best(state.char.deck.loaded, category)
+            return crack_check(state, node, svc, program).chance
+        picked = sorted(closed, key=lambda s: (-chance(s), s.difficulty))[:2]
 
     quiet = args.has('quiet')
     checks = []
@@ -1458,6 +1491,7 @@ def cmd_pull(sess, args) -> None:
             if not check.success:
                 c.err(f'{asset.name} is sealed and stays sealed.')
                 c.say(check.explain())
+                state.tried.add(('pull', asset.uid))
                 c.say(f'[dim]`pull {asset.uid} --sealed` takes it shut, for '
                       f'{session_mod.SEALED_HAUL:.0%} of nominal'
                       + (f' and {session_mod.SEALED_SHARE:.0%} of the fee'
@@ -1823,7 +1857,7 @@ def cmd_observe(sess, args) -> None:
     if state.observed_enough:
         return
     left = max(0, state.SURVEIL_TICKS - state.observed)
-    if state.observed == before:
+    if state.observed <= before:
         # A tick mark on a tick that banked nothing read as progress
         # (D88). Red empties the count and a free action spends no tick.
         if state.alert in ('red', 'lockdown'):

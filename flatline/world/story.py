@@ -42,18 +42,25 @@ class Story:
     #: NPC key -> the shift you last got a job out of them, so a person is a
     #: relationship rather than a vending machine for contracts.
     asked: dict = field(default_factory=dict)
+    #: When things happened, as shifts: `thread:<key>` for the last stage
+    #: of a thread reached, `met:<npc>` for a meeting (D91). Read by
+    #: `Stage.after`, so a scene that says "the second time" waits for a
+    #: second time.
+    when: dict = field(default_factory=dict)
 
     # ------------------------------------------------------------------
 
     def has(self, flag: str) -> bool:
         return flag in self.flags
 
-    def meet(self, key: str) -> bool:
+    def meet(self, key: str, shift: int | None = None) -> bool:
         """Record a first meeting. True if it was in fact the first."""
         if key in self.met:
             return False
         self.met.add(key)
         self.flags.add(f'met:{key}')
+        if shift is not None:
+            self.when[f'met:{key}'] = int(shift)
         return True
 
     def stage_done(self, thread: str, stage: str) -> bool:
@@ -79,7 +86,7 @@ class Story:
         if kind == 'ran':
             return f'ran:{value}' in self.flags
         if kind in ('did', 'bond', 'found', 'street', 'warned', 'heard',
-                    'asked'):
+                    'asked', 'visited'):
             # A posting finished, a runner decided about you, or a relic
             # found (D63 e). The flag carries its own colons, so it is
             # matched whole rather than parsed.
@@ -189,8 +196,27 @@ class Story:
                 # with a gate's name, which is this project's oldest bug.
                 if stage.where and game.city.where != stage.where:
                     continue
+                if not self._old_enough(thread, stage, game):
+                    continue
                 out.append((thread.key, stage))
         return out
+
+    def _old_enough(self, thread, stage, game) -> bool:
+        """`Stage.after` (D91): shifts since the thread's previous stage,
+        or since meeting the person it requires when it is the first. A
+        save from before the stamps existed has nothing to measure from
+        and is not held back."""
+        if not stage.after:
+            return True
+        if self.reached.get(thread.key):
+            base = self.when.get(f'thread:{thread.key}')
+        else:
+            met = next((r[4:] for r in stage.requires if r.startswith('met:')),
+                       None)
+            base = self.when.get(f'met:{met}') if met else None
+        if base is None:
+            return True
+        return game.city.shift - int(base) >= stage.after
 
     def waiting_elsewhere(self, game) -> list[tuple[str, str]]:
         """Scenes that would fire the moment you stood in the right
@@ -238,10 +264,13 @@ class Story:
                 break
         return out
 
-    def reach(self, thread_key: str, stage: thread_content.Stage) -> None:
+    def reach(self, thread_key: str, stage: thread_content.Stage,
+              shift: int | None = None) -> None:
         """Mark a stage as seen and apply its flags."""
         self.reached.setdefault(thread_key, []).append(stage.key)
         self.flags.update(stage.sets)
+        if shift is not None:
+            self.when[f'thread:{thread_key}'] = int(shift)
         if stage.choices:
             self.pending.append(f'{thread_key}.{stage.key}')
 
@@ -316,7 +345,8 @@ class Story:
                 'pending': list(self.pending),
                 'met': sorted(self.met),
                 'owed': {k: v for k, v in self.owed.items() if v},
-                'asked': dict(self.asked)}
+                'asked': dict(self.asked),
+                'when': {k: int(v) for k, v in self.when.items()}}
 
     @classmethod
     def from_dict(cls, d: dict) -> Story:
@@ -326,7 +356,8 @@ class Story:
                    pending=list(d.get('pending') or []),
                    met=set(d.get('met') or ()),
                    owed={k: int(v) for k, v in (d.get('owed') or {}).items()},
-                   asked={k: int(v) for k, v in (d.get('asked') or {}).items()})
+                   asked={k: int(v) for k, v in (d.get('asked') or {}).items()},
+                   when={k: int(v) for k, v in (d.get('when') or {}).items()})
 
 
 # --------------------------------------------------------------------------

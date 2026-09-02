@@ -94,11 +94,17 @@ def cmd_look(sess, args) -> None:
     away = [n for n in story_mod.present(game, game.story, any_hour=True)
             if n not in here and n.key in game.story.met]
 
+    # And the ones you have not met who keep other hours (D91): "nobody
+    # here is interested in you" at night in the Vertical, with two people
+    # who work mornings, read as an empty district.
+    later = [n for n in story_mod.present(game, game.story, any_hour=True)
+             if n not in here and n.key not in game.story.met]
     c.blank()
     if not here:
         c.say('[dim]Nobody here is interested in you, which in this district '
               'is a mercy.[/]')
         _away_line(sess, away)
+        _later_line(sess, later)
         return
     c.rule(f'{len(here)} worth talking to')
 
@@ -110,7 +116,52 @@ def cmd_look(sess, args) -> None:
     c.say('[dim]`talk <name>` to say something. `ask <name> <topic>` if you '
           'want something specific.[/]')
     _away_line(sess, away)
+    _later_line(sess, later)
     _check_story(sess)
+
+
+@command('people', 'Everybody you have met, where they keep, and how many '
+                   'you have not.',
+         group='info', contexts=('city',), usage='people',
+         detail='D90. The map says twenty-nine people are worth finding and '
+                'nothing listed them. This is the ones you have met, with '
+                'the district they keep to and their hours, and a count of '
+                'the rest by district, because the story in this city is '
+                'gated on meeting people and a list of who is left is the '
+                'honest answer to "where next". `who` is the other runners; '
+                'this is everybody else.')
+def cmd_people(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    met = [n for n in npc_content.NPCS if n.key in game.story.met]
+    unmet = [n for n in npc_content.NPCS if n.key not in game.story.met]
+    c.header('People', f'{len(met)} met, {len(unmet)} not')
+    if met:
+        rows = []
+        for n in sorted(met, key=lambda n: (n.where or '~', n.name)):
+            where = (districts.BY_KEY[n.where].name if n.where in districts.BY_KEY
+                     else 'moves around')
+            rows.append((n.name, n.epithet, where, npc_content.hours_label(n)))
+        c.table(('name', 'who', 'keeps to', 'hours'), rows,
+                roles=('accent', 'dim', 'info', 'dim'))
+    else:
+        c.say('[dim]Nobody yet. `look` around wherever you are.[/]')
+    # The rest, counted by district and never named: meeting them is the
+    # point, and a name in a list is not a meeting.
+    by_district: dict[str, int] = {}
+    for n in unmet:
+        by_district[n.where or ''] = by_district.get(n.where or '', 0) + 1
+    if by_district:
+        parts = []
+        for key, count in sorted(by_district.items(),
+                                 key=lambda kv: (-kv[1], kv[0])):
+            name = (districts.BY_KEY[key].name if key in districts.BY_KEY
+                    else 'moving around, somewhere')
+            parts.append(f'{count} in {name}' if key else
+                         f'{count} {name}')
+        c.blank()
+        c.say('[dim]Not met yet: ' + ', '.join(parts)
+              + '. Some keep hours and some want something of you first: '
+                '`look` when you are there.[/]', subsequent='  ')
 
 
 def introduce(sess, npc) -> bool:
@@ -122,12 +173,35 @@ def introduce(sess, npc) -> bool:
     in front of you, every arrival and every shift (D86).
     """
     game, c = sess.game, sess.console
-    if not game.story.meet(npc.key):
+    if not game.story.meet(npc.key, game.city.shift):
         return False
     c.raw(f'[accent2][bold]{npc.name}[/][/]  [dim]{npc.epithet}[/]')
     c.say(npc.first)
     _noticed(sess)
     return True
+
+
+def _later_line(sess, later) -> None:
+    """How many strangers keep other hours here, and which hours."""
+    if not later:
+        return
+    c = sess.console
+    hours = sorted({npc_content.hours_label(n) for n in later})
+    c.say(f'[dim]{len(later)} {"person" if len(later) == 1 else "people"} '
+          f'you have not met keep{"s" if len(later) == 1 else ""} other '
+          f'hours here: {", ".join(hours)}.[/]', subsequent='  ')
+
+
+def handle(npc) -> str:
+    """A word a player can type for somebody, for a hint. The key leaked
+    once (`ask kestrel_kid <topic>`) about somebody called Sparrow."""
+    for word in npc.name.lower().replace('.', '').split():
+        if word in ('the', 'a', 'mr', 'mrs', 'ms', 'dr', 'doctor',
+                    'councillor', 'in', 'of', 'who'):
+            continue
+        if _match(word) is npc:
+            return word
+    return npc.key
 
 
 def _away_line(sess, away) -> None:
@@ -257,6 +331,8 @@ def cmd_visit(sess, args) -> None:
                            f'lists the places.')
     c.header(spot.name, district.name)
     c.say(spots.scene_for(spot, game.city.phase))
+    # Standing somewhere is a thing a scene can wait for (D91).
+    game.story.flags.add(f'visited:{spot.key}')
     here = {n.key for n in story_mod.present(game, game.story)}
     for key in spot.who:
         npc = npc_content.BY_KEY.get(key)
@@ -264,17 +340,20 @@ def cmd_visit(sess, args) -> None:
             continue
         c.blank()
         if key in here:
-            first = game.story.meet(key)
-            if first:
-                c.raw(f'[accent2][bold]{npc.name}[/][/]  [dim]{npc.epithet}[/]')
-                c.say(npc.first)
-                _noticed(sess)
-            else:
+            if not introduce(sess, npc):
                 c.raw(f'[accent]{npc.name}[/]  [dim]{npc.epithet}[/]')
                 c.say(f'[dim]Here, as usual. `talk {npc.key}`.[/]')
         elif not npc_content.about_now(npc, game.city.phase):
             c.say(f'[dim]{npc.name} is not here at this hour. '
                   f'{npc_content.hours_label(npc).capitalize()}.[/]')
+        elif not npc_content.meets(npc, game.char, game.alias,
+                                   game.char.runs):
+            # Their hour, and still not here: they have not heard of you
+            # yet. "Not here at the moment" in the afternoon after "not
+            # here at this hour, afternoons" read as the place lying (D90).
+            c.say(f'[dim]{npc.name} is not here for you yet. People like '
+                  f'{npc.name} turn up once there is a name to turn up '
+                  f'for.[/]')
         else:
             c.say(f'[dim]{npc.name} is not here at the moment.[/]')
     _finds(sess, spot)
@@ -423,7 +502,7 @@ def cmd_talk(sess, args) -> None:
         c.blank()
         c.say('[dim]They will talk about: '
               + ', '.join(sorted(npc.topics)) + '. `ask '
-              + npc.key + ' <topic>`.[/]')
+              + handle(npc) + ' <topic>`.[/]')
     _check_story(sess)
 
 
@@ -487,11 +566,18 @@ def ask_npc(sess, args) -> bool:
     if match is None:
         raise CommandError(f'{npc.name} will talk about: '
                            + ', '.join(sorted(npc.topics)))
+    flag = f'asked:{npc.key}:{match}'
+    before = {(t, s.key) for t, s in game.story.available(game)}
+    game.story.flags.add(flag)
+    opened = [(t, s) for t, s in game.story.available(game)
+              if (t, s.key) not in before and flag in s.requires]
     c.blank()
     c.raw(f'[accent]{npc.name}[/] [dim]on {match}[/]')
-    c.blank()
-    c.say(npc.topics[match])
-    game.story.flags.add(f'asked:{npc.key}:{match}')
+    if not opened:
+        # The question is the scene when it gates one, and the topic line
+        # and the scene said the same thing twice (D91).
+        c.blank()
+        c.say(npc.topics[match])
     _check_story(sess)
     return True
 
@@ -972,7 +1058,13 @@ def cmd_choose(sess, args) -> None:
         c.rule('what you do')
         for choice in stage.choices:
             c.blank()
-            c.raw(f'  [accent]{choice.key}[/]  {choice.label}')
+            short = (-choice.credits > game.char.credits
+                     if choice.credits < 0 else False)
+            c.raw(f'  [accent]{choice.key}[/]  {choice.label}'
+                  + (f'  [dim]({-choice.credits:,}c, which you do not '
+                     f'have)[/]' if short else
+                     f'  [dim]({-choice.credits:,}c)[/]'
+                     if choice.credits < 0 else ''))
         c.blank()
         c.say('[dim]`choose <option>`. There is no going back on this one.[/]')
         return
@@ -982,6 +1074,12 @@ def cmd_choose(sess, args) -> None:
     if choice is None:
         raise CommandError('options: '
                            + ', '.join(x.key for x in stage.choices))
+    if choice.credits < 0 and game.char.credits < -choice.credits:
+        # It used to take nine thousand from five and clamp to nought,
+        # which is a story choice quietly writing itself off (D91).
+        raise CommandError(f'that costs {-choice.credits:,}c and you have '
+                           f'{game.char.credits:,}c. Another option, or '
+                           f'come back with it.')
 
     game.story.resolve(thread.key, stage.key, choice)
     game.city.news.append(f'[accent2]{thread.name}:[/] you chose '
@@ -1079,13 +1177,21 @@ def _check_story(sess) -> None:
     # anywhere ones, in thread order, for as long as there were three of
     # those.
     ready.sort(key=lambda pair: 0 if pair[1].where else 1)
-    # Three at most in one breath (D86). Five scenes back to back on a
-    # single `look` is a wall of prose, and the ones past the third keep:
-    # anything still ready fires on the next thing you do out here.
-    held = ready[SCENES_AT_ONCE:]
-    for thread_key, stage in ready[:SCENES_AT_ONCE]:
+    # Three at most in one breath (D86), and one per thread (D91): three
+    # stages of Lark across one visit narrated "the second time you see
+    # them" and "they are worse" in the same breath. Anything still ready
+    # fires on the next thing you do out here.
+    seen_threads: set = set()
+    firing, held = [], []
+    for pair in ready:
+        if len(firing) < SCENES_AT_ONCE and pair[0] not in seen_threads:
+            firing.append(pair)
+            seen_threads.add(pair[0])
+        else:
+            held.append(pair)
+    for thread_key, stage in firing:
         thread = thread_content.BY_KEY[thread_key]
-        game.story.reach(thread_key, stage)
+        game.story.reach(thread_key, stage, game.city.shift)
         # The wire carries the story too (D56): a scene is something the
         # city did, and `news` is where what the city did goes.
         game.city.news.append(f'[dim]{thread.name}:[/] {stage.headline}.')
