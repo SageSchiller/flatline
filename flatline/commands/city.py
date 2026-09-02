@@ -2117,6 +2117,17 @@ def city_steps(game) -> list[tuple[str, str]]:
                               f'mask. The trace is what ends runs up here; '
                               f'{pick.name} is '
                               f'{_shelf_price(game, pick.key):,}c here'))
+            else:
+                # Not here: the named shelf (D98) says where.
+                shelf = market_mod.shelf_for(game.city.stock, 'mask', tier=1)
+                shelf = [(k, p) for k, p in shelf if k != game.city.where]
+                if shelf:
+                    key, p = shelf[0]
+                    steps.append((game.city.walk_to(key),
+                                  f'{contract.target_data.short} run at '
+                                  f'posture {int(contract.posture)} and you '
+                                  f'carry no mask. {p.name} is on a shelf in '
+                                  f'{districts.BY_KEY[key].name} this cycle'))
     # A deck nobody repairs is not the deck you built: armour and masks
     # degrade as they work, and nothing tells you except the runs getting
     # worse.

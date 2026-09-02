@@ -10626,6 +10626,40 @@ def test_corporate_night() -> None:
     T.ok(not game.char.deck.damage.get('cpu'), '`repair all` repairs')
 
 
+
+def test_named_shelf() -> None:
+    """D98: somewhere in the city there is always a real mask and a real
+    forger, and the wire says where."""
+    T.section('the named shelf')
+    from flatline.world import market as market_mod
+    game = Game.new(Character.from_origin('gutter', 'sh'), seed=5150)
+    for shift in range(0, 48, market_mod.REFRESH):
+        game.city.shift = shift
+        told = game.city.refresh_stock(game.rng)
+        for category in ('mask', 'forger'):
+            where = market_mod.shelf_for(game.city.stock, category)
+            T.ok(where, f'shift {shift}: a tier-two {category} is on a shelf '
+                        f'somewhere')
+        T.ok(any('word on the shelves' in line for line in told),
+             f'shift {shift}: and the wire says where')
+    # The advice points at it when the local shelf has none.
+    from flatline.commands import city as city_cmd
+    game = Game.new(Character.from_origin('gutter', 'ma'), seed=5150)
+    game.char.credits = 20000
+    hard = next((c for c in game.city.board
+                 if int(c.posture) >= city_cmd.MASK_POSTURE), None)
+    if hard is not None:
+        game.city.accepted = hard.cid
+        game.city.stock[game.city.where] = [
+            l for l in game.city.stock.get(game.city.where, [])
+            if not (l.kind == 'program'
+                    and __import__('flatline.content.programs', fromlist=['x']).BY_KEY[l.key].category == 'mask')]
+        steps = city_cmd.city_steps(game)
+        T.ok(any('on a shelf in' in why for _, why in steps)
+             or any(cmd.startswith('buy') for cmd, _ in steps),
+             f'the mask advice names a shelf ({[c for c, _ in steps]})')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
@@ -10636,6 +10670,7 @@ SUITES = (
     test_people_are_the_story, test_night_before, test_wall_and_clock,
     test_remembered_inside, test_second_look, test_second_wave,
     test_the_way_in, test_more_to_say, test_the_door, test_corporate_night,
+    test_named_shelf,
     test_economy,
     test_combat,
     test_advancement,

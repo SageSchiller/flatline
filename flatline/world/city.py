@@ -275,7 +275,9 @@ class City:
                 char.chem, said = drug_content.advance(char.chem, 1)
                 told.extend(said)
             if self.shift % market_mod.REFRESH == 0:
-                self.refresh_stock(rng)
+                said = self.refresh_stock(rng)
+                if char is not None and getattr(char, 'runs', 0) >= 3:
+                    told.extend(said)
             self.ambient.extend(self._ambient(rng, satisfied))
         # Top the board back up rather than replacing it, so a contract the
         # player was saving does not vanish because a shift ticked over.
@@ -700,11 +702,43 @@ class City:
 
     # -- market --------------------------------------------------------
 
-    def refresh_stock(self, rng: Rng) -> None:
+    def refresh_stock(self, rng: Rng) -> list[str]:
         stream = rng('market')
         self.stock = {d.key: market_mod.restock(stream, d.key, self.shift)
                       for d in districts.DISTRICTS}
         self.stock_shift = self.shift
+        # The word on the street about the two shelves that decide hard
+        # work (D98). Said on the cycle, so a player who has seen the
+        # corporate wall knows where to walk.
+        told: list[str] = []
+        parts = []
+        for category in ('mask', 'forger'):
+            where = market_mod.shelf_for(self.stock, category)
+            if not where:
+                # Seven markets turning through eight categories miss one
+                # some cycles, and the two that decide hard work are not
+                # allowed to be the one missed.
+                shops = [d for d in districts.DISTRICTS
+                         if 'market' in d.services
+                         and d.max_tier >= market_mod.SHELF_TIER]
+                pool = [p for p in market_mod.programs.by_category(category)
+                        if not p.unique and p.tier == market_mod.SHELF_TIER]
+                if shops and pool:
+                    shop = shops[(self.shift // market_mod.REFRESH) % len(shops)]
+                    best = max(pool, key=lambda p: (p.rating, -p.price))
+                    self.stock.setdefault(shop.key, []).append(
+                        market_mod.Listing(
+                            kind='program', key=best.key,
+                            price=max(1, int(round(best.price
+                                                   * shop.price_mult))),
+                            stock=1))
+                    where = market_mod.shelf_for(self.stock, category)
+            if where:
+                key, p = where[0]
+                parts.append(f'{p.name} in {districts.BY_KEY[key].name}')
+        if parts:
+            told.append(f'[dim]The word on the shelves this cycle: '
+                        + ', '.join(parts) + '.[/]')
         # And then put back what people keep under their own counters, which
         # is not stock and does not turn over.
         from ..content import npcs as npc_content, offers
@@ -714,6 +748,7 @@ class City:
             if stock is None or npc is None:
                 continue
             self._shelve(stock, npc.where or self.where)
+        return told
 
     def listings(self, kind: str | None = None,
                  deep: bool | None = None) -> list[Listing]:

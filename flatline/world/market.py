@@ -47,6 +47,16 @@ HAGGLE_CAP = HAGGLE_PER_GUILE * attributes.ATTR_MAX
 #: cannot open the door the payload was for.
 STAPLES = ('payload', 'breaker')
 
+#: The named shelf (D98). Every cycle each market that can carry tier two
+#: carries the best of one category at that tier, the category turning
+#: with the cycle, so that somewhere in the city there is always a real
+#: mask, a real forger, a real weapon. Measured before this: a corporate
+#: specialist on one seed found no tier-two mask or forger on any shelf
+#: in the whole game, and ran posture ninety with a rating-three mask.
+SHELF_ROTATION = ('mask', 'forger', 'armour', 'weapon', 'wiper', 'hunter',
+                  'payload', 'breaker')
+SHELF_TIER = 2
+
 #: What each service sells.
 STOCK_KINDS = {
     'market': ('program', 'component', 'drug'),
@@ -159,6 +169,23 @@ def restock(rng: Stream, district_key: str, shift: int) -> list[Listing]:
                 price=max(1, int(round(basic.price * district.price_mult))),
                 stock=1))
 
+    # The named shelf (D98): one line of real stock per market per cycle.
+    if 'market' in district.services and district.max_tier >= SHELF_TIER:
+        markets = [d.key for d in districts.DISTRICTS
+                   if 'market' in d.services and d.max_tier >= SHELF_TIER]
+        turn = (shift // REFRESH + markets.index(district_key)) % len(SHELF_ROTATION)
+        category = SHELF_ROTATION[turn]
+        pool = [p for p in programs.by_category(category)
+                if not p.unique and SHELF_TIER <= p.tier <= district.max_tier]
+        if pool:
+            best = max(pool, key=lambda p: (p.rating, -p.price))
+            if ('program', best.key) not in seen:
+                seen.add(('program', best.key))
+                out.append(Listing(
+                    kind='program', key=best.key,
+                    price=max(1, int(round(best.price * district.price_mult))),
+                    stock=1))
+
     # The back of the clinic. Restricted chrome, at a discount, sold to people
     # the front of the clinic has stopped being able to help. Generated for
     # every clinic district regardless of the buyer, because stock is a
@@ -173,6 +200,22 @@ def restock(rng: Stream, district_key: str, shift: int) -> list[Listing]:
                                        * dissonance.DEEP_CLINIC_DISCOUNT))),
                 stock=1, deep=True))
     return out
+
+
+def shelf_for(stock: dict, category: str, tier: int = SHELF_TIER):
+    """Where the city is selling a program of this category at this tier
+    or better, right now, as [(district key, Program)] best first (D98)."""
+    found = []
+    for district_key, listings in stock.items():
+        for listing in listings:
+            if listing.kind != 'program' or listing.stock <= 0:
+                continue
+            p = programs.BY_KEY.get(listing.key)
+            if p is None or p.category != category or p.tier < tier:
+                continue
+            found.append((district_key, p))
+    found.sort(key=lambda pair: (-pair[1].rating, pair[1].price))
+    return found
 
 
 def quote(listing: Listing, district_key: str, alias, drift: int,
