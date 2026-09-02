@@ -403,12 +403,19 @@ class City:
                 continue
             if item.heat:
                 alias.add_heat(item.faction, item.heat)
+            moved = ''
             if item.posture:
                 base = factions.BY_KEY[item.faction].posture
-                self.posture[item.faction] = min(
-                    100, self.posture.get(item.faction, base) + item.posture)
+                before = self.posture.get(item.faction, base)
+                self.posture[item.faction] = min(100, before + item.posture)
+                after = self.posture[item.faction]
+                if int(after) != int(before):
+                    # The number and the cause (D97): "their posture is up"
+                    # said nothing a player could price.
+                    moved = (f' [dim]Posture {int(before)} to {int(after)}, '
+                             f'because of you.[/]')
             if item.note:
-                told.append(item.note)
+                told.append(item.note + moved)
         self.pending = still
         return told
 
@@ -428,6 +435,9 @@ class City:
             debt.settle(take, self.shift)
             told.append(f'[heat]{stream.pick(debt_mod.COLLECT_LINES)}[/] '
                         f'[dim]{take:,}c. {debt.amount:,}c outstanding.[/]')
+            self.news.append(f'[heat]{factions.BY_KEY[debt.lender].short if debt.lender in factions.BY_KEY else "The lender"} took '
+                             f'{take:,}c.[/] [dim]{debt.amount:,}c '
+                             f'outstanding.[/]')
         elif char is not None:
             # Nothing in the account, so they take it out of the room. This
             # routes through the same ladder as everything else, per D6.
@@ -865,8 +875,7 @@ class City:
             self.pending.append(PendingFallout(
                 due=self.shift + RESIDUE_DELAY, faction=target,
                 heat=0.0, posture=fac.hardening,
-                note=f'[dim]{fac.short} has changed something. Their posture '
-                     f'is up.[/]'))
+                note=f'[dim]{fac.short} has changed something.[/]'))
             told.append(f'[ok]Work recorded.[/] {gain} standing with your patron.')
 
         if residue:
@@ -900,9 +909,15 @@ class City:
             else:
                 note = (f'[heat]{fac.short} forensics finished with what you '
                         f'left behind.[/] [dim]Heat +{int(heat)}.[/]')
+                # A failed attempt teaches them something: less if you
+                # never got past the front (D97). Seven failed attempts at
+                # one held job took Deepwater from 72 to 96, which made the
+                # job unwinnable by trying it.
+                learned = fac.hardening * (0.4 if summary.get('reached')
+                                           else 0.15)
                 self.pending.append(PendingFallout(
                     due=self.shift + RESIDUE_DELAY, faction=target,
-                    heat=heat, posture=fac.hardening * 0.4, note=note))
+                    heat=heat, posture=learned, note=note))
 
         if outcome in ('severed', 'burned'):
             alias.add_heat(target, 12)

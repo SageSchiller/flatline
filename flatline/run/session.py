@@ -1126,10 +1126,13 @@ class RunState:
         if self.alert not in ('red', 'lockdown'):
             self.red_ticks = 0
             return
-        # Loud ticks only: going quiet at red is the answer the brief
+        # Loud ticks only at red: going quiet is the answer the brief
         # gives, and the response is for people who keep working under
-        # it, not for people waiting it out.
-        if self.noisy_tick:
+        # it, not for people waiting it out. At lockdown every tick
+        # counts, loud or not: lockdown is the response, and a rule
+        # nobody ever met is not a rule (D97: zero dispatches in seventeen
+        # corporate runs).
+        if self.noisy_tick or self.alert == 'lockdown':
             self.red_ticks += 1
         if self.responded or self.red_ticks < RESPONSE_AFTER:
             return
@@ -2652,7 +2655,11 @@ class RunState:
                     if way:
                         svc = next(s for s in hop.services if s.key == way)
                         odds = max(0.1, self._odds_for(hop, svc))
-                hops += 1 + 1.0 / odds + 1
+                # A Lattice is two ticks a door, and the clock read every
+                # crack as one (D97).
+                breaker = programs.best(self.char.deck.loaded, 'breaker')
+                per = 2 if (breaker is not None and breaker.key == 'lattice') else 1
+                hops += 1 + per / odds + 1
             hops = int(round(hops))
         elif found and target is not None:
             hops = 0
@@ -2686,10 +2693,11 @@ class RunState:
         need = working * noisy_rate + quiet * quiet_rate
         left = max(0.0, TRACE_MAX - self.trace)
         if self.alert in ('red', 'lockdown'):
-            # One working tick of margin: at two and a half times, the exit
-            # fired a tick or two before the sever five times running,
-            # which is a margin of nothing (D91).
-            left = max(0.0, left - noisy_rate)
+            # Two working ticks of margin: one because at two and a half
+            # times the exit fired a tick before the sever (D91), and one
+            # for the exit itself, which costs a tick the first version
+            # forgot and the trace filled during it (D97).
+            left = max(0.0, left - 2 * noisy_rate)
         if need <= left * 1.15:
             return ''
         ticks = int(left / noisy_rate)
@@ -2902,6 +2910,10 @@ class RunState:
             'severed_by': self.severed_by,
             'grudge_killed': self.grudge_killed,
             'company': dict(self.company) if self.company else None,
+            'reached': bool(self.net.objective_node
+                            and (self.here == self.net.objective_node
+                                 or (self.net.node(self.net.objective_node)
+                                     or self.node).open)),
         }
 
 

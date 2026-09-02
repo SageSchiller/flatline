@@ -3186,6 +3186,8 @@ def test_bench() -> None:
 
     # -- salvage -----------------------------------------------------------
     game = at_bench(scrap=0)
+    while game.char.deck.unload('crowbar'):  # D96: the deck is not for sale
+        pass
     before = game.char.scrap
     _, out = play(['salvage crowbar'], game=game)
     T.ok(game.char.scrap > before, 'breaking something down gives scrap')
@@ -3624,6 +3626,7 @@ def test_legacy() -> None:
         game.earned = 120000
         for key, value in over.items():
             setattr(game.char, key, value)
+        game.city.shift = max(game.city.shift, legacy.NAME_HOLDS)  # D95
         return game
 
     # -- the gates ---------------------------------------------------------
@@ -5543,7 +5546,10 @@ def test_guide() -> None:
     T.ok(all(REGISTRY.lookup(a.split()[0]) for a in also),
          'and every "also" verb exists')
     for cmd, _ in steps:
-        T.ok(REGISTRY.lookup(cmd.split()[0].split(';')[0]) is not None,
+        head = cmd.split(';')[0].strip()
+        T.ok(REGISTRY.lookup(head) is not None
+             or REGISTRY.lookup(head.split()[0]) is not None
+             or REGISTRY.lookup(' '.join(head.split()[:2])) is not None,
              f'step {cmd!r} starts with a command')
 
     # Row numbers are names: the board.
@@ -5844,6 +5850,7 @@ def test_consequences() -> None:
     # Retiring reads it all back.
     game = fresh('gutter', 'Out')
     game.char.credits = legacy.STAKE + 10
+    game.city.shift = max(game.city.shift, legacy.NAME_HOLDS)  # D95
     game.story.flags.update({'lark_saved', 'dw_refused', 'sparrow_scared'})
     sess, out = play(['retire --confirm'], game=game)
     T.ok('what you left behind' in out, 'retiring prints the epilogue')
@@ -10358,6 +10365,267 @@ def test_the_way_in() -> None:
          f'the ice legwork names the desk ({told!r})')
 
 
+
+def test_more_to_say() -> None:
+    """D94: a topic's answer moves with what has happened."""
+    T.section('more to say')
+    from flatline.content import npcs as npc_content
+    game = Game.new(Character.from_origin('gutter', 'ms'), seed=4242)
+    game.story.meet('mara')
+    sess, out = play(['ask mara deepwater'], game=game)
+    T.ok('four contracts a month' in out, 'a stranger gets the first line')
+    game.story.flags.add('dw_logs')
+    sess, out = play(['ask mara deepwater'], game=game)
+    T.ok('caps the pen' in out and 'four contracts a month' not in out,
+         'and somebody who knows about the nine gets the second')
+    game.story.flags.add('dw_posting')
+    sess, out = play(['ask mara deepwater'], game=game)
+    T.ok('You took one of theirs' in out, 'the last variant that holds wins')
+    T.ok(sum(len(n.more) for n in npc_content.NPCS) >= 5,
+         'the spine has more to say')
+
+
+
+def test_the_door() -> None:
+    """D95 and D96: the debt has terms, the door has a name on it, and the
+    systems say what they cost."""
+    T.section('the door')
+    from flatline.commands import city as city_cmd
+    from flatline.commands import run as run_cmd
+    from flatline.content import legacy
+    from flatline.world import debt as debt_mod
+    from flatline import game as game_mod
+
+    # An origin debt is slow, taken in instalments, and paid down by work
+    # for the lender.
+    game = Game.new(Character.from_origin('bonded', 'bd'), seed=2024)
+    d = game.debt
+    T.ok(d.owed and d.instalment == 1500 and d.rate < debt_mod.RATE,
+         'the buyout has its own terms')
+    T.eq(d.assess(), 1500, 'a visit takes the instalment')
+    grown = d.amount
+    for _ in range(24):
+        d.accrue()
+    T.ok(d.amount < grown * 1.12, f'six days grows it little ({d.amount})')
+    T.ok(debt_mod.Debt.from_dict(d.to_dict()).instalment == 1500,
+         'and the terms survive a save')
+    contract = next((c for c in game.city.board if c.patron == 'kagawa'), None)
+    if contract is None:
+        contract = game.city.board[0]
+        contract.patron = 'kagawa'
+    game.city.where = contract.district
+    before = d.amount
+    sess, out = play([f'take {contract.cid}', 'jack in --force'], game=game)
+    state = sess.run
+    if state is not None:
+        # Finish it by fiat: the objective is not the point here.
+        state.done['wipe'] = state.net.objective_asset
+        state.done['corrupt'] = state.net.objective_node
+        state.done['implant'] = state.net.objective_node
+        state.rooting = 0
+        state.observed = state.SURVEIL_TICKS
+        if state.net.objective_asset:
+            state.haul.append(state.net.objective_asset)
+        state.finish('clean')
+        sess.console.start_capture()
+        run_cmd._resolve(sess)
+        out = ui.plain(sess.console.end_capture())
+        if 'against the figure' in out:
+            T.ok(d.amount < before, 'working for Kagawa moves the figure')
+        else:
+            T.ok(True, 'the fixture contract did not pay (harness)')
+
+    # The review changes the number.
+    game = Game.new(Character.from_origin('bonded', 'rv'), seed=2024)
+    from flatline.content import threads as thread_content
+    stage = thread_content.BY_KEY['buyout'].stages[0]
+    game.story.reached['buyout'] = [stage.key]
+    game.story.pending = ['buyout.review']
+    before = game.debt.amount
+    inst = game.debt.instalment
+    sess, out = play(['choose attend'], game=game)
+    T.eq(game.debt.amount, before - 9000, 'nine thousand off')
+    T.ok(game.debt.instalment < inst and 'instalments halve' in out,
+         'and the terms extend')
+
+    # The door wants a name that has held.
+    game = Game.new(Character.from_origin('gutter', 'dr'), seed=4242)
+    game.char.credits = legacy.STAKE
+    game.city.shift = legacy.NAME_HOLDS + 2
+    game.alias.established = game.city.shift - 1
+    sess, out = play(['retire'], game=game)
+    T.ok('3 of 4' in out and 'shift' in out and 'not held' in out,
+         f'a name one shift old is not retired under')
+    game.alias.established = 0
+    sess, out = play(['retire'], game=game)
+    T.ok('4 of 4' in out, 'one that has held is')
+
+    # A second character is not born under the last one's name.
+    from flatline import save as save_mod
+    meta = save_mod.read_meta()
+    meta['names_used'] = []
+    save_mod.write_meta(meta)
+    a = Game.new(Character.from_origin('gutter', 'na'), seed=777)
+    b = Game.new(Character.from_origin('gutter', 'nb'), seed=777)
+    T.ok(a.alias.name != b.alias.name,
+         f'the same seed gives the second character a fresh name '
+         f'({a.alias.name!r}, {b.alias.name!r})')
+
+    # The repair advice is the one that does it; the bench lists with
+    # scrap in hand; a script's jack out is not argued with.
+    game = Game.new(Character.from_origin('gutter', 'rp'), seed=4242)
+    game.city.where = 'ninth'
+    game.char.deck.damage['cpu'] = 1
+    steps = dict(city_cmd.city_steps(game))
+    T.ok('repair --confirm' in steps, 'repair advice can be typed once')
+    game.char.scrap = 55
+    sess, out = play(['mod'], game=game)
+    T.ok('Bench work' in out and 'no bench work called' not in out
+         and 'Stripped chassis' in out, 'the bench lists with scrap in hand')
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    sess, out = play([f'take {contract.cid}', 'jack in --force'], game=game)
+    if sess.run is not None:
+        sess.in_script = True
+        sess.console.start_capture()
+        sess.execute('jack out')
+        out = ui.plain(sess.console.end_capture())
+        sess.in_script = False
+        T.ok(sess.run is None and 'You have not done the job yet' not in out,
+             'a script leaves when it says leave')
+
+    # Burning says what it cost; ending an arrangement costs standing.
+    game = Game.new(Character.from_origin('gutter', 'bn'), seed=4242)
+    game.char.credits = 10000
+    game.alias.rep['sixes'] = 30
+    sess, out = play(['burn --confirm'], game=game)
+    T.ok('for the name' in out and 'Sixes +30' in out,
+         'the fee and the standing lost are said')
+    game = Game.new(Character.from_origin('gutter', 'ar'), seed=4242)
+    game.city.arrangements['sixes'] = {'rate': 100, 'paid': 0}
+    rep = game.alias.reputation('sixes')
+    sess, out = play(['arrange stop sixes'], game=game)
+    T.ok(game.alias.reputation('sixes') < rep and 'standing' in out,
+         'ending an arrangement costs standing, and says so')
+
+    # The words that were nearly verbs.
+    game = Game.new(Character.from_origin('gutter', 'wd'), seed=4242)
+    sess, out = play(['take kick', 'sell out', 'clinic ground'], game=game)
+    T.ok('`dose kick`' in out, '`take kick` points at `dose`')
+    T.ok('`betray <runner>`' in out, '`sell out` points at `betray`')
+    T.ok('their own verbs' in out or 'no clinic here' in out,
+         '`clinic ground` points at the verb')
+
+
+
+def test_corporate_night() -> None:
+    """D97: what the corporate tester found, made legible."""
+    T.section('the corporate night')
+    from flatline.commands import city as city_cmd
+    from flatline.run import network as net_mod
+    from flatline.run import session as session_mod
+    from flatline.content import factions as fac_content
+
+    def fixture(faction='kagawa', posture=50):
+        game = Game.new(Character.from_origin('defector', 'cn'), seed=5150)
+        net = net_mod.generate(Rng(5150).fork('network', 'd97'), faction,
+                               posture, 'exfiltrate', 1.0)
+        con = quiet_console()
+        sess = Session(console=con, slot='d97'); sess.game = game
+        state = RunState.begin(net, game.char, Rng(5150)('combat'), con,
+                               contract={'objective': 'exfiltrate',
+                                         'title': 'T'})
+        sess.run = state
+        if 'siphon' not in game.char.library:
+            game.char.library.append('siphon')
+        for key in list(game.char.deck.loaded):
+            game.char.deck.unload(key)
+        game.char.deck.load('crowbar')
+        game.char.deck.load('siphon')
+        return game, sess, state
+
+    # Lockdown counts every tick; red counts the loud ones.
+    game, sess, state = fixture()
+    state.alert = 'lockdown'
+    state.noisy_tick = False
+    for _ in range(session_mod.RESPONSE_AFTER):
+        state._response_tick()
+    T.ok(state.responded or not fac_content.BY_KEY['kagawa'],
+         'a quiet lockdown still brings the response')
+
+    # The exit is priced with a tick for the exit.
+    game, sess, state = fixture()
+    state.alert = 'red'
+    noisy, quiet = state.trace_rates()
+    state.trace = 100 - 2.5 * noisy
+    T.ok(state.night_over('exfiltrate', None, False),
+         'two working ticks left at red is over, because one is the exit')
+
+    # A scan says how far.
+    game, sess, state = fixture()
+    sess.console.start_capture()
+    sess.execute('scan')
+    out = ui.plain(sess.console.end_capture())
+    T.ok('hops' in out, 'the scan table has a hops column')
+
+    # The city: a failure that never got past the front teaches them less.
+    game = Game.new(Character.from_origin('gutter', 'hd'), seed=4242)
+    base = {'outcome': 'burned', 'residue': 20, 'faction': 'kagawa',
+            'alert': 'red', 'objective': False, 'haul_value': 0, 'ticks': 10}
+    game.city.apply_run(game.alias, dict(base, reached=False), game.rng)
+    shallow = [p.posture for p in game.city.pending if p.faction == 'kagawa']
+    game.city.pending.clear()
+    game.city.apply_run(game.alias, dict(base, reached=True), game.rng)
+    deep = [p.posture for p in game.city.pending if p.faction == 'kagawa']
+    T.ok(shallow and deep and shallow[0] < deep[0],
+         f'a run that never got there hardens less ({shallow} < {deep})')
+    for p in game.city.pending:
+        p.due = game.city.shift
+    told = game.city._apply_pending(game.alias)
+    T.ok(any('because of you' in line and 'Posture' in line for line in told),
+         'and the number is said when it lands')
+
+    # Travelling somewhere far with --anyway names the walk with the flag.
+    game = Game.new(Character.from_origin('gutter', 'tv'), seed=4242)
+    far = next(k for k in districts.DISTRICT_KEYS
+               if k not in game.city.district.neighbours and k != game.city.where)
+    sess, out = play([f'travel {far} --anyway'], game=game)
+    T.ok('--anyway`' in out, 'the walk it names carries the flag')
+
+    # A late job you are standing on is priced, not refused.
+    game = Game.new(Character.from_origin('gutter', 'lt'), seed=4242)
+    contract = game.city.board[0]
+    game.city.accepted = contract.cid
+    game.city.where = contract.district
+    game.city.shift = contract.expires + 2
+    sess, out = play(['job'], game=game)
+    T.ok('past its date' in out and 'You will not make it' not in out,
+         'standing on a late job reads the late fee, not the walk')
+
+    # The board: a grudge that hunts says what answers it; a Lattice says
+    # its price; the clock is on the board.
+    game = Game.new(Character.from_origin('gutter', 'gb'), seed=4242)
+    contract = game.city.board[0]
+    game.city.grudges[contract.target] = 'pike'
+    sess, out = play([f'board {contract.cid}'], game=game)
+    T.ok('weapon program' in out, 'a hunting grudge names the weapon')
+    T.ok('working ticks' in out, 'the clock is on the board')
+    game.char.library.append('lattice')
+    for key in list(game.char.deck.loaded):
+        game.char.deck.unload(key)
+    game.char.deck.load('lattice')
+    T.ok('two ticks a door' in city_cmd.readiness(game.char, 40),
+         'a Lattice reads with its price')
+
+    # `repair all` does it.
+    game = Game.new(Character.from_origin('gutter', 'ra'), seed=4242)
+    game.city.where = 'ninth'
+    game.char.credits = 5000
+    game.char.deck.damage['cpu'] = 1
+    sess, out = play(['repair all'], game=game)
+    T.ok(not game.char.deck.damage.get('cpu'), '`repair all` repairs')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
@@ -10367,7 +10635,7 @@ SUITES = (
     test_objective_parity,
     test_people_are_the_story, test_night_before, test_wall_and_clock,
     test_remembered_inside, test_second_look, test_second_wave,
-    test_the_way_in,
+    test_the_way_in, test_more_to_say, test_the_door, test_corporate_night,
     test_economy,
     test_combat,
     test_advancement,

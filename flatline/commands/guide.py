@@ -181,11 +181,12 @@ def _now_city(sess):
         # sever imposes) is never cut, for the same reason the job itself
         # is not (D91): `choose`, `unload` and `train` filled the two
         # lines and `now` stopped saying `jack in` on a job you held.
-        go = next(((cmd, why) for cmd, why in all_steps
-                   if cmd.split()[0] in ('jack', 'walk', 'travel', 'rest',
-                                         'drop')), None)
-        if go is not None and go not in steps:
-            steps.append(go)
+        goes = [(cmd, why) for cmd, why in all_steps
+                if cmd.split()[0] in ('jack', 'walk', 'travel', 'rest',
+                                      'drop')]
+        for go in goes[:2]:
+            if go not in steps:
+                steps.append(go)
         also = ['job', 'map', 'deck', 'market', 'errands', 'look', 'help']
     # `city_steps` opens with the same advice when the budget is unspent,
     # and a list that says `spend` twice reads as two different things to
@@ -293,7 +294,7 @@ def _system_nudges(sess, char) -> list[tuple[str, str]]:
         who = decided[0]
         out.append((f'who {who.name.lower()}',
                     f'{who.name} has decided something about you. They can '
-                    f'be hired for a cut, asked for a favour, or bet on'))
+                    f'be hired for a cut, asked for a favour, or sold out'))
     return out
 
 

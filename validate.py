@@ -3482,6 +3482,11 @@ def check_consequences(rep: Report) -> None:
         for rule in n.requires:
             if rule.split(':')[0] not in npc_content.NUMERIC_RULES:
                 reads(rule, f'npc {n.key}', f'npcs/{n.key}')
+        for topic, rule, text in n.more:
+            rep.check(topic in n.topics, f'npcs/{n.key}/more',
+                      f'varies {topic!r}, which they do not talk about')
+            rep.check(bool(text), f'npcs/{n.key}/more/{topic}', 'is empty')
+            reads(rule, f'npc {n.key} on {topic}', f'npcs/{n.key}/more')
     from flatline.content import spots as spot_content
     for f in spot_content.FINDS:
         for rule in f.requires:

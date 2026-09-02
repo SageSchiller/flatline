@@ -63,10 +63,12 @@ GATES = (
     ('clean', 'nothing in you that you need',
      'You have a habit. Whatever you are planning to be next, it is not '
      'going to be that while you still need something on a Tuesday.'),
-    ('quiet', 'nobody paying for your name',
-     'There is a bounty on you. A retirement with a number attached to it is '
-     'a change of address, and they have your address.'),
+    ('quiet', 'nobody paying for your name, and the name has held',
+     '{quiet_why}.'),
 )
+
+#: Shifts a name has to have held before you can retire under it (D95).
+NAME_HOLDS = 10
 
 #: What the city says when you have cleared all four and asked.
 LEAVING = (

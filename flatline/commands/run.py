@@ -126,6 +126,13 @@ def cmd_jack_in(sess, args) -> None:
             f'silently, and ran at nothing. The nearest workshop is '
             f'{where}. `jack in --force` goes in with it.')
 
+    if deck.heat > deck.heat_cap:
+        # Thermal was the one deck number nothing guarded (D97).
+        c.say(f'[warn]The deck runs hotter than its cooling: heat '
+              f'{deck.heat}/{deck.heat_cap}.[/] [dim]Every overclock and '
+              f'every hot tick costs more in there. A cooling component, or '
+              f'`repair` if the cooling is what is broken.[/]')
+
     need = OBJECTIVE_PROGRAM.get(contract.objective)
     if need and not game.char.deck.has_category(need) and not args.has('force'):
         owned = [programs.BY_KEY[k] for k in game.char.library
@@ -342,7 +349,9 @@ def cmd_jack_out(sess, args) -> None:
     # already reports a burned run, and by then the only thing the player can
     # do about it is read it.
     brief = state.brief()
-    if (not brief.done and not args.has('anyway')
+    # Not inside a script (D96): the script's own `stop if` is the
+    # argument, and the library's example bailout could not bail out.
+    if (not brief.done and not args.has('anyway') and not sess.in_script
             and not state.warned_incomplete
             and state.trace < ARGUE_BELOW):
         state.warned_incomplete = True
@@ -383,6 +392,9 @@ SEVER_COOLDOWN = 2
 #: Standing with the patron for killing the construct that had your name
 #: on it (D91): it is a story they tell.
 GRUDGE_KILL_REP = 4
+#: The share of a fee the lender keeps when you work for them, counted
+#: double against the figure (D95).
+LENDER_WORK_SHARE = 0.25
 #: How many finished titles the board declines to re-use straight away.
 DONE_TITLES = 8
 
@@ -565,6 +577,21 @@ def _resolve(sess) -> None:
                                       * _condition_pay(summary),
                                       game.char.memorable,
                                       rep_mult=game.char.mult('rep_mult'))
+        # Work for the people you owe moves the figure (D95): they keep
+        # a share of the fee against it and count it double, because the
+        # work is worth more to them than the money.
+        if (pay > 0 and summary.get('objective') and game.debt.owed
+                and contract.patron == game.debt.lender):
+            cut = int(pay * LENDER_WORK_SHARE)
+            pay -= cut
+            applied = game.debt.pay(cut * 2)
+            told.append(f'[ok]{contract.patron_data.short} keep {cut:,}c '
+                        f'of it against the figure and count it double: '
+                        f'{applied:,}c off.[/] [dim]{game.debt.amount:,}c '
+                        f'outstanding.[/]')
+            if not game.debt.owed:
+                told.append('[ok]That is the last of it. The number simply '
+                            'stops being a thing you carry.[/]')
         game.char.credits += pay
         game.earned += pay
         record['pay'] = int(pay)
@@ -748,8 +775,11 @@ def cmd_scan(sess, args) -> None:
     # Tidemark how busy it is, Dowser whether it is a boundary. Each is a
     # column, and each is the whole reason to carry that program.
     riders = state.char.riders()
-    heads = ['host', 'type', 'zone', 'access']
-    roles = ['accent', 'dim', 'info', 'warn']
+    # And how far (D97): with Architecture the scan reaches two hops and
+    # the table read as adjacency, so `connect` said "not reachable" to
+    # every second row.
+    heads = ['host', 'type', 'zone', 'access', 'hops']
+    roles = ['accent', 'dim', 'info', 'warn', 'dim']
     if 'ledger_eye' in riders:
         heads.append('worth')
         roles.append('credit')
@@ -762,8 +792,11 @@ def cmd_scan(sess, args) -> None:
     rows = []
     for uid in found:
         node = state.net.nodes[uid]
+        route = state.route_to(uid)
         row = [uid, node.display_type, node.zone,
-               'open' if node.open else f'tier {node.tier}']
+               'open' if node.open else f'tier {node.tier}',
+               str(len(route)) if route else
+               ('1' if uid in state.node.edges else '2+')]
         if 'ledger_eye' in riders:
             worth = max((a.value for a in node.data if not a.taken), default=0)
             row.append(f'{worth:,}c' if worth else 'nothing')

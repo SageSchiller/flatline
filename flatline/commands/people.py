@@ -577,7 +577,13 @@ def ask_npc(sess, args) -> bool:
         # The question is the scene when it gates one, and the topic line
         # and the scene said the same thing twice (D91).
         c.blank()
-        c.say(npc.topics[match])
+        said = npc.topics[match]
+        # What they say once something has happened (D94): the last
+        # variant whose rule holds.
+        for topic, rule, text in npc.more:
+            if topic == match and game.story.satisfied(rule, game):
+                said = text
+        c.say(said)
     _check_story(sess)
     return True
 
@@ -1094,6 +1100,20 @@ def cmd_choose(sess, args) -> None:
         game.char.credits = max(0, game.char.credits + choice.credits)
         word = 'in' if choice.credits > 0 else 'gone'
         c.say(f'[credit]{abs(choice.credits):,}c[/] {word}.')
+    if choice.debt and game.debt.owed:
+        if choice.debt < 0:
+            applied = game.debt.pay(-choice.debt)
+            c.say(f'[ok]{applied:,}c off the figure.[/] '
+                  f'[dim]{game.debt.amount:,}c outstanding.[/]')
+        else:
+            game.debt.amount += choice.debt
+            c.say(f'[err]{choice.debt:,}c onto the figure.[/] '
+                  f'[dim]{game.debt.amount:,}c outstanding.[/]')
+        if 'buyout_extended' in choice.sets and game.debt.instalment:
+            # The terms extend: the same figure over more visits.
+            game.debt.instalment = max(400, game.debt.instalment // 2)
+            c.say(f'[dim]The instalments halve, to '
+                  f'{game.debt.instalment:,}c a visit. The years do not.[/]')
     if choice.gives:
         for key in choice.gives:
             name, unique = give_item(game, key)

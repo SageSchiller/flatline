@@ -12,7 +12,7 @@ updated: 2026-09-01
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-09-01.** D86 to D89 landed in one session, from three play-tests run in parallel with three different briefs (a first-timer who does what `now` says, an explorer who ignores it, and a run specialist who types every verb by hand). What they found, in order of size: the story layer was gated on meeting people and nothing ever said to meet anyone, and forty-two scenes declared a district that nothing read; the advice could recommend the same severed run five nights running and never once name Intrusion; a credential warden was an unanswerable wall for the Chromed origin and the board could not see it; and D6's severed-connection cooldown had never been implemented. All fixed, with `test_people_are_the_story`, `test_night_before`, `test_wall_and_clock` and `test_remembered_inside` holding them. Two things were added rather than fixed: the construct that cut you loose is on the route next time, awake and named, and the other runners can turn up inside a network with consequences that read their opinion of you. `validate.py` clean, `test.py` green at **16,901 checks** (D90 to D92 followed on 2026-09-02, from a second wave of the same method). The next thing worth doing is another round of the same method: play it three ways and fix what the players say, because every one of the fourteen decisions since D75 came out of somebody playing rather than somebody guessing.
+> **State as of 2026-09-01.** D86 to D89 landed in one session, from three play-tests run in parallel with three different briefs (a first-timer who does what `now` says, an explorer who ignores it, and a run specialist who types every verb by hand). What they found, in order of size: the story layer was gated on meeting people and nothing ever said to meet anyone, and forty-two scenes declared a district that nothing read; the advice could recommend the same severed run five nights running and never once name Intrusion; a credential warden was an unanswerable wall for the Chromed origin and the board could not see it; and D6's severed-connection cooldown had never been implemented. All fixed, with `test_people_are_the_story`, `test_night_before`, `test_wall_and_clock` and `test_remembered_inside` holding them. Two things were added rather than fixed: the construct that cut you loose is on the route next time, awake and named, and the other runners can turn up inside a network with consequences that read their opinion of you. `validate.py` clean, `test.py` green at **16,941 checks** (D90 to D97 followed on 2026-09-02, from a second and a third wave of the same method). The next thing worth doing is another round of the same method: play it three ways and fix what the players say, because every one of the fourteen decisions since D75 came out of somebody playing rather than somebody guessing.
 >
 > **State as of 2026-08-21, end of the long session.** **Phases 0 through 5 are done, D17's finish line is passed, Phase 7 is closed, and D63 to D65 are the deep work.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **15,311 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone. **D63, the mechanics deep dive** in six parts: every declared number and rider has a reader (`check_reads`); the intrusion layer's holes closed (`mask` decays, sealed records, armour wears, faction style knobs, soft wardens); the catalogue readable (`inspect`, a bare `load`, `fit`, passives once per kind, program riders, six mid-tier parts); the vices capped (Threes, collections, hook-4 warnings); twenty-four relics with histories; and programs held to skill rank plus two. **D64, the play test**: networks in six shapes by doctrine with the brief reading the sums; the city grown to twelve districts (the Stacks, Meridian Row, the Hall) with people, places, threads, events and relics; and the advice made into a chain that ends in a run, with seven dead ends closed and `test_advice` to keep them closed. **D65, the street is real**: encounters in four tiers answered by run, talk, pay or stand with printed checks; warning-then-lethal under the black-ICE contract; two street skills; `errands` (courier, watch, collect, escort); `arrange` to pay a faction for their streets; and the whole of it hooked into travel, rest and the close-call band. Before those, on the same day: D50 to D62, the onboarding layer, decisions that are read, the Deepwater spine, the city deeper, voices and hours, district arcs, the rival bond, the drawn map, the HUD, the tutorial's second half, run conditions, and the rest of the Phase 7 list.
 >
@@ -3271,6 +3271,115 @@ because paying for what a fixer knows is a system worth keeping: `legwork
 intel` now names the wardens on the route, whether they take credentials,
 and what yours would read at against the softest of them.
 
+### D94: More to say
+
+The story hunter's proposal, taken as written: a topic was one static
+line for a whole career, so somebody who had learned about the nine logs
+from the Archivist got the same answer from Mara as a stranger. `Npc.more`
+is (topic, rule, text): the last variant whose rule holds replaces the
+line, through the same `satisfied` the scenes use, and `validate.py`
+holds every variant to a topic they talk about and a rule something can
+evaluate. Six variants on the Deepwater spine to begin with (Mara, the
+Archivist, Remnant, Osei), because that is the thread whose facts arrive
+in pieces from different people, and the people should know which
+pieces you have.
+
+### D95: The door, and the debt
+
+The third wave's endgame tester played the Indentured origin to the door
+and could not get there honestly. The buyout of twenty-six thousand ran
+at the house rate, three and a half per cent a shift compounding, which
+is fifteen hundred a shift by the second week against an income of about
+a thousand; a collection every six shifts took the whole account and the
+figure never fell. The one decision in the game that is about the debt
+("the number comes down by nine thousand") changed no number: the flag
+was read by an ambient event and an epilogue line that repeated the
+claim. And the hardest of the four retirement conditions was the
+cheapest: four bounties came off for one alias fee the shift before.
+
+**Origin debts have their own terms.** A department's paper and a
+corporation's are slower and colder than a back room's: 0.8 and 0.4 per
+cent a shift, a longer grace, and a fixed instalment per visit rather
+than a quarter of the balance, because a buyout is a buyout and not a
+loan. **Work for the people you owe moves the figure.** A clean run for
+the lender lets them keep a quarter of the fee against it and count it
+double, because the work is worth more to them than the money; the
+Indentured story is running to afford them, and now it is. **The review
+is real.** `Choice.debt` is a thing a choice can do; attending takes nine
+thousand off and halves the instalments, which is what "the terms extend"
+means. **The name has to have held.** Retiring under a name younger than
+ten shifts is a change of address with the old one still on the door,
+and the gate says so with the age.
+
+Smaller, from the same report: the collection is on the wire; the debt
+screen says the instalment and stops printing the note twice; `repair
+--confirm` with the price is the advised step, because `repair` alone
+waits; a retired character's sheet says so instead of "running as"; the
+help pointer names the topic that exists; and a second character is not
+born under the first one's burned alias, because the meta file remembers
+every name handed out and the draw skips them.
+
+### D96: The systems say what they cost
+
+The systems tester tried every city verb once, properly, and found the
+bench I had broken myself two decisions earlier: the scrap hint had been
+indented under the wrong `if`, so `mod` listed nothing to anybody holding
+scrap. Fixed, with a test that holds scrap. And the rest: a script's
+`jack out` is no longer argued with (the script's own `stop if` is the
+argument, and the library's example bailout could not bail out); `burn`
+says the fee and the standing that went with the name; `clinic ground`
+points at `ground` and `detox`, which exist; `arrange stop` costs the
+standing the line always promised; `salvage` does not offer what is on
+the deck; `take kick` points at `dose` and `sell out` at `betray`; the
+`self` hint names the verb that works; the nudge about a decided rival
+no longer offers a bet there is no verb for; and a verb typed at a street
+question is told it can wait.
+
+### D97: The corporate night
+
+The corporate tester built the best runner the shops on their seed
+allowed (a rating-three forger and mask against posture fifty-eight to
+ninety, because no market stocked the tier above), ran sixteen corporate
+jobs, and finished none; the control at posture thirty-eight was clean at
+tick thirty. Fourteen of the sixteen ended on the clock rule, whose
+numbers read true every time. Two of the rest were burns turned into
+severs because the rule fired with one tick left and `jack out` costs a
+tick: the exit was priced one tick short. And the shape D85 named held:
+doors at a hundred per cent and the trace spent on a six-host approach
+with a two-tick breaker the clock counted as one.
+
+Nothing here moves a difficulty number. What moves is what the player
+can see and what a failure costs the next attempt.
+
+- The exit keeps two working ticks of margin at red, one for the exit.
+- The clock reads the breaker's own price: a Lattice is two ticks a
+  door, and the board says so beside its odds.
+- Lockdown counts every tick toward the response, loud or not: lockdown
+  is the response, and a rule met in none of seventeen corporate runs
+  was not a rule.
+- A failed attempt that never got past the front teaches the target less
+  than one that reached the objective (0.15 against 0.4 of their
+  hardening), and the wire says the number when it lands: "Posture 72 to
+  75, because of you". Seven attempts at one held story job had taken
+  Deepwater from 72 to 96 silently, which made the job unwinnable by
+  trying it.
+- The board's way in carries the clock: "about 30 working ticks in it at
+  green, this shift", against "about 10 hosts in, 3 badges deep".
+- A grudge that hunts says what answers it (a weapon program, or a route
+  round it); one that files says quiet past it.
+- `scan` has a hops column, because with Architecture it reaches two
+  hops and the table read as adjacency.
+- Standing on a late job reads the late fee rather than "you will not
+  make it" about a walk of nought; `travel <far> --anyway` names the walk
+  with the flag; `repair all` repairs; the deck's heat over its cooling
+  is said at the door.
+
+The open question D85 left is still open, and the tester's tally makes
+it sharper: at corporate posture a top build's problem is not the doors,
+it is the approach, and the shops on a given seed may not sell the mask
+that would make it a one-in-four. A named shelf ("Vellum is in Freeport
+this week") is the next thing worth building, and it is content.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -4674,3 +4783,24 @@ arrives. `test_second_wave`. `validate.py` clean, `test.py` green at
 D93. The board reads the depth of the job in badges before the walk, and
 `legwork intel` names the wardens on the route and whether you could
 answer them. `test_the_way_in`.
+
+### 2026-09-02 (d): more to say
+
+D94. Topic variants keyed by flags, six of them on the spine.
+`test_more_to_say`.
+
+### 2026-09-02 (e): the door, the debt, and the systems
+
+D95 and D96, from the third wave's endgame and systems testers. Origin
+debts with their own terms and instalments, lender work that pays them
+down, a review that moves the number, a name that has to have held, a
+bench that lists again, a script that can leave. `test_the_door`.
+
+### 2026-09-02 (f): the corporate night
+
+D97, from the third wave's corporate tester: sixteen corporate runs, none
+finished, the causes named. The exit priced with a tick for the exit,
+the breaker's price in the clock and on the board, lockdown counting
+toward the response, failure hardening the target less and saying the
+number, the clock on the board, a hops column on `scan`.
+`test_corporate_night`.

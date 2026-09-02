@@ -90,6 +90,10 @@ class Choice:
     #: the roster and `characters` will use, in the past tense, e.g. 'went
     #: under'. The third exit, after the door and black ICE (D52).
     ends: str = ''
+    #: What the choice does to the debt, if one is owed (D95): negative
+    #: pays it down, positive adds to it. The buyout review said "the
+    #: number comes down by nine thousand" and the number did not move.
+    debt: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -1061,6 +1065,7 @@ ORIGIN_THREADS: tuple[Thread, ...] = (
                              'and you sign it because the arithmetic is '
                              'correct.',
                              sets=('buyout_extended',),
+                             debt=-9000,
                              rep={'kagawa': 20}),
                       Choice('ignore', 'Do not go',
                              'Nothing happens. Nothing continues to happen '

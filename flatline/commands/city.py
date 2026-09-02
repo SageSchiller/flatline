@@ -318,11 +318,14 @@ def cmd_char(sess, args) -> None:
     char = game.char
     origin = char.origin_data
 
-    c.header(char.handle, origin.name)
+    c.header(char.handle, origin.name + (f', {game.over}' if game.over else ''))
     c.kv([
-        ('running as', f'[accent]{game.alias.name}[/] '
-                       f'[dim]({game.alias.runs} run'
-                       f'{"s" if game.alias.runs != 1 else ""})[/]'),
+        (('ran as', f'[dim]{game.alias.name}[/] [dim]({game.alias.runs} run'
+                    f'{"s" if game.alias.runs != 1 else ""}), and does not '
+                    f'any more[/]') if game.over else
+         ('running as', f'[accent]{game.alias.name}[/] '
+                        f'[dim]({game.alias.runs} run'
+                        f'{"s" if game.alias.runs != 1 else ""})[/]')),
         ('credits', f'[credit]{char.credits:,}c[/]'),
         ('integrity', f'{char.integrity}/{char.integrity_max}'
                       + _warned_line(game)),
@@ -1124,6 +1127,9 @@ def cmd_sell(sess, args) -> None:
         game.char.credits += value
         c.ok(f'{item.name} sold for [credit]{value:,}c[/].')
         return
+    if query == 'out':
+        raise CommandError('to sell somebody out: `betray <runner>`. `who` '
+                           'lists them and what they would fetch.')
     raise CommandError(f'you do not have anything called {query!r} in storage')
 
 
@@ -1205,6 +1211,9 @@ def _contract_arg(sess, token: str):
         if token.isdigit():
             raise CommandError(f'row {token} was {cid}, and it has gone from '
                                f'the board since you looked. `board` again.')
+        if token in drug_content.BY_KEY:
+            raise CommandError(f'{drug_content.BY_KEY[token].name} is a '
+                               f'drug: `dose {token}` takes it.')
         raise CommandError(f'no contract {token!r} on the board')
     return contract
 
@@ -1244,8 +1253,13 @@ def way_in(game, contract) -> str:
                     f'{"are" if desks != 1 else "is"} on the way'
                     if desks else ', and no desk on the way: a forger, '
                                   'a lucky crack, or another route'))
+    from ..run.session import IDLE_TRACE, NOISE_TO_TRACE, TRACE_MAX, TRACE_PER_TICK
+    rate = (TRACE_PER_TICK + 2.0 * NOISE_TO_TRACE) * net.crowd
+    rate *= shifts.phase(game.city.phase).trace
+    clock = int(TRACE_MAX / max(0.05, rate))
     return (f'their {target.zone}, about {hops} host{"s" if hops != 1 else ""} '
-            f'in, {depth}')
+            f'in, {depth}. The clock has about {clock} working ticks in it '
+            f'at green, this shift')
 
 
 def _show_contract(sess, contract) -> None:
@@ -1302,10 +1316,15 @@ def _show_contract(sess, contract) -> None:
         from ..content import ice as ice_content
         it = ice_content.BY_KEY.get(held_ice)
         if it is not None:
+            hunts = it.behaviour in ('hunter', 'black')
             c.blank()
             c.say(f'[ice]Last time in a {contract.target_data.short} network, '
-                  f'a {it.name} put you out. They still run it, and it will '
-                  f'be awake.[/]')
+                  f'a {it.name} {"put" if hunts else "filed"} you out. They '
+                  f'still run it, and it will be awake'
+                  + (': a weapon program and the Warfare to drive it, or a '
+                     'route round it.' if hunts else
+                     ': it files rather than hunts, so quiet past it, or a '
+                     'route round it.') + '[/]')
     desk = badge_read(game.char)
     if (desk.impossible and not game.char.has_technique('pivot')
             and 'native' not in game.char.riders()):
@@ -1365,17 +1384,23 @@ def city_job(sess) -> None:
                      else f'{hops} shift{"s" if hops != 1 else ""} away')
                   + '[/]'),
         ('expires', 'held for you, and it will keep' if contract.held
-                    else f'in {left} shift{"s" if left != 1 else ""}'),
+                    else f'in {left} shift{"s" if left != 1 else ""}'
+                    if left > 0 else
+                    f'{-left} shift{"s" if left != -1 else ""} past its '
+                    f'date: they pay {int(city_mod.LATE_SHARE * 100)}% for '
+                    f'late' if left < 0 else 'today, and not after'),
     ])
 
     # The walk is priced in the same currency as the deadline, and a job you
     # cannot reach in time is worth knowing about before you spend two shifts
-    # walking toward it.
-    if hops >= left and not contract.held:
+    # walking toward it. Standing on it, the walk is nothing and the late
+    # fee is the only arithmetic (D97).
+    if hops and hops >= left and not contract.held:
         c.blank()
         c.err(f'The walk is {hops} shift{"s" if hops != 1 else ""} and it '
-              f'expires in {left}. You will not make it. `drop` it, or go '
-              f'anyway and lose the fee.')
+              f'expires in {max(0, left)}. You will not make it in time: '
+              f'`drop` it, or go anyway for {int(city_mod.LATE_SHARE * 100)}% '
+              f'of the fee.')
 
     need = OBJECTIVE_PROGRAM.get(contract.objective)
     if need and not game.char.deck.has_category(need):
@@ -1429,6 +1454,9 @@ HEAT_WAITS_OUT = 40
 #: run (D91). Six clean runs reach the corporate band.
 POSTURE_FLOOR = 30
 POSTURE_PER_CLEAN = 5
+#: What ending an arrangement on your own terms costs in standing (D96):
+#: the line always said they would not forget it.
+ARRANGE_STOP_REP = 4
 
 VAULT_SERVICE = contract_mod.VAULT_SERVICE
 
@@ -1486,6 +1514,9 @@ def readiness(char, posture: int) -> str:
             break
     breaker = programs.best(char.deck.loaded, 'breaker')
     tail = breaker.name if breaker else 'nothing loaded'
+    if breaker is not None and breaker.key == 'lattice':
+        # The price the board never mentioned (D97).
+        tail += ', two ticks a door'
     doors = {'open': 'Their doors open for what you carry',
              'tight': 'Their doors are tight for what you carry',
              'shut': 'Their doors are shut to what you carry'}[dword]
@@ -2093,9 +2124,12 @@ def city_steps(game) -> list[tuple[str, str]]:
     wrecked = ([s for s, level in deck.damage.items() if level >= 2]
                or deck.memory_used > deck.memory)
     if deck.damage and 'workshop' in game.city.district.services:
-        steps.append(('repair',
-                      'the deck is carrying damage, which degrades what it '
-                      'does rather than stopping it'))
+        # `repair` alone prints an estimate and waits (D95): the step is
+        # the one that does it, with the price.
+        bill = deck.repair_cost(game.char.mult('repair_mult'))
+        steps.append(('repair --confirm',
+                      f'the deck is carrying damage, which degrades what it '
+                      f'does rather than stopping it. {bill:,}c here'))
     elif wrecked:
         # Serious damage with no workshop here: the walk, named. The
         # nudge only ever fired where a workshop was, so a deck with a
@@ -2667,6 +2701,8 @@ def cmd_travel(sess, args) -> None:
         target = matches[0]
     ok, why = game.city.can_travel(target)
     if not ok:
+        if args.has('anyway') and why.endswith('`'):
+            why = why[:-1] + ' --anyway`'
         raise CommandError(why)
 
     danger, who = game.city.danger(game.alias, target, game.rng,
@@ -2997,9 +3033,10 @@ def cmd_arrange(sess, args) -> None:
         if key not in city.arrangements:
             raise CommandError('no arrangement with them stands.')
         del city.arrangements[key]
+        game.alias.adjust_rep(key, -ARRANGE_STOP_REP)
         c.ok(f'The arrangement with {factions.BY_KEY[key].short} is over, '
              f'on your terms. [dim]They will not forget it was yours to '
-             f'end.[/]')
+             f'end: {-ARRANGE_STOP_REP} standing.[/]')
         return
     if not verb:
         c.header('Arrangements', district.name)
@@ -3249,9 +3286,18 @@ def cmd_burn(sess, args) -> None:
     # asking" was said to somebody who no longer exists.
     for flag in [f for f in game.story.flags if f.startswith('warned:')]:
         game.story.flags.discard(flag)
+    lost = sorted(((k, v) for k, v in alias.rep.items() if v > 0),
+                  key=lambda kv: -kv[1])[:3]
     fresh = game.new_alias(name)
     _advance(sess, shifts)
     c.ok(f'{alias.name} is gone. You are [accent]{fresh.name}[/] now.')
+    # What it cost, said (D96): the fee went silently and the standing
+    # with it was never named.
+    c.say(f'[dim]{cost:,}c for the name'
+          + (', and the standing that was theirs: '
+             + ', '.join(f'{factions.BY_KEY[k].short} {v:+d}'
+                         for k, v in lost if k in factions.BY_KEY)
+             if lost else '') + '.[/]')
     if retired:
         names = ', '.join(factions.BY_KEY[k].short for k in retired
                           if k in factions.BY_KEY)
@@ -4392,6 +4438,12 @@ def cmd_clinic(sess, args) -> None:
     if 'clinic' not in game.city.district.services:
         where = ', '.join(d.name for d in districts.with_service('clinic'))
         raise CommandError(f'no clinic here. Try: {where}')
+    word = (args.get(0) or '').lower()
+    if word in ('ground', 'grounding', 'detox', 'habit'):
+        # `clinic ground` reprinted the menu and said nothing (D96).
+        raise CommandError('those are their own verbs here: `ground` walks '
+                           'Dissonance back, `detox <drug>` takes a habit '
+                           'off. `help ground`, `help detox`.')
 
     if args.opt('face') or args.has('face'):
         _reconstruct(sess, (args.opt('face') or '').lower(),
@@ -4668,16 +4720,18 @@ def cmd_debt(sess, args) -> None:
     rate, grace = owed.terms
     per_shift = int(owed.amount * rate)
     if shifts_in < grace:
-        when = f'{grace - shifts_in} shifts before they call'
+        left = grace - shifts_in
+        when = f'{left} shift{"s" if left != 1 else ""} before they call'
     elif owed.last_collected < 0:
         when = 'they are collecting'
     else:
         due = owed.last_collected + debt_mod.COLLECT_EVERY - game.city.shift
         when = (f'{max(0, due)} shifts to the next collection')
     rows = [('amount', f'[err]{owed.amount:,}c[/]'),
-            ('to', f'{fac_short(owed.lender)}'
-                   + (f' [dim]({owed.note})[/]' if owed.note else '')),
-            ('rate', f'{rate * 100:.1f}% a shift, compounding'),
+            ('to', f'{fac_short(owed.lender)}'),
+            ('rate', f'{rate * 100:.1f}% a shift, compounding'
+                     + (f'; collected in instalments of '
+                        f'{owed.instalment:,}c' if owed.instalment else '')),
             ('growing by', f'[warn]{per_shift:,}c[/] a shift'),
             ('status', when),
             ('you have', f'[credit]{game.char.credits:,}c[/]')]
@@ -4725,7 +4779,10 @@ def cmd_repair(sess, args) -> None:
         c.say(f'[dim]{char.origin_data.passive}: '
               f'{fx.describe("repair_mult", mult)}.[/]')
 
-    if not args.has('confirm'):
+    if (args.get(0) or '').lower() == 'all' and not args.has('confirm'):
+        # `repair all` reads as intent, not a question (D97).
+        c.say('[dim]`repair all` is `repair --confirm`. Doing it.[/]')
+    if not args.has('confirm') and (args.get(0) or '').lower() != 'all':
         c.blank()
         c.say(f'[dim]`repair --confirm` for {cost:,}c.[/]')
         return
@@ -4757,8 +4814,14 @@ def _spare(game) -> list[tuple[str, str, int]]:
     """
     from ..content import mods as mod_content
     out: list[tuple[str, str, int]] = []
+    on_deck: dict[str, int] = {}
     for key in game.char.library:
         if key in programs.BY_KEY:
+            # As the refusal text always said (D96): what is loaded is not
+            # spare, copy for copy, so a second Crowbar in the bag is.
+            if on_deck.get(key, 0) < game.char.deck.loaded.count(key):
+                on_deck[key] = on_deck.get(key, 0) + 1
+                continue
             item = programs.BY_KEY[key]
             out.append((key, 'program', mod_content.salvage_value(item.price)))
         elif key in hardware.BY_KEY:
@@ -4843,11 +4906,13 @@ def cmd_mod(sess, args) -> None:
 
     if not len(args):
         c.header('Bench work', f'{char.scrap} scrap, {char.credits:,}c')
-    if not char.scrap:
-        # Said here because nothing else ever did (D90).
-        c.say('[dim]Scrap comes from `salvage <thing>`: a spare program, a '
-              'piece of chrome or a component in the bag comes apart into '
-              'it.[/]')
+        if not char.scrap:
+            # Said here because nothing else ever did (D90). Indented
+            # wrong once, which hid the whole bench from anybody holding
+            # scrap (D96).
+            c.say('[dim]Scrap comes from `salvage <thing>`: a spare program, '
+                  'a piece of chrome or a component in the bag comes apart '
+                  'into it.[/]')
         for slot, comp in char.deck.components(include_broken=True):
             done = char.deck.mods.get(comp.key, [])
             head = f'  [accent]{comp.name}[/] [dim]{slot}[/]'
@@ -5924,7 +5989,7 @@ def _look_options(sess, slot_key: str) -> None:
     if slot.fixed:
         c.say('[dim]Changing this one is surgery. A clinic will quote you.[/]')
     else:
-        c.say(f'[dim]`look --set {slot_key} <key>` to change it.[/]')
+        c.say(f'[dim]`self --set {slot_key} <key>` to change it.[/]')
 
 
 def _signed(n: int) -> str:

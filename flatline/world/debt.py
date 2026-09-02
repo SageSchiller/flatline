@@ -53,6 +53,12 @@ class Debt:
     #: at, and what every save older than lenders has.
     rate: float = 0.0
     grace: int = 0
+    #: A fixed take per visit, for a debt that is a buyout rather than a
+    #: loan (D95). Zero means a share of the balance, which is a loan's
+    #: shape and a treadmill's: a quarter of twenty-six thousand every
+    #: six shifts against a thousand a shift was an origin whose ending
+    #: could not be reached without a cheat.
+    instalment: int = 0
 
     @property
     def terms(self) -> tuple[float, int]:
@@ -87,6 +93,8 @@ class Debt:
         promise that this is survivable is false for exactly the lender a
         desperate character ends up with. Carrion at 6.2% a shift outgrew a
         quarter every six shifts; now a visit from them is nearly half."""
+        if self.instalment > 0:
+            return min(self.instalment, self.amount)
         rate, _ = self.terms
         fraction = max(COLLECT_FRACTION, rate * COLLECT_EVERY * 1.2)
         take = max(COLLECT_MIN, int(self.amount * fraction))
@@ -115,7 +123,8 @@ class Debt:
     def to_dict(self) -> dict:
         return {'amount': self.amount, 'lender': self.lender,
                 'last_collected': self.last_collected, 'opened': self.opened,
-                'note': self.note, 'rate': self.rate, 'grace': self.grace}
+                'note': self.note, 'rate': self.rate, 'grace': self.grace,
+                'instalment': self.instalment}
 
     @classmethod
     def from_dict(cls, d: dict) -> Debt:
@@ -123,7 +132,8 @@ class Debt:
                    last_collected=int(d.get('last_collected', -1)),
                    opened=int(d.get('opened', 0)), note=d.get('note', ''),
                    rate=float(d.get('rate', 0.0)),
-                   grace=int(d.get('grace', 0)))
+                   grace=int(d.get('grace', 0)),
+                   instalment=int(d.get('instalment', 0)))
 
 
 #: What the lender says when the grace period ends and they turn up.

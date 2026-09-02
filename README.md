@@ -145,7 +145,8 @@ The three ideas everything else hangs off:
   outlasts and outcosts the high, sit down at a table and the edge is painted
   on the wall before you play. What you are ever buying is when the bill
   arrives, and the trap is never any one of them, it is taking the second to
-  pay for the first.
+  pay for the first. A debt you were born with is slower and taken in
+  instalments, and working for the people you owe is how it comes down.
 - **There is a door, and something goes through it.** `retire` wants nothing
   owed, nothing in you that you need, nobody paying for your name, and enough
   put away: four things the city spends the whole campaign making harder.

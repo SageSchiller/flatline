@@ -60,6 +60,11 @@ class Npc:
     lines: tuple[str, ...]
     #: topic key -> what they say about it. `ask <name> <topic>`.
     topics: dict = field(default_factory=dict)
+    #: What they say instead, once something has happened (D94): (topic,
+    #: rule, text), the last whose rule holds wins. A topic was one static
+    #: line for a whole career, so somebody who had learned the nine logs
+    #: from the Archivist got the same answer from Mara as a stranger.
+    more: tuple = ()
     #: Conditions for running into them at all, checked by the world layer.
     #: 'runs:N' at least N runs, 'diss:N' at least N Dissonance,
     #: 'heat:N' at least N heat with anybody, 'rep:<faction>:N'.
@@ -112,6 +117,12 @@ NPCS: tuple[Npc, ...] = (
                       'and the word that matters is ground. Somebody owns it. '
                       'Work out who."',
         },
+        more=(
+            ('deepwater', 'dw_logs',
+             'She caps the pen. "The Archivist told you about the nine. He told me, four years ago, and I still place the contracts. Draw your conclusions about me as well, and keep those too."'),
+            ('deepwater', 'dw_posting',
+             '"You took one of theirs." It is not a question. "Then you know what I know, which is what the contract says and nothing after it. Come back and tell me if that changes."'),
+        ),
         hours=('morning', 'night')),
     Npc('bell', 'Councillor Bell', 'who is still filing',
         'marrow', '', 'absurd', ('intel',),
@@ -445,6 +456,10 @@ NPCS: tuple[Npc, ...] = (
                           'It is not a protest. It is just that I know what '
                           'the light is for now."',
         },
+        more=(
+            ('deepwater', 'dw_pattern',
+             '"You have the shape of it now. Three facts. I had one, for a year, and it was enough to stop sleeping." They almost smile. "It will not stop knowing my name because you have worked out how it learned it."'),
+        ),
         requires=('runs:3',)),
 
     # -- Aoyama Green -----------------------------------------------------
@@ -675,6 +690,12 @@ NPCS: tuple[Npc, ...] = (
                      'comes out of the people whose logs I keep. One of us is '
                      'eccentric."',
         },
+        more=(
+            ('deepwater', 'dw_inside',
+             '"You have been inside one now." They do not look up. "Tell me there was somebody in it. No. That is the ninth log\'s last entry, in so many words, and you have just said it in yours."'),
+            ('logs', 'dw_carried',
+             '"You carried one out. Then you know how it ends: it does not. Bring it here or burn it, but do not read it twice. The second reading is the one that reads you."'),
+        ),
         requires=('runs:5',),
         hours=('afternoon', 'night')),
     Npc('kestrel_kid', 'Sparrow', 'who wants to be you',
@@ -1093,6 +1114,10 @@ NPCS: tuple[Npc, ...] = (
                          'to the room for four hours and left. I have not '
                          'seen her since and I check."',
         },
+        more=(
+            ('deepwater', 'dw_posting',
+             'He does not wipe the spot this time. "You took one of theirs. She took one too, the week before she sat there. I am not saying it is the same thing. I am saying I check."'),
+        ),
         hours=('night',)),
     Npc('tailor', 'Mrs Achterberg', 'who fits the Vertical',
         'vertical', 'market', 'unsettling', ('goods', 'intel'),

@@ -247,7 +247,7 @@ def _answer(sess, enc, faction: str, danger: int, text: str,
             opt = next((o for o in enc.options if o.key == 'stand'),
                        enc.options[-1])
         else:
-            c.err(f'{text!r} is not one of the answers: '
+            c.err(f'{text!r} can wait. This cannot: '
                   + ', '.join(keys) + '.')
             _wait(sess, enc, faction, danger, keys, tries + 1)
             return

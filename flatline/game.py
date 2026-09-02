@@ -27,6 +27,34 @@ from .world.city import City
 #: first nights nobody needs by name.
 HISTORY_KEEP = 200
 
+#: What an origin's debt grows by a shift (D95). The house rate is a loan
+#: taken in a back room; these are a department's and a corporation's
+#: paper, slower and colder.
+ORIGIN_RATE = {'academic': 0.008, 'bonded': 0.004}
+
+
+def fresh_name(stream) -> str:
+    """A working name nobody on this machine has run under (D95). A second
+    character made in the same city was born under the first one's burned
+    alias, because the name stream restarts with the seed; the meta file
+    remembers every name handed out and the draw skips them."""
+    try:
+        meta = save_mod.read_meta()
+    except Exception:  # noqa: BLE001
+        meta = {}
+    used = set(meta.get('names_used') or ())
+    name = generate_name(stream)
+    for _ in range(40):
+        if name not in used:
+            break
+        name = generate_name(stream)
+    try:
+        meta['names_used'] = sorted(used | {name})[-400:]
+        save_mod.write_meta(meta)
+    except Exception:  # noqa: BLE001
+        pass
+    return name
+
 
 @dataclass(slots=True)
 class Game:
@@ -70,7 +98,11 @@ class Game:
     @classmethod
     def new(cls, character: Character, seed: int | None = None) -> Game:
         rng = Rng(seed if seed is not None else random_seed())
-        alias = Alias(name=generate_name(rng('names')), established=0)
+        # A fork, not the stream: the draw skips names the meta file has
+        # seen, and a draw of variable length on the shared stream would
+        # make the world depend on what other characters were called.
+        alias = Alias(name=fresh_name(rng.fork('names', 'first')),
+                      established=0)
         origin = character.origin_data
         for faction, value in origin.standing.items():
             alias.rep[faction] = value
@@ -82,15 +114,23 @@ class Game:
             alias.add_heat('nightwatch', 30)
         # Nor are the debts. Both of these have said "it is compounding" in
         # their complication text since the beginning; now it does.
+        # Origin debts carry their own terms (D95). At the house rate a
+        # buyout of twenty-six thousand grew faster than any honest income
+        # and the origin's ending could not be reached: measured, a
+        # follower earned about a thousand a shift against a leak of
+        # fifteen hundred. These are slow, taken in instalments, and paid
+        # down fastest by working for the lender (`LENDER_WORK_SHARE`).
         if character.origin == 'academic':
             game.debt = Debt(
                 amount=9400, lender='sixes', opened=0,
+                rate=ORIGIN_RATE['academic'], grace=12, instalment=600,
                 note='The department did not lend you the deck. Somebody in '
                      'the Ninth did, against the department\'s name, and the '
                      'department has since stopped answering.')
         elif character.origin == 'bonded':
             game.debt = Debt(
                 amount=26000, lender='kagawa', opened=0,
+                rate=ORIGIN_RATE['bonded'], grace=18, instalment=1500,
                 note='A buyout figure, calculated by Kagawa, for a contract '
                      'Kagawa wrote. It is not a debt in any sense a court '
                      'would recognise. It is the price of the rest of your '
@@ -100,7 +140,8 @@ class Game:
     def new_alias(self, name: str = '') -> Alias:
         """Burn the current name and take another, per D13."""
         self.alias.burned = True
-        fresh = Alias(name=name or generate_name(self.rng('names')),
+        fresh = Alias(name=name or fresh_name(
+            self.rng.fork('names', f'burn{len(self.aliases)}')),
                       established=self.city.shift)
         self.aliases.append(fresh)
         return fresh

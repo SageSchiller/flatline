@@ -139,7 +139,7 @@ def _help_command(sess, cmd) -> None:
         if not related:
             c.blank()
         c.say(f'[dim]There is a manual topic of the same name, about the '
-              f'system rather than the verb: [fg]help --topic {cmd.name}[/]'
+              f'system rather than the verb: [fg]help --topic {same.key}[/]'
               f'[dim] ({same.summary})[/]')
 
 
@@ -512,14 +512,29 @@ def cmd_retire(sess, args) -> None:
     habit = drugs.normalise(char.chem)['habit']
     worst = max(habit.values(), default=0)
     bounty = max(game.city.bounties.values(), default=0)
+    # A name that has held (D95). Four bounties came off for one alias fee
+    # the shift before, and the campaign's hardest condition was its
+    # cheapest. The number has to be nought and the name has to be old
+    # enough that nobody is still looking for the last one.
+    age = game.city.shift - int(game.alias.established)
     state = {
         'stake': char.credits >= legacy.STAKE,
         'debt': not owed,
         'clean': worst < drugs.WITHDRAWAL_AT,
-        'quiet': bounty <= 0,
+        'quiet': bounty <= 0 and age >= legacy.NAME_HOLDS,
     }
+    if bounty > 0:
+        quiet_why = ('There is a bounty on you. A retirement with a number '
+                     'attached to it is a change of address, and they have '
+                     'your address')
+    else:
+        quiet_why = (f'The name is {age} shift{"s" if age != 1 else ""} old '
+                     f'and the last one is still warm. Nobody retires under '
+                     f'a name that has not held for {legacy.NAME_HOLDS}: '
+                     f'that is a change of address with the old one still '
+                     f'on the door')
     fill = {'credits': char.credits, 'stake': legacy.STAKE, 'owed': owed,
-            'lender': lender or 'anybody'}
+            'lender': lender or 'anybody', 'quiet_why': quiet_why}
 
     if not args.has('confirm') or not all(state.values()):
         c.header('Getting out', f'{sum(state.values())} of {len(state)}')
