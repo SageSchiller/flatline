@@ -33,7 +33,10 @@ from dataclasses import dataclass, field
 #: finished, see `Posting`).
 CONDITIONS = ('runs', 'diss', 'shift', 'credits', 'heat', 'met', 'rep',
               'ran', 'origin', 'debt', 'trait', 'did', 'bond', 'found',
-              'street', 'warned', 'heard', 'arranged')
+              'street', 'warned', 'heard', 'arranged',
+              # `asked:<npc>:<topic>`: set by `ask`, so a scene that is
+              # written as a question can wait for the question (D86).
+              'asked')
 
 
 @dataclass(frozen=True, slots=True)
@@ -688,6 +691,9 @@ THREADS: tuple[Thread, ...] = (
                   'with unusual commitment.',
                   requires=('met:vending',),
                   sets=('ozy_met',)),
+            # The sign says not to. The scene used to fire on the next
+            # `look` after meeting him, narrating a question nobody had
+            # typed; `ask vending war` is what sets this now (D86).
             Stage('war', 'You ask him about the war',
                   'The sign says not to. You do.\n\n'
                   'The display scrolls for a long time. It describes, in '
@@ -696,7 +702,7 @@ THREADS: tuple[Thread, ...] = (
                   'destruction of nine machines, and it names all nine, and '
                   'it is not clear at any point whether this is a bit.\n\n'
                   'It ends: THEY WERE NOT REPLACED. THEY WERE RESTOCKED.',
-                  requires=('ozy_met',),
+                  requires=('ozy_met', 'asked:vending:war'),
                   sets=('ozy_war',)),
             Stage('answer', 'You ask him about Deepwater',
                   'You ask. The display goes blank.\n\n'
@@ -706,7 +712,7 @@ THREADS: tuple[Thread, ...] = (
                   'Then: NO.\n\n'
                   'Then, after a while: I DO NOT WANT TO. Which is not a '
                   'sentence a fault in a coin mechanism produces.',
-                  requires=('ozy_war', 'dw_heard'),
+                  requires=('ozy_war', 'dw_heard', 'asked:vending:deepwater'),
                   sets=('ozy_deepwater', 'dw_heard')),
         )),
 )

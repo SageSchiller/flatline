@@ -16,7 +16,9 @@ from __future__ import annotations
 
 from .. import save as save_mod
 from ..content import attributes as attr_content
+from ..content import districts
 from ..content import origins
+from ..content import threads as thread_content
 from ..content import skills as skill_content
 from ..rng import random_seed
 from ..shell import REGISTRY, CommandError, command
@@ -151,13 +153,26 @@ def _now_city(sess):
     if contract is None:
         # Which job, not just the board (D64 c): the softest thing on it
         # that this kit can do, with the posture said out loud.
-        steps.extend(city_cmds.city_steps(game)[:2])
-        if not steps or not any(cmd.startswith('take') for cmd, _ in steps):
-            steps.append(('board', 'work on offer. `board 1` reads the first '
-                                   'one, `take 1` accepts it'))
+        all_steps = city_cmds.city_steps(game)
+        steps.extend(all_steps[:2])
+        # The job itself is never cut. `city_steps` puts shopping and
+        # training in front of it, correctly, and two of those pushed the
+        # one line that names a job off the end of this list. The
+        # fallback then said "`board 1` reads the first one, `take 1`
+        # accepts it" about a board whose first row was a corporate
+        # network, which is exactly the run the recommendation exists to
+        # keep a new player out of (D86).
+        take = next(((cmd, why) for cmd, why in all_steps
+                     if cmd.startswith('take ')), None)
+        if take is not None and take not in steps:
+            steps.append(take)
+        if take is None:
+            steps.append(('board', 'work on offer. `board <row>` reads one, '
+                                   '`take <row>` accepts it'))
         else:
-            steps.append(('board', 'or read the rest of it: `board 1` reads '
-                                   'the first one'))
+            cid = take[0].split()[1]
+            steps.append(('board', f'or read the rest of it: `board {cid}` '
+                                   f'reads the one above'))
         also = ['look', 'errands', 'market', 'map', 'char', 'help']
     else:
         steps.extend(city_cmds.city_steps(game)[:2])
@@ -183,8 +198,48 @@ def _now_city(sess):
     # nudge, when it first becomes true and actionable, on the pattern the
     # Daemonology one already proved: a whole layer of this game can go
     # unplayed for a career because nothing ever said it was there.
-    steps.extend(_system_nudges(sess, char))
+    # `spend` and `train <skill>` are the same four experience said twice.
+    # At creation the plan is the better line, because it is the whole
+    # budget in one word; afterwards the verb it would buy is, because it
+    # is the reason to spend at all.
+    nudges = _system_nudges(sess, char)
+    train = any(n[0].startswith('train ') for n in nudges)
+    if train and char.runs:
+        steps = [s for s in steps if s[0] != 'spend']
+    elif any(cmd == 'spend' for cmd, _ in steps):
+        nudges = [n for n in nudges if not n[0].startswith('train ')]
+    steps.extend(nudges)
+    steps.extend(_story_nudge(sess))
     return line, steps, also
+
+
+def _story_nudge(sess) -> list[tuple[str, str]]:
+    """A reason to go somewhere, or to look round where you are (D86).
+
+    Thirty-five threads and a hundred scenes, gated almost entirely on
+    meeting people, and the advice never once said a person's name or a
+    district's: a player following `now` from job to job could play a
+    career without a single scene. One line, at most, after the work.
+    Names the thread and the place, never the scene, like the journal.
+    """
+    game = sess.game
+    story = game.story
+    here = story.waiting_on_somebody_here(game)
+    if here:
+        thread = thread_content.BY_KEY[here[0]]
+        return [('look', f'{thread.name} is waiting on somebody who is '
+                         f'standing in this street')]
+    away = story.waiting_elsewhere(game)
+    if away:
+        thread_key, where = away[0]
+        thread = thread_content.BY_KEY[thread_key]
+        place = districts.BY_KEY[where]
+        hops = game.city.shifts_to(where)
+        return [(game.city.walk_to(where),
+                 f'{thread.name} has more of it in {place.name}, '
+                 f'{hops} shift{"s" if hops != 1 else ""} away, and it is '
+                 f'waiting for you to be there')]
+    return []
 
 
 def _system_nudges(sess, char) -> list[tuple[str, str]]:
@@ -273,6 +328,14 @@ def previously(sess) -> None:
         story_line += (f', [warn]{waiting} waiting on a decision[/] '
                        f'[dim](`choose`)[/]')
     rows.append(('story', story_line))
+    if game.history:
+        from .run import run_ending
+        h = game.history[-1]
+        against = (fac_content.BY_KEY[h['faction']].short
+                   if h.get('faction') in fac_content.BY_KEY else 'somebody')
+        rows.append(('last run', f'[accent]{h.get("title") or "no contract"}'
+                                 f'[/] [dim]against {against},[/] '
+                                 f'{run_ending(h)}'))
     if city.news:
         last = city.news[-1]
         rows.append(('last', last))
@@ -621,6 +684,20 @@ def suggest(char) -> list[tuple[str, str]]:
     for key in origin.skills:
         while ranks[key] < 2 and price(key) is not None and price(key) <= xp:
             train(key)
+
+    # The rank that drives the breaker in the kit (D87). A program runs at
+    # its rating only up to the skill plus two, so a protege's rating-three
+    # Sable on Intrusion 0 is a rating-two program that costs twice the
+    # memory, and the plan put seventeen experience into five other skills
+    # before anybody said so. Every door in the game reads this number.
+    from ..content import programs as program_content
+    breaker = program_content.best(list(char.deck.loaded) + list(char.library),
+                                   'breaker')
+    if breaker is not None:
+        want = breaker.rating - program_content.HELD_ABOVE
+        while (ranks['intrusion'] < want and price('intrusion') is not None
+               and price('intrusion') <= xp):
+            train('intrusion')
 
     governed = [s for s in skill_content.SKILLS
                 if s.key in origin.skills or weights.get(s.attr, 0) > 1]

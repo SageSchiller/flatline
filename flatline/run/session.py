@@ -170,6 +170,16 @@ class RunState:
 
     #: Countermeasures currently locked on, wherever they physically sit.
     locked: list[IceInstance] = field(default_factory=list)
+    #: The construct that hit you last, this tick, and the one that cut
+    #: you loose, if one did (D89). The city keeps the second.
+    last_hit_by: str = ''
+    severed_by: str = ''
+    #: Whether the construct with your name on it died tonight.
+    grudge_killed: bool = False
+    #: The other runners in the city, as plain dicts, for the night one
+    #: of them turns out to be in here too (D89).
+    rivals: list = field(default_factory=list)
+    company: dict = field(default_factory=dict)
     #: Ticks remaining on Nullsig and Impersonate.
     nullsig: int = 0
     impersonating: int = 0
@@ -329,6 +339,11 @@ class RunState:
             # The net is your first language. One action already spent before
             # anybody else has finished arriving.
             state.free_actions = 1
+        # The one with your name on it has been waiting (D89).
+        for other in net.nodes.values():
+            for construct in other.ice:
+                if construct.grudge and construct.state == 'dormant':
+                    construct.state = 'awake'
         if 'nightwatch_serial' in riders and net.faction == 'nightwatch':
             # Issue hardware with an issue serial (D63). Their network reads
             # it as one of their own and opens a tier to it, right up until
@@ -608,6 +623,7 @@ class RunState:
             if not self.running:
                 return
             self.tick += 1
+            self.last_hit_by = ''
             was = self.trace_pct
             self.add_trace(TRACE_PER_TICK if self.noisy_tick else IDLE_TRACE)
             self.trace_history.append(round(self.trace, 2))
@@ -1116,8 +1132,44 @@ class RunState:
                 continue  # one attached thing at a time
             if it.key in self.seen_incidents and it.kind == 'good':
                 continue  # a gift twice in one run is a discount
+            if it.key == 'company' and (not self.rivals or self.company):
+                continue  # one other session a night, and only if there is one
             out.append(it)
         return out
+
+    def _company(self) -> None:
+        """Somebody else is in here (D89).
+
+        The other runners exist on the board and in the wire and never,
+        until now, in the one place the game happens. Who it is comes
+        from the city's roster; what it means comes from how they feel
+        about you, which is the number `who` has always shown. Warm and
+        their noise is your cover; cold and they tip the room; anything
+        else and you read each other's scans and say nothing.
+        """
+        who = dict(self.rng.pick(self.rivals))
+        name = who['name']
+        disposition = int(who.get('disposition', 0))
+        self.console.blank()
+        if disposition >= 30:
+            who['kind'] = 'cover'
+            self.console.say(f'[ok]{name}. Their traffic is louder than '
+                             f'yours, and it is on purpose.[/]')
+            if not self.hook:
+                self.hook = 'quiet'
+                self.console.say(f'[warn]{incident_content.HOOKS["quiet"]}.[/]')
+        elif disposition <= -30:
+            who['kind'] = 'tip'
+            self.console.say(f'[ice]{name}. They have seen you, and somebody '
+                             f'upstairs is about to hear about it.[/]')
+            self.escalate(1, f'{name} tipped them')
+        else:
+            who['kind'] = 'shared'
+            self.console.say(f'[dim]{name}. Neither of you says anything. '
+                             f'What they scanned, you can read.[/]')
+            self._incident_reveal('hosts')
+        self.company = who
+        self.log(f'company: {name}')
 
     def _apply_incident(self, it) -> None:
         """Print it and do it, with every number on the line that does it."""
@@ -1171,6 +1223,8 @@ class RunState:
                              source=it.name.lower())
         if it.hook:
             self.hook = it.hook
+        if it.key == 'company':
+            self._company()
             self.console.say(f'[warn]{incident_content.HOOKS[it.hook]}.[/]')
 
     def _incident_reveal(self, what: str) -> None:
@@ -1327,12 +1381,21 @@ class RunState:
         construct.warned = 0
         lead = self._lead()
         line = self.rng.pick(data.tells)
+        if construct.grudge:
+            # You would know it anywhere (D89).
+            construct.known = True
         name = data.name if (construct.known or lead > 0) else 'something'
         self.console.blank()
         self.console.say(f'[ice]{line}[/]')
         if construct.known or lead > 0:
             self.console.say(f'[dim]that reads as {name}.[/]')
             construct.known = True
+        if construct.grudge and f'grudge:{construct.uid}' not in self.spent:
+            self.spent.add(f'grudge:{construct.uid}')
+            fac = fac_content.BY_KEY.get(self.net.faction)
+            self.console.say(f'[err]You know this one. It put you out of a '
+                             f'{fac.short if fac else "their"} network, and '
+                             f'it has been running since.[/]')
         if 'first_tell' not in self.spent and data.behaviour != 'black':
             # Said once a run, the first time anything winds up at all. The
             # tell buys you a tick, and a tick is only worth something to
@@ -1366,6 +1429,7 @@ class RunState:
         self.console.raw(f'[err]{data.strike}[/]')
         self.log(f'strike: {data.name}')
         construct.known = True
+        self.last_hit_by = construct.key
 
         # A construct that declares `alert_jump` escalates by that much
         # rather than by the generic one. Three of them declared it and were
@@ -1768,6 +1832,8 @@ class RunState:
         if not self.running:
             return
         self.outcome = outcome
+        if outcome == 'severed':
+            self.severed_by = self.last_hit_by
         self.char.hurt = min(self.char.integrity_max - 1,
                              self.char.hurt + self.hurt)
 
@@ -1799,7 +1865,7 @@ class RunState:
         # log would be coy (D52).
         asset_name = (asset[1].name
                       if asset and (asset[0].mapped or asset[1].label)
-                      else 'the record they want')
+                      else 'the record they want').rstrip('.')
 
         if not self.contract:
             return Brief(
@@ -1834,6 +1900,16 @@ class RunState:
 
         where = self._objective_where(target, found)
         steps = self._better_step(self._objective_steps(kind, target, found))
+        # The night that is over (D88). The brief prices each door against
+        # the clock and never the whole job: at lockdown with the trace at
+        # ninety it went on saying `wait` and `crack`, one long shot at a
+        # time, until the connection was cut. This reads the clock once,
+        # for the whole of what is left to do.
+        if steps and steps[0] != 'jack out' and not self.objective_met():
+            over = self.night_over(kind, target, found)
+            if over:
+                where = f'{where} {over}'.strip()
+                steps = ('jack out',)
         # Something is winding up and this build has nothing that hurts
         # it: brace is the answer every build has (D81). Only on a run
         # that is carrying on, though: it was advising a tick of bracing
@@ -2026,9 +2102,14 @@ class RunState:
         # to run out of time in the part of the network the job is not in.
         unmapped = [n for n in self.net.nodes.values()
                     if n.known and not n.mapped]
-        if unmapped:
-            return (f'probe {self._deepest(unmapped).uid}',)
         shut = self._first_shut()
+        # A probe budget (D88). Deepest-first read every label on a
+        # hostile segment before opening anything: five probes in a row
+        # at amber, and the trace spent on reading rather than on doors.
+        # Two hosts mapped and one of them shut is enough to go through.
+        mapped = sum(1 for n in self.net.nodes.values() if n.mapped)
+        if unmapped and not (shut and mapped >= 2):
+            return (f'probe {self._deepest(unmapped).uid}',)
         if shut:
             return (f'crack {shut[0]} {shut[1]}', f'connect {shut[0]}')
         fresh = [n for n in self.net.nodes.values()
@@ -2103,6 +2184,44 @@ class RunState:
 
     def _hopeless_where(self) -> str:
         """Why there is nothing to try, in the terms of the loadout."""
+        # Standing on the chair with something awake keeping the room red
+        # (D88): a watch banks nothing under it and an edit reads as an
+        # edit, and the old reason printed here was about doors that were
+        # all open.
+        kind = (self.contract or {}).get('objective', '')
+        if (self.here == self.net.objective_node
+                and kind in ('surveil', 'corrupt')
+                and self.alert in ('red', 'lockdown')
+                and self._something_hunting()):
+            loud = next((c for c in self.node.live_ice
+                         if c.alive and c.state != 'dormant'), None)
+            name = loud.data.name if loud is not None and loud.known \
+                else 'something awake'
+            what = ('nothing banks' if kind == 'surveil'
+                    else 'an edit reads as an edit')
+            return (f'{name} is keeping this room red and {what} while it '
+                    f'is. Nothing you carry hits it: a weapon program and '
+                    f'the Warfare to drive it is the difference. This one '
+                    f'is not tonight.')
+        blocked, hop = self._blocked_by_warden()
+        if blocked is not None and hop is not None:
+            # It said "nothing opens for what you are carrying: the best
+            # of it is 100% on badge reader" about a door that was open
+            # and a warden that was the problem (D88).
+            challenge = self.credential_challenge(blocked)
+            ways = ['`pivot` past it at Intrusion 4']
+            if 'native' in self.char.riders():
+                ways.append('`native`, once a run')
+            if challenge is None:
+                return (f'{blocked.data.name} holds {hop.uid} and takes no '
+                        f'credentials at all. {", or ".join(ways)}, or '
+                        f'another way in: `map` shows whether there is one.')
+            if challenge.impossible:
+                return (f'{blocked.data.name} holds {hop.uid} and would not '
+                        f'take anything you carry: {challenge.explain()}. A '
+                        f'forger and the Subterfuge to drive it, '
+                        f'{", or ".join(ways)}, or another way in. This one '
+                        f'is not tonight.')
         node = self.node
         shut = [s for s in node.services if not s.cracked]
         if not shut:
@@ -2112,6 +2231,9 @@ class RunState:
             _, category = node_content.FAMILIES[svc.family]
             program = programs.best(self.char.deck.loaded, category)
             best = max(best, crack_check(self, node, svc, program).chance)
+        if best >= self.hopeless:
+            # The doors are not the problem, so do not say they are.
+            return ''
         hardest = min(shut, key=lambda s: s.difficulty)
         _, category = node_content.FAMILIES[hardest.family]
         return (f'Nothing on {node.uid} opens for what you are carrying: the '
@@ -2375,6 +2497,71 @@ class RunState:
                 return path
         return ui.shortest_path(edges, self.here, uid)
 
+    def trace_rates(self) -> tuple[float, float]:
+        """What a working tick and a quiet tick cost in trace, here and
+        now: the same multipliers `add_trace` applies, read forward. Quiet
+        ticks are cheap by design (D66), so a watch and a wait are not
+        priced like a crack."""
+        mult = self.char.mult('trace_mult')
+        mult *= ice_content.ALERT_TRACE_MULT[self.alert]
+        mult *= shifts.phase(self.phase).trace
+        mult *= self.net.crowd
+        if self.condition is not None:
+            mult *= self.condition.trace
+        noisy = (TRACE_PER_TICK + 2.0 * NOISE_TO_TRACE) * mult
+        quiet = IDLE_TRACE * mult
+        return max(0.05, noisy), max(0.02, quiet)
+
+    def ticks_needed(self, kind: str, target, found: bool) -> tuple[int, int]:
+        """About how the rest of the job splits into (working, quiet)
+        ticks, if every door opens first time. A floor, which is what
+        makes it honest."""
+        if found and target is not None and self.here != target.uid:
+            route = self.route_to(target.uid)
+            hops = 0
+            for uid in route:
+                hop = self.net.node(uid)
+                hops += 1 if (hop is not None and hop.open) else 3
+        elif found and target is not None:
+            hops = 0
+        else:
+            hops = 3 * 2
+        finish = {'exfiltrate': 2, 'wipe': 2, 'corrupt': 2, 'implant': 2,
+                  'escort': 4}.get(kind, 2)
+        quiet = 0
+        if kind == 'surveil':
+            finish = 0
+            quiet = 2 * max(0, self.SURVEIL_TICKS - self.observed)
+            if self.alert in ('red', 'lockdown'):
+                # Nothing banks until it stands down, and standing down is
+                # quiet ticks too.
+                quiet += ice_content.QUIET_TO_COOL - self.quiet_ticks
+        if kind == 'implant':
+            quiet += 5
+        return hops + finish, quiet
+
+    def night_over(self, kind: str, target, found: bool) -> str:
+        """Why the rest of the job does not fit in the clock, or ''.
+
+        Only once the room has turned or the clock is half spent: early,
+        a slow start is a slow start and the brief should not be telling
+        anybody to leave a green room at trace twelve.
+        """
+        if self.alert not in ('red', 'lockdown') and self.trace_pct < 0.5:
+            return ''
+        noisy_rate, quiet_rate = self.trace_rates()
+        working, quiet = self.ticks_needed(kind, target, found)
+        need = working * noisy_rate + quiet * quiet_rate
+        left = max(0.0, TRACE_MAX - self.trace)
+        if need <= left * 1.15:
+            return ''
+        ticks = int(left / noisy_rate)
+        return (f'The trace has about {ticks} working tick'
+                f'{"s" if ticks != 1 else ""} in it at {self.alert}, and what '
+                f'is left of the job is about {working + quiet} even if every '
+                f'door opens first time. That is not tonight: leave with '
+                f'what you are carrying.')
+
     def _better_step(self, steps: tuple[str, ...]) -> tuple[str, ...]:
         """The plain move, improved by something this character can do.
 
@@ -2407,10 +2594,22 @@ class RunState:
         # refuses is the one thing advice must never be.
         blocked, hop = self._blocked_by_warden()
         if blocked is not None and hop is not None:
+            # An open host a warden still holds is exactly what `pivot`
+            # walks past, and the brief used to require the hop shut, so
+            # it said `jack out` at trace three about a door the verb
+            # would have opened (D88).
             if (char.has_technique('pivot') and node.open
-                    and hop.known and not hop.open):
+                    and hop.known and hop.uid in node.edges):
                 return (f'pivot {hop.uid}',) + steps
             challenge = self.credential_challenge(blocked)
+            # The chromed answer: the network is a room, and a room does
+            # not have a desk (D88). Once a run, and only against a
+            # warden nothing else you carry would satisfy.
+            if ('native' in char.riders() and self.native <= 0
+                    and 'sig:native' not in self.spent
+                    and hop.uid in node.edges
+                    and (challenge is None or challenge.impossible)):
+                return ('native', f'connect {hop.uid}') + steps
             if (char.has_technique('pretext') and hop.mapped
                     and ('pretext', hop.uid) not in self.tried
                     and challenge is not None and not challenge.impossible):
@@ -2561,6 +2760,9 @@ class RunState:
             'hurt': self.hurt,
             'events': list(self.events),
             'condition': self.condition.key if self.condition else '',
+            'severed_by': self.severed_by,
+            'grudge_killed': self.grudge_killed,
+            'company': dict(self.company) if self.company else None,
         }
 
 

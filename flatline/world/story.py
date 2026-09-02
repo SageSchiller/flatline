@@ -78,7 +78,8 @@ class Story:
             return f'met:{value}' in self.flags
         if kind == 'ran':
             return f'ran:{value}' in self.flags
-        if kind in ('did', 'bond', 'found', 'street', 'warned', 'heard'):
+        if kind in ('did', 'bond', 'found', 'street', 'warned', 'heard',
+                    'asked'):
             # A posting finished, a runner decided about you, or a relic
             # found (D63 e). The flag carries its own colons, so it is
             # matched whole rather than parsed.
@@ -138,6 +139,15 @@ class Story:
                 # errands. Say nothing and let the closest `requires` talk.
                 unmet = unmet or []
             if not unmet:
+                # Nothing missing but the place (D86). The most useful
+                # thing the journal can say, because it is the one thing
+                # that is only ever a walk away.
+                if stage.where and stage.where != game.city.where:
+                    from ..content import districts
+                    place = districts.BY_KEY[stage.where].name
+                    named = [f'you being in {place}']
+                    if best is None or len(named) < len(best):
+                        best = named
                 continue
             if any(_foreclosed(self, r) for r in unmet):
                 shut = True
@@ -171,7 +181,61 @@ class Story:
                 if stage.any_of and not any(
                         self.satisfied(r, game) for r in stage.any_of):
                     continue
+                # Where it happens is where it happens (D86). Forty-two
+                # scenes declare a district and, until this line, nothing
+                # read it: the Notary's counter on the Row was played on a
+                # Freeport dock, and a vending machine in the Ninth was
+                # asked about the war from Marrow. The field was flavour
+                # with a gate's name, which is this project's oldest bug.
+                if stage.where and game.city.where != stage.where:
+                    continue
                 out.append((thread.key, stage))
+        return out
+
+    def waiting_elsewhere(self, game) -> list[tuple[str, str]]:
+        """Scenes that would fire the moment you stood in the right
+        district, as (thread key, district key). What `now` reads to say
+        there is a reason to go somewhere (D86)."""
+        out = []
+        here = game.city.where
+        for thread in thread_content.THREADS:
+            done = self.reached.get(thread.key, [])
+            for stage in thread.stages:
+                if stage.key in done or not stage.where:
+                    continue
+                if stage.where == here:
+                    continue
+                if not all(self.satisfied(r, game) for r in stage.requires):
+                    continue
+                if stage.any_of and not any(
+                        self.satisfied(r, game) for r in stage.any_of):
+                    continue
+                out.append((thread.key, stage.where))
+                break
+        return out
+
+    def waiting_on_somebody_here(self, game) -> list[str]:
+        """Threads whose next scene wants only a person who is standing in
+        this district now, unmet. `now` turns it into `look` (D86)."""
+        present = {n.key for n in present_now(game, self)}
+        out = []
+        for thread in thread_content.THREADS:
+            done = self.reached.get(thread.key, [])
+            for stage in thread.stages:
+                if stage.key in done:
+                    continue
+                if stage.where and stage.where != game.city.where:
+                    continue
+                unmet = [r for r in stage.requires
+                         if not self.satisfied(r, game)]
+                if stage.any_of and not any(self.satisfied(r, game)
+                                            for r in stage.any_of):
+                    continue
+                if (len(unmet) == 1 and unmet[0].startswith('met:')
+                        and unmet[0][4:] in present
+                        and unmet[0][4:] not in self.met):
+                    out.append(thread.key)
+                break
         return out
 
     def reach(self, thread_key: str, stage: thread_content.Stage) -> None:
@@ -268,6 +332,12 @@ class Story:
 # --------------------------------------------------------------------------
 # running into people
 # --------------------------------------------------------------------------
+
+
+def present_now(game, story: Story) -> list[npc_content.Npc]:
+    """`present`, by another name, for the methods above that cannot
+    reach a function defined below their class."""
+    return present(game, story)
 
 
 def present(game, story: Story,

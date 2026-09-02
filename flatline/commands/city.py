@@ -321,7 +321,8 @@ def cmd_char(sess, args) -> None:
     c.header(char.handle, origin.name)
     c.kv([
         ('running as', f'[accent]{game.alias.name}[/] '
-                       f'[dim]({game.alias.runs} runs)[/]'),
+                       f'[dim]({game.alias.runs} run'
+                       f'{"s" if game.alias.runs != 1 else ""})[/]'),
         ('credits', f'[credit]{char.credits:,}c[/]'),
         ('integrity', f'{char.integrity}/{char.integrity_max}'
                       + _warned_line(game)),
@@ -1089,7 +1090,26 @@ def cmd_sell(sess, args) -> None:
     if not any(s in game.city.district.services for s in ('fence', 'market')):
         raise CommandError('nobody here is buying.')
     if not len(args):
-        raise CommandError('sell what?')
+        rows = []
+        for key in game.char.library:
+            item = (programs.BY_KEY.get(key) or cyberware.BY_KEY.get(key)
+                    or hardware.BY_KEY.get(key))
+            if item is None:
+                continue
+            kind = ('program' if key in programs.BY_KEY
+                    else 'ware' if key in cyberware.BY_KEY else 'component')
+            rows.append((item.name, kind,
+                         f'[credit]{market_mod.sale_value(kind, key):,}c[/]'))
+        if not rows:
+            raise CommandError('nothing in the bag to sell. What is on the '
+                               'deck and in you does not count.')
+        c.header('For sale', 'what the bag would fetch')
+        c.table(('item', 'kind', 'they pay'), rows,
+                roles=('accent', 'dim', None))
+        c.blank()
+        c.say('[dim]`sell <name>`. The rate is punishing on purpose: gear '
+              'is for using.[/]')
+        return
     query = args.rest().lower()
 
     for key in list(game.char.library):
@@ -1237,6 +1257,26 @@ def _show_contract(sess, contract) -> None:
     if need and not game.char.deck.has_category(need):
         c.blank()
         c.warn(f'You have no {need} loaded. This objective needs one.')
+    held_ice = game.city.grudges.get(contract.target, '')
+    if held_ice:
+        from ..content import ice as ice_content
+        it = ice_content.BY_KEY.get(held_ice)
+        if it is not None:
+            c.blank()
+            c.say(f'[ice]Last time in a {contract.target_data.short} network, '
+                  f'a {it.name} put you out. They still run it, and it will '
+                  f'be awake.[/]')
+    desk = badge_read(game.char)
+    if (desk.impossible and not game.char.has_technique('pivot')
+            and 'native' not in game.char.riders()):
+        c.blank()
+        c.warn('A badge desk would stop you. Some routes have a warden that '
+               'takes credentials rather than a door that breaks, and you '
+               'have nothing it would take:')
+        c.say(f'[dim]{desk.explain()}[/]', indent='  ')
+        c.say('[dim]A forger program and the Subterfuge to drive it, or '
+              '`pivot` at Intrusion 4, is the difference. `map` inside '
+              'shows whether there is another way round.[/]')
     if contract.intel:
         c.blank()
         c.rule('intel')
@@ -1339,6 +1379,11 @@ def city_job(sess) -> None:
 #: twenty four runs it roughly doubles what a top build finishes against
 #: a corporation, three in twenty four to nine (D85).
 MASK_POSTURE = 40
+
+#: Heat at or above this is not waited out (D87): it cools about a point a
+#: shift, so the advice to rest is advice to lose the week. Below it, a
+#: few shifts is a real answer.
+HEAT_WAITS_OUT = 40
 
 VAULT_SERVICE = 5.5
 
@@ -1470,12 +1515,55 @@ def _suggest_contract(game):
     # them the moment the counter ticked over. Ranks bought is the honest
     # measure: about double what an origin ships with is the point where
     # size stops being the thing most likely to end the night (D82).
-    green = sum(game.char.base_skills.values()) < 12
-    return min(board, key=lambda c: (int(c.posture)
-                                     + (0 if equipped(c) else 12)
-                                     + (0 if possible(c) else 20),
-                                     c.size_mod if green else 0.0,
-                                     -c.pay))
+    # And finished runs, not only ranks bought (D87): a player who has
+    # trained past the threshold on the strength of three clean nights
+    # and five severed ones is not ready for a sprawl.
+    green = (sum(game.char.base_skills.values()) < 12
+             or _clean_runs(game) < 4)
+
+    def history_cost(c) -> float:
+        # A contract that has already cut you loose is not the softest
+        # thing on the board, whatever its posture says. Twice and it is
+        # off the list: the advice recommended the same severed run five
+        # nights running, and the drop it suggested in between was undone
+        # by the next `now` (D87).
+        tries = _attempts(game, c.cid)
+        severed = sum(1 for h in tries if h.get('outcome') == 'severed')
+        if severed >= 2 or len(tries) >= 3:
+            return float('inf')
+        return 12.0 * len(tries)
+
+    def calendar_cost(c) -> float:
+        # A job that expires before the walk gets there.
+        hops = game.city.shifts_to(c.district)
+        left = c.expires - game.city.shift
+        if not c.held and hops >= left:
+            return float('inf')
+        return 0.0
+
+    def street_cost(c) -> float:
+        # A walk through somebody who is paying to find you.
+        hunted, _ = _hunted_on_route(game, c.district)
+        return 25.0 if hunted else 0.0
+
+    # A badge desk on the route is not certain, so this is a lean and not
+    # a wall: the wall is in the run, and the board says so (D88).
+    desk = (8.0 if badge_read(game.char).impossible
+            and not game.char.has_technique('pivot')
+            and 'native' not in game.char.riders() else 0.0)
+
+    def cost(c):
+        return (int(c.posture)
+                + (0 if equipped(c) else 12)
+                + (0 if possible(c) else 20)
+                + history_cost(c) + calendar_cost(c) + street_cost(c) + desk,
+                c.size_mod if green else 0.0,
+                -c.pay)
+
+    pick = min(board, key=cost)
+    if cost(pick)[0] == float('inf'):
+        return None
+    return pick
 
 
 def _warned_line(game) -> str:
@@ -1508,11 +1596,164 @@ def _hunted_on_route(game, target: str) -> tuple[str, str]:
             danger = int(danger * 0.6)
         if 'findable' in riders:
             danger = int(danger * 1.3)
-        if danger >= fallout.INCIDENT_FLOOR and who:
+        if (danger >= fallout.INCIDENT_FLOOR and who
+                and who not in game.city.arrangements):
             fac = factions.BY_KEY.get(who)
             return ((fac.short if fac else 'somebody'),
                     districts.BY_KEY[hop].name)
     return '', ''
+
+
+def nearest_workshop(game) -> str:
+    """The district key of the closest workshop, or ''."""
+    shops = [d for d in districts.DISTRICTS if 'workshop' in d.services]
+    if not shops:
+        return ''
+    return min(shops, key=lambda d: game.city.shifts_to(d.key)).key
+
+
+def badge_read(char):
+    """What this build could show a badge desk, as the run's own check,
+    against the softest warden the generator ever puts in front of the
+    desk (D88). The board's reads column priced doors and the room and
+    never the third thing that ends runs: a warden that takes credentials
+    from a build that has none to give. A Chromed origin ships with ten
+    points against it and a Steward on the first route was a wall the
+    advice called the softest job on the board."""
+    from ..run.checks import Check
+    from ..run.network import SOFT_DOORMAN
+    check = Check(name='credentials', resistance=SOFT_DOORMAN * 2 + 2)
+    check.add('subterfuge', char.skill('subterfuge') * 2)
+    check.add('guile', char.attr('guile'))
+    check.add('gear', char.bonus('pretext_bonus'))
+    forger = programs.best(list(char.deck.loaded) + list(char.library),
+                           'forger')
+    if forger:
+        rank = char.skill('subterfuge')
+        check.add(programs.held_label(forger, rank, 'subterfuge'),
+                  programs.held(forger, rank) * 2)
+    if 'no_social' in char.riders():
+        check.add('a process cannot present a badge', -10)
+    return check
+
+
+def _shelf_price(game, key: str) -> int | None:
+    """What a program on the local shelf would actually cost this
+    character, or None if it is not stocked here. The advice used to quote
+    the catalogue price times the district: `buy siphon ... about 900c`
+    against a shop that then asked 563c, because standing, the hour and
+    the asking all move the number and the shop reads every one (D87)."""
+    listing = next((l for l in game.city.listings('program') if l.key == key),
+                   None)
+    if listing is None:
+        return None
+    price, _ = market_mod.quote(listing, game.city.where, game.alias,
+                                game.char.dissonance,
+                                game.char.mult('price_mult'),
+                                game.city.phase, game.char.attr('guile'))
+    return price
+
+
+def _attempts(game, cid: str) -> list[dict]:
+    """Every run against one contract that did not finish it."""
+    return [h for h in game.history
+            if h.get('cid') == cid and not h.get('done')]
+
+
+def _clean_runs(game) -> int:
+    return sum(1 for h in game.history if h.get('done'))
+
+
+#: The order in which program categories earn their memory, once the job's
+#: own need and the breaker are in. Read by `_loadout_plan`.
+LOADOUT_ORDER = ('breaker', 'payload', 'mask', 'forger', 'hunter', 'armour',
+                 'weapon', 'wiper', 'daemon')
+
+
+def _loadout_plan(game) -> list:
+    """The programs this deck should be carrying, best first, that fit.
+
+    Three separate pieces of advice used to each ask for the last two
+    memory on a four-memory deck: the breaker step said load Sable, the
+    payload step then said unload Sable to fit Siphon, and the mask step
+    said unload Siphon to fit Quietcastle, for ever (D87). One plan, so
+    every fit step is a move toward the same deck: the breaker, then what
+    the job in hand needs, then a payload, then a mask, then the rest in
+    the order they matter, each the best owned of its kind at the rank
+    that drives it, and each only if there is room left after the ones
+    before it.
+    """
+    from ..world.contracts import OBJECTIVE_PROGRAM
+    char = game.char
+    deck = char.deck
+    owned = [programs.BY_KEY[k] for k in list(char.library) + list(deck.loaded)
+             if k in programs.BY_KEY]
+    contract = game.city.current
+
+    def strength(p) -> tuple:
+        rank = char.skill('intrusion') if p.category == 'breaker' else 99
+        return (programs.held(p, rank), -p.memory, p.rating)
+
+    def best_of(category):
+        have = [p for p in owned if p.category == category]
+        return max(have, key=strength) if have else None
+
+    order = ['breaker']
+    if contract is not None:
+        need = OBJECTIVE_PROGRAM.get(contract.objective, '')
+        if need and need not in order:
+            order.append(need)
+    for cat in LOADOUT_ORDER:
+        if cat not in order:
+            order.append(cat)
+    # A mask earns its slot on hard work. Below that posture it is memory
+    # a payload or a forger would use better, and on a fresh deck it is
+    # the whole of the bank.
+    posture = int(contract.posture) if contract is not None else 0
+    if posture < MASK_POSTURE and 'mask' in order:
+        order.remove('mask')
+        order.append('mask')
+    plan, room = [], deck.memory
+    for cat in order:
+        p = best_of(cat)
+        if p is not None and p.memory <= room:
+            plan.append(p)
+            room -= p.memory
+    return plan
+
+
+LOADOUT_WHY = {
+    'breaker': 'every door in the game reads its rating',
+    'payload': 'four of the six objectives need one',
+    'mask': 'it is what makes hard work possible',
+    'forger': 'it is what opens a badge desk',
+}
+
+
+def _loadout_step(game):
+    """One move toward the deck `_loadout_plan` describes, or None."""
+    deck = game.char.deck
+    plan = _loadout_plan(game)
+    keys = {p.key for p in plan}
+    missing = [p for p in plan if p.key not in deck.loaded]
+    if not missing:
+        return None
+    want = missing[0]
+    why = LOADOUT_WHY.get(want.category,
+                          'it is the best of what you own for the slot')
+    if deck.memory_free >= want.memory:
+        return (f'load {want.name.lower()}',
+                f'{want.name} is in the bag and the deck has room: {why}')
+    loaded = [programs.BY_KEY[k] for k in deck.loaded if k in programs.BY_KEY]
+    spare = [p for p in loaded if p.key not in keys]
+    if spare:
+        drop = max(spare, key=lambda p: (p.memory, -p.rating))
+        return (f'unload {drop.name.lower()}',
+                f'{want.name} needs {want.memory} memory with '
+                f'{deck.memory_free} free, and {drop.name} is not part of '
+                f'the deck you should be carrying: {why}')
+    return ('deck', f'{want.name} needs {want.memory} memory and the deck '
+                    f'has {deck.memory_free}. A bigger bank, or carry less')
 
 
 def _fit_step(game, category: str, why: str):
@@ -1586,9 +1827,33 @@ def city_steps(game) -> list[tuple[str, str]]:
                           f'{game.char.xp} experience unspent, and nothing '
                           f'the origin\'s shape suggests: `train` lists what '
                           f'a rank costs'))
+    # The rank that holds the breaker (D87). A protege ships with a
+    # rating-three Sable and Intrusion 0, so every door for eight runs
+    # printed "held to 2 by Intrusion 0", and the advice named five other
+    # skills before it named that one. Every door reads this number.
+    char = game.char
+    breaker = programs.best(char.deck.loaded, 'breaker')
+    if breaker is not None:
+        rank = char.skill('intrusion')
+        running = programs.held(breaker, rank)
+        cost = skill_content.RANK_COST.get(rank + 1)
+        if (running < breaker.rating and cost is not None
+                and char.xp >= cost
+                and not any(cmd == 'spend' for cmd, _ in steps)):
+            steps.append(('train intrusion',
+                          f'{breaker.name} is rating {breaker.rating} and '
+                          f'runs at {running} because Intrusion is {rank}: '
+                          f'every door reads that number. Rank {rank + 1} '
+                          f'costs {cost} experience and you have {char.xp}'))
+    # A severed connection keeps you out of the chair (D6, D88).
+    if game.city.grounded > game.city.shift:
+        left = game.city.grounded - game.city.shift
+        steps.append((f'rest {left}',
+                      f'you came back badly: {left} shift'
+                      f'{"s" if left != 1 else ""} before your hands stop '
+                      f'shaking enough to jack in'))
     # Hurt is a step before any job (D65): the street hits harder when you
     # are, and a run starts with what you carry in.
-    char = game.char
     if char.integrity <= max(4, char.integrity_max // 3):
         steps.append(('rest', f'you are hurt ({char.integrity}/'
                               f'{char.integrity_max}); the street and the net '
@@ -1644,11 +1909,11 @@ def city_steps(game) -> list[tuple[str, str]]:
     # into a playthrough the deck was still the two rating-two Crowbars it
     # started with, because the advice only spoke about programs a
     # contract demanded and no contract demands a *better* one (D83).
-    breaker_fit = _fit_step(game, 'breaker',
-                            'every door in the game reads its rating')
-    if breaker_fit is not None:
-        steps.append(breaker_fit)
-    else:
+    fit = _loadout_step(game)
+    if fit is not None:
+        steps.append(fit)
+    breaker_fit = fit
+    if breaker_fit is None:
         on_deck = max((programs.BY_KEY[k] for k in game.char.deck.loaded
                        if k in programs.BY_KEY
                        and programs.BY_KEY[k].category == 'breaker'),
@@ -1660,30 +1925,30 @@ def city_steps(game) -> list[tuple[str, str]]:
             # advice looped on `buy drillbit` against a shop that said
             # "nothing here matches 'drillbit'" (D83).
             for_sale = {l.key for l in game.city.listings('program')}
+            rank = game.char.skill('intrusion')
             better = min((p for p in programs.by_category('breaker')
-                          if not p.unique and p.rating > on_deck.rating
+                          if not p.unique
+                          and programs.held(p, rank) > programs.held(on_deck,
+                                                                     rank)
                           and p.key in for_sale
                           and p.memory <= game.char.deck.memory
-                          and game.char.credits >= int(round(
-                              p.price * here_now.price_mult))),
+                          and game.char.credits >= (_shelf_price(game, p.key)
+                                                    or 10 ** 9)),
                          key=lambda p: p.price, default=None)
             if better is not None:
                 steps.append((f'buy {better.name.lower()}',
                               f'every door you have failed was your breaker: '
                               f'{on_deck.name} is rating {on_deck.rating} and '
                               f'{better.name} is {better.rating}, here for '
-                              f'about '
-                              f'{int(round(better.price * here_now.price_mult)):,}c'))
-    payload_fit = _fit_step(game, 'payload',
-                            'four of the six objectives need one')
-    if payload_fit is not None:
-        steps.append(payload_fit)
+                              f'{_shelf_price(game, better.key):,}c'))
     # A mask is what makes hard work possible and nothing said so: the
     # same failure as the payload and the breaker, one tier up (D85).
-    mask_fit = _fit_step(game, 'mask', 'it is what makes hard work possible')
-    if mask_fit is not None:
-        steps.append(mask_fit)
-    elif contract is not None and int(contract.posture) >= MASK_POSTURE:
+    owned_mask = any(p.category == 'mask' for p in
+                     (programs.BY_KEY[k] for k in
+                      list(game.char.library) + list(game.char.deck.loaded)
+                      if k in programs.BY_KEY))
+    if (not owned_mask and contract is not None
+            and int(contract.posture) >= MASK_POSTURE):
         held_mask = any(programs.BY_KEY[k].category == 'mask'
                         for k in game.char.deck.loaded
                         if k in programs.BY_KEY)
@@ -1693,23 +1958,41 @@ def city_steps(game) -> list[tuple[str, str]]:
             pick = min((p for p in programs.by_category('mask')
                         if not p.unique and p.key in for_sale
                         and p.memory <= game.char.deck.memory
-                        and game.char.credits >= int(round(
-                            p.price * here_m.price_mult))),
+                        and game.char.credits >= (_shelf_price(game, p.key)
+                                                  or 10 ** 9)),
                        key=lambda p: p.price, default=None)
             if pick is not None:
                 steps.append((f'buy {pick.name.lower()}',
                               f'{contract.target_data.short} run at posture '
                               f'{int(contract.posture)} and you carry no '
                               f'mask. The trace is what ends runs up here; '
-                              f'{pick.name} is about '
-                              f'{int(round(pick.price * here_m.price_mult)):,}c'))
+                              f'{pick.name} is '
+                              f'{_shelf_price(game, pick.key):,}c here'))
     # A deck nobody repairs is not the deck you built: armour and masks
     # degrade as they work, and nothing tells you except the runs getting
     # worse.
-    if game.char.deck.damage and 'workshop' in game.city.district.services:
+    deck = game.char.deck
+    wrecked = ([s for s, level in deck.damage.items() if level >= 2]
+               or deck.memory_used > deck.memory)
+    if deck.damage and 'workshop' in game.city.district.services:
         steps.append(('repair',
                       'the deck is carrying damage, which degrades what it '
                       'does rather than stopping it'))
+    elif wrecked:
+        # Serious damage with no workshop here: the walk, named. The
+        # nudge only ever fired where a workshop was, so a deck with a
+        # destroyed CPU two shifts from one jacked in silently at nothing
+        # (D88).
+        shop = nearest_workshop(game)
+        if shop:
+            steps.append((game.city.walk_to(shop),
+                          f'the deck is badly hurt ('
+                          + ', '.join(f'{s} {deck.damage[s]}/3'
+                                      for s in deck.damage if deck.damage[s])
+                          + (f', memory {deck.memory_used}/{deck.memory}'
+                             if deck.memory_used > deck.memory else '')
+                          + f') and the nearest workshop is in '
+                          f'{districts.BY_KEY[shop].name}'))
     if 'payload' not in owned:
         cheapest = min((p for p in programs.by_category('payload')
                         if not p.unique), key=lambda p: p.price, default=None)
@@ -1726,9 +2009,10 @@ def city_steps(game) -> list[tuple[str, str]]:
                        f'on the board')
                 on_shelf = {l.key for l in game.city.listings('program')}
                 if shop.key == game.city.where and cheapest.key in on_shelf:
+                    real = _shelf_price(game, cheapest.key) or price
                     steps.append((f'buy {cheapest.name.lower()}',
-                                  f'{why}. {cheapest.name} is here for about '
-                                  f'{price:,}c'))
+                                  f'{why}. {cheapest.name} is {real:,}c '
+                                  f'here'))
                 elif shop.key == game.city.where:
                     # A market here, and not this on the shelf. Naming the
                     # buy anyway is advice the shop refuses (D83).
@@ -1755,7 +2039,42 @@ def city_steps(game) -> list[tuple[str, str]]:
                           f'{pick.pay:,}c. The softest thing on the board '
                           f'you have the gear for'))
             return steps
+        if any(not c.expired(game.city.shift) for c in game.city.board):
+            # Everything on it has cut you loose, expires before you could
+            # get there, or walks through somebody hunting you. Saying
+            # `board` here sends a player back to the row that just
+            # severed them; the street pays, and the board turns over.
+            return steps + [('errands',
+                             'nothing on the board is yours tonight: what '
+                             'is there has already cut you loose, or expires '
+                             'before the walk, or goes through people who '
+                             'are looking for you. Street work pays, and '
+                             'the board changes every shift')]
         return steps + [('board', 'work on offer')]
+    # A contract that has already cut you loose, twice (D87). The advice
+    # said `jack in` after every sever, five nights running, on the same
+    # network; the honest line is why, and the door out.
+    tries = _attempts(game, contract.cid)
+    severed = [h for h in tries if h.get('outcome') == 'severed']
+    if len(severed) >= 2 or len(tries) >= 3:
+        last = tries[-1]
+        if any(h.get('short', 0) > 0 and not h.get('reached') for h in tries):
+            gap = max(h.get('short', 0) for h in tries
+                      if not h.get('reached'))
+            reason = (f'each time you held a badge {gap} tier'
+                      f'{"s" if gap != 1 else ""} short of the zone the job '
+                      f'is in, and every door up there is a penalty until '
+                      f'you have one. A forger opens a badge desk')
+        elif any(h.get('held', 0) > 0 for h in tries):
+            reason = ('each time your breaker ran below its rating for '
+                      'want of Intrusion, and every door reads that number')
+        else:
+            reason = (f'the room found you at {last.get("alert", "red")} '
+                      f'each time, which is the trace and not the doors')
+        steps.append(('drop',
+                      f'{contract.title} has cut you loose {len(tries)} '
+                      f'times now: {reason}. Drop it and take something '
+                      f'softer, or come back with more than you carry'))
     need = OBJECTIVE_PROGRAM.get(contract.objective)
     if need and not game.char.deck.has_category(need):
         owned = [programs.BY_KEY[k] for k in game.char.library
@@ -1874,13 +2193,17 @@ def city_steps(game) -> list[tuple[str, str]]:
                 danger = int(danger * 0.6)
             if 'findable' in riders:
                 danger = int(danger * 1.3)
-            if danger >= fallout.INCIDENT_FLOOR:
+            # An arrangement is the walk being theirs: `travel` no longer
+            # refuses it, so the advice does not either (D87).
+            if (danger >= fallout.INCIDENT_FLOOR
+                    and who not in game.city.arrangements):
                 blocked, first = who, hop
                 break
         if blocked:
             fac = factions.BY_KEY[blocked]
-            if (blocked not in game.city.arrangements
-                    and game.char.credits >= _arrange_rate(game, blocked)
+            hot = int(game.alias.attention(blocked))
+            bounty = int(game.city.bounties.get(blocked, 0))
+            if (game.char.credits >= _arrange_rate(game, blocked)
                     and blocked in (districts.BY_KEY[first].controller,
                                     *districts.BY_KEY[first].presence)):
                 steps.append((f'arrange {blocked}',
@@ -1888,15 +2211,37 @@ def city_steps(game) -> list[tuple[str, str]]:
                               f'{districts.BY_KEY[first].name} and the walk '
                               f'goes through it: an arrangement makes their '
                               f'streets passable'))
-            hot = max(game.alias.attention(k) for k in factions.FACTION_KEYS)
             cost = (ALIAS_COST // 2 if 'no_history' in game.char.riders()
                     else ALIAS_COST)
-            steps.append(('rest 3',
-                          f'{fac.short} are hunting you on the way there. '
-                          f'Heat is {hot} and cools about a point a shift, '
-                          f'so this is slow: `burn` ends the name for '
-                          f'{cost:,}c, and `{route} --anyway` walks into '
-                          f'them'))
+            if bounty or hot >= HEAT_WAITS_OUT:
+                # Not `rest`. Heat cools about a point a shift and a
+                # bounty does not cool at all: `rest 3` was said twenty
+                # four times in a row to somebody with a bounty, while an
+                # arrangement collected every six shifts (D87). The ways
+                # out are to walk into it, to end the name, or to work
+                # somewhere they are not.
+                why = (f'{fac.short} have a bounty on this name'
+                       if bounty else
+                       f'{fac.short} are hunting you at heat {hot}, which '
+                       f'cools about a point a shift')
+                if game.char.credits >= cost:
+                    steps.append(('burn --confirm',
+                                  f'{why}, and the job walks through them. '
+                                  f'A new name costs {cost:,}c and every '
+                                  f'relationship this one has'))
+                steps.append(('drop',
+                              f'{why}, and the job walks through '
+                              f'{districts.BY_KEY[first].name}. Drop it and '
+                              f'take work that does not, or `{route} '
+                              f'--anyway` walks into them and the street '
+                              f'prices it'))
+            else:
+                steps.append((f'rest {max(1, hot - HEAT_WAITS_OUT + 8)}',
+                              f'{fac.short} are hunting you on the way '
+                              f'there. Heat is {hot} and cools about a '
+                              f'point a shift: `burn` ends the name for '
+                              f'{cost:,}c, and `{route} --anyway` walks '
+                              f'into them'))
             return steps
         steps.append((route,
                       f'the job is in {where.name}, {hops} shift'
@@ -2194,7 +2539,11 @@ def cmd_travel(sess, args) -> None:
         # Everybody knows where you drink, including everybody you would
         # rather did not.
         danger = int(danger * 1.3)
-    if danger >= fallout.INCIDENT_FLOOR and not args.has('anyway'):
+    # A standing arrangement is the walk being theirs (D87): their people
+    # have been told, the tier is capped, and refusing the street the
+    # player paid for made the arrangement a number with nothing behind it.
+    if (danger >= fallout.INCIDENT_FLOOR and not args.has('anyway')
+            and who not in game.city.arrangements):
         fac = factions.BY_KEY[who]
         raise CommandError(
             f'{fac.name} have people in '
@@ -2259,6 +2608,7 @@ def cmd_travel(sess, args) -> None:
         # somebody with a pot. Small, and not every time.
         street_world.texture(sess, danger)
     here_you_can(sess, district)
+    people_here(sess)
 
 
 #: What each thing a district has is called at the prompt. A district that
@@ -2294,6 +2644,41 @@ def here_you_can(sess, district, looking: bool = False) -> None:
     bullet = c.caps.g('bullet')
     c.say('[dim]Here:[/] ' + f' [dim]{bullet}[/] '.join(parts)
           + f' [dim]{bullet}[/] [fg]travel[/] [dim](to move on)[/]',
+          subsequent='  ')
+
+
+def people_here(sess) -> None:
+    """Who is standing here, on arrival, in one line.
+
+    The story layer is gated almost entirely on meeting people, and
+    arriving somewhere used to list the market, the workshop and the
+    places to stand without once mentioning that there were people in the
+    street. `look` names them, but `look` is one of the verbs the advice
+    only ever lists under "also", and a player following `now` from job to
+    job could play a whole career without meeting anybody (D86). The met
+    are named; the rest are a count, because meeting somebody is `look`'s
+    moment and this line should send you there rather than replace it.
+    """
+    game, c = sess.game, sess.console
+    if game is None or sess.pending is not None:
+        return
+    from ..world import story as story_mod
+    here = story_mod.present(game, game.story)
+    if not here:
+        return
+    met = [n.name for n in here if n.key in game.story.met]
+    new = len(here) - len(met)
+    parts = []
+    if met:
+        parts.append(', '.join(met))
+    if new:
+        parts.append(('somebody' if new == 1 else f'{new} people')
+                     + ' you have not met')
+    c.say('[dim]People:[/] ' + (' and ' if len(parts) == 2 else '').join(parts)
+          + ' [dim](`look` to see who, `talk <name>` to talk)[/]'
+          if new else
+          '[dim]People:[/] ' + parts[0]
+          + ' [dim](`talk <name>`)[/]',
           subsequent='  ')
 
 
@@ -2345,7 +2730,8 @@ def cmd_walk(sess, args) -> None:
         raise CommandError('walk where? `map` for the city.')
     matches = [k for k in districts.DISTRICT_KEYS if k.startswith(want)]
     if len(matches) != 1:
-        raise CommandError(f'{want!r} is not a district. `map` for the nine.')
+        raise CommandError(f'{want!r} is not a district. `map` for the '
+                           f'twelve.')
     target = matches[0]
     if target == game.city.where:
         raise CommandError(f'you are in {districts.BY_KEY[target].name}.')
@@ -2364,6 +2750,15 @@ def cmd_walk(sess, args) -> None:
             c.say('[dim]The walk stops here.[/]')
             return
         if game.city.where != step:
+            return
+        if sess.pending is not None:
+            # The street has stopped you and is waiting on an answer. The
+            # walk carried on through two more districts with the question
+            # still open, and the encounter re-printed itself wherever it
+            # ended up (D87). README always said it stops; now it does.
+            if step != route[-1]:
+                c.say(f'[dim]The walk stops here. `walk {target}` again '
+                      f'once this is settled.[/]')
             return
         picked = any('Picked up' in line
                      for line in game.city.news[before:])
@@ -3415,6 +3810,34 @@ def cmd_ask(sess, args) -> None:
     if ask_npc(sess, args):
         return
     pool = game.city.rivals
+
+    if not len(args) or (len(args) == 1 and args[0].lower() != 'favours'):
+        # Bare, or one word that is not a runner: who is here to ask and
+        # what about. The favour table used to print for `ask` alone,
+        # which is a different system answering a question about the
+        # street (D86).
+        from ..world import story as story_mod
+        here = [n for n in story_mod.present(game, game.story)
+                if n.key in game.story.met]
+        if len(args) == 1:
+            query = args[0].lower()
+            if not any(query in r.name.lower() or query == r.key
+                       or query == r.data.handle.lower() for r in pool):
+                raise CommandError(f'nobody called {query!r}. `ask <name> '
+                                   f'<topic>` for the people here, `ask '
+                                   f'<runner> <favour>` for a colleague.')
+        if here:
+            c.header('Ask', game.city.district.name)
+            c.kv([(n.key, f'[accent]{n.name}[/] [dim]on '
+                          + ', '.join(sorted(n.topics)) + '[/]')
+                  for n in here])
+            c.blank()
+        c.say('[dim]`ask <name> <topic>` asks one of them. `ask <runner> '
+              '<favour>` calls in a favour from another runner: `who` lists '
+              'them and `ask favours` prices it.[/]')
+        if not here:
+            c.say('[dim]Nobody you have met is here. `look`.[/]')
+        return
 
     if len(args) < 2:
         c.header('Favours', 'what people will do, and what it costs them')

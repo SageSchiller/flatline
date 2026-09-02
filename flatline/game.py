@@ -23,6 +23,11 @@ from .world.story import Story
 from .world.city import City
 
 
+#: How many runs the history keeps. A career past this is a career whose
+#: first nights nobody needs by name.
+HISTORY_KEEP = 200
+
+
 @dataclass(slots=True)
 class Game:
     character: Character
@@ -41,6 +46,11 @@ class Game:
     story: Story = field(default_factory=Story)
     #: Total credits earned across the character's life, for the epitaph.
     earned: int = 0
+    #: Every run, newest last, as the summary line the city keeps of it
+    #: (D86): day, job, target, how it ended, how long it took, what it
+    #: paid. A career is a story the game was not telling back; `log` in
+    #: the city reads it, and so does whoever comes after.
+    history: list = field(default_factory=list)
     #: Set when the character is dead. A flatlined save is readable, not
     #: playable, so the player can look at what happened.
     over: str = ''
@@ -108,6 +118,7 @@ class Game:
             'story': self.story.to_dict(),
             'earned': self.earned,
             'over': self.over,
+            'history': [dict(h) for h in self.history[-HISTORY_KEEP:]],
         }
 
     @classmethod
@@ -126,6 +137,8 @@ class Game:
             story=Story.from_dict(d.get('story') or {}),
             earned=int(d.get('earned', 0)),
             over=d.get('over', ''),
+            history=[dict(h) for h in (d.get('history') or [])
+                     if isinstance(h, dict)],
         )
 
     # ------------------------------------------------------------------

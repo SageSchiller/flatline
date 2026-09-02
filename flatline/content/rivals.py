@@ -177,7 +177,7 @@ def disposition_band(value: int) -> str:
 TAKEN_LINES = (
     '{name} took it. The posting is gone and so is {name}.',
     '{name} got there first. Marrow knew before the board did.',
-    'Somebody took {title} out from under you. It was {name}.',
+    '{name} took {title}. It was on the board and now it is not.',
     '{title} is spoken for. {name}, apparently, and at a discount.',
 )
 

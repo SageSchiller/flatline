@@ -59,8 +59,13 @@ def choose(rng, game, who: str, tier: int, faction: str = ''):
         return None
     # Something written for this street beats something written for any
     # street, at the same rung.
+    # And not the one you just had, unless it is the only one (D87): two
+    # of twenty, back to back, reads as a game with two.
+    last = getattr(game.city, 'last_street', '')
     weights = {e.key: ((3.0 if e.tier == tier else 1.0)
-                       * (2.5 if e.districts else 1.0)) for e in pool}
+                       * (2.5 if e.districts else 1.0)
+                       * (0.1 if e.key == last and len(pool) > 1 else 1.0))
+               for e in pool}
     key = rng.weighted(weights)
     return street_content.BY_KEY[key]
 
@@ -118,6 +123,7 @@ def begin(sess, enc, faction: str = '', danger: int = 0,
           why: str = '') -> None:
     """Print the setup and the answers, and wait for the next line."""
     game, c = sess.game, sess.console
+    game.city.last_street = enc.key
     fill = _fill(game, enc, faction)
     c.blank()
     c.rule('the street', role='warn')

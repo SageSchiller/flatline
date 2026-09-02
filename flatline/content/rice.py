@@ -153,7 +153,7 @@ COSMETICS: tuple[Cosmetic, ...] = (
              'Institutional navy and steel, costed by somebody upstairs and '
              'signed off by somebody above them.',
              needs=('districts', 8),
-             hint='Set foot in eight of the nine districts.'),
+             hint='Set foot in eight of the twelve districts.'),
     Cosmetic('sixes', 'palette', 'Sixes',
              'Bruised purple and a sick green. Nothing in it was chosen by '
              'anybody who had a choice.',
@@ -186,7 +186,7 @@ COSMETICS: tuple[Cosmetic, ...] = (
              'The city as a filesystem, which is either a joke about '
              'netrunners or the most honest thing in this game.',
              needs=('districts', 6),
-             hint='Set foot in six of the nine districts.'),
+             hint='Set foot in six of the twelve districts.'),
     Cosmetic('powerline', 'prompt', 'Powerline',
              'Segments with pointed separators, the way everybody\'s terminal '
              'looked for about four years.',
@@ -383,7 +383,7 @@ COSMETICS: tuple[Cosmetic, ...] = (
              'Drawn in rules rather than filled: a schematic of the word '
              'instead of the word.',
              needs=('districts', 5),
-             hint='Five of the nine districts.'),
+             hint='Five of the twelve districts.'),
     Cosmetic('terminal', 'banner', 'Window',
              'Inside a drawn frame with a device node for a title. The one '
              'banner that uses your frame set, so two axes visibly compose.',

@@ -53,6 +53,8 @@ SOFT_POSTURE = 30
 #: payment costs on top of the arrangement ending.
 ARRANGE_EVERY = 6
 ARRANGE_EASE = 25
+#: What a contract finished after its date pays, as a share of the fee.
+LATE_SHARE = 0.6
 ARRANGE_TIER_CAP = 2
 ARRANGE_BASE = 300
 ARRANGE_BROKEN_HEAT = 12
@@ -141,6 +143,17 @@ class City:
     #: {'rate': credits every ARRANGE_EVERY shifts, 'paid': the shift it was
     #: last paid}. While one stands their people lean rather than take.
     arrangements: dict = field(default_factory=dict)
+    #: The last street encounter's key, so the next is a different one.
+    last_street: str = ''
+    #: The shift before which `jack in` is refused: a severed connection
+    #: keeps you out of the chair for a while (D6, D88).
+    grounded: int = -1
+    #: Titles finished recently, which the board does not post again at
+    #: once: "Courtesy Call" twice running read as a copy (D88).
+    done_titles: list = field(default_factory=list)
+    #: faction -> the construct that cut you loose last time (D89). Their
+    #: next network runs it on the route, awake.
+    grudges: dict = field(default_factory=dict)
     next_cid: int = 1
     #: district -> listings, and the shift they were rolled.
     stock: dict = field(default_factory=dict)
@@ -612,7 +625,8 @@ class City:
         self.board[index] = contract_mod.make_one(
             rng('contracts'), int(old.cid[1:]), patron, soft,
             self.shift, alias, self.posture,
-            used={c.title for i, c in enumerate(self.board) if i != index},
+            used={c.title for i, c in enumerate(self.board) if i != index}
+            | set(self.done_titles),
             objective=kind, size_mod=0.75 if runs < 3 else 1.0)
 
     def top_up_board(self, rng: Rng, alias: Alias, char=None,
@@ -631,7 +645,8 @@ class City:
         fresh = contract_mod.generate_board(
             rng('contracts'), self.shift, alias, self.posture,
             count=want - have, start_id=self.next_cid,
-            avoid={c.title for c in self.board}, flags=flags)
+            avoid={c.title for c in self.board} | set(self.done_titles),
+            flags=flags)
         self.next_cid += len(fresh) + 1
         self.board.extend(fresh)
         self._ensure_startable(rng, alias, char, flags)
@@ -898,6 +913,14 @@ class City:
             return 0, told
 
         pay = int(contract.pay * pay_mult)
+        if contract.expired(self.shift) and not contract.held:
+            # They had stopped expecting it. The board said so at the time,
+            # and then paid in full anyway, which made every deadline on it
+            # decoration (D87).
+            pay = int(pay * LATE_SHARE)
+            told.append(f'[warn]It was past its date. They pay '
+                        f'{int(LATE_SHARE * 100)}% for late, and do not '
+                        f'argue about it.[/]')
         if summary['outcome'] != 'clean':
             # You delivered, but they had to hear about it from somebody else.
             pay = int(pay * 0.7)
@@ -936,6 +959,10 @@ class City:
             'bolted': self.bolted, 'errand': dict(self.errand),
             'errands_done': self.errands_done,
             'arrangements': {k: dict(v) for k, v in self.arrangements.items()},
+            'last_street': self.last_street,
+            'grounded': self.grounded,
+            'done_titles': list(self.done_titles),
+            'grudges': dict(self.grudges),
             'next_cid': self.next_cid,
             'stock': {k: [l.to_dict() for l in v] for k, v in self.stock.items()},
             'stock_shift': self.stock_shift,
@@ -970,6 +997,10 @@ class City:
                               'paid': int(v.get('paid', 0))}
                           for k, v in (d.get('arrangements') or {}).items()
                           if isinstance(v, dict)},
+            last_street=str(d.get('last_street', '') or ''),
+            grounded=int(d.get('grounded', -1)),
+            grudges={str(k): str(v) for k, v in (d.get('grudges') or {}).items()},
+            done_titles=[str(t) for t in (d.get('done_titles') or [])],
             next_cid=int(d.get('next_cid', 1)),
             stock={k: [Listing.from_dict(l) for l in v]
                    for k, v in (d.get('stock') or {}).items()},

@@ -6209,8 +6209,19 @@ def test_arcs() -> None:
     sess.console.start_capture()
     sess.execute('jack out')
     sess.console.end_capture()
-    T.ok('did:pumps.posting' in st.flags and 'pumps_ledger' in st.flags,
-         'finishing it opens the ledger scene')
+    T.ok('did:pumps.posting' in st.flags, 'finishing it is recorded')
+    # The ledger is Tuck's, and Tuck is in the Ninth: a scene that names a
+    # district waits for you to be standing in it (D86).
+    T.ok('pumps_ledger' not in st.flags,
+         'the ledger scene waits for the Ninth')
+    T.ok('Ninth' in st.waiting_on(thread_content.BY_KEY['pumps'], game),
+         'and the journal says so')
+    game.city.where = 'ninth'
+    sess.console.start_capture()
+    sess.execute('look')
+    sess.console.end_capture()
+    T.ok('pumps_ledger' in st.flags,
+         'finishing it opens the ledger scene, back in the Ninth')
     st.pending = ['pumps.ledger'] + [p for p in st.pending
                                       if p != 'pumps.ledger']
     game.alias.add_heat('sixes', 60)
@@ -9478,6 +9489,472 @@ def test_new_origins() -> None:
     T.ok(state.hurt < 6, 'and puts something back')
     T.ok('go through it' in out, 'and says so')
 
+# --------------------------------------------------------------------------
+# D86 to D89: the people are the story, the night before, the wall and the
+# clock, and what the city remembers inside the net
+# --------------------------------------------------------------------------
+
+
+def test_people_are_the_story() -> None:
+    """D86: scenes happen where they are set, and the advice points at
+    people."""
+    T.section('the people are the story')
+    from flatline.content import threads as thread_content
+    from flatline.commands import guide
+
+    # A scene that names a district waits for you to be standing in it.
+    game = Game.new(Character.from_origin('gutter', 'q'), seed=4242)
+    st = game.story
+    game.char.runs = 4
+    st.meet('bell')
+    game.city.where = 'ninth'
+    ready = {(t, s.key) for t, s in st.available(game)}
+    T.ok(('queue', 'dispute') not in ready,
+         'the queue dispute does not happen in the Ninth')
+    T.ok(('queue', 'marrow') in {(t.key, s.where)
+                                 for t in thread_content.THREADS
+                                 for s in t.stages
+                                 if t.key == 'queue' and s.key == 'dispute'},
+         'because it is written for Marrow')
+    T.ok(('queue', 'marrow') in st.waiting_elsewhere(game),
+         'and the story layer knows it is waiting on the place')
+    hint = st.waiting_on(thread_content.BY_KEY['queue'], game)
+    T.ok('Marrow' in hint, f'the journal names the place ({hint!r})')
+    sess = Session(console=quiet_console(), slot='d86'); sess.game = game
+    sess.console.start_capture()
+    sess.execute('now')
+    said = ui.plain(sess.console.end_capture())
+    # Somebody unmet in this street outranks a walk: the vending machine
+    # is standing right here.
+    T.ok('Ozymandias is waiting on somebody' in said,
+         'and `now` points at the person standing here first')
+    st.meet('vending')
+    sess.console.start_capture()
+    sess.execute('now')
+    said = ui.plain(sess.console.end_capture())
+    T.ok('marrow' in said.lower() and thread_content.BY_KEY['queue'].name
+         in said, 'and, nobody left to meet here, a reason to go there')
+    game.city.where = 'marrow'
+    ready = {(t, s.key) for t, s in st.available(game)}
+    T.ok(('queue', 'dispute') in ready, 'and it fires in Marrow')
+
+    # A scene written as a question waits for the question.
+    game = Game.new(Character.from_origin('gutter', 'o'), seed=4242)
+    st = game.story
+    st.meet('vending')
+    st.flags.add('ozy_met')
+    game.city.where = 'ninth'
+    T.ok(('ozymandias', 'war') not in {(t, s.key) for t, s in st.available(game)},
+         'the war is not narrated until it is asked about')
+    T.ok(not st.satisfied('asked:vending:war', game), 'asked: reads the flag')
+    sess, out = play(['ask vending war'], game=game)
+    T.ok('ozy_war' in st.flags, 'asking about the war is the scene')
+
+    # Talking to somebody standing here is meeting them.
+    game = Game.new(Character.from_origin('gutter', 't'), seed=4242)
+    here = story_mod_present(game)
+    T.ok(here, 'somebody is in Marrow on day one')
+    who = here[0]
+    sess, out = play([f'talk {who.key}'], game=game)
+    T.ok(who.key in game.story.met, 'talk introduces them')
+    T.ok('nobody called' not in out and 'have not met' not in out,
+         'without refusing first')
+    sess, out = play(['talk'], game=game)
+    T.ok(who.name in out, 'bare `talk` lists who is here')
+    sess, out = play(['ask'], game=game)
+    T.ok(who.name in out and 'Favours' not in out,
+         'bare `ask` lists people rather than the favour table')
+
+    # Arriving somewhere says who is in the street.
+    game = Game.new(Character.from_origin('gutter', 'a'), seed=4242)
+    sess, out = play(['travel ninth'], game=game)
+    T.ok('People:' in out, 'arrival names the people')
+
+    # The recommended job is never cut out of `now`.
+    game = Game.new(Character.from_origin('gutter', 'n'), seed=4242)
+    game.char.points, game.char.xp = 6, 12
+    game.char.credits = 3000
+    sess = Session(console=quiet_console(), slot='d86n'); sess.game = game
+    sess.console.start_capture()
+    sess.execute('now')
+    said = ui.plain(sess.console.end_capture())
+    T.ok('take c' in said, 'with points and a shop trip in front of it, '
+                           'the job is still named')
+    T.ok('`board 1` reads the first one, `take 1`' not in said,
+         'and nothing points at row one')
+
+
+def story_mod_present(game):
+    from flatline.world import story as story_world
+    return story_world.present(game, game.story)
+
+
+def test_night_before() -> None:
+    """D87: the advice reads what happened last night."""
+    T.section('the night before')
+    from flatline.commands import city as city_cmd
+    from flatline.commands import guide
+    from flatline.content import programs as program_content
+    from flatline.world import city as city_world
+
+    # Every run is written down, and `log` reads it back in the city.
+    game = Game.new(Character.from_origin('gutter', 'h'), seed=13579)
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    sess, out = play([f'take {contract.cid}', 'jack in --force',
+                      'jack out --anyway', 'log'], game=game)
+    T.eq(len(game.history), 1, 'one run, one record')
+    rec = game.history[0]
+    T.eq(rec['cid'], contract.cid, 'it names the contract')
+    T.ok(rec['outcome'] in ('burned', 'severed', 'clean'), 'and how it went')
+    T.ok('The log' in out and contract.title in out, '`log` reads it back')
+    T.ok('ticks' not in rec or isinstance(rec['ticks'], int), 'ticks is a count')
+
+    # A contract that has cut you loose twice is not the softest thing on
+    # the board, and the advice says to drop it.
+    game = Game.new(Character.from_origin('gutter', 's'), seed=4242)
+    pick = city_cmd._suggest_contract(game)
+    T.ok(pick is not None, 'something is recommended on day one')
+    for _ in range(2):
+        game.history.append({'cid': pick.cid, 'title': pick.title,
+                             'faction': pick.target, 'outcome': 'severed',
+                             'done': False, 'alert': 'lockdown', 'ticks': 20,
+                             'trace': 100, 'pay': 0, 'short': 2, 'held': 0,
+                             'day': 1, 'shift': 0, 'objective': pick.objective})
+    again = city_cmd._suggest_contract(game)
+    T.ok(again is None or again.cid != pick.cid,
+         'twice severed is off the recommendation')
+    game.city.accepted = pick.cid
+    steps = dict(city_cmd.city_steps(game))
+    T.ok('drop' in steps, 'and holding it, the advice is to drop it')
+    T.ok('tier' in steps.get('drop', ''), 'with the reason it went wrong')
+
+    # The rank that holds the breaker is named before anything else.
+    game = Game.new(Character.from_origin('protege', 'p'), seed=4242)
+    T.eq(game.char.skill('intrusion'), 0, 'a protege starts at Intrusion 0')
+    # `from_origin` grants no creation budget; `new` does.
+    game.char.points, game.char.xp = attr_content.CREATION_POINTS, skills.CREATION_XP
+    plan = guide.suggest(game.char)
+    T.ok(('train', 'intrusion') in plan,
+         'and the plan buys the rank that drives their Sable')
+    game.char.xp = 2
+    for key in list(game.char.deck.loaded):
+        game.char.deck.unload(key)
+    game.char.deck.load('sable')
+    steps = [cmd for cmd, _ in city_cmd.city_steps(game)]
+    T.ok('train intrusion' in steps or 'spend' in steps,
+         f'the advice names the rank ({steps[:3]})')
+
+    # One loadout plan, so the fit advice cannot argue with itself.
+    game = Game.new(Character.from_origin('gutter', 'l'), seed=4242)
+    char = game.char
+    char.library = ['crowbar', 'sable', 'quietcastle', 'siphon', 'ledgerhand']
+    for key in list(char.deck.loaded):
+        char.deck.unload(key)
+    char.deck.load('crowbar')
+    char.deck.load('quietcastle')
+    seen = []
+    for _ in range(8):
+        step = city_cmd._loadout_step(game)
+        if step is None:
+            break
+        verb, name = step[0].split(' ', 1)
+        key = next(p.key for p in program_content.PROGRAMS
+                   if p.name.lower() == name)
+        T.ok(step[0] not in seen, f'the fit advice never repeats ({step[0]})')
+        seen.append(step[0])
+        if verb == 'load':
+            char.deck.load(key)
+        elif verb == 'unload':
+            char.deck.unload(key)
+        else:
+            break
+    T.ok(city_cmd._loadout_step(game) is None,
+         f'and reaches a deck it is happy with ({char.deck.loaded})')
+    T.ok('siphon' in char.deck.loaded and 'sable' in char.deck.loaded,
+         'which carries the breaker and the payload')
+
+    # Late is late.
+    game = Game.new(Character.from_origin('gutter', 'late'), seed=4242)
+    contract = game.city.board[0]
+    game.city.shift = contract.expires + 1
+    summary = {'objective': True, 'outcome': 'clean', 'faction': contract.target}
+    pay, told = game.city.pay_out(game.alias, contract, summary)
+    T.ok(pay < contract.pay and 'late' in ' '.join(told).lower(),
+         f'an expired contract pays less ({pay} of {contract.pay})')
+
+    # A verb typed at a yes-or-no question is a verb.
+    game = Game.new(Character.from_origin('gutter', 'yn'), seed=4242)
+    game.char.points, game.char.xp = 6, 12
+    sess, out = play(['spend', 'board'], game=game)
+    T.ok('yes or no' not in out and 'The board' in out,
+         '`board` at the spend question opens the board')
+    T.ok(game.char.points == 6, 'and nothing was spent')
+
+    # Nobody is told to rest against a bounty.
+    game = Game.new(Character.from_origin('gutter', 'b'), seed=4242)
+    ninth = next((c for c in game.city.board if c.district == 'ninth'), None)
+    if ninth is None:
+        ninth = game.city.board[0]
+        ninth.district = 'ninth'
+    game.city.accepted = ninth.cid
+    game.alias.add_heat('sixes', 90)
+    game.city.bounties['sixes'] = 60
+    steps = [cmd for cmd, _ in city_cmd.city_steps(game)]
+    hunted, _ = city_cmd._hunted_on_route(game, 'ninth')
+    if hunted:
+        T.ok(not any(s.startswith('rest') for s in steps),
+             f'no rest against a bounty ({steps})')
+        T.ok(any(s in ('drop', 'burn --confirm') for s in steps),
+             'the way out is named instead')
+        # And an arrangement makes the walk theirs.
+        game.city.arrangements['sixes'] = {'rate': 100, 'paid': 0}
+        hunted2, _ = city_cmd._hunted_on_route(game, 'ninth')
+        T.ok(not hunted2, 'an arrangement opens the route')
+        sess, out = play(['travel ninth'], game=game)
+        T.ok(game.city.where == 'ninth', 'and travel takes it')
+
+
+def test_wall_and_clock() -> None:
+    """D88: the wall you can see, and the night that is over."""
+    T.section('the wall and the clock')
+    from flatline.commands import city as city_cmd
+    from flatline.commands import run as run_cmd
+    from flatline.run import network as net_mod
+    from flatline.run.network import IceInstance
+
+    # The board reads a badge desk against the build.
+    chromed = Character.from_origin('chromed', 'c')
+    T.ok(city_cmd.badge_read(chromed).impossible,
+         'a chromed build cannot present a badge')
+    protege = Character.from_origin('protege', 'p')
+    T.ok(not city_cmd.badge_read(protege).impossible,
+         'a protege can')
+    game = Game.new(Character.from_origin('gutter', 'g'), seed=4242)
+    game.char.installed = list(chromed.installed)
+    if city_cmd.badge_read(game.char).impossible:
+        sess, out = play([f'board {game.city.board[0].cid}'], game=game)
+        T.ok('badge desk would stop you' in out,
+             'and the board says so for a build without native')
+
+    def fixture(origin='gutter', seed=7):
+        game = Game.new(Character.from_origin(origin, 'w'), seed=seed)
+        net = net_mod.generate(Rng(seed).fork('network', 'd88'), 'sixes', 26,
+                               'exfiltrate', 1.0)
+        con = quiet_console()
+        sess = Session(console=con, slot='d88'); sess.game = game
+        state = RunState.begin(net, game.char, Rng(seed)('combat'), con,
+                               contract={'objective': 'exfiltrate',
+                                         'title': 'T'})
+        sess.run = state
+        # A payload on the deck, or the brief bails for want of one before
+        # any of this is read.
+        if 'siphon' not in game.char.library:
+            game.char.library.append('siphon')
+        for key in list(game.char.deck.loaded):
+            game.char.deck.unload(key)
+        game.char.deck.load('crowbar')
+        game.char.deck.load('siphon')
+        entry = net.node(net.entry)
+        hop = next(net.node(u) for u in entry.edges)
+        hop.known = hop.mapped = hop.open = True
+        hop.ice = [IceInstance(uid='steward-t', key='steward', rating=3,
+                               state='awake')]
+        return game, sess, state, hop
+
+    # Native walks through a warden; the impossible is refused for free.
+    game, sess, state, hop = fixture('chromed')
+    state.native = 3
+    sess.console.start_capture()
+    sess.execute(f'connect {hop.uid}')
+    out = ui.plain(sess.console.end_capture())
+    T.ok(state.here == hop.uid and 'not using the door' in out,
+         'native goes past a warden')
+    game, sess, state, hop = fixture('chromed')
+    before = state.tick
+    sess.console.start_capture()
+    sess.execute(f'connect {hop.uid}')
+    out = ui.plain(sess.console.end_capture())
+    T.ok('would not take anything you carry' in out,
+         'a chromed build is told the desk is a wall')
+    T.ok('--present' not in out, 'and is not prompted to present')
+    T.eq(state.tick, before, 'for free')
+    T.ok(state.alert == 'green', 'and nothing escalated')
+    where = state._hopeless_where()
+    T.ok(hop.uid in where or 'Steward' in where or where == '',
+         'the brief names the warden when it gives up')
+
+    # A strike the odds call impossible is refused for free.
+    game, sess, state, hop = fixture('gutter')
+    game.char.base_skills['warfare'] = 2
+    state.node.ice.append(IceInstance(uid='pike-t', key='pike', rating=7,
+                                      state='awake'))
+    before = state.tick
+    sess.console.start_capture()
+    sess.execute('strike pike')
+    out = ui.plain(sess.console.end_capture())
+    T.ok('nothing you carry reaches' in out, 'bare hands against a Pike')
+    T.eq(state.tick, before, 'costs no tick')
+
+    # The clock, read for the whole job.
+    game, sess, state, hop = fixture('gutter')
+    T.eq(state.night_over('exfiltrate', None, False), '',
+         'a green room at trace nought is not over')
+    state.alert = 'lockdown'
+    state.trace = 92
+    T.ok(state.night_over('exfiltrate', None, False),
+         'lockdown at ninety-two with the job unfound is')
+    T.eq(state.brief().steps, ('jack out',), 'and the brief says leave')
+    T.ok('not tonight' in state.brief().where, 'in so many words')
+
+    # A severed connection grounds you, and a wrecked deck stays out.
+    game = Game.new(Character.from_origin('gutter', 'sv'), seed=13579)
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    sess, out = play([f'take {contract.cid}', 'jack in --force'], game=game)
+    state = sess.run
+    T.ok(state is not None, 'in')
+    state.trace = 100
+    sess.console.start_capture()
+    state._check_trace()
+    T.eq(state.outcome, 'severed', 'the trace cut you loose')
+    run_cmd._resolve(sess)
+    out = ui.plain(sess.console.end_capture())
+    T.ok(game.city.grounded > game.city.shift, 'you are grounded')
+    T.ok('hands stop shaking' in out, 'and told so')
+    sess, out = play([f'take {contract.cid}', 'jack in'], game=game)
+    T.ok(sess.run is None and 'hands' in out, '`jack in` refuses meanwhile')
+    steps = [cmd for cmd, _ in city_cmd.city_steps(game)]
+    T.ok(steps and steps[0].startswith('rest'), 'and the advice is rest')
+    game.city.grounded = -1
+    game.char.deck.damage[next(iter(game.char.deck.parts))] = 3
+    sess, out = play(['jack in'], game=game)
+    T.ok(sess.run is None and 'wrecked' in out,
+         'a destroyed part keeps you out')
+    T.ok('workshop' in out, 'and names the nearest workshop')
+    sess, out = play(['jack in --force'], game=game)
+    T.ok(sess.run is not None, 'unless you insist')
+
+    # `wait` says what it buys; `odds crack --chain` reads the host.
+    game, sess, state, hop = fixture('gutter')
+    game.char.base_skills['intrusion'] = 2
+    state.alert = 'amber'
+    sess.console.start_capture()
+    sess.execute('wait')
+    out = ui.plain(sess.console.end_capture())
+    T.ok('This buys' in out, 'the wait line reads right')
+    from flatline.run.network import ServiceInstance
+    hop.services = [ServiceInstance(key='shell', difficulty=2),
+                    ServiceInstance(key='share', difficulty=2)]
+    sess.console.start_capture()
+    sess.execute(f'odds crack {hop.uid} --chain')
+    out = ui.plain(sess.console.end_capture())
+    T.ok('both doors' in out and 'runs:' not in out,
+         '`odds crack <host> --chain` prices both halves')
+
+
+def test_remembered_inside() -> None:
+    """D89: the city remembers you inside the net."""
+    T.section('remembered inside')
+    from flatline.commands import run as run_cmd
+    from flatline.run import network as net_mod
+
+    # A grudge is on the route, awake, a point harder, and known on sight.
+    for seed in range(6):
+        plain = net_mod.generate(Rng(seed).fork('network', 'g'), 'sixes', 26,
+                                 'exfiltrate', 1.0)
+        held = net_mod.generate(Rng(seed).fork('network', 'g'), 'sixes', 26,
+                                'exfiltrate', 1.0, grudge='drover')
+        T.eq(sorted(plain.nodes), sorted(held.nodes),
+             f'seed {seed}: the grudge changes no host')
+        route = net_mod._route(held, held.objective_node) or []
+        again = [c for u in route for c in held.nodes[u].ice if c.grudge]
+        T.eq(len(again), 1, f'seed {seed}: one construct with your name on it')
+        T.eq(again[0].key, 'drover', 'and it is the one that put you out')
+    none = net_mod.generate(Rng(1).fork('network', 'g'), 'sixes', 26,
+                            'exfiltrate', 1.0, grudge='nosuch')
+    T.ok(not any(c.grudge for n in none.nodes.values() for c in n.ice),
+         'an unknown key places nothing')
+    game = Game.new(Character.from_origin('gutter', 'r'), seed=3)
+    state = RunState.begin(held, game.char, Rng(3)('combat'), quiet_console(),
+                           contract={'objective': 'exfiltrate', 'title': 'T'})
+    grudge = next(c for n in held.nodes.values() for c in n.ice if c.grudge)
+    T.eq(grudge.state, 'awake', 'it starts awake')
+    state.console.start_capture()
+    state._tell(grudge)
+    out = ui.plain(state.console.end_capture())
+    T.ok('You know this one' in out and grudge.known, 'and you recognise it')
+
+    # What the city keeps: the sever, and the kill.
+    game = Game.new(Character.from_origin('gutter', 'k'), seed=13579)
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    sess, out = play([f'take {contract.cid}', 'jack in --force'], game=game)
+    state = sess.run
+    state.last_hit_by = 'gull'
+    state.finish('severed')
+    T.eq(state.severed_by, 'gull', 'the run knows what cut it')
+    sess.console.start_capture()
+    run_cmd._resolve(sess)
+    sess.console.end_capture()
+    T.eq(game.city.grudges.get(contract.target), 'gull',
+         'and the city keeps it against the faction')
+    T.ok(game.city.grudges == City.from_dict(game.city.to_dict()).grudges,
+         'through a save')
+    game.city.grounded = -1
+    sess, out = play([f'take {contract.cid}', 'jack in --force'], game=game)
+    T.ok(contract.target_data.short in out and 'retired it' in out,
+         'the connected screen says so')
+    state = sess.run
+    state.grudge_killed = True
+    sess.console.start_capture()
+    sess.execute('jack out --anyway')
+    out = ui.plain(sess.console.end_capture())
+    T.ok(contract.target not in game.city.grudges, 'killing it ends the habit')
+    T.ok('will not build that one' in out, 'and the city says so')
+    sess, out = play([f'board {contract.cid}'], game=game) if any(
+        c.cid == contract.cid for c in game.city.board) else (sess, '')
+
+    # Somebody else is in here, and what it means depends on them.
+    def company(disposition):
+        game = Game.new(Character.from_origin('gutter', 'c'), seed=5)
+        net = net_mod.generate(Rng(5).fork('network', 'co'), 'sixes', 26)
+        state = RunState.begin(net, game.char, Rng(5)('combat'),
+                               quiet_console(),
+                               contract={'objective': 'exfiltrate', 'title': 'T'})
+        state.rivals = [{'key': 'vesper', 'name': 'Vesper Okonkwo',
+                         'disposition': disposition, 'style': 'social'}]
+        state.console.start_capture()
+        state._company()
+        return game, state, ui.plain(state.console.end_capture())
+    game, state, out = company(40)
+    T.eq(state.company.get('kind'), 'cover', 'a friend is cover')
+    T.eq(state.hook, 'quiet', 'and their noise hides your next move')
+    game, state, out = company(-40)
+    T.eq(state.company.get('kind'), 'tip', 'an enemy tips the room')
+    T.ok(state.alert != 'green', 'and it escalates')
+    game, state, out = company(0)
+    T.eq(state.company.get('kind'), 'shared', 'a stranger shares a scan')
+    T.ok('Vesper' in out, 'and every one of them is named')
+    state.rivals = []
+    T.ok(not any(i.key == 'company' for i in state._incident_pool()),
+         'nobody can turn up if nobody is left')
+    # The rival remembers the night.
+    sess = Session(console=quiet_console(), slot='co'); sess.game = game
+    sess.run = state
+    state.company = {'key': 'vesper', 'name': 'Vesper Okonkwo',
+                     'kind': 'cover'}
+    before = game.city.rival('vesper').disposition
+    sess.console.start_capture()
+    sess.execute('jack out --anyway')
+    sess.console.end_capture()
+    T.ok(game.city.rival('vesper').disposition > before,
+         'covering for you warms them')
+    T.ok(any('same night' in line for line in game.city.news),
+         'and the wire carries it')
+
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
@@ -9485,6 +9962,8 @@ SUITES = (
     test_intrusion, test_catalogue, test_money, test_relics, test_street,
     test_collector, test_early, test_tension, test_hostnames,
     test_objective_parity,
+    test_people_are_the_story, test_night_before, test_wall_and_clock,
+    test_remembered_inside,
     test_economy,
     test_combat,
     test_advancement,
@@ -9497,6 +9976,7 @@ SUITES = (
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui,
 )
+
 
 
 def check_registry() -> None:

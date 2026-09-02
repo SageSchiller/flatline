@@ -49,7 +49,9 @@ type, in the city and inside a run alike. **`map`** draws wherever you are:
 the city, with you and the job marked on it and the walk to anywhere, or
 every host you have found and what connects to what. Neither costs any time
 and both are always safe to ask. `walk <district>` goes the whole way, a
-shift a step, and stops if the street stops you.
+shift a step, and stops if the street stops you. **`log`** in the city is the
+career, one line per run, and the advice reads the same record: a job that
+has cut you loose twice is not recommended a third time.
 
 Saves live in `$XDG_DATA_HOME/flatline` (usually `~/.local/share/flatline`),
 not beside the code, so moving or reinstalling the game does not touch a
@@ -99,7 +101,7 @@ slow effect but no effect, and looks identical to a slow one from outside.
 
 ## The design
 
-`FLATLINE-PLAN.md` is the long version: fifty-three numbered locked decisions,
+`FLATLINE-PLAN.md` is the long version: eighty-nine numbered locked decisions,
 the systems design, and a session log. **Read it first** before changing
 anything structural.
 
@@ -111,7 +113,10 @@ The three ideas everything else hangs off:
   feeds the trace, so getting out clean and getting out at all pull against
   each other.
 - **Failure is a state change, not a game over.** Only black ICE ends a
-  character, it only guards cores, and it always telegraphs first.
+  character, it only guards cores, and it always telegraphs first. A severed
+  connection keeps you out of the chair for two shifts, the city writes down
+  which construct did it, and their next network runs that one on your
+  route, awake, with your name on it.
 - **No hidden dice.** `odds` prints the entire sum and the exact percentage
   before you commit, for a crack or a strike, and `odds <any verb>` prints
   what that verb costs tonight; a failed check names the term that sank it. The
@@ -164,7 +169,7 @@ The three ideas everything else hangs off:
 14 skills with 28 techniques, two of them for the street · 29 traits · 12 origins, each with a signature
 verb nobody else can use and its own starting face · 10 icons · 47 implants · 68 programs
 · 34 deck components · 24 of all of those one of a kind, never sold, found at a place at an hour or handed over by a decision, each with a history · 28 countermeasures · 9 pieces of bench work · 12 districts, each with a mark for the faction that
-holds it · 12 factions · 7 rival runners who decide about you, and one you can keep · 29 named characters who keep hours, hand out work, keep private stock and do favours on a tab · 34 storylines across 99 scenes and 116 decisions, every one of them read back by the world, with a spine through the middle that has four endings and one of them is a door ·
+holds it · 12 factions · 7 rival runners who decide about you, and one you can keep · 29 named characters who keep hours, hand out work, keep private stock and do favours on a tab · 35 storylines across 103 scenes and 119 decisions, every one of them read back by the world and every scene played where it is set, with a spine through the middle that has four endings and one of them is a door ·
 102 appearance features · 12 districts, drawn, each with what it is built of, what it works at, its named quarters and what is past its edge, 72 quarters in all, a scene for every hour, 151 things to see in the street, 20 written crossings between them, and 60 places to go and stand · 195 ambient city events, 80 of them consequences of something you decided and 12 of them rumours that stop when the thing is found · 42 manual topics · networks in six shapes · the street in four tiers and 20 ways it stops you, six of them written for one street only ·
 12 drugs · 3 lenders · 2 games of chance in 5 rooms ·
 130 commands · 72 pieces of terminal across 7 axes.

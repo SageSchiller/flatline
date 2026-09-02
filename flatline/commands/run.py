@@ -98,6 +98,34 @@ def cmd_jack_in(sess, args) -> None:
             '`rest`, or wait out whatever is in your bloodstream, or '
             '`jack in --force` and mean it.')
 
+    # D6 promised a cooldown after a severed connection and nothing ever
+    # kept it (D88): the most dramatic outcome in the game had fewer
+    # consequences than an expired contract.
+    if game.city.grounded > game.city.shift and not args.has('force'):
+        left = game.city.grounded - game.city.shift
+        raise CommandError(
+            f'you came back badly last time and your hands have not '
+            f'stopped shaking: {left} more shift{"s" if left != 1 else ""}. '
+            f'`rest {left}`, or `jack in --force` and go in worse than you '
+            f'are.')
+    deck = game.char.deck
+    wrecked = [slot for slot, level in deck.damage.items() if level >= 3]
+    if (wrecked or deck.memory_used > deck.memory) and not args.has('force'):
+        from ..content import districts
+        from .city import nearest_workshop
+        shop = nearest_workshop(game)
+        where = ('here: `repair`' if shop == game.city.where else
+                 f'{districts.BY_KEY[shop].name}: `{game.city.walk_to(shop)}`'
+                 if shop else 'nowhere you can reach')
+        state = ', '.join(f'{s} destroyed' for s in wrecked)
+        if deck.memory_used > deck.memory:
+            state = (state + ', ' if state else '') + \
+                f'memory {deck.memory_used}/{deck.memory}'
+        raise CommandError(
+            f'the deck is wrecked: {state}. It jacked in like that once, '
+            f'silently, and ran at nothing. The nearest workshop is '
+            f'{where}. `jack in --force` goes in with it.')
+
     need = OBJECTIVE_PROGRAM.get(contract.objective)
     if need and not game.char.deck.has_category(need) and not args.has('force'):
         owned = [programs.BY_KEY[k] for k in game.char.library
@@ -125,7 +153,8 @@ def cmd_jack_in(sess, args) -> None:
 
     stream = game.rng.fork('network', contract.cid)
     net = net_mod.generate(stream, contract.target, int(contract.posture),
-                           contract.objective, contract.size_mod)
+                           contract.objective, contract.size_mod,
+                           grudge=game.city.grudges.get(contract.target, ''))
     if contract.label and net.objective_asset:
         # A scene named the record. The brief, the node and the haul all
         # call it that, so the run is about the thing the story said (D52).
@@ -213,6 +242,12 @@ def cmd_jack_in(sess, args) -> None:
         # resolves or they can be sent off to die on somebody else's job while
         # standing next to you.
 
+    # The other runners, for the night one of them is in here too (D89).
+    busy = {game.city.hired, (game.city.crew or {}).get('key', '')}
+    state.rivals = [{'key': r.key, 'name': r.name,
+                     'disposition': r.disposition, 'style': r.data.style}
+                    for r in game.city.rivals
+                    if r.alive and r.key not in busy]
     sess.run = state
 
     # The threshold. Everything before this line is the city and everything
@@ -230,6 +265,13 @@ def cmd_jack_in(sess, args) -> None:
     # key for the whole run and players learn to read it.
     c.say(f'[ice]{cyberspace.signature(contract.target).arrival}[/]')
     c.blank()
+    again = next((i for n in net.nodes.values() for i in n.ice if i.grudge),
+                 None)
+    if again is not None:
+        c.say(f'[err]You have been cut loose in a {contract.target_data.short} '
+              f'network before, by a {again.data.name}. They have not retired '
+              f'it.[/]')
+        c.blank()
     c.say(f'[dim]You come up on [/][accent]{net.entry}[/][dim]: '
           f'{cyberspace.look(net.node(net.entry).type, 0, contract.target)}.[/]')
     if 'topology' in contract.intel:
@@ -335,6 +377,21 @@ def cmd_jack_out(sess, args) -> None:
     _resolve(sess)
 
 
+#: Shifts a severed connection keeps you out of the chair (D6, D88).
+SEVER_COOLDOWN = 2
+#: How many finished titles the board declines to re-use straight away.
+DONE_TITLES = 8
+
+
+def _held_short(state) -> int:
+    """How far below its rating the loaded breaker ran tonight."""
+    breaker = programs.best(state.char.deck.loaded, 'breaker')
+    if breaker is None:
+        return 0
+    return breaker.rating - programs.held(breaker,
+                                          state.char.skill('intrusion'))
+
+
 def _resolve(sess) -> None:
     """Close out a run and hand the summary to the city layer."""
     game, c = sess.game, sess.console
@@ -414,6 +471,36 @@ def _resolve(sess) -> None:
     # The story layer reads what you have actually done.
     game.story.flags.add(f'ran:{summary["faction"]}')
 
+    # What the city keeps of who cut you loose, and of who else was in
+    # there (D89).
+    if summary['outcome'] == 'severed' and summary.get('severed_by'):
+        game.city.grudges[summary['faction']] = summary['severed_by']
+    elif summary.get('grudge_killed'):
+        game.city.grudges.pop(summary['faction'], None)
+        c.say(f'[dim]{fac_content.BY_KEY[summary["faction"]].short} will '
+              f'build another. They will not build that one.[/]')
+    company = summary.get('company')
+    if company:
+        rival = game.city.rival(company.get('key', ''))
+        short = fac_content.BY_KEY[summary['faction']].short
+        line = f'{company["name"]} was in {short} the same night you were.'
+        if rival is not None:
+            rival.adjust_disposition({'cover': 3, 'tip': -3}.get(
+                company.get('kind', ''), 1))
+            rival.last = line
+        game.city.news.append(f'[dim]{line}[/]')
+    if summary['outcome'] == 'severed':
+        # D6's cooldown, kept at last (D88). The run itself takes the
+        # shift; the shaking takes two more.
+        game.city.grounded = game.city.shift + 1 + SEVER_COOLDOWN
+        hurt = [s for s, level in game.char.deck.damage.items() if level]
+        c.blank()
+        c.say(f'[warn]{SEVER_COOLDOWN} shifts before your hands stop '
+              f'shaking enough to jack in again.[/]'
+              + (f' [dim]The deck took it too: '
+                 f'{", ".join(f"{s} {game.char.deck.damage[s]}/3" for s in hurt)}'
+                 f'. `repair` at a workshop.[/]' if hurt else ''))
+
     fallout_lines = game.city.apply_run(game.alias, summary, game.rng,
                                         game.char.memorable,
                                         heat_mult=game.char.mult('heat_mult'))
@@ -424,6 +511,34 @@ def _resolve(sess) -> None:
     game.city.news.extend(fallout_lines)
 
     contract = game.city.current
+    record = {
+        'shift': game.city.shift,
+        'day': game.city.day,
+        'title': contract.title if contract is not None else '',
+        'cid': contract.cid if contract is not None else '',
+        'objective': (contract.objective if contract is not None else ''),
+        'faction': summary['faction'],
+        'outcome': summary['outcome'],
+        'done': bool(summary.get('objective')),
+        'ticks': int(summary['ticks']),
+        'trace': int(summary['trace']),
+        'alert': summary['alert'],
+        'pay': 0,
+        # Why, in two numbers the advice can read back (D87): how many
+        # tiers short of the objective's zone the badge was, and how far
+        # below its rating the breaker ran for want of the rank.
+        'short': max(0, (state.net.node(state.net.objective_node).tier
+                         if state.net.node(state.net.objective_node)
+                         else 0) - state.tier),
+        'held': _held_short(state),
+        # Whether you stood on the objective at all: a badge short of a
+        # zone you reached anyway was not what ended the night.
+        'reached': bool(state.net.objective_node
+                        and (state.here == state.net.objective_node
+                             or (state.net.node(state.net.objective_node)
+                                 or state.node).open)),
+    }
+    game.history.append(record)
     if contract is not None:
         pay, told = game.city.pay_out(game.alias, contract, summary,
                                       game.char.mult('pay_mult')
@@ -432,12 +547,15 @@ def _resolve(sess) -> None:
                                       rep_mult=game.char.mult('rep_mult'))
         game.char.credits += pay
         game.earned += pay
+        record['pay'] = int(pay)
         for line in told:
             c.say(line)
         if summary.get('objective'):
             game.city.board = [x for x in game.city.board
                                if x.cid != contract.cid]
             game.city.accepted = ''
+            game.city.done_titles = (game.city.done_titles
+                                     + [contract.title])[-DONE_TITLES:]
             if contract.story:
                 # The scene that comes after reads this, and only this: it
                 # is the difference between having done the thing and having
@@ -478,6 +596,7 @@ def _resolve(sess) -> None:
                   f'once, and leaves.[/]')
         game.char.credits += take
         game.earned += take
+        record['pay'] += int(take)
         c.say(f'[credit]{take:,}c[/] for the haul, at '
               f'[dim]{rate * 100:.0f}% of nominal through '
               f'{fac_content.BY_KEY[buyer].short}.[/]')
@@ -853,9 +972,33 @@ def cmd_connect(sess, args) -> None:
 
     wardens = [i for i in node.live_ice
                if i.behaviour == 'warden' and i.state != 'dead']
-    if wardens:
+    if wardens and state.native > 0:
+        # The network is a room, and a room does not have a desk (D88).
+        # The warden is not answered and not killed: you were never at
+        # its door.
+        warden = wardens[0]
+        warden.known = True
+        c.blank()
+        c.say(f'[ok]{warden.data.name} holds {uid}. You are not using the '
+              f'door.[/]')
+    elif wardens:
         warden = wardens[0]
         challenge = state.credential_challenge(warden)
+        if challenge is not None and challenge.impossible:
+            # Prompting `--present` on a sum the game has just called
+            # impossible, and then escalating when it fails, took a green
+            # room to red for nothing twice in one run (D88). Said once,
+            # with the ways round it, and nothing is presented.
+            warden.known = True
+            ways = ['`pivot` goes past one at Intrusion 4']
+            if 'native' in state.char.riders():
+                ways.append('`native` walks through it, once a run')
+            raise CommandError(
+                f'{warden.data.name} holds {uid} and would not take '
+                f'anything you carry: {challenge.explain()}. A forger and '
+                f'the Subterfuge to drive it is the difference; '
+                f'{", ".join(ways)}, and otherwise there is another way '
+                f'in. `map` will show you where.')
         if challenge is None:
             # Named counters rather than "break it". Nothing you can type from
             # out here reaches a construct standing on another node, so a
@@ -1585,6 +1728,12 @@ def cmd_strike(sess, args) -> None:
     weapon = programs.best(state.char.deck.loaded, 'weapon')
 
     check = strike_check(state, target, weapon)
+    if check.impossible:
+        # `odds` said impossible and the verb spent a tick saying "not
+        # where you hit" (D88). One refusal, free, in the odds' words.
+        raise CommandError(f'nothing you carry reaches {target.data.name}: '
+                           f'{check.explain()}. A weapon program, or the '
+                           f'Warfare to drive one, is the difference.')
     check.resolve(state.rng)
 
     _act(sess, 'strike', noise_scale=weapon.signature if weapon else 1.2)
@@ -1606,6 +1755,10 @@ def cmd_strike(sess, args) -> None:
             if target in state.locked:
                 state.locked.remove(target)
             c.ok(f'{target.data.name} stops.')
+            if target.grudge:
+                state.grudge_killed = True
+                c.say('[accent2]That one had your name on it. It will not '
+                      'be run again.[/]')
         else:
             pct = 1 - target.damage_taken / target.hp
             c.say(f'[ok]You hurt it.[/] [dim]{target.data.name} at '
@@ -1663,12 +1816,25 @@ def cmd_observe(sess, args) -> None:
     if state.observed_enough:
         raise CommandError('you already have what they wanted. Get out.')
 
+    before = state.observed
     _act(sess, 'observe', ticks=2)
     if not state.running:
         return
     if state.observed_enough:
         return
     left = max(0, state.SURVEIL_TICKS - state.observed)
+    if state.observed == before:
+        # A tick mark on a tick that banked nothing read as progress
+        # (D88). Red empties the count and a free action spends no tick.
+        if state.alert in ('red', 'lockdown'):
+            c.warn(f'You hold still and nothing banks: the room is '
+                   f'{state.alert}. [dim]{state.observed}/'
+                   f'{state.SURVEIL_TICKS}. It has to stand down first.[/]')
+        else:
+            c.say(f'[dim]That one cost no tick, and a tick is what banks. '
+                  f'{state.observed}/{state.SURVEIL_TICKS}: `observe` '
+                  f'again.[/]')
+        return
     c.ok(f'You hold still and let it come to you. '
          f'[dim]{state.observed}/{state.SURVEIL_TICKS} banked'
          + (f', {left} to go.' if left else '.') + '[/]')
@@ -1925,8 +2091,9 @@ def cmd_wait(sess, args) -> None:
     ticks = max(1, min(8, args.int_at(0, 1, 'a number of ticks')))
     need = ice_content.QUIET_TO_COOL - state.quiet_ticks
     if state.alert != ice_content.ALERT_LEVELS[0] and ticks < need:
-        c.say(f'[dim]{need} quiet tick{"s" if need != 1 else ""} would stand '
-              f'them down a level. This is {ticks}.[/]')
+        c.say(f'[dim]{need} more quiet tick{"s" if need != 1 else ""} '
+              f'stand{"s" if need == 1 else ""} them down a level. This buys '
+              f'{ticks}.[/]')
     c.say('[dim]You do nothing, deliberately, and it is the loudest silence '
           'you have ever sat in.[/]')
     _act(sess, 'wait', ticks=ticks)
@@ -2215,6 +2382,29 @@ def cmd_odds(sess, args) -> None:
     if what not in ('crack', '') and what in COST:
         _odds_cost(sess, what)
         return
+    if what == 'crack' and args.has('chain'):
+        # `odds crack <host> --chain` read the host as a service on the
+        # node you were standing on (D88). Both halves, each at its own
+        # odds, the way `crack --chain` will roll them.
+        node = _node(state, args.get(1)) if args.get(1) else state.node
+        if not node.mapped:
+            raise CommandError(f'{node.uid} has not been probed.')
+        closed = sorted((s for s in node.services if not s.cracked),
+                        key=lambda s: s.difficulty)[:2]
+        if len(closed) < 2:
+            raise CommandError(f'{node.uid} has {len(closed)} service'
+                               f'{"s" if len(closed) != 1 else ""} left to '
+                               f'break. Chain needs two.')
+        c.raw(f'[accent]crack {node.uid} --chain[/] [dim]one action, both '
+              f'doors, 1.6x the louder half[/]')
+        for svc in closed:
+            _, category = node_content.FAMILIES[svc.family]
+            program = programs.best(state.char.deck.loaded, category)
+            check = crack_check(state, node, svc, program)
+            c.blank()
+            c.raw(f'  [fg]{svc.data.name}[/] {check.summary()}')
+            c.say(check.explain(), indent='    ')
+        return
     if what in ('crack', ''):
         node, svc = _target_service(state, args, offset=1)
         category = node_content.FAMILIES[svc.family][1]
@@ -2265,16 +2455,63 @@ def _odds_cost(sess, verb: str) -> None:
               f'{"; ".join(cond.terms())}.[/]', indent='  ')
 
 
-@command('log', 'What has happened this run.',
-         group='info', contexts=('run',), usage='log [count]')
+@command('log', 'What has happened this run, or every run so far.',
+         group='info', contexts=('any',), usage='log [count]',
+         detail='Inside a run, the last twenty things that happened in it, '
+                'oldest first. In the city, the career: one line per run, '
+                'newest last, with the job, who it was against, how it '
+                'ended, how long it took and what it paid. The city keeps '
+                'this whether or not you read it, and it is what the '
+                'epitaph is written from.')
 def cmd_log(sess, args) -> None:
-    state, c = sess.require_run(), sess.console
+    c = sess.console
     count = args.int_at(0, 20, 'how many lines')
-    if not state.events:
-        c.info('Nothing yet.')
+    if sess.run is not None:
+        state = sess.run
+        if not state.events:
+            c.info('Nothing yet.')
+            return
+        for line in state.events[-count:]:
+            c.raw(f'  [dim]{line}[/]')
         return
-    for line in state.events[-count:]:
-        c.raw(f'  [dim]{line}[/]')
+    game = sess.require_game()
+    history = game.history
+    if not history:
+        c.info('No runs yet. `board` is where they start.')
+        return
+    c.header('The log', f'{len(history)} run{"s" if len(history) != 1 else ""}')
+    rows = []
+    for h in history[-count:]:
+        rows.append((f'day {h.get("day", 0)}',
+                     h.get('title') or '[dim]nobody paying[/]',
+                     fac_content.BY_KEY[h['faction']].short
+                     if h.get('faction') in fac_content.BY_KEY else '',
+                     run_ending(h),
+                     f'{h.get("ticks", 0)}t',
+                     f'[credit]{int(h.get("pay", 0)):,}c[/]'
+                     if h.get('pay') else '[dim]nothing[/]'))
+    c.table(('when', 'job', 'against', 'how it ended', 'took', 'paid'),
+            rows, roles=('dim', 'accent', 'info', None, 'dim', None))
+    done = sum(1 for h in history if h.get('done'))
+    paid = sum(int(h.get('pay', 0)) for h in history)
+    c.blank()
+    c.say(f'[dim]{done} of {len(history)} finished the job, '
+          f'{paid:,}c between them.[/]')
+
+
+def run_ending(h: dict) -> str:
+    """How a run ended, in the log's four words."""
+    outcome = h.get('outcome', '')
+    if outcome == 'clean':
+        return '[ok]clean[/]'
+    if outcome == 'burned':
+        return '[warn]out with nothing[/]'
+    if outcome == 'severed':
+        return (f'[err]severed[/] [dim]at {h.get("alert", "")}[/]'
+                if h.get('alert') in ('red', 'lockdown') else '[err]severed[/]')
+    if outcome == 'flatline':
+        return '[err]flatlined[/]'
+    return outcome
 
 
 # --------------------------------------------------------------------------
@@ -2359,6 +2596,11 @@ def _act(sess, verb: str, node=None, ticks: int | None = None,
     # action that made none (D83).
     if hook in ('quiet', 'echo') and not (base_noise * noise_scale
                                           or base_residue * residue_scale):
+        hook = ''
+    # And leaving is not the next thing you do in there: a copy that
+    # survived seven silent ticks resolved on `jack out`, half a second
+    # behind somebody who was already gone (D88).
+    if verb == 'jack out':
         hook = ''
     if hook:
         state.hook = ''

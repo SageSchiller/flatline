@@ -66,6 +66,10 @@ class Question:
 
 #: Words that back out of a question, besides an empty line.
 BACK_OUT = frozenset({'cancel', 'stop', 'back', 'never mind', 'nevermind'})
+#: What a yes-or-no question accepts as an answer. Anything else that is a
+#: command is a command.
+YES_NO_WORDS = frozenset({'yes', 'y', '1', 'go', 'do it', 'no', 'n', '2',
+                          'keep'})
 
 
 @dataclass(slots=True)
@@ -224,6 +228,20 @@ class Session:
             self.console.say(f'[dim]{q.on_cancel or "Left it there."}[/]')
             self.execute(text)
             return
+        # A verb typed at a yes-or-no question is somebody moving on, not
+        # somebody answering it: `board 3` at "spend it this way?" used to
+        # get "yes or no." three times running (D87). Only yes-or-no
+        # questions, because a handle or an origin can be any word at all.
+        if (q.choices == ('yes', 'no') and text.lower() not in YES_NO_WORDS
+                and not q.must_answer):
+            try:
+                resolve(text.split(';')[0].strip(), self.context)
+            except CommandError:
+                pass
+            else:
+                self.console.say(f'[dim]{q.on_cancel or "Left it there."}[/]')
+                self.execute(text)
+                return
         try:
             q.handler(self, text)
         except CommandError as e:

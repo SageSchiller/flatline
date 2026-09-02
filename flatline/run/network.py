@@ -58,6 +58,9 @@ class IceInstance:
     damage_taken: int = 0
     #: True once the player has identified it (probe, Auspex, or ex-cop eye).
     known: bool = False
+    #: The one that put you out last time (D89). It starts awake, it is
+    #: recognised on sight, and killing it ends the faction's habit.
+    grudge: bool = False
 
     @property
     def data(self) -> ice_content.IceType:
@@ -266,7 +269,8 @@ CROWD_CEILING = 1.10
 
 
 def generate(rng: Stream, faction: str, posture: int,
-             objective: str = 'exfiltrate', size_mod: float = 1.0) -> Network:
+             objective: str = 'exfiltrate', size_mod: float = 1.0,
+             grudge: str = '') -> Network:
     """Build a network. Deterministic given `rng`, `faction`, and `posture`."""
     fac = factions.BY_KEY[faction]
     scale = posture / 50.0
@@ -475,8 +479,50 @@ def generate(rng: Stream, faction: str, posture: int,
     _ensure_ladder(rng, net, scale)
     _openable_route(rng, net, scale)
     _populate_route(rng, net, scale, faction, objective)
+    if grudge:
+        _place_grudge(net, grudge, scale, faction, objective)
     _signature(rng, net, fac)
     return net
+
+
+def _place_grudge(net: Network, key: str, scale: float, faction: str,
+                  objective: str) -> None:
+    """The construct that cut you loose last time is on the route (D89).
+
+    The city remembers in numbers: posture, heat, a bounty. This is the
+    one place it remembers in a face. A faction that severed you keeps
+    running the thing that did it, on the route you walk, a point
+    harder and already awake, and the tell names it. No random draws,
+    so a network with no grudge on it is the same network it was.
+    """
+    if key not in ice_content.BY_KEY:
+        return
+    objective_node = net.objective_node
+    if not objective_node or objective_node not in net.nodes:
+        return
+    walls = {uid for uid, node in net.nodes.items() if _is_wall(node)}
+    route = [u for u in (_route(net, objective_node, avoid=walls)
+                         or _route(net, objective_node))
+             if u != net.entry]
+    if objective == 'surveil':
+        route = [u for u in route if u != objective_node]
+    if not route:
+        return
+    for uid in route:
+        for construct in net.nodes[uid].ice:
+            if construct.key == key and construct.alive:
+                construct.grudge = True
+                construct.rating += 1
+                return
+    it = ice_content.BY_KEY[key]
+    lo, hi = it.rating
+    fac = factions.BY_KEY[faction]
+    rating = max(1, int(round(hi * (0.75 + 0.5 * scale)
+                              * fac.style.get('density', 1.0)))) + 1
+    node = min((net.nodes[u] for u in route),
+               key=lambda n: (len(n.ice), n.uid))
+    node.ice.append(IceInstance(uid=f'{key}-again', key=key, rating=rating,
+                                grudge=True))
 
 
 #: What each faction's network *is*, past the knobs (D67). A style value

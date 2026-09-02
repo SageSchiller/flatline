@@ -2442,11 +2442,25 @@ def check_threads(rep: Report) -> None:
         for st in t.stages:
             sw = f'{where}/{st.key}'
             rep.check(bool(st.headline and st.text), sw, 'is empty')
+            # A scene's district is a gate the engine reads (D86), so it
+            # has to be a real one.
+            rep.check(not st.where or st.where in districts.BY_KEY, sw,
+                      f'happens in {st.where!r}, which is not a district')
             for rule in tuple(st.requires) + tuple(st.any_of):
                 if ':' in rule:
                     kind = rule.split(':')[0]
                     rep.check(kind in thread_content.CONDITIONS, sw,
                               f'unknown condition {kind!r}')
+                    if kind == 'asked':
+                        _, who, _, topic = rule.split(':', 3)[0:1] + \
+                            [rule.split(':', 2)[1], '', rule.split(':', 2)[2]]
+                        npc = npc_content.BY_KEY.get(who)
+                        rep.check(npc is not None, sw,
+                                  f'asks {who!r}, who is nobody')
+                        if npc is not None:
+                            rep.check(topic in npc.topics, sw,
+                                      f'asks {npc.name} about {topic!r}, '
+                                      f'which they will not talk about')
                 elif rule not in sets:
                     rep.error(sw, f'requires flag {rule!r}, which nothing '
                                   f'sets: this stage is unreachable')

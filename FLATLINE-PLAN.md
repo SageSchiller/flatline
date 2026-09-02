@@ -4,7 +4,7 @@ tags:
   - project-plan
   - game
 created: 2026-08-12
-updated: 2026-08-21
+updated: 2026-09-01
 ---
 
 # flatline: Build Plan and Progress Log
@@ -12,6 +12,8 @@ updated: 2026-08-21
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
+> **State as of 2026-09-01.** D86 to D89 landed in one session, from three play-tests run in parallel with three different briefs (a first-timer who does what `now` says, an explorer who ignores it, and a run specialist who types every verb by hand). What they found, in order of size: the story layer was gated on meeting people and nothing ever said to meet anyone, and forty-two scenes declared a district that nothing read; the advice could recommend the same severed run five nights running and never once name Intrusion; a credential warden was an unanswerable wall for the Chromed origin and the board could not see it; and D6's severed-connection cooldown had never been implemented. All fixed, with `test_people_are_the_story`, `test_night_before`, `test_wall_and_clock` and `test_remembered_inside` holding them. Two things were added rather than fixed: the construct that cut you loose is on the route next time, awake and named, and the other runners can turn up inside a network with consequences that read their opinion of you. `validate.py` clean, `test.py` green at **16,843 checks**. The next thing worth doing is another round of the same method: play it three ways and fix what the players say, because every one of the fourteen decisions since D75 came out of somebody playing rather than somebody guessing.
+>
 > **State as of 2026-08-21, end of the long session.** **Phases 0 through 5 are done, D17's finish line is passed, Phase 7 is closed, and D63 to D65 are the deep work.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **15,311 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone. **D63, the mechanics deep dive** in six parts: every declared number and rider has a reader (`check_reads`); the intrusion layer's holes closed (`mask` decays, sealed records, armour wears, faction style knobs, soft wardens); the catalogue readable (`inspect`, a bare `load`, `fit`, passives once per kind, program riders, six mid-tier parts); the vices capped (Threes, collections, hook-4 warnings); twenty-four relics with histories; and programs held to skill rank plus two. **D64, the play test**: networks in six shapes by doctrine with the brief reading the sums; the city grown to twelve districts (the Stacks, Meridian Row, the Hall) with people, places, threads, events and relics; and the advice made into a chain that ends in a run, with seven dead ends closed and `test_advice` to keep them closed. **D65, the street is real**: encounters in four tiers answered by run, talk, pay or stand with printed checks; warning-then-lethal under the black-ICE contract; two street skills; `errands` (courier, watch, collect, escort); `arrange` to pay a faction for their streets; and the whole of it hooked into travel, rest and the close-call band. Before those, on the same day: D50 to D62, the onboarding layer, decisions that are read, the Deepwater spine, the city deeper, voices and hours, district arcs, the rival bond, the drawn map, the HUD, the tutorial's second half, run conditions, and the rest of the Phase 7 list.
 >
 > The whole loop closes. Create a character six ways, spend an attribute and experience budget, read a board that other runners are competing with you for, take a contract, travel, do legwork, hire somebody to come in with you, jack in, break into a procedurally generated network, do the job, get out. The residue you left becomes faction heat a shift later, sustained heat becomes a standing bounty, and a bounty makes that faction's districts genuinely dangerous to walk into.
@@ -2901,12 +2903,216 @@ completion by nought to three runs in twenty four. None was decisive; the
 only decisive thing was player knowledge. A game whose stated position is
 that the city does not care whether you live is allowed to make corporate
 work a one-in-four proposition, *provided the player can see the price
-before they pay it* — and between the lethality marks, the door and room
+before they pay it*: and between the lethality marks, the door and room
 reads on the board, and now the mask and repair advice, they can. Moving
 those numbers further would be me guessing, and this session has already
 produced three measurement-driven reversals of things I was confident
 about. The disciplined answer is to ship what is evidenced and leave the
 rest visible.
+
+### D86: The people are the story
+
+Three play-tests, run in parallel with three different briefs, and the
+largest thing all three agreed on was not a bug in any system: it was that
+the story never started. Thirty-five threads and a hundred and three scenes,
+gated almost entirely on `met:<somebody>`, and the one piece of advice a new
+player follows never said a person's name. Arriving in a district listed the
+market, the workshop and the places to stand, and not the people; `look` was
+under "also"; the journal said "things start when you meet people" and
+nothing said who or where. The first-timer reached seven threads in ten
+contracts and touched none of them on purpose. The explorer, who walked all
+twelve districts and talked to twenty-two people, said the same thing from
+the other side: nothing ever gave them a reason to go anywhere.
+
+And underneath it, the project's oldest bug wearing a story. `Stage.where`
+is set on forty-two of the hundred and three scenes, its comment says "for
+flavour and gating", and nothing read it. The Notary's counter on the Row
+was played on a Freeport dock. A vending machine in the Ninth was asked
+about the war from Marrow. `check_dead_fields` did not catch it because
+`npc.where` is read everywhere, and the field's name is the same.
+
+**What changed.**
+
+- A scene fires where it is set. `Story.available` reads `where`, and the
+  journal's D76 line says so when the place is the only thing missing:
+  "waiting on you being in Marrow". `validate.py` holds every `where` to a
+  real district.
+- `now` has a reason to go somewhere. One line at most, after the work:
+  somebody unmet standing in this street whose thread is waiting on them
+  ("`look`: Ozymandias is waiting on somebody who is standing in this
+  street"), or, failing that, a district where a scene is ready ("`travel
+  marrow`: The Queue has more of it in Marrow, one shift away, and it is
+  waiting for you to be there"). Names the thread and the place, never the
+  scene.
+- Arriving somewhere names the people: the ones you have met by name, the
+  rest as a count, and `look` stays the moment of meeting.
+- Talking to somebody standing here is meeting them. `talk` and `ask` used
+  to refuse anybody `look` had not introduced, every arrival and every
+  shift.
+- `asked:<npc>:<topic>` is a rule kind. `ask` always set the flag and
+  nothing could read it, so the Ozymandias scenes narrated questions nobody
+  had typed. Now the sign that says DO NOT ASK HIM ABOUT THE WAR is a
+  gate, and asking is the scene.
+- Three scenes at most on one command. Five back to back on one `look` was
+  a wall of prose; the ones written for this street go first, and the rest
+  keep for the next thing you do.
+- Bare verbs answer the question asked: `talk` lists who is here, `ask`
+  lists who is here and what they will talk about (the favour table is
+  `ask favours`), `sell` lists what the bag would fetch.
+
+### D87: The advice reads the night before
+
+The first-timer's transcript, condensed: contract four was severed at trace
+one hundred five times in a row on the identical network, and after every
+one `now` said `jack in`. They typed `drop` themselves; `now` immediately
+recommended the same contract as the softest thing on the board, so they
+took it back. Every crack for eight runs printed "held to 2 by Intrusion 0"
+and the plan, the training screen and the nudges named five other skills
+before anybody said Intrusion. With a Sixes bounty, the advice said `rest
+3` twenty-four times over seventy-two shifts while an arrangement collected
+every six. And the explorer found the fit advice arguing with itself over
+the last two memory on a four-memory deck: load Sable, unload Sable for
+Siphon, unload Siphon for Quietcastle, for ever.
+
+None of these was a difficulty problem. All of them were the advice having
+no memory and no budget.
+
+**A run is written down.** `Game.history` keeps every run: day, job,
+target, how it ended, how long it took, what it paid, and two numbers the
+advice can read back, how many tiers short of the objective's zone the
+badge was and how far below its rating the breaker ran. `log` in the city
+prints the career one line per run; `previously` shows the last one.
+
+**The recommender reads it.** A contract that has cut you loose is not
+the softest thing on the board whatever its posture says; twice, and it is
+off the list, and holding it the advice is `drop`, with the reason in the
+history's own terms ("each time you held a badge two tiers short of the
+zone the job is in"). It also declines jobs that expire before the walk
+gets there, prices a route through somebody hunting you, and counts
+finished runs and not only ranks bought before it stops calling you green.
+If nothing on the board survives that, it says so and points at `errands`
+rather than at row one.
+
+**The breaker's rank first.** A program runs at its rating only up to the
+skill plus two, so a protege's rating-three Sable on Intrusion 0 is a
+rating-two program that costs twice the memory. The spend plan buys that
+rank before breadth, and the advice names it whenever it is affordable.
+
+**One loadout plan.** `_loadout_plan` decides the deck once, in order: the
+breaker, what the job in hand needs, a payload, a mask on hard work, then
+the rest, each the best owned at the rank that drives it, each only if
+there is room after the ones before it. Every fit step is a move toward
+that deck, so it cannot loop, and the test walks it to a fixed point.
+
+**Not `rest` against a bounty.** Heat cools about a point a shift and a
+bounty does not cool at all. Below forty, `rest N` with the number; above
+it, or with a bounty, the ways out are named as steps (`drop`, `burn
+--confirm`, or `walk --anyway`), and an arrangement is the walk being
+theirs: `travel` no longer refuses a street you have paid for.
+
+Smaller, from the same reports: the advice quotes the shop's real price
+rather than the catalogue's; `walk` stops when the street stops you (it
+carried on through two districts with the question still open); a verb
+typed at a yes-or-no question is a verb; a contract finished after its
+date pays sixty per cent; the street does not repeat the encounter it
+just had; a job you never held is not taken "out from under you"; and the
+rice hints stopped saying nine districts.
+
+### D88: The wall you can see, and the night that is over
+
+The run specialist played the Chromed origin, whose chrome adds up to ten
+points against presenting a credential, and found that a Steward on the
+one guaranteed route reads "impossible as configured" against them: nine
+burned runs across gang and mid posture, on jobs the board called the
+softest thing on it. The game prompted `connect --present` on the sum it
+had just called impossible, and presenting escalated. The brief never
+offered `pivot` against an open host a warden still held, because it
+required the hop to be shut. And at lockdown with the trace at ninety, the
+brief went on saying `wait` and `crack`, one long shot at a time, because
+the give-up rule priced each door and never the whole night. Separately:
+a severed connection had no cooldown, though D6 has promised one since the
+first day, and a deck with a destroyed CPU jacked in silently and ran at
+nothing.
+
+**The wall, made visible and answerable.**
+
+- `native` walks through a warden. The origin's own text says the network
+  becomes a room; a room does not have a desk. Once a run, the warden is
+  neither answered nor killed, and the brief offers it when nothing else
+  you carry would satisfy the check. The Chromed wall is now the Chromed
+  verb.
+- The impossible is refused, for free. `connect` at a warden that would
+  take nothing you carry says so once, with the sum and the ways round it,
+  and prompts nothing; `--present` against it is a refusal, not an
+  escalation. `strike` with the odds at nought is the same.
+- `pivot` is offered on an open hop. The condition that required it shut
+  is gone.
+- The board reads a badge desk against the build. `board <id>` says "a
+  badge desk would stop you" with the run's own sum when it would, and
+  the recommender leans away from it for a build with neither a forger,
+  `pivot`, nor `native`.
+- `_hopeless_where` names the warden when the warden is the problem,
+  and the sentry when a watch or an edit is standing under something awake
+  at red, instead of "nothing opens for what you are carrying: the best of
+  it is 100% on badge reader" about doors that were all open. The door
+  reason is only given when the doors are in fact hopeless. The history's
+  `short` is read only for runs that never reached the objective, for the
+  same reason.
+
+**The night that is over.** `night_over` reads the clock once, for the
+whole of what is left: working ticks at the working rate and quiet ticks
+at the quiet one (quiet ticks are cheap by design, D66, and pricing a
+watch like a crack made the first version tell surveil jobs to leave at
+trace fifty), against what the trace has in it at this alert. Only once
+the room has turned or the clock is half spent, and only when the sum does
+not fit with fifteen per cent to spare. The brief then says leave, in so
+many words, with both numbers.
+
+**The cooldown, kept.** A severed connection grounds you for two shifts,
+`jack in` refuses meanwhile and says why, and the advice is `rest`. A
+deck with a destroyed part or more loaded than it can hold is refused too,
+with the nearest workshop named; the repair nudge walks you there when
+the damage is serious and no workshop is here.
+
+Also from the same session: a probe budget in the brief (two hosts mapped
+and one of them shut is enough to go through, rather than reading every
+label on a hostile segment first); `odds crack <host> --chain` prices both
+halves instead of reading the host as a service on the node you stand on;
+`wait` says what it buys; an `observe` that banked nothing does not print
+a tick mark; a copy hook does not resolve on `jack out`; a finished title
+is not re-posted at once.
+
+### D89: What the city remembers inside the net
+
+Two things added rather than fixed, both from the same observation: the
+city remembers in numbers (posture, heat, a bounty) and never in a face,
+and the other runners exist on the board and in the wire and never in the
+one place the game happens.
+
+**The construct that put you out.** A run that ends severed records which
+construct did it, and the city keeps that against the faction. Their next
+network runs it on the route you walk, a point harder and already awake,
+and the tell names it: "You know this one. It put you out of a Sixes
+network, and it has been running since." The board says so before you
+take the job, the connected screen says so at the door, and killing it
+ends the habit: "The Sixes will build another. They will not build that
+one." It is placed without a random draw, so a network with no grudge on
+it is the network it always was, and the test holds every host name
+equal with and without one.
+
+**Somebody else is in here.** A `turn` incident, weighted like the others,
+that only fires when the city has a runner to spare: one of them is in
+this network tonight for their own reasons. Who is the city's roster; what
+it means is the number `who` has always shown. Warm, and their traffic is
+your cover (the next thing you do goes out under their noise). Cold, and
+they have seen you and somebody upstairs is about to hear about it (the
+room steps up). Anything else, and you read each other's scans and say
+nothing (their hosts are on your map). Afterwards the wire says they were
+in there the same night you were, and they remember: covering for you
+warms them, tipping the room cools them.
+
+Both live entirely in systems that already existed. Neither adds a number
+a player cannot read.
 
 ### D17: The finish line
 
@@ -4243,3 +4449,44 @@ two icons wearable at zero drift, and the end of three pure upgrades.
 and origin threads that cross their districts' own.
 
 `validate.py` clean, `test.py` green at **15,641 checks**.
+
+### 2026-09-01 (a): three players, one afternoon
+
+The method: three play-tests at once, each with a different brief, each
+reporting problems with quoted evidence rather than impressions. A
+first-timer who did exactly what `now` said for ten contracts (Rook, the
+protege). An explorer who ignored `now`, walked all twelve districts and
+talked to twenty-two people (Vesna, the defector). A run specialist who
+typed every verb by hand across sixteen jack-ins and severed on purpose
+(Sable, the chromed). Between them: thirty-eight numbered findings, four
+of them blockers, and no crashes in roughly nine hundred commands.
+
+### 2026-09-01 (b): the people are the story
+
+D86. Scenes fire where they are set (forty-two of them declared a district
+nothing read), `asked:` is a rule, talking is meeting, arrival names the
+people, and `now` has a reason to go somewhere. Three scenes at most per
+command, the ones for this street first. Bare `talk`, `ask` and `sell`
+answer the question asked.
+
+### 2026-09-01 (c): the advice reads the night before
+
+D87. Every run is written down and `log` reads it back in the city. The
+recommender declines a contract that has cut you loose twice and says
+why in the history's own numbers; the plan buys the breaker's rank first;
+one loadout plan replaces three fit steps that argued; nobody is told to
+rest against a bounty; an arrangement is a passable street; real shop
+prices in the advice; `walk` stops when the street does; a verb typed at
+a yes-or-no question is a verb; late is late.
+
+### 2026-09-01 (d): the wall and the clock, and what is remembered
+
+D88 and D89. `native` walks through a warden, the impossible is refused
+for free, `pivot` is offered on an open hop, the board reads a badge desk
+against the build, the brief reads the clock for the whole night, and a
+severed connection keeps you out of the chair for two shifts with a
+wrecked deck refused at the door. Then the two additions: the construct
+that cut you loose is on the route next time, awake and named, and the
+other runners can turn up inside a network with what it means decided by
+their opinion of you. Four new suites. `validate.py` clean, `test.py`
+green at **16,843 checks**.

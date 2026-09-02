@@ -282,6 +282,14 @@ INCIDENTS: tuple[Incident, ...] = (
         'louder than anything you have done tonight, and every log in the '
         'building turns to look at them.',
         kind='turn', hook='quiet', weight=0.7),
+    # The other runners, in the one place they never were (D89). Who and
+    # what it means is decided in `RunState._company` from the city's
+    # roster, because it depends on somebody's opinion of you.
+    Incident(
+        'company', 'Somebody else is in here',
+        'Another session, not theirs, moving the way you move: somebody '
+        'who is in this network for their own reasons tonight.',
+        kind='turn', weight=0.9, alert=('green', 'amber')),
 )
 
 BY_KEY: dict[str, Incident] = {i.key: i for i in INCIDENTS}

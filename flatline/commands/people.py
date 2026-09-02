@@ -103,19 +103,31 @@ def cmd_look(sess, args) -> None:
     c.rule(f'{len(here)} worth talking to')
 
     for npc in here:
-        first = game.story.meet(npc.key)
         c.blank()
-        if first:
-            c.raw(f'[accent2][bold]{npc.name}[/][/]  [dim]{npc.epithet}[/]')
-            c.say(npc.first)
-            _noticed(sess)
-        else:
+        if not introduce(sess, npc):
             c.raw(f'[accent]{npc.name}[/]  [dim]{npc.epithet}[/]')
     c.blank()
     c.say('[dim]`talk <name>` to say something. `ask <name> <topic>` if you '
           'want something specific.[/]')
     _away_line(sess, away)
     _check_story(sess)
+
+
+def introduce(sess, npc) -> bool:
+    """The first meeting, if this is one. True when it was.
+
+    Shared by `look`, which introduces everybody in the street at once,
+    and by `talk` and `ask`, which used to refuse anybody `look` had not
+    already introduced: "you have not met them" about somebody standing
+    in front of you, every arrival and every shift (D86).
+    """
+    game, c = sess.game, sess.console
+    if not game.story.meet(npc.key):
+        return False
+    c.raw(f'[accent2][bold]{npc.name}[/][/]  [dim]{npc.epithet}[/]')
+    c.say(npc.first)
+    _noticed(sess)
+    return True
 
 
 def _away_line(sess, away) -> None:
@@ -380,6 +392,25 @@ def cmd_news(sess, args) -> None:
                 'can be found will tell you what they have heard, once.'))
 def cmd_talk(sess, args) -> None:
     game, c = sess.require_game(), sess.console
+    if not args.rest().strip():
+        # `talk` on its own used to say "nobody called ''", which is the
+        # game answering a question nobody asked. Who is here, instead.
+        here = story_mod.present(game, game.story)
+        met = [n for n in here if n.key in game.story.met]
+        if not here:
+            raise CommandError('nobody here is interested in you. `look`.')
+        if not met:
+            raise CommandError(f'{len(here)} here you have not met. `look` '
+                               f'introduces them.')
+        c.header('Here', game.city.district.name)
+        c.kv([(n.key, f'[accent]{n.name}[/]  [dim]{n.epithet}[/]')
+              for n in met])
+        more = len(here) - len(met)
+        c.blank()
+        c.say('[dim]`talk <name>` to say something'
+              + (f', and `look` for the {more} you have not met'
+                 if more else '') + '.[/]')
+        return
     npc = _find(sess, args.rest())
     line = game.rng('events').pick(npc.lines)
     c.blank()
@@ -444,8 +475,12 @@ def ask_npc(sess, args) -> bool:
     if npc is None:
         return False
     if npc.key not in game.story.met:
-        raise CommandError(f'you have not met {npc.name}. `look` around '
-                           f'where they are.')
+        if any(n.key == npc.key for n in story_mod.present(game, game.story)):
+            c.blank()
+            introduce(sess, npc)
+        else:
+            raise CommandError(f'you have not met {npc.name}. `look` around '
+                               f'where they are.')
 
     topic = args[1].lower()
     match = next((k for k in npc.topics if k.startswith(topic)), None)
@@ -1008,8 +1043,22 @@ def _find(sess, query: str):
     if npc is None:
         raise CommandError(f'nobody called {query!r}')
     if npc.key not in game.story.met:
-        raise CommandError(f'you have not met them. `look` around.')
+        # Standing here now: that is a meeting. Somewhere else, or not at
+        # this hour, is the refusal it always was.
+        if any(n.key == npc.key for n in story_mod.present(game, game.story)):
+            sess.console.blank()
+            introduce(sess, npc)
+            sess.console.blank()
+            return npc
+        raise CommandError(f'you have not met them. `look` around'
+                           + (f' {districts.BY_KEY[npc.where].name}'
+                              if npc.where in districts.BY_KEY else '')
+                           + '.')
     return npc
+
+
+#: How many scenes fire on one command. See `_check_story`.
+SCENES_AT_ONCE = 3
 
 
 def _check_story(sess) -> None:
@@ -1022,7 +1071,19 @@ def _check_story(sess) -> None:
     if game is None or sess.run is not None:
         return
     c = sess.console
-    for thread_key, stage in game.story.available(game):
+    ready = game.story.available(game)
+    # The ones written for this street first: a scene that names the
+    # district you are standing in is about here, and the ones that could
+    # happen anywhere can happen anywhere else. Without this the cap
+    # below starved every place-bound scene behind the drift of the
+    # anywhere ones, in thread order, for as long as there were three of
+    # those.
+    ready.sort(key=lambda pair: 0 if pair[1].where else 1)
+    # Three at most in one breath (D86). Five scenes back to back on a
+    # single `look` is a wall of prose, and the ones past the third keep:
+    # anything still ready fires on the next thing you do out here.
+    held = ready[SCENES_AT_ONCE:]
+    for thread_key, stage in ready[:SCENES_AT_ONCE]:
         thread = thread_content.BY_KEY[thread_key]
         game.story.reach(thread_key, stage)
         # The wire carries the story too (D56): a scene is something the
@@ -1048,4 +1109,9 @@ def _check_story(sess) -> None:
             c.blank()
         if stage.choices:
             c.say('[warn]This one is waiting on you.[/] [dim]`choose`.[/]')
+    if held:
+        c.blank()
+        c.say(f'[dim]There is more happening here than one street can hold: '
+              f'{len(held)} more scene{"s" if len(held) != 1 else ""}, on '
+              f'the next thing you do.[/]')
     sess.autosave()
