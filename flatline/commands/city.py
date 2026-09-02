@@ -1209,6 +1209,45 @@ def _contract_arg(sess, token: str):
     return contract
 
 
+def way_in(game, contract) -> str:
+    """How deep the job is, in badges, before the walk (D93).
+
+    The mid-game tester's third idea: corporate work was a tier ladder the
+    build could not climb in the ticks the room allowed, and nothing said
+    so until the brief announced the zone at the door, three shifts after
+    the job was taken. The network is deterministic from the contract, so
+    the zone and the tier are readable now for nothing. Who guards the
+    desk is legwork (`legwork intel`), and stays so.
+    """
+    from ..run import network as net_mod
+    net = net_mod.generate(game.rng.fork('network', contract.cid),
+                           contract.target, int(contract.posture),
+                           contract.objective, contract.size_mod,
+                           grudge=game.city.grudges.get(contract.target, ''))
+    target = net.node(net.objective_node)
+    if target is None:
+        return ''
+    walls = {uid for uid, node in net.nodes.items() if net_mod._is_wall(node)}
+    route = (net_mod._route(net, net.objective_node, avoid=walls)
+             or net_mod._route(net, net.objective_node))
+    deepest = max((net.nodes[u].tier for u in route if u in net.nodes),
+                  default=target.tier)
+    desks = sum(1 for u in route if u in net.nodes
+                and net.nodes[u].type == 'auth')
+    hops = max(0, len(route) - 1)
+    if deepest <= 0:
+        depth = 'no badge needed'
+    else:
+        depth = (f'{deepest} badge{"s" if deepest != 1 else ""} deep'
+                 + (f', and the desk{"s" if desks != 1 else ""} that '
+                    f'issue{"" if desks != 1 else "s"} them '
+                    f'{"are" if desks != 1 else "is"} on the way'
+                    if desks else ', and no desk on the way: a forger, '
+                                  'a lucky crack, or another route'))
+    return (f'their {target.zone}, about {hops} host{"s" if hops != 1 else ""} '
+            f'in, {depth}')
+
+
 def _show_contract(sess, contract) -> None:
     game, c = sess.game, sess.console
     from ..world.contracts import OBJECTIVE_BLURB, OBJECTIVE_PROGRAM
@@ -1239,6 +1278,7 @@ def _show_contract(sess, contract) -> None:
                     else f'in {contract.expires - game.city.shift} shifts'),
         ('size', f'{contract_mod.SIZE_WORDS[contract.size_mod][0]} [dim]'
                  f'{contract_mod.SIZE_WORDS[contract.size_mod][1]}[/]'),
+        ('the way in', way_in(game, contract)),
         ('reads as', readiness(game.char, int(contract.posture))),
         *([('their way', _net_signature(contract.target))]
           if _net_signature(contract.target) else []),
@@ -3420,6 +3460,32 @@ def _legwork_result(net, gives: str, bonus: int, game) -> str:
             return 'Their fixer laughs. There is almost nothing on it.'
         listed = ', '.join(f'{v}x {k}' for k, v in sorted(seen.items()))
         detail = f' Deepest sits on [accent]{net.objective_node}[/].' if bonus else ''
+        # Who holds the doors on the way, and whether they would take
+        # what you carry (D93): the thing corporate work turned on and
+        # the one thing no read said.
+        from ..run import network as net_mod
+        walls = {uid for uid, node in net.nodes.items()
+                 if net_mod._is_wall(node)}
+        route = (net_mod._route(net, net.objective_node, avoid=walls)
+                 or net_mod._route(net, net.objective_node))
+        wardens = [(net.nodes[u], c) for u in route if u in net.nodes
+                   for c in net.nodes[u].ice
+                   if c.behaviour == 'warden' and c.alive]
+        if wardens:
+            desk = badge_read(game.char)
+            parts = []
+            for node, construct in wardens:
+                takes = construct.data.effects.get('credential_check')
+                parts.append(f'{construct.data.name} on [accent]{node.uid}[/]'
+                             + (' takes credentials' if takes
+                                else ' takes nothing'))
+            answer = ('' if not any(c.data.effects.get('credential_check')
+                                    for _, c in wardens)
+                      else (' You have nothing they would take.'
+                            if desk.impossible else
+                            f' Yours read at {desk.chance:.0%} against the '
+                            f'softest of them.'))
+            detail += f' On the way in: {"; ".join(parts)}.{answer}'
         return f'Countermeasures: {listed}.{detail}'
     if gives == 'credential':
         return ('You have a working badge. Access tier 1 from the moment you '

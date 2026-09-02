@@ -10325,6 +10325,39 @@ def test_second_wave() -> None:
          f'a Warfare build carries its weapon ({[p.key for p in plan]})')
 
 
+
+def test_the_way_in() -> None:
+    """D93: the board says how deep the job is, and legwork says who holds
+    the doors."""
+    T.section('the way in')
+    from flatline.commands import city as city_cmd
+    game = Game.new(Character.from_origin('gutter', 'wi'), seed=4242)
+    for contract in game.city.board[:3]:
+        line = city_cmd.way_in(game, contract)
+        T.ok('their ' in line and ('badge' in line or 'no badge' in line),
+             f'{contract.cid} reads as a zone and a depth ({line!r})')
+    sess, out = play([f'board {game.city.board[0].cid}'], game=game)
+    T.ok('the way in' in out, 'and the board shows it')
+    # The same network jack in generates: the read cannot lie.
+    from flatline.run import network as net_mod
+    contract = game.city.board[0]
+    net = net_mod.generate(game.rng.fork('network', contract.cid),
+                           contract.target, int(contract.posture),
+                           contract.objective, contract.size_mod)
+    zone = net.node(net.objective_node).zone
+    T.ok(f'their {zone}' in city_cmd.way_in(game, contract),
+         'the zone is the zone the run will have')
+    # Legwork names the wardens on the way, and whether you could answer.
+    net.nodes[net.entry].edges and None
+    from flatline.run.network import IceInstance
+    route = net_mod._route(net, net.objective_node)
+    hop = net.nodes[route[1]] if len(route) > 1 else net.nodes[route[0]]
+    hop.ice.append(IceInstance(uid='steward-w', key='steward', rating=3))
+    told = city_cmd._legwork_result(net, 'ice', 0, game)
+    T.ok('Steward' in told and hop.uid in told and 'credentials' in told,
+         f'the ice legwork names the desk ({told!r})')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
@@ -10334,6 +10367,7 @@ SUITES = (
     test_objective_parity,
     test_people_are_the_story, test_night_before, test_wall_and_clock,
     test_remembered_inside, test_second_look, test_second_wave,
+    test_the_way_in,
     test_economy,
     test_combat,
     test_advancement,

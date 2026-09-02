@@ -3258,6 +3258,19 @@ phone tree has nobody to send. The first version counted quiet ticks too
 and took surveil parity from nine to one in sixteen, which is the
 measurement that produced the rule.
 
+### D93: The way in
+
+The mid-game tester's third idea, and the cheapest of the three. Corporate
+work was a tier ladder the build could not climb in the ticks the room
+allowed, and nothing said so until the brief announced the zone at the
+door, three shifts after the job was taken. The network is deterministic
+from the contract, so `board <id>` now reads it and says how deep the job
+is before the walk: "their core, about 10 hosts in, 3 badges deep, and the
+desk that issues them is on the way". Who holds the desk stays legwork,
+because paying for what a fixer knows is a system worth keeping: `legwork
+intel` now names the wardens on the route, whether they take credentials,
+and what yours would read at against the softest of them.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -4655,3 +4668,9 @@ command), grudges that never formed, and a loadout plan that evicted a
 striker's weapon. Then the response: six loud ticks at red and a hunter
 arrives. `test_second_wave`. `validate.py` clean, `test.py` green at
 **16,901 checks**.
+
+### 2026-09-02 (c): the way in
+
+D93. The board reads the depth of the job in badges before the walk, and
+`legwork intel` names the wardens on the route and whether you could
+answer them. `test_the_way_in`.
