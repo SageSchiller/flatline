@@ -12,6 +12,7 @@ reads and draws them, which is the whole of D35.
 
 from __future__ import annotations
 
+from .content import nodes as node_content
 from .ui import Caps, GlyphLevel
 
 ZONES = ('perimeter', 'interior', 'restricted', 'core')
@@ -143,7 +144,12 @@ def draw(net, state, caps: Caps, tall: bool = False) -> list[str]:
             live = [c for c in node.ice if c.alive and c.known]
             if live:
                 marks += ('^' if ascii_only else '▲') * min(2, len(live))
-            labels[node.uid] = f'{marks}{node.uid}' if marks else node.uid
+            # The type glyph leads the label (D111): the map reads as a field
+            # of shapes, so you can see the vault sitting in the core before
+            # you read a single host id. A disguised honeypot draws the
+            # workstation glyph, giving nothing the word did not.
+            glyph = node_content.host_glyph(node.display_type, ascii_only)
+            labels[node.uid] = f'{glyph} {marks}{node.uid}'
             pos[node.uid] = (x_of[z], 1 + int(round(gap * (i + 1))))
     # The route to the job, lit; every other edge dim.
     route = set()
@@ -190,4 +196,9 @@ def draw(net, state, caps: Caps, tall: bool = False) -> list[str]:
     legend = ('[dim]@ you  ! the job  ' + ('^' if ascii_only else '▲')
               + ' something on it  lit: the way to the job  '
               'shut hosts dim[/]')
-    return rows + [legend]
+    # A key for the type glyphs, but only for the types actually on the map,
+    # so it names what you can see and grows as you find more (D111).
+    present = {n.display_type for n in known}
+    key = '  '.join(f'{node_content.host_glyph(name, ascii_only)} {name}'
+                     for name in node_content.HOST_GLYPHS if name in present)
+    return rows + [legend, f'[dim]{key}[/]']

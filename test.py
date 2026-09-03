@@ -11644,6 +11644,36 @@ def test_host_glyphs() -> None:
                      f'{uid}: the id is clean, glyph rides the type cell')
                 break
 
+    # The same glyphs carry into here/probe (the node header), the flat map,
+    # and the schematic, so a host reads as the same shape wherever it shows.
+    glyphs = {u for u, _ in node_content.HOST_GLYPHS.values()}
+    sess.console.start_capture()
+    sess.execute('here')
+    here_out = strip_ansi(sess.console.end_capture())
+    T.ok(any(g in here_out for g in glyphs),
+         'here carries the host glyph in the node header')
+
+    sess.console.start_capture()
+    sess.execute('map --flat')
+    flat_out = strip_ansi(sess.console.end_capture())
+    T.ok(any(g in flat_out for g in glyphs),
+         'the flat map carries host glyphs')
+
+    from flatline import schematic
+    rows = schematic.draw(sess.run.net, sess.run, sess.console.caps)
+    sch = strip_ansi('\n'.join(rows))
+    T.ok(any(g in sch for g in glyphs), 'the schematic carries host glyphs')
+    # Its last line is a type key naming only the glyphs actually on the map.
+    T.ok(rows and any(name in strip_ansi(rows[-1])
+                      for name in node_content.HOST_GLYPHS),
+         'the schematic ends with a type key for what is on it')
+    present = {sess.run.net.nodes[u].display_type
+               for u in sess.run.net.nodes if sess.run.net.nodes[u].known}
+    for name in node_content.HOST_GLYPHS:
+        if name not in present:
+            T.ok(name not in strip_ansi(rows[-1]),
+                 f'the key omits {name}, which is not on the map')
+
 
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,

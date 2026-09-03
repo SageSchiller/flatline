@@ -773,6 +773,14 @@ def _resolve(sess) -> None:
 # --------------------------------------------------------------------------
 
 
+def _host_glyph(caps, node) -> str:
+    """The one-cell mark for a host as the player sees it (D111), in the form
+    the terminal can draw. Keyed on the display type, so a disguised honeypot
+    borrows the workstation glyph here exactly as it does in the scan."""
+    plain = caps.glyphs is not ui.GlyphLevel.UNICODE
+    return node_content.host_glyph(node.display_type, plain)
+
+
 @command('scan', 'Look at what this node is connected to.',
          group='recon', contexts=('run',), ticks=1, usage='scan [--quiet]',
          detail=(
@@ -832,14 +840,12 @@ def cmd_scan(sess, args) -> None:
     # A one-cell glyph per host type (D111): the scan reads as a column of
     # shapes, not only words, and a disguised honeypot borrows the workstation
     # mark so the table still gives nothing away.
-    plain = c.caps.glyphs is not ui.GlyphLevel.UNICODE
     rows = []
     for uid in found:
         node = state.net.nodes[uid]
         route = state.route_to(uid)
-        dtype = node.display_type
-        glyph = node_content.host_glyph(dtype, plain)
-        row = [uid, f'{glyph} {dtype}', node.zone,
+        glyph = _host_glyph(c.caps, node)
+        row = [uid, f'{glyph} {node.display_type}', node.zone,
                'open' if node.open else f'tier {node.tier}',
                str(len(route)) if route else
                ('1' if uid in state.node.edges else '2+')]
@@ -940,12 +946,16 @@ def cmd_map(sess, args) -> None:
         rows = schematic.draw(net, state, c.caps,
                               tall=sess.render_mode == 'wide')
         if rows:
+            # draw() returns the canvas, then two legend lines: the state key
+            # and the type-glyph key (D111). Blank between the picture and its
+            # keys, and the keys sit together.
+            *canvas, legend, glyph_key = rows
             c.blank()
-            for row in rows[:-1]:
+            for row in canvas:
                 c.raw(row)
             c.blank()
-            c.raw(rows[-1])
-            pairs_seen = set()
+            c.raw(legend)
+            c.raw(glyph_key)
             c.say('[dim]`map --tree` for the list, `map --flat` for the '
                   'zones, `scan` to reach further.[/]')
             return
@@ -1099,12 +1109,16 @@ def _map_label(state, node) -> str:
         marks.append(f'[residue]residue {node.residue}[/]')
     role = 'accent' if node.open else 'fg'
     head = f'[{role}]{node.uid:<12}[/] [dim]{node.zone[:4]:<5}[/]'
+    # The type carries its glyph here too (D111), so the flat map reads the
+    # same as the scan it stands in for.
+    glyph = _host_glyph(state.console.caps, node)
+    typed = f'{glyph} {node.display_type}'
     # The type is only padded when something follows it. Padding it
     # unconditionally leaves trailing spaces on most rows, which nobody sees
     # in a terminal and everybody sees in a bug report.
     if not marks:
-        return f'{head}[dim]{node.display_type}[/]'
-    return f'{head}[dim]{node.display_type:<12}[/] {"  ".join(marks)}'
+        return f'{head}[dim]{typed}[/]'
+    return f'{head}[dim]{typed:<14}[/] {"  ".join(marks)}'
 
 
 def _map_flat(sess, visible: set[str]) -> None:
@@ -3107,8 +3121,9 @@ def _show_node(sess, node, detail: bool = False) -> None:
     c.header(node.uid, tail)
     look_type = 'workstation' if (node.type == 'honeypot' and node.disguised) \
         else node.type
+    glyph = _host_glyph(c.caps, node)
     c.say(f'[dim]{cyberspace.look(look_type, len(node.uid), state.net.faction)}. '
-          f'{node.display_type} in the {node.zone}.[/]')
+          f'{glyph} {node.display_type} in the {node.zone}.[/]')
 
     if not detail:
         c.say('[dim]Not probed. `probe` to see what it runs.[/]')
@@ -3186,7 +3201,9 @@ def cmd_chart(sess, args) -> None:
         return
     c.blank()
     if found:
-        rows = [(uid, state.net.nodes[uid].display_type,
+        rows = [(uid,
+                 f'{_host_glyph(c.caps, state.net.nodes[uid])} '
+                 f'{state.net.nodes[uid].display_type}',
                  state.net.nodes[uid].zone,
                  str(len(state.net.nodes[uid].edges)))
                 for uid in found]
@@ -3265,7 +3282,8 @@ def cmd_listen(sess, args) -> None:
         if assets:
             marks.append(f'[credit]{len(assets)} assets, '
                          f'{sum(a.value for a in assets):,}c[/]')
-        c.raw(f'  [accent]{node.uid:<12}[/] [dim]{node.display_type:<12}[/] '
+        typed = f'{_host_glyph(c.caps, node)} {node.display_type}'
+        c.raw(f'  [accent]{node.uid:<12}[/] [dim]{typed:<14}[/] '
               + '  '.join(marks or ['[dim]nothing worth the trip[/]']))
 
 
