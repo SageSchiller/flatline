@@ -259,6 +259,7 @@ def cmd_jack_in(sess, args) -> None:
 
     # The other runners, for the night one of them is in here too (D89).
     busy = {game.city.hired, (game.city.crew or {}).get('key', '')}
+    state.render_mode = sess.render_mode
     state.rivals = [{'key': r.key, 'name': r.name,
                      'disposition': r.disposition, 'style': r.data.style}
                     for r in game.city.rivals
@@ -445,6 +446,8 @@ def _resolve(sess) -> None:
     if summary['outcome'] == 'severed':
         # The last thing on the screen tears for a moment (D102).
         from .. import anim
+        if sess.render_mode != 'none':
+            anim.disrupt(c, frames=6, height=5)
         anim.sever(c, c.transcript[-1] if c.transcript else '')
     c.say(verdict)
 
@@ -481,6 +484,8 @@ def _resolve(sess) -> None:
         save_mod.bump_meta(flatlines=1)
         # The game's name, done properly (D102).
         from .. import anim
+        if sess.render_mode != 'none':
+            anim.disrupt(c, frames=9, height=8)
         anim.flatline(c, style=sess.shell.get('banner', 'block'))
         c.blank()
         c.say('[err]It held on long enough. There is no disconnection, no '

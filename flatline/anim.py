@@ -932,3 +932,49 @@ def sever(console, last_line: str, quick: bool = False) -> None:
             screen.draw([''])
     except KeyboardInterrupt:
         console.raw()
+
+
+# --------------------------------------------------------------------------
+# disruption (D110)
+# --------------------------------------------------------------------------
+#
+# When the connection is being cut from the far end, or something lethal has
+# hold of you, the display itself should not be calm about it. `disrupt`
+# fills the space where the cursor is with a burst of static in the alarm
+# colours, shuddering side to side, and then clears it, so it reads as the
+# terminal being interfered with rather than as one more paragraph. It obeys
+# the same rule as everything else here: on anything that is not a live
+# colour tty it does nothing at all, and the words that follow it are the
+# whole of the content (D35).
+
+
+def disrupt(console, frames: int = 7, height: int = 6,
+            roles: tuple[str, ...] = ('err', 'ice', 'warn'),
+            shake: bool = True) -> None:
+    """A burst of static where the cursor is, then gone. Silent unless the
+    terminal can actually animate."""
+    if not can_animate(console):
+        return
+    caps = console.caps
+    ascii_only = caps.glyphs is GlyphLevel.ASCII
+    chars = _NOISE_ASCII if ascii_only else _NOISE
+    width = min(max(20, caps.width - 2), 78)
+    rng = random.Random()
+    try:
+        with _Screen(console) as screen:
+            for f in range(frames):
+                off = rng.randint(-3, 3) if shake else 0
+                fade = 1.0 - f / max(1, frames)
+                lines = []
+                for _ in range(height):
+                    if rng.random() > fade + 0.15:
+                        lines.append('')
+                        continue
+                    n = max(4, int(width * (0.4 + 0.6 * fade)))
+                    row = ''.join(rng.choice(chars) for _ in range(n))
+                    lines.append(' ' * max(0, off) + paint(row, rng.choice(roles), caps))
+                screen.draw(lines)
+                screen.pause(0.05 if f < frames - 1 else 0.03)
+            screen.draw([''])
+    except KeyboardInterrupt:
+        console.raw()

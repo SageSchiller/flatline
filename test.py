@@ -11489,6 +11489,88 @@ def test_reveal_styles() -> None:
     sess.execute('jack out --anyway')
 
 
+
+def test_ice_and_disruption() -> None:
+    """D110: ICE drawn at the tell, and the screen disrupted at the lethal
+    beats."""
+    T.section('ice and disruption')
+    from flatline import anim, pixels
+    from flatline.content import ice as ice_content
+    from flatline.run import network as net_mod
+    from flatline.run.network import IceInstance
+    from flatline.rng import Rng
+    true_caps = Caps(ColorLevel.TRUE, GlyphLevel.UNICODE, 74, theme.CYBERPUNK_NEON)
+    c16 = Caps(ColorLevel.ANSI16, GlyphLevel.UNICODE, 74, theme.CYBERPUNK_NEON)
+
+    # Every behaviour has a render, and only the behaviours.
+    behaviours = {i.behaviour for i in ice_content.ICE}
+    T.eq(set(pixels._ICE_RENDERS), behaviours,
+         'every ICE behaviour has a picture, and no picture is orphaned')
+    for b in behaviours:
+        pix = pixels.render_ice(b)
+        T.ok(pix and len(pix) == pixels.ICE_HEIGHT
+             and all(len(r) == pixels.ICE_WIDTH for r in pix),
+             f'{b} renders at the ICE size')
+        T.eq(pix, pixels.render_ice(b), f'{b} is deterministic')
+        T.eq(len(pixels.blit(pix, true_caps)), pixels.ICE_HEIGHT // 2,
+             f'{b}: two pixels a cell')
+        T.eq(pixels.blit(pix, c16), [], f'{b}: not at sixteen colours')
+    T.eq(pixels.render_ice('nothing'), [], 'an unknown behaviour draws nothing')
+
+    def running(faction='sendai', posture=72, seed=9):
+        game = Game.new(Character.from_origin('gutter', 't'), seed=seed)
+        net = net_mod.generate(Rng(seed).fork('network', 't'), faction, posture,
+                               'wipe', 1.0)
+        con = Console(true_caps, stream=io.StringIO())
+        state = RunState.begin(net, game.char, Rng(seed)('combat'), con,
+                               contract={'objective': 'wipe', 'title': 'T'})
+        state.render_mode = 'picture'
+        return con, state, net
+
+    # The tell draws the construct, once per construct, only when known.
+    con, state, net = running()
+    ice = IceInstance(uid='pike-x', key='pike', rating=6, state='awake',
+                      known=True)
+    net.node(net.entry).ice.append(ice)
+    con.start_capture(); state._tell(ice); out = con.end_capture()
+    T.ok('▀' in out, 'a known tell draws the construct')
+    con.start_capture(); state._tell(ice); out2 = con.end_capture()
+    T.ok('▀' not in out2, 'and not a second time the same run')
+    # Unknown draws no picture (the name is withheld, so is the shape).
+    con, state, net = running()
+    unknown = IceInstance(uid='gull-x', key='gull', rating=3, state='awake',
+                          known=False)
+    net.node(net.entry).ice.append(unknown)
+    con.start_capture(); state._tell(unknown); out = con.end_capture()
+    T.ok('▀' not in out or unknown.known,
+         'an unidentified construct is not drawn')
+    # render none turns it off.
+    con, state, net = running()
+    state.render_mode = 'none'
+    ice = IceInstance(uid='coffin-x', key='coffin', rating=8, state='awake',
+                      known=True)
+    net.node(net.entry).ice.append(ice)
+    con.start_capture(); state._tell(ice); out = con.end_capture()
+    T.ok('▀' not in out, 'render none draws no construct')
+
+    # disrupt is silent where it cannot animate (capture is not a tty).
+    con = Console(true_caps, stream=io.StringIO())
+    con.start_capture()
+    anim.disrupt(con, frames=5, height=4)
+    T.eq(con.end_capture(), '', 'disrupt prints nothing when it cannot animate')
+    # It never raises for any size.
+    for f, h in ((1, 1), (9, 8), (3, 6)):
+        anim.disrupt(Console(true_caps, stream=io.StringIO()), frames=f, height=h)
+    T.ok(True, 'disrupt is safe at every size')
+
+    # A run wired end to end: black ICE tell fires the picture and does not
+    # crash; the trace completing severs cleanly with the render on.
+    con, state, net = running()
+    state.trace = 100.0
+    con.start_capture(); state._check_trace(); con.end_capture()
+    T.eq(state.outcome, 'severed', 'trace complete still severs with pictures on')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
@@ -11503,6 +11585,7 @@ SUITES = (
     test_the_job_itself, test_pictures, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,
+    test_ice_and_disruption,
     test_economy,
     test_combat,
     test_advancement,

@@ -3648,6 +3648,28 @@ and the picture that lands is identical either way. It governs the faction
 render and the icon on connect; the portrait and the icon on the sheet
 draw instantly, because a sheet is read, not watched.
 
+### D110: The ICE, seen, and the screen disrupted
+
+Two things, one beat. A construct winding up to act is the tensest moment
+in a run and it was a line of text; now the thing is drawn. Seven
+behaviours, one picture each in its own menace: the Sentry an eye, the
+Probe a sweep of pings, the Hunter a locked reticle, the Trap a web, the
+Warden a portcullis with a lock, the Herder arrows converging, and the
+black kind a skull with a red glint in one socket. It arrives at the
+tell, once per construct a run, only once it is identified, because the
+shape is a thing you earn the same way you earn its name.
+
+And the display does not stay calm about it. `anim.disrupt` fills the
+space where the cursor is with a burst of static in the alarm colours,
+shuddering side to side, and then clears it, so a lethal moment reads as
+the terminal being interfered with rather than as another paragraph. A
+short shudder every time black ICE winds up; a longer one as the trace
+completes and the connection is cut; the longest before a flatline, ahead
+of the name going flat. It obeys the one rule everything in `anim` obeys:
+on anything that is not a live colour tty it does nothing at all, the
+render mode turns it off with the pictures, and the words that follow it
+are the whole of the content (D35).
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -5135,3 +5157,7 @@ screens. test_the_portrait.
 
 D109. Five reveal styles for how a picture lands on connect (dissolve,
 scan, wipe, flash, instant), an earnable axis. test_reveal_styles.
+### 2026-09-03 (f): the ICE, seen, and the screen disrupted
+
+D110. A picture per ICE behaviour at the tell, and a static burst that
+disrupts the display on the lethal beats. test_ice_and_disruption.

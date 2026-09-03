@@ -198,6 +198,10 @@ class RunState:
     #: of them turns out to be in here too (D89).
     rivals: list = field(default_factory=list)
     company: dict = field(default_factory=dict)
+    #: How the run draws its pictures (D105/D110), copied off the session so
+    #: the engine can draw a construct at the tell without reaching for the
+    #: shell. 'none' turns off both the pictures and the screen effects.
+    render_mode: str = 'picture'
     #: Ticks remaining on Nullsig and Impersonate.
     nullsig: int = 0
     impersonating: int = 0
@@ -1456,6 +1460,23 @@ class RunState:
             lead += 1
         return max(0, lead)
 
+    def _draw_ice(self, construct: IceInstance) -> None:
+        """The construct, as a picture (D110), where the render mode and the
+        terminal both allow. Once per construct a run: a second drawing of a
+        Hunter you already met is noise, not tension."""
+        if self.render_mode not in ('picture', 'wide'):
+            return
+        from .. import anim, pixels
+        if not pixels.can_render(self.console.caps):
+            return
+        if f'drew:{construct.uid}' in self.spent:
+            return
+        self.spent.add(f'drew:{construct.uid}')
+        pix = pixels.render_ice(construct.behaviour,
+                                seed=sum(ord(ch) for ch in construct.uid))
+        if pix:
+            anim.reveal(self.console, pix, construct.data.name, quick=True)
+
     def _tell(self, construct: IceInstance) -> None:
         """One line, the tick before it acts. Never says what it will do."""
         data = construct.data
@@ -1474,6 +1495,9 @@ class RunState:
         if construct.known or lead > 0:
             self.console.say(f'[dim]that reads as {name}.[/]')
             construct.known = True
+            # And you see it (D110): the construct drawn, where the terminal
+            # can, once per construct a run.
+            self._draw_ice(construct)
         if construct.grudge and f'grudge:{construct.uid}' not in self.spent:
             self.spent.add(f'grudge:{construct.uid}')
             fac = fac_content.BY_KEY.get(self.net.faction)
@@ -1499,6 +1523,10 @@ class RunState:
             self.console.say('[dim]`here` says what is on this host. Standing '
                              'still is also an answer, and sometimes the '
                              'right one.[/]')
+        if data.behaviour == 'black':
+            # The display does not stay calm about a thing that kills (D110):
+            # a short shudder of static every time it winds up.
+            self._disrupt(frames=4, height=3)
         if data.behaviour == 'black' and 'black_tell' not in self.spent:
             # Said once a run, the first time something lethal winds up. The
             # tell system is fair in the letter only if the correct response
@@ -1701,9 +1729,18 @@ class RunState:
             return False
         return True
 
+    def _disrupt(self, frames: int = 7, height: int = 6) -> None:
+        """A burst of static across the display (D110), where the terminal
+        can. Off when the render mode is off, like the pictures."""
+        if self.render_mode == 'none':
+            return
+        from .. import anim
+        anim.disrupt(self.console, frames=frames, height=height)
+
     def _check_trace(self) -> None:
         if self.trace < TRACE_MAX:
             return
+        self._disrupt()
         self.console.blank()
         self.console.raw('[err][bold]TRACE COMPLETE.[/][/]')
         self.console.say('The connection is cut from the far end. Somebody now '

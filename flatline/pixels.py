@@ -771,3 +771,181 @@ def render_portrait(look: dict, width: int = PORTRAIT_WIDTH,
             if rng.random() < 0.5:
                 _put(pix, cx + hw - 1, y, shade(skin, 0.6))
     return pix
+
+
+# --------------------------------------------------------------------------
+# ICE, when it wakes (D110)
+# --------------------------------------------------------------------------
+#
+# A construct winding up to act is the tensest beat in a run, and it was a
+# line of text. This draws the thing: a small picture per behaviour, in its
+# own menace, shown at the tell where the terminal can. Seven behaviours,
+# one shape each, so a player learns to read a Hunter from a Warden at a
+# glance the way they already learn a faction's cyberspace. Nothing here
+# matters (D35): the tell, the strike and the odds are unchanged.
+
+ICE_WIDTH = 20
+ICE_HEIGHT = 16
+
+ICE_RGB: dict[str, dict[str, RGB]] = {
+    'sentry': {'dark': (20, 30, 46), 'ring': (90, 150, 210),
+               'iris': (120, 200, 240), 'pupil': (10, 14, 22)},
+    'probe': {'dark': (18, 34, 30), 'ping': (90, 220, 180),
+              'core': (200, 250, 230)},
+    'hunter': {'dark': (34, 14, 16), 'lock': (240, 70, 60),
+               'edge': (150, 30, 34), 'core': (255, 150, 120)},
+    'trap': {'dark': (30, 26, 16), 'web': (200, 180, 90),
+             'bait': (240, 220, 120)},
+    'warden': {'dark': (26, 28, 36), 'bar': (150, 160, 176),
+               'lock': (210, 216, 226)},
+    'herder': {'dark': (28, 20, 34), 'arm': (170, 130, 200),
+               'core': (220, 200, 240)},
+    'black': {'dark': (8, 8, 10), 'bone': (220, 220, 226),
+              'shadow': (40, 40, 46), 'eye': (255, 60, 60)},
+}
+
+
+def render_ice(behaviour: str, width: int = ICE_WIDTH, height: int = ICE_HEIGHT,
+               seed: int = 0):
+    """A picture of a construct of this behaviour, or [] for an unknown one."""
+    fn = _ICE_RENDERS.get(behaviour)
+    if fn is None:
+        return []
+    return fn(width, height, random.Random(f'ice:{behaviour}:{seed}'))
+
+
+def _ice_sentry(w, h, rng):
+    c = ICE_RGB['sentry']
+    pix = _blank(w, h, c['dark'])
+    cx, cy = w // 2, h // 2
+    # an eye: an almond of rings around an iris
+    for y in range(h):
+        for x in range(w):
+            ex = (x - cx) / (w * 0.42)
+            ey = (y - cy) / (h * 0.34)
+            r = ex * ex + ey * ey
+            if r <= 1:
+                pix[y][x] = c['ring'] if r > 0.55 else c['iris']
+    for y in range(cy - 2, cy + 2):
+        for x in range(cx - 2, cx + 2):
+            if (x - cx) ** 2 + (y - cy) ** 2 <= 3:
+                _put(pix, x, y, c['pupil'])
+    return pix
+
+
+def _ice_probe(w, h, rng):
+    c = ICE_RGB['probe']
+    pix = _blank(w, h, c['dark'])
+    cx, cy = w // 2, h // 2
+    # concentric pings, a sensor sweeping
+    for rad in (3, 5, 7):
+        for a in range(0, 360, 12):
+            x = int(cx + math.cos(math.radians(a)) * rad)
+            y = int(cy + math.sin(math.radians(a)) * rad * 0.8)
+            _put(pix, x, y, c['ping'])
+    _rect(pix, cx - 1, cy - 1, cx + 2, cy + 2, c['core'])
+    return pix
+
+
+def _ice_hunter(w, h, rng):
+    c = ICE_RGB['hunter']
+    pix = _blank(w, h, c['dark'])
+    cx, cy = w // 2, h // 2
+    # a reticle locked on: crosshair, corners, a hot centre
+    for x in range(2, w - 2):
+        _put(pix, x, cy, c['edge'])
+    for y in range(2, h - 2):
+        _put(pix, cx, y, c['edge'])
+    for dx in (-1, 1):
+        for dy in (-1, 1):
+            ox, oy = cx + dx * (w // 2 - 3), cy + dy * (h // 2 - 2)
+            for k in range(3):
+                _put(pix, ox, oy + dy * k, c['lock'])
+                _put(pix, ox + dx * k, oy, c['lock'])
+    for y in range(cy - 1, cy + 2):
+        for x in range(cx - 1, cx + 2):
+            _put(pix, x, y, c['core'])
+    return pix
+
+
+def _ice_trap(w, h, rng):
+    c = ICE_RGB['trap']
+    pix = _blank(w, h, c['dark'])
+    cx, cy = w // 2, h // 2
+    # a web: radial threads and two rings
+    for a in range(0, 360, 30):
+        for r in range(2, min(w, h) // 2):
+            x = int(cx + math.cos(math.radians(a)) * r)
+            y = int(cy + math.sin(math.radians(a)) * r * 0.8)
+            _put(pix, x, y, c['web'])
+    for rad in (3, 6):
+        for a in range(0, 360, 10):
+            x = int(cx + math.cos(math.radians(a)) * rad)
+            y = int(cy + math.sin(math.radians(a)) * rad * 0.8)
+            _put(pix, x, y, c['web'])
+    _put(pix, cx, cy, c['bait'])
+    return pix
+
+
+def _ice_warden(w, h, rng):
+    c = ICE_RGB['warden']
+    pix = _blank(w, h, c['dark'])
+    # a portcullis: uprights and crossbars, a lock in the middle
+    for x in range(3, w - 2, 3):
+        for y in range(2, h - 2):
+            _put(pix, x, y, c['bar'])
+    for y in range(3, h - 2, 4):
+        for x in range(3, w - 2):
+            _put(pix, x, y, c['bar'])
+    cx, cy = w // 2, h // 2
+    for y in range(cy - 1, cy + 3):
+        for x in range(cx - 2, cx + 2):
+            _put(pix, x, y, c['lock'])
+    _put(pix, cx - 1, cy, c['dark'])
+    return pix
+
+
+def _ice_herder(w, h, rng):
+    c = ICE_RGB['herder']
+    pix = _blank(w, h, c['dark'])
+    cx, cy = w // 2, h // 2
+    # arrows converging: routes being cut and funnelled
+    for sy in (2, h - 3):
+        for x in range(2, cx):
+            y = int(sy + (cy - sy) * (x - 2) / (cx - 2))
+            _put(pix, x, y, c['arm'])
+            _put(pix, w - 1 - x, y, c['arm'])
+    _rect(pix, cx - 2, cy - 1, cx + 3, cy + 2, c['core'])
+    return pix
+
+
+def _ice_black(w, h, rng):
+    c = ICE_RGB['black']
+    pix = _blank(w, h, c['dark'])
+    cx, cy = w // 2, h // 2
+    # a skull: a pale dome, two black sockets, a hot glint in one
+    for y in range(2, h - 2):
+        for x in range(w):
+            ex = (x - cx) / (w * 0.34)
+            ey = (y - (cy - 1)) / (h * 0.4)
+            if ex * ex + ey * ey <= 1:
+                pix[y][x] = c['bone']
+    # jaw
+    for x in range(cx - 3, cx + 4):
+        _put(pix, x, h - 3, c['bone'])
+        _put(pix, x, h - 2, c['bone'] if x % 2 else c['dark'])
+    # sockets
+    for ox in (cx - 3, cx + 2):
+        for y in range(cy - 1, cy + 2):
+            for x in range(ox, ox + 2):
+                _put(pix, x, y, c['shadow'])
+    _put(pix, cx - 3, cy, c['eye'])
+    _put(pix, cx - 2, cy, c['eye'])
+    return pix
+
+
+_ICE_RENDERS = {
+    'sentry': _ice_sentry, 'probe': _ice_probe, 'hunter': _ice_hunter,
+    'trap': _ice_trap, 'warden': _ice_warden, 'herder': _ice_herder,
+    'black': _ice_black,
+}
