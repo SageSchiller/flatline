@@ -3583,6 +3583,24 @@ exactly what it read before. `rice render` governs it with the faction
 pictures, and nothing about it touches the coherence cost the icon
 already carries (D35).
 
+### D106: More colour, and a gallery
+
+The palette is the axis people care about most, and it had the twelve
+factions and three defaults. Six more, each earned by a different kind of
+playing: Sendai (black, white, one red; earned by meeting black ICE and
+living), Meridian (ink and gold; twenty-five thousand credits at once),
+Chorus (violet and lavender and gold; five threads carried), Freeport
+(sea and rust and ochre; twenty errands), Ember (the game's name as a
+colour scheme, red on black; fifteen contracts), and Void (one blue a
+long way down; all twelve districts). Two of them spend counters nothing
+had used,  and . Every one passes the separation
+check: no two roles collapse onto the same colour at truecolour or in
+the 256 cube. And `rice gallery` renders the same handful of real lines,
+a trace bar and a status row, under every palette you own at once, since
+the only honest way to choose between colours is to see them next to each
+other rendering the actual game rather than a swatch. It refuses a
+colourless terminal rather than printing a page of nothing.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -5052,3 +5070,9 @@ hosts as labels, edges as wiring, the route to the job lit.
 D105. The ten icons you can wear are pictures now, revealed on connect
 after the faction's cyberspace and shown on the `icon` screen.
 `test_player_icons`.
+
+### 2026-09-03 (b): more colour, and a gallery
+
+D106. Six new palettes (Sendai, Meridian, Chorus, Freeport, Ember, Void),
+each earned differently, and `rice gallery` to see them all live.
+`test_more_palettes`.

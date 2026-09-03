@@ -1414,6 +1414,50 @@ def _sample_glyphs(c, kind: str, key: str) -> str:
                     ('bullet', 'arrow', 'check', 'cross', 'node'))
 
 
+def _rice_gallery(sess, kind: str) -> None:
+    """Every palette you own, rendered live and side by side (D106).
+
+    `rice --preview` shows the shell you are wearing. This shows the same
+    handful of real lines under every scheme you have earned, because the
+    only honest way to choose between colours is to see them next to each
+    other rendering the actual game, not a swatch.
+    """
+    c = sess.console
+    meta = save_mod.read_meta()
+    look = sess.shell
+    if kind and kind not in rice.KINDS:
+        match = [k for k in rice.KINDS if k.startswith(kind)]
+        kind = match[0] if len(match) == 1 else 'palette'
+    kind = kind or 'palette'
+    if c.caps.color is ui.ColorLevel.NONE:
+        raise CommandError('a gallery of colours needs a colour terminal. '
+                           '`rice` lists what you have.')
+    earned = [i for i in rice.BY_KIND[kind] if rice.met(i, meta)]
+    c.header('The gallery', f'{kind}, {len(earned)} yours')
+    c.say('[dim]The same lines, in every one you own. `rice ' + kind
+          + ' <name>` wears one.[/]')
+    for item in earned:
+        was = c.caps
+        pal = theme.get(item.key if kind == 'palette' else look.get('palette'))
+        c.caps = ui.Caps(
+            color=was.color, glyphs=was.glyphs, width=was.width, palette=pal,
+            frame=item.key if kind == 'frame' else look.get('frame', 'single'),
+            bars=item.key if kind == 'bars' else look.get('bars', 'blocks'),
+            marks=item.key if kind == 'marks' else look.get('marks', 'plain'))
+        try:
+            worn = look.get(kind) == item.key
+            c.blank()
+            c.raw(f'[accent]{item.name}[/]'
+                  + (' [dim](worn)[/]' if worn else ''))
+            c.raw('  ' + c.bar(0.62, 'trace', 18, 'trace 62/100')
+                  + '   [warn]AMBER[/]')
+            c.raw('  [ok]' + c.caps.g('check') + ' ice down[/]  '
+                  '[err]black ICE[/]  [accent]ap-arc21[/]  '
+                  '[credit]4,200c[/]  [residue]18 residue[/]')
+        finally:
+            c.caps = was
+
+
 def _preview(sess, look: dict) -> None:
     """Render a slice of real output under a shell the player has not worn yet.
 
@@ -1458,8 +1502,9 @@ def _preview(sess, look: dict) -> None:
 
 @command('rice', 'Customise the shell. Earned, and yours to keep.',
          group='session', bare=True, aliases=('shell',),
-         usage='rice [kind] [name] [--try] [--preview] [--reset]',
-         detail='Six axes: palette, prompt, frame, bars, marks, banner. Most '
+         usage='rice [kind] [name] [gallery] [--try] [--preview] [--reset]',
+         detail='Eight axes: palette, prompt, frame, bars, marks, banner, '
+                'hud, render. Most '
                 'of them are earned by playing, and everything you earn is '
                 'recorded outside the save, so it survives the character who '
                 'earned it.\n\n'
@@ -1467,8 +1512,9 @@ def _preview(sess, look: dict) -> None:
                 'the point of it: after four hours of a city that does not '
                 'care whether you live, a colour scheme should be free.\n\n'
                 '`rice <kind> <name> --try` shows you a screen of real output '
-                'in it without keeping it, and `rice --preview` does the same '
-                'for what you are already wearing.')
+                'in it without keeping it, `rice --preview` does the same '
+                'for what you are already wearing, and `rice gallery [kind]` '
+                'renders the same lines under every one you own at once.')
 def cmd_rice(sess, args) -> None:
     c = sess.console
     meta = save_mod.read_meta()
@@ -1488,6 +1534,10 @@ def cmd_rice(sess, args) -> None:
 
     if not len(args):
         _rice_index(sess)
+        return
+
+    if (args.get(0) or '').lower() in ('gallery', 'showcase', 'all'):
+        _rice_gallery(sess, (args.get(1) or '').lower())
         return
 
     kind = (args.get(0) or '').lower()

@@ -178,6 +178,37 @@ COSMETICS: tuple[Cosmetic, ...] = (
              needs=('characters', 3),
              hint='Make a third character. However the first two went.'),
 
+    Cosmetic('sendai', 'palette', 'Sendai',
+             'Black, white, and one red. The palette of a company that '
+             'renders you at high resolution and lets you work out why.',
+             needs=('blackice', 1),
+             hint='Meet black ICE and come back to describe it.'),
+    Cosmetic('meridian', 'palette', 'Meridian',
+             'Ink and gold. A ledger you are on the wrong side of, made '
+             'legible.',
+             needs=('credits', 25000),
+             hint='Hold twenty-five thousand credits at once.'),
+    Cosmetic('chorus', 'palette', 'Chorus',
+             'Violet and lavender and a line of gold, the light of a hall '
+             'that feeds people and files them.',
+             needs=('threads', 5),
+             hint='Carry five storylines somewhere.'),
+    Cosmetic('freeport', 'palette', 'Freeport',
+             'Sea, rust, and ochre: a working port that answers to a vote '
+             'and a crane.',
+             needs=('errands', 20),
+             hint='Twenty pieces of street work. The Freeport way.'),
+    Cosmetic('ember', 'palette', 'Ember',
+             'Red on black, and everything else a ghost of it. What the '
+             'name of this game looks like as a colour scheme.',
+             needs=('runs', 15),
+             hint='Fifteen contracts. You will have earned the red.'),
+    Cosmetic('void', 'palette', 'Void',
+             'One blue, a long way down. For somebody who has seen the '
+             'whole city and wants the terminal to get out of the way.',
+             needs=('districts', 12),
+             hint='Set foot in all twelve districts.'),
+
     # ----------------------------------------------------------------- prompt
     Cosmetic('classic', 'prompt', 'Classic',
              'Everything spelled out, separated by the bullet you chose.'),

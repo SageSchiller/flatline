@@ -470,10 +470,140 @@ MIDNIGHT = Palette(
 )
 
 
+
+# -- The missing factions, and two moods (D106).
+# Sendai: black, white, and one red.
+SENDAI = Palette(
+    name='sendai',
+    fg=Color('#e6eaf0', 'brightwhite'),
+    dim=Color('#4a4e57', 'brightblack'),
+    muted=Color('#787d88', 'brightblack'),
+    border=Color('#2a2d34', 'black'),
+    ok=Color('#8f96a3', 'white'),
+    warn=Color('#c2c7d0', 'white'),
+    err=Color('#ff3b3b', 'brightred'),
+    info=Color('#a9b0bd', 'white'),
+    accent=Color('#ffffff', 'brightwhite'),
+    accent2=Color('#ff7a5a', 'brightred'),
+    trace=Color('#ff3b3b', 'brightred'),
+    noise=Color('#c2c7d0', 'white'),
+    residue=Color('#6b7080', 'brightblack'),
+    ice=Color('#a9b0bd', 'white'),
+    credit=Color('#8f96a3', 'white'),
+    heat=Color('#ffb07a', 'brightyellow'),
+)
+
+# -- Meridian: ink and gold, a ledger made legible.
+MERIDIAN = Palette(
+    name='meridian',
+    fg=Color('#efe6cf', 'brightwhite'),
+    dim=Color('#6a5e42', 'brightblack'),
+    muted=Color('#b09a63', 'brightblack'),
+    border=Color('#3a3120', 'black'),
+    ok=Color('#c8a24a', 'yellow'),
+    warn=Color('#e6c877', 'brightyellow'),
+    err=Color('#d0563c', 'brightred'),
+    info=Color('#8a9a6a', 'brightblack'),
+    accent=Color('#f4d67a', 'brightyellow'),
+    accent2=Color('#c06828', 'yellow'),
+    trace=Color('#d0563c', 'brightred'),
+    noise=Color('#e6c877', 'brightyellow'),
+    residue=Color('#8a6a4a', 'brightblack'),
+    ice=Color('#8a9a6a', 'brightblack'),
+    credit=Color('#c8a24a', 'yellow'),
+    heat=Color('#e89838', 'brightred'),
+)
+
+# -- Chorus: violet, lavender, a line of gold.
+CHORUS = Palette(
+    name='chorus',
+    fg=Color('#ece2f4', 'brightwhite'),
+    dim=Color('#6a5a80', 'brightblack'),
+    muted=Color('#9a86b4', 'white'),
+    border=Color('#33284a', 'brightblack'),
+    ok=Color('#a8b4ea', 'white'),
+    warn=Color('#e6c877', 'brightyellow'),
+    err=Color('#e05a8f', 'brightred'),
+    info=Color('#8a9ad6', 'white'),
+    accent=Color('#d8a2ff', 'white'),
+    accent2=Color('#f4d67a', 'brightyellow'),
+    trace=Color('#e05a8f', 'brightred'),
+    noise=Color('#e6c877', 'brightyellow'),
+    residue=Color('#b47ad0', 'white'),
+    ice=Color('#8a9ad6', 'white'),
+    credit=Color('#a8b4ea', 'white'),
+    heat=Color('#e88ab4', 'white'),
+)
+
+# -- Freeport: sea, rust, ochre, a working port.
+FREEPORT = Palette(
+    name='freeport',
+    fg=Color('#dfe4e2', 'brightwhite'),
+    dim=Color('#5a6460', 'brightblack'),
+    muted=Color('#8a978f', 'brightblack'),
+    border=Color('#2a3230', 'black'),
+    ok=Color('#7fc8a0', 'white'),
+    warn=Color('#e0b84a', 'brightyellow'),
+    err=Color('#d8583a', 'brightred'),
+    info=Color('#6fb0b8', 'white'),
+    accent=Color('#e89a4a', 'brightred'),
+    accent2=Color('#a8683a', 'yellow'),
+    trace=Color('#d8583a', 'brightred'),
+    noise=Color('#e0b84a', 'brightyellow'),
+    residue=Color('#9a8a6a', 'brightblack'),
+    ice=Color('#6fb0b8', 'white'),
+    credit=Color('#7fc8a0', 'white'),
+    heat=Color('#f0844a', 'brightred'),
+)
+
+# -- Ember: the game's name as a colour scheme, red on black.
+EMBER = Palette(
+    name='ember',
+    fg=Color('#f0d8c8', 'white'),
+    dim=Color('#6a4438', 'brightblack'),
+    muted=Color('#a06a54', 'brightblack'),
+    border=Color('#3a221a', 'black'),
+    ok=Color('#e0c060', 'brightyellow'),
+    warn=Color('#f0b060', 'brightyellow'),
+    err=Color('#ff3a2a', 'brightred'),
+    info=Color('#c08a90', 'white'),
+    accent=Color('#ff8a4a', 'brightred'),
+    accent2=Color('#c0a0e0', 'white'),
+    trace=Color('#ff3a2a', 'brightred'),
+    noise=Color('#f0b060', 'brightyellow'),
+    residue=Color('#c07a5a', 'brightred'),
+    ice=Color('#c08a90', 'white'),
+    credit=Color('#e0c060', 'brightyellow'),
+    heat=Color('#ff6a3a', 'brightred'),
+)
+
+# -- Void: one blue, a long way down.
+VOID = Palette(
+    name='void',
+    fg=Color('#c4cede', 'white'),
+    dim=Color('#3f4a60', 'brightblack'),
+    muted=Color('#6a788c', 'brightblack'),
+    border=Color('#222b3c', 'black'),
+    ok=Color('#7fa0d0', 'white'),
+    warn=Color('#c0b070', 'white'),
+    err=Color('#d06a8a', 'brightred'),
+    info=Color('#6f90c0', 'brightblue'),
+    accent=Color('#a0c0f0', 'white'),
+    accent2=Color('#4f6088', 'brightblack'),
+    trace=Color('#d06a8a', 'brightred'),
+    noise=Color('#c0b070', 'white'),
+    residue=Color('#9a7ac0', 'white'),
+    ice=Color('#6f90c0', 'brightblue'),
+    credit=Color('#7fa0d0', 'white'),
+    heat=Color('#d08a6a', 'brightred'),
+)
+
+
 PALETTES = {p.name: p for p in (
     CYBERPUNK_NEON, NEUTRAL, ANSI,
     AMBER, PHOSPHOR, KAGAWA, CARRION, DEEPWATER, STATIC, ASH, PAPER,
     SIXES, NIGHTWATCH, AOYAMA, MIDNIGHT,
+    SENDAI, MERIDIAN, CHORUS, FREEPORT, EMBER, VOID,
 )}
 DEFAULT = CYBERPUNK_NEON
 

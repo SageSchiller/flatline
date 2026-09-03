@@ -11277,6 +11277,67 @@ def test_player_icons() -> None:
          'the icon screen still carries the words')
 
 
+
+def test_more_palettes() -> None:
+    """D106: six new palettes, and the gallery that shows them off."""
+    T.section('more palettes')
+    from flatline.content import rice as rice_content
+    added = ('sendai', 'meridian', 'chorus', 'freeport', 'ember', 'void')
+    for name in added:
+        pal = theme.get(name)
+        T.eq(pal.name, name, f'{name} is a palette')
+        for role in theme.ROLES:
+            T.ok(getattr(pal, role) is not None, f'{name}.{role} is set')
+        T.ok(any(c.kind == 'palette' and c.key == name
+                 for c in rice_content.COSMETICS),
+             f'{name} is an earnable rice palette')
+    T.ok(len([c for c in rice_content.COSMETICS if c.kind == 'palette']) >= 21,
+         'the catalogue has grown')
+
+    # Every new palette is earned by something the engine counts, and by a
+    # spread of different things.
+    from collections import Counter
+    added_needs = [c.needs[0] for c in rice_content.COSMETICS
+                   if c.kind == 'palette' and c.key in added]
+    for need in added_needs:
+        T.ok(need in rice_content.COUNTERS, f'{need!r} is a real counter')
+    T.ok(len(set(added_needs)) >= 4, 'earned across several kinds of playing')
+    # The two counters nothing used before now have a home.
+    all_palette_needs = {c.needs[0] for c in rice_content.COSMETICS
+                         if c.kind == 'palette'}
+    T.ok('credits' in all_palette_needs and 'blackice' in all_palette_needs,
+         'the idle counters are spent')
+
+    # The gallery renders every earned palette live, and refuses a mono
+    # terminal rather than printing nothing.
+    from flatline import save as save_mod
+    save_mod.write_meta({**save_mod.read_meta(), 'runs_completed': 99,
+                         'best_credits': 99999, 'black_ice_survived': 1,
+                         'districts_seen': 12, 'threads_closed': 9,
+                         'errands_done': 30, 'shell': {}})
+    game = Game.new(Character.from_origin('gutter', 'g'), seed=1)
+    true_caps = Caps(ColorLevel.TRUE, GlyphLevel.UNICODE, 80, theme.CYBERPUNK_NEON)
+    con = Console(true_caps, stream=io.StringIO())
+    sess = Session(console=con, slot='gal'); sess.game = game
+    con.start_capture()
+    sess.execute('rice gallery')
+    out = con.end_capture()
+    plain = strip_ansi(out)
+    T.ok('The gallery' in plain, 'the gallery has a header')
+    for name in ('Sendai', 'Meridian', 'Ember', 'Void'):
+        T.ok(name in plain, f'{name} is in the gallery')
+    T.ok('trace 62/100' in plain, 'and every one renders the sample')
+    T.ok(out.count('38;2;') > 40, 'in many different colours')
+    # A colourless terminal is told, not shown nothing.
+    mono = Console(Caps(ColorLevel.NONE, GlyphLevel.ASCII, 80, theme.NEUTRAL),
+                   stream=io.StringIO())
+    ms = Session(console=mono, slot='galm'); ms.game = game
+    mono.start_capture(); ms.execute('rice gallery')
+    mout = mono.end_capture()
+    T.ok('colour terminal' in mout and 'The gallery' not in mout,
+         'a mono terminal is told, not shown nothing')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
@@ -11289,7 +11350,7 @@ SUITES = (
     test_the_way_in, test_more_to_say, test_the_door, test_corporate_night,
     test_named_shelf, test_and_in_nights, test_the_fourth_wave,
     test_the_job_itself, test_pictures, test_the_instrument,
-    test_the_schematic, test_player_icons,
+    test_the_schematic, test_player_icons, test_more_palettes,
     test_economy,
     test_combat,
     test_advancement,
