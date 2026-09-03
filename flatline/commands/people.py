@@ -562,6 +562,12 @@ def ask_npc(sess, args) -> bool:
                                f'where they are.')
 
     topic = args[1].lower()
+    # "about" is the most natural filler a player types here, and the command
+    # even calls itself "Ask somebody about something": skip a leading
+    # about/for/on/of/re so `ask mara about deepwater` reads like `ask mara
+    # deepwater`.
+    if topic in ('about', 'for', 'on', 'of', 're') and len(args) >= 3:
+        topic = args[2].lower()
     match = next((k for k in npc.topics if k.startswith(topic)), None)
     if match is None:
         raise CommandError(f'{npc.name} will talk about: '
@@ -987,8 +993,10 @@ def cmd_journal(sess, args) -> None:
     active = story.active_threads()
     c.header('Journal', f'{len(active)} of {len(thread_content.THREADS)}')
     if not active:
-        c.say('[dim]Nothing yet. Things start when you meet people: `look` '
-              'around wherever you are.[/]')
+        c.say('[dim]Nothing yet. The city\'s stories open as you run jobs and '
+              'cross the people who matter, and most of them are not in this '
+              'district. Take a couple of contracts, `travel`, and `look` '
+              'around, then check back here.[/]')
         return
     # What is waiting first, because it is the one thing in here that does
     # not move without you.

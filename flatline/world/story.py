@@ -135,9 +135,17 @@ class Story:
         done = set(self.reached.get(thread.key, ()))
         best: list[str] | None = None
         shut = False
+        # A next scene the player can trigger right here and now (its only
+        # unmet requirements are their own work: a topic to ask, a couple of
+        # runs, the passage of a shift). When one exists, the thread is not
+        # waiting on the world at all, so naming a far wall from some later
+        # stage misdirects: a player reads "waiting on <other thread>" and
+        # walks away from a scene that was one command off (D114).
+        actionable = False
         for stage in thread.stages:
             if stage.key in done:
                 continue
+            here = not stage.where or stage.where == game.city.where
             unmet = [r for r in stage.requires if not self.satisfied(r, game)]
             if stage.any_of and not any(self.satisfied(r, game)
                                         for r in stage.any_of):
@@ -149,19 +157,28 @@ class Story:
                 # Nothing missing but the place (D86). The most useful
                 # thing the journal can say, because it is the one thing
                 # that is only ever a walk away.
-                if stage.where and stage.where != game.city.where:
+                if not here:
                     from ..content import districts
                     place = districts.BY_KEY[stage.where].name
                     named = [f'you being in {place}']
                     if best is None or len(named) < len(best):
                         best = named
+                else:
+                    actionable = True
                 continue
             if any(_foreclosed(self, r) for r in unmet):
                 shut = True
                 continue
             named = _name_rules(unmet, thread.key)
-            if named and (best is None or len(named) < len(best)):
-                best = named
+            if named:
+                if best is None or len(named) < len(best):
+                    best = named
+            elif here:
+                # Unmet, but nothing a person could be named for: the work is
+                # the player's and it can be done from where they stand.
+                actionable = True
+        if actionable:
+            return ''
         if not best:
             return ('There was more of this. There is not now.'
                     if shut else '')

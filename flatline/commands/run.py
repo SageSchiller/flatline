@@ -147,10 +147,11 @@ def cmd_jack_in(sess, args) -> None:
                  and programs.BY_KEY[k].category == need]
         fix = (f'`load {owned[0].name.lower()}`' if owned
                else f'you do not own one either, so `market program` first')
+        article = 'an' if contract.objective[:1] in 'aeiou' else 'a'
         raise CommandError(
-            f'a {contract.objective} contract needs a {need} program loaded '
-            f'and you have none: {fix}. `jack in --force` goes in without '
-            f'one, and the job cannot be finished that way.')
+            f'{article} {contract.objective} contract needs a {need} program '
+            f'loaded and you have none: {fix}. `jack in --force` goes in '
+            f'without one, and the job cannot be finished that way.')
     if need == 'payload':
         # D63: the right payload for the job, or a warning at the door
         # rather than a penalty three zones deep.

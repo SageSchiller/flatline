@@ -499,7 +499,7 @@ def _biped(pix, cx, colour, top: int = 1, foot: int = 14, hr: int = 2):
     return neck, hip
 
 
-# Player icons are a bestiary (D114): each is its own creature or character,
+# Player icons are a bestiary (D113): each is its own creature or character,
 # read by silhouette. Plain is a person; the rest are what a runner chooses to
 # be in the net instead of one.
 
