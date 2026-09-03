@@ -207,7 +207,7 @@ class City:
 
     def advance(self, rng: Rng, alias: Alias, shifts: int = 1,
                 debt=None, char=None, satisfied=None,
-                flags=None, dead=()) -> list[str]:
+                flags=None, dead=(), lender: str = '') -> list[str]:
         """Move time forward. Returns everything the player should be told.
 
         `satisfied` is the story's rule check bound to the game and `flags`
@@ -281,7 +281,7 @@ class City:
             self.ambient.extend(self._ambient(rng, satisfied))
         # Top the board back up rather than replacing it, so a contract the
         # player was saving does not vanish because a shift ticked over.
-        told.extend(self.top_up_board(rng, alias, char, flags, dead))
+        told.extend(self.top_up_board(rng, alias, char, flags, dead, lender))
         return told
 
     def _raid_turn(self, rng: Rng, alias: Alias, char) -> list[str]:
@@ -572,6 +572,48 @@ class City:
     #: The hardest posture that counts as startable while they are young.
     YOUNG_POSTURE = 36
 
+    def _ensure_lender_work(self, rng: Rng, alias: Alias, char, lender: str,
+                            dead=()) -> None:
+        """Somebody you owe posts work you can do (D100). The Indentured
+        line is running to afford them, and in fifty-seven shifts the
+        honest run saw three Kagawa jobs it could take. One held for you,
+        soft, whenever the board has none."""
+        if not lender or lender not in factions.BY_KEY or char is None:
+            return
+        posture_of = lambda k: int(self.posture.get(k, factions.BY_KEY[k].posture))
+        ceiling = 30 + 5 * int(getattr(char, 'runs', 0))
+        if any(c.patron == lender and c.cid not in dead
+               and posture_of(c.target) <= ceiling
+               for c in self.board):
+            return
+        spare = [i for i, c in enumerate(self.board)
+                 if not c.held and c.cid != self.accepted]
+        if not spare:
+            return
+        index = next((i for i in spare if self.board[i].cid in dead),
+                     spare[-1])
+        fac = factions.BY_KEY[lender]
+        targets = [k for k in factions.FACTION_KEYS
+                   if k != lender and fac.relations.get(k, 0) < 0
+                   and posture_of(k) <= ceiling]
+        if not targets:
+            targets = [k for k in factions.FACTION_KEYS
+                       if k != lender and posture_of(k) <= ceiling]
+        if not targets:
+            return
+        target = min(targets, key=posture_of)
+        kind = next((o for o in ('surveil', 'exfiltrate', 'corrupt', 'wipe')
+                     if contract_mod.objective_ready(char, o,
+                                                     posture_of(target))),
+                    'surveil')
+        self.board[index] = contract_mod.make_one(
+            rng('contracts'), self.next_cid, lender, target,
+            self.shift, alias, self.posture,
+            used={c.title for i, c in enumerate(self.board) if i != index}
+            | set(self.done_titles),
+            objective=kind, size_mod=0.75)
+        self.next_cid += 1
+
     def _ensure_startable(self, rng: Rng, alias: Alias, char, flags=None,
                           dead=()) -> None:
         """Keep one job on the board a young runner could actually take.
@@ -658,7 +700,7 @@ class City:
         self.next_cid += 1
 
     def top_up_board(self, rng: Rng, alias: Alias, char=None,
-                     flags=None, dead=()) -> list[str]:
+                     flags=None, dead=(), lender: str = '') -> list[str]:
         want = self.board_size(char)
         # Held contracts sit on top of the board rather than in it, so a
         # scene that posts something does not cost the player a slot.
@@ -669,6 +711,7 @@ class City:
             # rung, and it is the case that stranded a runner for two days
             # of play.
             self._ensure_startable(rng, alias, char, flags, dead)
+            self._ensure_lender_work(rng, alias, char, lender, dead)
             return []
         fresh = contract_mod.generate_board(
             rng('contracts'), self.shift, alias, self.posture,
@@ -678,6 +721,7 @@ class City:
         self.next_cid += len(fresh) + 1
         self.board.extend(fresh)
         self._ensure_startable(rng, alias, char, flags, dead)
+        self._ensure_lender_work(rng, alias, char, lender, dead)
         return [f'[dim]{len(fresh)} new posting'
                 f'{"s" if len(fresh) != 1 else ""} on the board.[/]']
 
@@ -737,8 +781,13 @@ class City:
                 key, p = where[0]
                 parts.append(f'{p.name} in {districts.BY_KEY[key].name}')
         if parts:
-            told.append(f'[dim]The word on the shelves this cycle: '
-                        + ', '.join(parts) + '.[/]')
+            line = ('[dim]The word on the shelves this cycle: '
+                    + ', '.join(parts) + '.[/]')
+            told.append(line)
+            if self.shift > 0:
+                # Not on day one: the wire is empty until the city has
+                # done something.
+                self.news.append(line)
         # And then put back what people keep under their own counters, which
         # is not stock and does not turn over.
         from ..content import npcs as npc_content, offers

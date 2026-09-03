@@ -12,7 +12,7 @@ updated: 2026-09-01
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-09-01.** D86 to D89 landed in one session, from three play-tests run in parallel with three different briefs (a first-timer who does what `now` says, an explorer who ignores it, and a run specialist who types every verb by hand). What they found, in order of size: the story layer was gated on meeting people and nothing ever said to meet anyone, and forty-two scenes declared a district that nothing read; the advice could recommend the same severed run five nights running and never once name Intrusion; a credential warden was an unanswerable wall for the Chromed origin and the board could not see it; and D6's severed-connection cooldown had never been implemented. All fixed, with `test_people_are_the_story`, `test_night_before`, `test_wall_and_clock` and `test_remembered_inside` holding them. Two things were added rather than fixed: the construct that cut you loose is on the route next time, awake and named, and the other runners can turn up inside a network with consequences that read their opinion of you. `validate.py` clean, `test.py` green at **16,974 checks** (D90 to D99 followed on 2026-09-02, from a second and a third wave of the same method). The next thing worth doing is another round of the same method: play it three ways and fix what the players say, because every one of the fourteen decisions since D75 came out of somebody playing rather than somebody guessing.
+> **State as of 2026-09-01.** D86 to D89 landed in one session, from three play-tests run in parallel with three different briefs (a first-timer who does what `now` says, an explorer who ignores it, and a run specialist who types every verb by hand). What they found, in order of size: the story layer was gated on meeting people and nothing ever said to meet anyone, and forty-two scenes declared a district that nothing read; the advice could recommend the same severed run five nights running and never once name Intrusion; a credential warden was an unanswerable wall for the Chromed origin and the board could not see it; and D6's severed-connection cooldown had never been implemented. All fixed, with `test_people_are_the_story`, `test_night_before`, `test_wall_and_clock` and `test_remembered_inside` holding them. Two things were added rather than fixed: the construct that cut you loose is on the route next time, awake and named, and the other runners can turn up inside a network with consequences that read their opinion of you. `validate.py` clean, `test.py` green at **16,626 checks** (D90 to D100 followed on 2026-09-02, from a second and a third wave of the same method). The next thing worth doing is another round of the same method: play it three ways and fix what the players say, because every one of the fourteen decisions since D75 came out of somebody playing rather than somebody guessing.
 >
 > **State as of 2026-08-21, end of the long session.** **Phases 0 through 5 are done, D17's finish line is passed, Phase 7 is closed, and D63 to D65 are the deep work.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **15,311 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone. **D63, the mechanics deep dive** in six parts: every declared number and rider has a reader (`check_reads`); the intrusion layer's holes closed (`mask` decays, sealed records, armour wears, faction style knobs, soft wardens); the catalogue readable (`inspect`, a bare `load`, `fit`, passives once per kind, program riders, six mid-tier parts); the vices capped (Threes, collections, hook-4 warnings); twenty-four relics with histories; and programs held to skill rank plus two. **D64, the play test**: networks in six shapes by doctrine with the brief reading the sums; the city grown to twelve districts (the Stacks, Meridian Row, the Hall) with people, places, threads, events and relics; and the advice made into a chain that ends in a run, with seven dead ends closed and `test_advice` to keep them closed. **D65, the street is real**: encounters in four tiers answered by run, talk, pay or stand with printed checks; warning-then-lethal under the black-ICE contract; two street skills; `errands` (courier, watch, collect, escort); `arrange` to pay a faction for their streets; and the whole of it hooked into travel, rest and the close-call band. Before those, on the same day: D50 to D62, the onboarding layer, decisions that are read, the Deepwater spine, the city deeper, voices and hours, district arcs, the rival bond, the drawn map, the HUD, the tutorial's second half, run conditions, and the rest of the Phase 7 list.
 >
@@ -3409,6 +3409,59 @@ and whether the construct that did it is still running. Printed at
 retirement and at the flatline alike, because the flatline is the ending
 most players get.
 
+### D100: The fourth wave
+
+Three testers on the D86-D99 tree: a first-timer regression pass, an
+honest Indentured career (no cheats), and a corporate specialist with the
+named shelf. The corporate one answered the question D85 left open. On
+fifteen identical corporate networks, a hand that pivoted every hop paid
+nine nights and reached the core at trace sixteen; the brief, which
+offered `pivot` only against a warden it could not present to, paid one.
+The wall was the brief. `pivot` costs a tick and no noise and needs no
+probe, no crack and no badge, and the brief now walks through every
+unopened hop with it once Intrusion 4 is held, searching by pivoting to
+the deepest door next to it. Knowledge, not a number: the difficulty is
+unchanged and corporate work is now better than one in four for a build
+that has earned the rank.
+
+**The first-timer's dead ends.** An open host a warden holds was picked
+as the deepest fresh place to look from, seen to be blocked, and the
+search gave up on a soft network with a plain open host one hop from the
+objective; the search skips them now. A lethal corporate job at thirty
+per cent a door was called the softest thing on the board because the
+ceiling had risen five a clean night past the door read; a shut read is
+a wall, and a bounty on the route is a wall. `arrange` was advised seven
+times in a district the faction is not in; it is advised only where they
+hold or are, and only with three collections in the account, because an
+advised arrangement bled an honest career to nothing. The spend plan
+buys Intrusion while the softest thing on the board reads shut, reading
+the board the way the nudge does. Patience is counted per host as well as
+per door. A dispatched hunter on your host is answered before anything
+else is typed. A walk stops when a scene fires, because five scenes and
+two decisions arrived in one verb. The escort holding what they came for
+is signalled out, not moved fifty-eight times.
+
+**The honest career.** The buyout went from twenty-six thousand to seven
+in fifty-seven shifts on the D95 terms, three Kagawa nights and the
+review doing most of it, and then the story was the deck: two severed
+nights left three parts at two of three, seven burned nights followed,
+and nothing said the deck was why. The run card carries the deck's state
+now, `jack in` says when the deck is worn, and the repair advice is only
+for what can be paid: at nought credits it named the errand that pays it
+instead of refusing forty times. A collection due within a shift that the
+account cannot meet is a `now` step. Selling a loaded program takes it
+off the deck (it stayed, and counted against memory). The lender posts
+work you can do whenever the board has none, because running to afford
+them needs somebody to run for.
+
+**The corporate tester's rest.** The clock on the board reads at green,
+amber and red, since no brief-following run stays green past tick five. A
+multi-tick objective action on a host with something awake is answered
+first (strike it, or mask), because a pull woke the black ICE and the
+strike landed inside it. A push after the implant has taken is refused
+for free. The shelf line reaches the wire. A payload built for the job is
+advised before the walk when the local shelf has one.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -4842,3 +4895,9 @@ categories, said on the wire. `test_named_shelf`.
 ### 2026-09-02 (h): and in nights
 
 D99. The epilogue reads the career. `test_and_in_nights`.
+
+### 2026-09-02 (i): the fourth wave
+
+D100. Pivot-first is the corporate answer (nine paid in fifteen against
+one). The first-timer's dead ends, the honest career's deck spiral, the
+lender's work on the board. `test_the_fourth_wave`.

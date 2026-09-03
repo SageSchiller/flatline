@@ -126,6 +126,13 @@ def cmd_jack_in(sess, args) -> None:
             f'silently, and ran at nothing. The nearest workshop is '
             f'{where}. `jack in --force` goes in with it.')
 
+    worn = [s for s, level in deck.damage.items() if level == 2]
+    if worn and not args.has('force'):
+        # Parts at two of three are why nights burn, and nothing said so
+        # (D100): seven burned in a row on a deck like this.
+        c.say(f'[warn]The deck is worn: {", ".join(f"{s} 2/3" for s in worn)}.'
+              f'[/] [dim]Everything it does, it does worse. `repair` at a '
+              f'workshop before the next one, if this one goes badly.[/]')
     if deck.heat > deck.heat_cap:
         # Thermal was the one deck number nothing guarded (D97).
         c.say(f'[warn]The deck runs hotter than its cooling: heat '
@@ -449,6 +456,14 @@ def _resolve(sess) -> None:
     ]
     if state.condition is not None:
         rows.append(f'[dim]tonight[/]  {state.condition.name.lower()}')
+    hurt = [(s, level) for s, level in sorted(game.char.deck.damage.items())
+            if level]
+    if hurt:
+        # The deck spiral had no voice (D100): seven burned nights on
+        # parts at two of three, and nothing said the deck was why.
+        rows.append('[dim]deck[/]     ' + ', '.join(
+            f'{s} {"destroyed" if level >= 3 else f"{level}/3"}'
+            for s, level in hurt))
     c.blank()
     c.box(rows, title=summary['outcome'])
 
@@ -552,6 +567,12 @@ def _resolve(sess) -> None:
                          if state.net.node(state.net.objective_node)
                          else 0) - state.tier),
         'held': _held_short(state),
+        # Whether the objective was ever on the map (D100): "a badge short
+        # of the zone" was the reason given for a night that never found
+        # the way in.
+        'found': bool(state.net.objective_node
+                      and (state.net.node(state.net.objective_node)
+                           or state.node).known),
         # Whether you stood on the objective at all: a badge short of a
         # zone you reached anyway was not what ended the night.
         'reached': bool(state.net.objective_node
@@ -1590,6 +1611,10 @@ def cmd_push(sess, args) -> None:
     check = push_check(state, kind, payload)
     check.resolve(state.rng)
 
+    if (kind == 'implant' and state.done.get('implant') == node.uid
+            and state.rooting <= 0):
+        raise CommandError('it has taken. There is nothing left to push, '
+                           'and the way out is `jack out`.')
     _act(sess, 'push', node=node, noise_scale=payload.signature)
     if not state.running:
         return

@@ -47,6 +47,9 @@ TRACE_MAX = 100.0
 #: Attempts at one door before the brief prefers another on the same
 #: host, if there is one (D91).
 DOOR_PATIENCE = 3
+#: And at one host, across its doors, before the brief prefers another
+#: host, if there is one (D100).
+HOST_PATIENCE = 5
 #: Ticks at red or worse before the response arrives (D92).
 RESPONSE_AFTER = 6
 #: Trace added per tick before any modifier. Deliberately small: most of the
@@ -2184,6 +2187,14 @@ class RunState:
         # to run out of time in the part of the network the job is not in.
         unmapped = [n for n in self.net.nodes.values()
                     if n.known and not n.mapped]
+        # With Intrusion 4 the search is a walk (D100): pivot to the
+        # deepest unopened host next to this one and look from there.
+        if self.char.has_technique('pivot') and self.node.open:
+            doors = [self.net.node(u) for u in self.node.edges]
+            doors = [n for n in doors if n is not None and n.known
+                     and not n.open]
+            if doors:
+                return (f'pivot {self._deepest(doors, penalise_tier=False).uid}',)
         shut = self._first_shut()
         # A probe budget (D88). Deepest-first read every label on a
         # hostile segment before opening anything: five probes in a row
@@ -2194,8 +2205,13 @@ class RunState:
             return (f'probe {self._deepest(unmapped).uid}',)
         if shut:
             return (f'crack {shut[0]} {shut[1]}', f'connect {shut[0]}')
+        # An open host a warden holds is not somewhere to stand (D100):
+        # the search picked the deepest one, `_steps_toward` saw it
+        # blocked and gave up, and a soft network with a plain open host
+        # one hop from the objective burned three nights running.
         fresh = [n for n in self.net.nodes.values()
-                 if n.open and n.uid not in self.scanned and n.uid != self.here]
+                 if n.open and n.uid not in self.scanned and n.uid != self.here
+                 and not self._blocked(n)]
         while fresh:
             node = self._deepest(fresh, penalise_tier=False)
             if self.route_to(node.uid):
@@ -2231,6 +2247,14 @@ class RunState:
         hop = self.net.node(step)
         if hop is None:
             return ('scan',)
+        # Intrusion 4 walks through doors (D100). `pivot` costs a tick and
+        # no noise and needs no probe, no crack and no badge, and the brief
+        # offered it only against a warden it could not present to: on the
+        # same fifteen corporate networks a hand that pivoted every hop
+        # paid nine nights and the brief paid one.
+        if (self.char.has_technique('pivot') and self.node.open
+                and step in self.node.edges and not hop.open):
+            return (f'pivot {step}',)
         if not hop.mapped:
             return (f'probe {step}',)
         if hop.open and self._blocked(hop):
@@ -2542,6 +2566,19 @@ class RunState:
                 return (f'strike {hunter}',)
             return ('jack out',)
         asset = self.net.objective_asset
+        # Something awake on the chair, and a verb that takes ticks (D100):
+        # a pull woke the black ICE and the strike landed inside it. Hit
+        # it if you can, mask if you can, and then do the thing.
+        awake = [c for c in self.node.ice if c.alive and c.state != 'dormant'
+                 and c.behaviour in ('hunter', 'black', 'sentry')]
+        if awake and kind in ('exfiltrate', 'wipe', 'implant', 'corrupt'):
+            hunter = self._huntable()
+            if hunter:
+                return (f'strike {hunter}',)
+            if (programs.best(self.char.deck.loaded, 'mask') is not None
+                    and self.masked <= 0 and 'masked_here' not in self.spent):
+                self.spent.add('masked_here')
+                return ('mask',)
         return {
             'exfiltrate': (f'pull {asset}' if asset else 'pull',),
             'implant': ('push',),
@@ -2552,7 +2589,10 @@ class RunState:
             # one in, but the brief is asked in states `jack in` did not
             # build, and advising a verb at nobody is the one thing it must
             # not do.
-            'escort': (('signal move', 'signal out') if self.escort
+            # And out, once they have what they came for (D100): `signal
+            # move` was typed fifty-eight times at somebody holding it.
+            'escort': ((('signal out',) if self.escort['done']
+                        else ('signal move', 'signal out')) if self.escort
                        else ('jack out',)),
         }.get(kind, ('pull',))
 
@@ -2590,8 +2630,17 @@ class RunState:
                 and self._easiest(n)]
         if not shut:
             return None
+        # A host that has held nine cracks between two doors is not the
+        # first choice while there is another (D100): the per-door cap
+        # ping-ponged.
+        tired = [n for n in shut if self._attempts_at(n) >= HOST_PATIENCE]
+        if tired and len(tired) < len(shut):
+            shut = [n for n in shut if n not in tired]
         node = self._deepest(shut)
         return node.uid, self._easiest(node)
+
+    def _attempts_at(self, node) -> int:
+        return sum(v for (uid, _), v in self.failed.items() if uid == node.uid)
 
     def route_to(self, uid: str) -> list[str]:
         """The hops from here to a host, over what you have actually found.
@@ -2727,6 +2776,32 @@ class RunState:
         char = self.char
         node = self.node
 
+        # Something dispatched onto this host (D92) is answered before
+        # anything else is typed (D100): the brief went on probing under a
+        # Kestrel until the masking took it. Hit it if you carry something
+        # that hits, else leave the host, else mask.
+        sent = next((c for c in node.ice if c.alive and c.uid.endswith('-sent')
+                     and c.state != 'dead'), None)
+        if sent is not None and first != 'jack out':
+            weapon = programs.best(char.deck.loaded, 'weapon')
+            if char.has_technique('strike') and weapon is not None:
+                return (f'strike {sent.data.name.lower()}',) + steps
+            away = [self.net.node(u) for u in node.edges]
+            away = [n for n in away if n is not None and n.open
+                    and not self._blocked(n)]
+            if away:
+                route = self.route_to(self.net.objective_node) if \
+                    self.net.objective_node else []
+                pick = next((n for n in away if route and n.uid == route[0]),
+                            away[0])
+                return (f'connect {pick.uid}',) + steps
+            if (programs.best(char.deck.loaded, 'mask') is not None
+                    and self.masked <= 0):
+                return ('mask',) + steps
+            if self.here == self.net.entry:
+                # Nothing to hit it with, nowhere to go, and this is the
+                # door: leave by it.
+                return ('jack out',)
         # Leaving with a mess on the floor. Forensics 2 is the difference
         # between a clean run and a run their forensics finish for them.
         if first == 'jack out' and self.objective_met():

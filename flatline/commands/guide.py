@@ -191,7 +191,8 @@ def _now_city(sess):
     # `city_steps` opens with the same advice when the budget is unspent,
     # and a list that says `spend` twice reads as two different things to
     # do rather than one said twice.
-    if (char.runs == 0 and (char.points or char.xp) and suggest(char)
+    if (char.runs == 0 and (char.points or char.xp)
+            and suggest(char, softest_posture(game))
             and not any(cmd == 'spend' for cmd, _ in steps)):
         steps.append(('spend', f'{char.points} attribute point'
                                f'{"s" if char.points != 1 else ""} and '
@@ -525,7 +526,7 @@ def offer_spend(sess) -> None:
     """The third question: where the opening points go."""
     c = sess.console
     char = sess.game.char
-    plan = suggest(char)
+    plan = suggest(char, softest_posture(sess.game))
     if not plan:
         _close(sess)
         return
@@ -552,7 +553,7 @@ def _on_spend(sess, text: str) -> None:
     c = sess.console
     low = text.lower().strip()
     if low in ('1', 'yes', 'y', 'spend', 'do it', 'go'):
-        apply_plan(sess, suggest(sess.game.char))
+        apply_plan(sess, suggest(sess.game.char, softest_posture(sess.game)))
     elif low in ('2', 'no', 'n', 'keep', 'later', 'myself'):
         c.say('[dim]Kept. `char` shows what is unspent; `boost` and `train` '
               'spend it one point at a time, and `spend` suggests this '
@@ -597,7 +598,7 @@ def cmd_spend(sess, args) -> None:
     if not (char.points or char.xp):
         raise CommandError('nothing unspent. Experience arrives at the end '
                            'of a run.')
-    plan = suggest(char)
+    plan = suggest(char, softest_posture(sess.game))
     if not plan:
         raise CommandError('nothing the shape suggests. `boost` and `train` '
                            'take it from here.')
@@ -619,7 +620,7 @@ def cmd_spend(sess, args) -> None:
 def _on_spend_verb(sess, text: str) -> None:
     low = text.lower().strip()
     if low in ('yes', 'y', '1', 'go', 'do it'):
-        apply_plan(sess, suggest(sess.game.char))
+        apply_plan(sess, suggest(sess.game.char, softest_posture(sess.game)))
     elif low in ('no', 'n', '2', 'keep'):
         sess.console.say('[dim]Kept.[/]')
     else:
@@ -631,6 +632,15 @@ def _on_spend_verb(sess, text: str) -> None:
 #: How many skills beyond the origin's own the suggestion will open. Breadth
 #: past this buys rank ones that unlock nothing; the points go deeper instead.
 BREADTH = 3
+
+
+def softest_posture(game) -> int | None:
+    """The softest live posture on the board, for the plan to read."""
+    if game is None:
+        return None
+    live = [int(c.posture) for c in game.city.board
+            if not c.expired(game.city.shift)]
+    return min(live) if live else None
 
 
 def _weights(origin) -> dict[str, int]:
@@ -648,7 +658,7 @@ def _weights(origin) -> dict[str, int]:
     return out
 
 
-def suggest(char) -> list[tuple[str, str]]:
+def suggest(char, board_posture: int | None = None) -> list[tuple[str, str]]:
     """Where the unspent points would usually go, as (verb, key) steps.
 
     Pure: the same character gets the same plan, and nothing is changed by
@@ -710,6 +720,18 @@ def suggest(char) -> list[tuple[str, str]]:
         while (ranks['intrusion'] < want and price('intrusion') is not None
                and price('intrusion') <= xp):
             train('intrusion')
+        # And while the softest thing on the board reads shut (D100): the
+        # plan bought Warfare, Signal, Psyche, Sabotage, Streetcraft,
+        # Cryptography and Daemonology across thirteen nights whose every
+        # failure printed "1 tier short" or a shut door, and `now` said
+        # Intrusion after each one.
+        if board_posture is not None:
+            from ..world import contracts as contract_world
+            while (price('intrusion') is not None and price('intrusion') <= xp
+                   and contract_world.door_odds(char, board_posture,
+                                                rank=ranks['intrusion'])
+                   < contract_world.DOOR_TIGHT):
+                train('intrusion')
 
 
     for key in origin.skills:

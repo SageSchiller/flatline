@@ -130,15 +130,16 @@ VAULT_SERVICE = 5.5
 DOOR_TIGHT = 0.35
 
 
-def door_odds(char, posture: int) -> float:
+def door_odds(char, posture: int, rank: int | None = None) -> float:
     """The chance of one vault-grade door, with what is loaded. The
     board's reads column, and the rung the board keeps for a young
-    runner, price the same door."""
+    runner, price the same door. `rank` overrides Intrusion, for a plan
+    asking what one more rank would buy (D100)."""
     from ..content import programs as program_content
     from ..run.checks import DIE, OFFSET
     difficulty = max(1, round(VAULT_SERVICE * (0.45 + 0.78 * posture / 50.0)))
     breaker = program_content.best(char.deck.loaded, 'breaker')
-    rank = char.skill('intrusion')
+    rank = char.skill('intrusion') if rank is None else rank
     power = rank * 2 + char.attr('logic') + char.bonus('crack_bonus')
     if breaker:
         power += program_content.held(breaker, rank) * 2

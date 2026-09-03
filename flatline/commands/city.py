@@ -1123,6 +1123,10 @@ def cmd_sell(sess, args) -> None:
         kind = ('program' if key in programs.BY_KEY
                 else 'ware' if key in cyberware.BY_KEY else 'component')
         value = market_mod.sale_value(kind, key)
+        if kind == 'program' and game.char.library.count(key) <= \
+                game.char.deck.loaded.count(key):
+            # Sold off the deck, it stayed on the deck (D100).
+            game.char.deck.unload(key)
         game.char.library.remove(key)
         game.char.credits += value
         c.ok(f'{item.name} sold for [credit]{value:,}c[/].')
@@ -1253,13 +1257,17 @@ def way_in(game, contract) -> str:
                     f'{"are" if desks != 1 else "is"} on the way'
                     if desks else ', and no desk on the way: a forger, '
                                   'a lucky crack, or another route'))
-    from ..run.session import IDLE_TRACE, NOISE_TO_TRACE, TRACE_MAX, TRACE_PER_TICK
+    from ..run.session import NOISE_TO_TRACE, TRACE_MAX, TRACE_PER_TICK
+    from ..content import ice as ice_content
     rate = (TRACE_PER_TICK + 2.0 * NOISE_TO_TRACE) * net.crowd
     rate *= shifts.phase(game.city.phase).trace
-    clock = int(TRACE_MAX / max(0.05, rate))
+    clocks = []
+    for alert in ('green', 'amber', 'red'):
+        mult = ice_content.ALERT_TRACE_MULT.get(alert, 1.0)
+        clocks.append(f'{int(TRACE_MAX / max(0.05, rate * mult))} at {alert}')
     return (f'their {target.zone}, about {hops} host{"s" if hops != 1 else ""} '
-            f'in, {depth}. The clock has about {clock} working ticks in it '
-            f'at green, this shift')
+            f'in, {depth}. The clock has about {", ".join(clocks)}, in '
+            f'working ticks, this shift')
 
 
 def _show_contract(sess, contract) -> None:
@@ -1457,6 +1465,9 @@ POSTURE_PER_CLEAN = 5
 #: What ending an arrangement on your own terms costs in standing (D96):
 #: the line always said they would not forget it.
 ARRANGE_STOP_REP = 4
+#: How many collections' worth the account holds before an arrangement is
+#: advised (D100).
+ARRANGE_CYCLES_AHEAD = 3
 
 VAULT_SERVICE = contract_mod.VAULT_SERVICE
 
@@ -1607,9 +1618,16 @@ def _suggest_contract(game):
         return 0.0
 
     def street_cost(c) -> float:
-        # A walk through somebody who is paying to find you.
+        # A walk through somebody who is paying to find you: a lean when
+        # it is heat, a wall when it is a bounty (D100).
         hunted, _ = _hunted_on_route(game, c.district)
-        return 25.0 if hunted else 0.0
+        if not hunted:
+            return 0.0
+        who = next((k for k in factions.FACTION_KEYS
+                    if factions.BY_KEY[k].short == hunted), '')
+        if who and int(game.city.bounties.get(who, 0)) > 0:
+            return float('inf')
+        return 25.0
 
     # A badge desk on the route is not certain, so this is a lean and not
     # a wall: the wall is in the run, and the board says so (D88).
@@ -1641,11 +1659,14 @@ def _suggest_contract(game):
     # on the board you have the gear for" was said about Sendai at
     # fifty-eight to a five-run academic, because everything softer had
     # been excluded and softest is a comparison, not a judgement.
-    ceiling = POSTURE_FLOOR + POSTURE_PER_CLEAN * _clean_runs(game)
+    ceiling = ceiling_for(game)
 
     def door_cost(c) -> float:
+        # A shut read is not "the gear for" (D100): the ceiling had risen
+        # five a clean night past the door read, and a lethal corporate
+        # job at thirty per cent a door was called the softest thing.
         odds = _door_odds(game.char, int(c.posture))
-        if odds <= 0.05:
+        if odds < contract_mod.DOOR_TIGHT:
             return float('inf')
         if int(c.posture) > ceiling:
             return float('inf')
@@ -1762,6 +1783,11 @@ def _attempts(game, cid: str) -> list[dict]:
 
 def _clean_runs(game) -> int:
     return sum(1 for h in game.history if h.get('done'))
+
+
+def ceiling_for(game) -> int:
+    """The recommender's posture ceiling for this record (D91)."""
+    return POSTURE_FLOOR + POSTURE_PER_CLEAN * _clean_runs(game)
 
 
 def _dead_cids(game) -> set:
@@ -1953,8 +1979,8 @@ def city_steps(game) -> list[tuple[str, str]]:
     # twelve experience fails every check in the network they just walked
     # to, and nothing tells them why.
     if game.char.points or game.char.xp >= 4:
-        from .guide import suggest
-        if suggest(game.char):
+        from .guide import softest_posture, suggest
+        if suggest(game.char, softest_posture(game)):
             steps.append(('spend',
                           f'{game.char.points} attribute point'
                           f'{"s" if game.char.points != 1 else ""} and '
@@ -2001,6 +2027,28 @@ def city_steps(game) -> list[tuple[str, str]]:
                       f'you came back badly: {left} shift'
                       f'{"s" if left != 1 else ""} before your hands stop '
                       f'shaking enough to jack in'))
+    # A collection due within a shift that the account cannot meet (D100):
+    # they price the room instead, and nothing said it was coming.
+    debt = game.debt
+    if debt.owed and game.city.shift - debt.opened >= debt.terms[1]:
+        since = game.city.shift - (debt.last_collected if debt.last_collected >= 0
+                                   else debt.opened + debt.terms[1])
+        take = debt.assess()
+        if since >= debt_mod.COLLECT_EVERY - 1 and char.credits < take:
+            offers = street_world.errands_here(game)
+            if offers and not game.city.errand:
+                best = max(range(len(offers)), key=lambda i: offers[i]['pay'])
+                steps.append((f'errands take {best + 1}',
+                              f'{fac_short(debt.lender)} collect {take:,}c '
+                              f'within a shift and you have '
+                              f'{char.credits:,}c: short, they price the '
+                              f'room. This one pays {offers[best]["pay"]:,}c'))
+            else:
+                steps.append(('debt',
+                              f'{fac_short(debt.lender)} collect {take:,}c '
+                              f'within a shift and you have '
+                              f'{char.credits:,}c: short, they price the '
+                              f'room'))
     # Hurt is a step before any job (D65): the street hits harder when you
     # are, and a run starts with what you carry in.
     if char.integrity <= max(4, char.integrity_max // 3):
@@ -2090,6 +2138,26 @@ def city_steps(game) -> list[tuple[str, str]]:
                               f'{on_deck.name} is rating {on_deck.rating} and '
                               f'{better.name} is {better.rating}, here for '
                               f'{_shelf_price(game, better.key):,}c'))
+    # A payload built for the job (D100): an improvised Siphon rooting an
+    # implant under an amber room cost the whole clock and the deck.
+    if contract is not None and 'market' in game.city.district.services:
+        loaded_payload = programs.best(game.char.deck.loaded, 'payload')
+        if (loaded_payload is not None and loaded_payload.jobs
+                and contract.objective not in loaded_payload.jobs):
+            for_sale = {l.key for l in game.city.listings('program')}
+            built = min((p for p in programs.by_category('payload')
+                         if not p.unique and contract.objective in p.jobs
+                         and p.key in for_sale
+                         and game.char.credits >= (_shelf_price(game, p.key)
+                                                   or 10 ** 9)),
+                        key=lambda p: p.price, default=None)
+            if built is not None:
+                steps.append((f'buy {built.name.lower()}',
+                              f'{loaded_payload.name} is not built for '
+                              f'{"an" if contract.objective[0] in "aeiou" else "a"} '
+                              f'{contract.objective}: it does it badly and '
+                              f'loudly. {built.name} is, and it is '
+                              f'{_shelf_price(game, built.key):,}c here'))
     # A mask is what makes hard work possible and nothing said so: the
     # same failure as the payload and the breaker, one tier up (D85).
     owned_mask = any(p.category == 'mask' for p in
@@ -2136,11 +2204,27 @@ def city_steps(game) -> list[tuple[str, str]]:
                or deck.memory_used > deck.memory)
     if deck.damage and 'workshop' in game.city.district.services:
         # `repair` alone prints an estimate and waits (D95): the step is
-        # the one that does it, with the price.
+        # the one that does it, with the price. Only when the price can be
+        # paid (D100): advised at nought credits, it was refused for free
+        # forty times running.
         bill = deck.repair_cost(game.char.mult('repair_mult'))
-        steps.append(('repair --confirm',
-                      f'the deck is carrying damage, which degrades what it '
-                      f'does rather than stopping it. {bill:,}c here'))
+        if game.char.credits >= bill:
+            steps.append(('repair --confirm',
+                          f'the deck is carrying damage, which degrades what '
+                          f'it does rather than stopping it. {bill:,}c here'))
+        else:
+            short = bill - game.char.credits
+            offers = street_world.errands_here(game)
+            if offers and not game.city.errand:
+                best = max(range(len(offers)), key=lambda i: offers[i]['pay'])
+                steps.append((f'errands take {best + 1}',
+                              f'the deck needs {bill:,}c of work and you are '
+                              f'{short:,}c short: street work pays '
+                              f'({offers[best]["pay"]:,}c for this one)'))
+            else:
+                steps.append(('sell',
+                              f'the deck needs {bill:,}c of work and you are '
+                              f'{short:,}c short: the bag, or `borrow`'))
     elif wrecked:
         # Serious damage with no workshop here: the walk, named. The
         # nudge only ever fired where a workshop was, so a deck with a
@@ -2209,10 +2293,23 @@ def city_steps(game) -> list[tuple[str, str]]:
             # severed them; the street pays, and the board turns over.
             # Named, not listed (D91): `errands` alone costs no shift and
             # a follower typed it seven times at the same board.
+            causes = []
+            live = [c for c in game.city.board if not c.expired(game.city.shift)]
+            if any(_dead_to_you(game, c.cid) for c in live):
+                causes.append('has already cut you loose')
+            if any(_door_odds(game.char, int(c.posture)) < contract_mod.DOOR_TIGHT
+                   for c in live):
+                causes.append('reads shut for what you carry')
+            if any(int(c.posture) > ceiling_for(game) for c in live):
+                causes.append('is above what your record says you are ready '
+                              'for')
+            if any(_hunted_on_route(game, c.district)[0] for c in live):
+                causes.append('goes through people who are looking for you')
+            if any(not c.held and game.city.shifts_to(c.district)
+                   >= c.expires - game.city.shift for c in live):
+                causes.append('expires before the walk')
             why = ('nothing on the board is yours tonight: what is there '
-                   'has already cut you loose, or expires before the walk, '
-                   'or goes through people who are looking for you, or '
-                   'reads shut for what you carry')
+                   + (', or '.join(causes) if causes else 'is not for you'))
             offers = street_world.errands_here(game)
             if offers and not game.city.errand:
                 best = max(range(len(offers)), key=lambda i: offers[i]['pay'])
@@ -2388,14 +2485,21 @@ def city_steps(game) -> list[tuple[str, str]]:
             fac = factions.BY_KEY[blocked]
             hot = int(game.alias.attention(blocked))
             bounty = int(game.city.bounties.get(blocked, 0))
-            if (game.char.credits >= _arrange_rate(game, blocked)
-                    and blocked in (districts.BY_KEY[first].controller,
-                                    *districts.BY_KEY[first].presence)):
+            here_d = game.city.district
+            rate = _arrange_rate(game, blocked)
+            # Only where it can be made, which is where they hold or are
+            # (D100: `arrange kagawa` was advised in the Ninth seven times
+            # and refused seven times), and only when three cycles of it
+            # are in the account, because one advised arrangement bled an
+            # account to nothing.
+            if (game.char.credits >= rate * ARRANGE_CYCLES_AHEAD
+                    and blocked in (here_d.controller, *here_d.presence)):
                 steps.append((f'arrange {blocked}',
                               f'{fac.short} are paying to find you in '
                               f'{districts.BY_KEY[first].name} and the walk '
                               f'goes through it: an arrangement makes their '
-                              f'streets passable'))
+                              f'streets passable, {rate:,}c every '
+                              f'{city_mod.ARRANGE_EVERY} shifts'))
             cost = (ALIAS_COST // 2 if 'no_history' in game.char.riders()
                     else ALIAS_COST)
             if bounty or hot >= HEAT_WAITS_OUT:
@@ -2944,6 +3048,7 @@ def cmd_walk(sess, args) -> None:
            + ', then '.join(route) + '.')
     for step in route:
         before = len(game.city.news)
+        seen = sum(len(v) for v in game.story.reached.values())
         try:
             cmd_travel(sess, Args([step] + (['--anyway'] if args.has('anyway')
                                             else [])))
@@ -2952,6 +3057,14 @@ def cmd_walk(sess, args) -> None:
             c.say('[dim]The walk stops here.[/]')
             return
         if game.city.where != step:
+            return
+        if (sum(len(v) for v in game.story.reached.values()) > seen
+                and step != route[-1]):
+            # Something happened here (D100): five scenes and two
+            # decisions arrived in one `walk`. A scene is a reason to stop.
+            c.blank()
+            c.say(f'[dim]The walk stops here: something happened. `walk '
+                  f'{target}` again when you are ready.[/]')
             return
         if sess.pending is not None:
             # The street has stopped you and is waiting on an answer. The
@@ -3572,7 +3685,8 @@ def _advance(sess, shifts: int, story: bool = True) -> None:
     told = game.city.advance(
         game.rng, game.alias, shifts, debt=game.debt, char=game.char,
         satisfied=lambda rule: game.story.satisfied(rule, game),
-        flags=game.story.flags, dead=_dead_cids(game))
+        flags=game.story.flags, dead=_dead_cids(game),
+        lender=game.debt.lender if game.debt.owed else '')
     for line in told:
         sess.console.say(line)
     # Scenery goes last and gets its own air. It is the one thing printed here

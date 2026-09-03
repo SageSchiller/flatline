@@ -1218,7 +1218,7 @@ TOPICS: tuple[Topic, ...] = (
         'making harder:\n\n'
         '  nothing owed to anybody\n'
         '  nothing in you that you need\n'
-        '  nobody paying for your name\n'
+        '  nobody paying for your name, under a name that has held\n'
         '  enough put away, which is a lot\n\n'
         'None is hard on its own. All four at once is the campaign. Type '
         '[fg]retire[/] any time to see how far off you are.\n\n'

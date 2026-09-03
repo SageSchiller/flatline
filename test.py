@@ -10685,6 +10685,183 @@ def test_and_in_nights() -> None:
          f'the worst, with the construct by name ({lines[2]!r})')
 
 
+
+def test_the_fourth_wave() -> None:
+    """D100: the fourth wave's findings."""
+    T.section('the fourth wave')
+    from flatline.commands import city as city_cmd
+    from flatline.commands import guide
+    from flatline.run import network as net_mod
+    from flatline.run import session as session_mod
+    from flatline.run.network import IceInstance
+    from flatline.world import contracts as contract_world
+
+    def fixture(origin='gutter', seed=7, faction='kagawa', posture=50,
+                intrusion=1):
+        game = Game.new(Character.from_origin(origin, 'fw'), seed=seed)
+        game.char.base_skills['intrusion'] = intrusion
+        net = net_mod.generate(Rng(seed).fork('network', 'd100'), faction,
+                               posture, 'exfiltrate', 1.0)
+        con = quiet_console()
+        sess = Session(console=con, slot='d100'); sess.game = game
+        state = RunState.begin(net, game.char, Rng(seed)('combat'), con,
+                               contract={'objective': 'exfiltrate',
+                                         'title': 'T'})
+        sess.run = state
+        if 'siphon' not in game.char.library:
+            game.char.library.append('siphon')
+        for key in list(game.char.deck.loaded):
+            game.char.deck.unload(key)
+        game.char.deck.load('crowbar')
+        game.char.deck.load('siphon')
+        return game, sess, state
+
+    # Intrusion 4 pivots every unopened hop.
+    game, sess, state = fixture(intrusion=4)
+    T.ok(game.char.has_technique('pivot'), 'the fixture holds pivot')
+    sess.console.start_capture()
+    sess.execute('scan')
+    sess.console.end_capture()
+    steps = state.brief().steps
+    T.ok(steps and steps[0].startswith('pivot '),
+         f'the brief pivots from the door ({steps})')
+    hop = steps[0].split()[1]
+    sess.console.start_capture()
+    sess.execute(steps[0])
+    sess.console.end_capture()
+    T.eq(state.here, hop, 'and the pivot lands')
+    T.ok(state.trace < 25, 'for next to nothing on the clock')
+    game, sess, state = fixture(intrusion=2)
+    sess.console.start_capture()
+    sess.execute('scan')
+    sess.console.end_capture()
+    T.ok(not state.brief().steps[0].startswith('pivot'),
+         'without the rank, it does not')
+
+    # The search walks round an open host a warden holds.
+    game, sess, state = fixture()
+    sess.console.start_capture()
+    sess.execute('scan')
+    sess.console.end_capture()
+    near = [state.net.node(u) for u in state.node.edges]
+    near = [n for n in near if n is not None]
+    if len(near) >= 2:
+        held, other = near[0], near[1]
+        held.open = held.mapped = True
+        held.ice = [IceInstance(uid='gate-t', key='gatekeeper', rating=4,
+                                state='awake', known=True)]
+        other.open = other.mapped = True
+        steps = state._search_steps()
+        T.ok(held.uid not in ' '.join(steps) or 'pivot' in steps[0],
+             f'the search does not walk into the warden ({steps})')
+
+    # Something dispatched onto your host is answered first.
+    game, sess, state = fixture()
+    state.node.ice.append(IceInstance(uid='kestrel-sent', key='kestrel',
+                                      rating=3, state='awake', known=True))
+    steps = state.brief().steps
+    T.ok(steps and steps[0].split()[0] in ('connect', 'strike', 'mask',
+                                            'jack'),
+         f'the brief answers the response ({steps})')
+
+    # An escort with what they came for is sent out.
+    game, sess, state = fixture()
+    state.contract = {'objective': 'escort', 'title': 'E'}
+    state.escort = {'key': '', 'name': 'x', 'node': state.here,
+                    'integrity': 10, 'state': 'working', 'skill': 3,
+                    'done': True, 'progress': 0, 'panic': ''}
+    T.eq(state._finish_steps('escort'), ('signal out',),
+         'an escort holding it is signalled out')
+
+    # Patience per host.
+    game, sess, state = fixture()
+    node = next((state.net.node(u) for u in state.node.edges), None)
+    if node is not None and len(node.services) >= 2:
+        node.mapped = node.known = True
+        for svc in node.services:
+            state.failed[(node.uid, svc.key)] = 3
+        T.ok(state._attempts_at(node) >= session_mod.HOST_PATIENCE,
+             'a host that held five cracks is tired')
+
+    # The recommender: shut doors and bounty routes are walls.
+    game = Game.new(Character.from_origin('courier', 'rc'), seed=6060)
+    game.char.base_skills['intrusion'] = 0
+    T.ok(city_cmd._suggest_contract(game) is None
+         or city_cmd._door_odds(game.char, int(city_cmd._suggest_contract(game).posture))
+         >= contract_world.DOOR_TIGHT,
+         'a shut door is not the softest thing on the board')
+    steps = dict(city_cmd.city_steps(game))
+    fallback = next((why for cmd, why in steps.items()
+                     if 'nothing on the board is yours' in why), '')
+    if fallback:
+        T.ok('reads shut' in fallback and 'cut you loose' not in fallback,
+             f'and the fallback names the cause that applies ({fallback!r})')
+
+    # `arrange` is advised only where it can be made.
+    game = Game.new(Character.from_origin('gutter', 'ar'), seed=4242)
+    game.char.credits = 30000
+    ninth = next((c for c in game.city.board if c.district == 'ninth'), None)
+    if ninth is None:
+        ninth = game.city.board[0]
+        ninth.district = 'ninth'
+    game.city.accepted = ninth.cid
+    game.alias.add_heat('sixes', 90)
+    game.city.bounties['sixes'] = 60
+    if city_cmd._hunted_on_route(game, 'ninth')[0]:
+        steps = [cmd for cmd, _ in city_cmd.city_steps(game)]
+        here = game.city.district
+        if 'sixes' not in (here.controller, *here.presence):
+            T.ok('arrange sixes' not in steps,
+                 f'not advised where the Sixes are not ({steps})')
+
+    # Repair advice only for what can be paid; the deck on the card.
+    game = Game.new(Character.from_origin('gutter', 'rp'), seed=4242)
+    game.city.where = 'ninth'
+    game.char.deck.damage['cpu'] = 2
+    game.char.credits = 0
+    steps = dict(city_cmd.city_steps(game))
+    T.ok('repair --confirm' not in steps, 'no repair advice at nought')
+    T.ok(any(cmd.startswith('errands') or cmd == 'sell' for cmd in steps),
+         f'the way to the money is named instead ({list(steps)})')
+
+    # Selling a loaded program unloads it.
+    game = Game.new(Character.from_origin('gutter', 'sl'), seed=4242)
+    T.ok('crowbar' in game.char.deck.loaded, 'a crowbar is loaded')
+    n = game.char.library.count('crowbar')
+    sess, out = play(['sell crowbar'] * n, game=game)
+    T.ok('crowbar' not in game.char.deck.loaded
+         and 'crowbar' not in game.char.library,
+         'and selling every copy takes it off the deck')
+
+    # The lender's work is on the board.
+    game = Game.new(Character.from_origin('bonded', 'lw'), seed=2024)
+    for c in game.city.board:
+        if c.patron == 'kagawa':
+            c.patron = 'sixes'
+    game.city.top_up_board(game.rng, game.alias, game.char, game.story.flags,
+                           dead=set(), lender='kagawa')
+    T.ok(any(c.patron == 'kagawa' for c in game.city.board),
+         'somebody you owe posts work you can do')
+
+    # The plan reads the board.
+    game = Game.new(Character.from_origin('courier', 'pl'), seed=6060)
+    game.char.points, game.char.xp = attr_content.CREATION_POINTS, skills.CREATION_XP
+    plan = guide.suggest(game.char, 22)
+    ranks = sum(1 for verb, key in plan if verb == 'train' and key == 'intrusion')
+    T.ok(ranks >= 1, f'a courier\'s plan buys Intrusion against the board '
+                     f'({ranks})')
+
+    # The clock at three alerts; the shelf line on the wire after day one.
+    game = Game.new(Character.from_origin('gutter', 'ck'), seed=4242)
+    line = city_cmd.way_in(game, game.city.board[0])
+    T.ok('at green' in line and 'at amber' in line and 'at red' in line,
+         'the clock is read at every alert')
+    game.city.shift = 6
+    game.city.refresh_stock(game.rng)
+    T.ok(any('word on the shelves' in n for n in game.city.news),
+         'the shelf line reaches the wire')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
@@ -10695,7 +10872,7 @@ SUITES = (
     test_people_are_the_story, test_night_before, test_wall_and_clock,
     test_remembered_inside, test_second_look, test_second_wave,
     test_the_way_in, test_more_to_say, test_the_door, test_corporate_night,
-    test_named_shelf, test_and_in_nights,
+    test_named_shelf, test_and_in_nights, test_the_fourth_wave,
     test_economy,
     test_combat,
     test_advancement,
