@@ -275,7 +275,8 @@ def cmd_jack_in(sess, args) -> None:
     c.blank()
     # Whose network this is, as a shape before it is a sentence. After five
     # runs a player knows the mark without reading the name under it.
-    _sigil(c, contract.target, mode=sess.render_mode)
+    _sigil(c, contract.target, mode=sess.render_mode,
+           reveal=sess.reveal_style)
     # What their cyberspace is made of. Printed once, because it is the visual
     # key for the whole run and players learn to read it.
     c.say(f'[ice]{cyberspace.signature(contract.target).arrival}[/]')
@@ -1034,11 +1035,13 @@ def _icon_reveal(sess, key: str, quick: bool = False) -> None:
         pix = pixels.render_icon(key)
         if pix:
             c.say('[dim]You arrive as something:[/]')
-            anim.reveal(c, pix, icon.name, quick=quick)
+            anim.reveal(c, pix, icon.name, quick=quick,
+                        style=sess.reveal_style)
             return
 
 
-def _sigil(c, faction: str, mode: str = 'picture', quick: bool = False) -> None:
+def _sigil(c, faction: str, mode: str = 'picture', quick: bool = False,
+           reveal: str = 'dissolve') -> None:
     """The faction's cyberspace: a picture where the terminal can do one
     (D102), the mark where it cannot or where the player would rather."""
     from .. import anim, pixels
@@ -1048,7 +1051,8 @@ def _sigil(c, faction: str, mode: str = 'picture', quick: bool = False) -> None:
                             width=60 if wide else pixels.WIDTH,
                             height=24 if wide else pixels.HEIGHT)
         if pix:
-            anim.reveal(c, pix, fac_content.BY_KEY[faction].name, quick=quick)
+            anim.reveal(c, pix, fac_content.BY_KEY[faction].name, quick=quick,
+                        style=reveal)
             return
     if mode == 'none':
         return

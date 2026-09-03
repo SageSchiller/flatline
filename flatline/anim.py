@@ -789,10 +789,52 @@ def connect(console, target_name: str, quick: bool = False) -> None:
 # --------------------------------------------------------------------------
 
 
-def reveal(console, pix, caption: str, quick: bool = False) -> None:
-    """A picture arriving: rows of noise in its own colours settling top to
-    bottom, then the picture. Prints the picture and returns when it
-    cannot animate."""
+#: The ways a picture can arrive (D109). Each is a function from the whole
+#: picture, a frame index and a total, to the pixels shown that frame.
+REVEAL_STYLES = ('dissolve', 'scan', 'wipe', 'flash', 'instant')
+
+
+def _reveal_frame(style: str, pix, i: int, total: int, rng):
+    """The picture as it looks on frame `i` of `total`, for a reveal style.
+
+    None-valued pixels are transparent, so an unrevealed row is simply the
+    terminal's own ground. Everything is composed from the finished picture,
+    which is why no style can show a pixel the picture does not have.
+    """
+    from . import pixels
+    h = len(pix)
+    t = i / max(1, total)
+    if style == 'wipe':
+        cut = int(round(h * t))
+        return [list(row) if y < cut else [None] * len(row)
+                for y, row in enumerate(pix)]
+    if style == 'scan':
+        cut = int(round(h * t))
+        if cut >= h:
+            return [list(row) for row in pix]
+        out = []
+        for y, row in enumerate(pix):
+            if y < cut - 1:
+                out.append(list(row))
+            elif y == cut - 1 or y == cut:
+                # the bright leading edge, in each cell's own colour lifted
+                out.append([pixels.shade(c, 1.6) if c else None for c in row])
+            else:
+                out.append([None] * len(row))
+        return out
+    if style == 'flash':
+        if t < 0.5:
+            k = 0.25 + t
+            return [[pixels.shade(c, k) if c else None for c in row] for row in pix]
+        return [list(row) for row in pix]
+    # dissolve
+    return pixels.scrambled(pix, t, rng)
+
+
+def reveal(console, pix, caption: str, quick: bool = False,
+           style: str = 'dissolve') -> None:
+    """A picture arriving, in one of a handful of styles (D109). Prints the
+    finished picture and returns when it cannot animate."""
     from . import pixels
     caps = console.caps
     rows = pixels.blit(pix, caps)
@@ -801,21 +843,23 @@ def reveal(console, pix, caption: str, quick: bool = False) -> None:
     lines = ['  ' + r for r in rows]
     if caption:
         lines[min(1, len(lines) - 1)] += '   ' + paint(caption, 'dim', caps)
-    if quick or not can_animate(console):
+    if quick or style == 'instant' or not can_animate(console):
         for line in lines:
             console.emit(line)
         console.blank()
         return
+    frames = 4 if style == 'flash' else pixels.SETTLE_FRAMES
+    pause = 0.09 if style == 'flash' else 0.04
     rng = random.Random(len(caption) + len(pix))
     try:
         with _Screen(console) as screen:
-            for i in range(pixels.SETTLE_FRAMES + 1):
-                frame = pixels.scrambled(pix, i / pixels.SETTLE_FRAMES, rng)
+            for i in range(frames + 1):
+                frame = _reveal_frame(style, pix, i, frames, rng)
                 drawn = ['  ' + r for r in pixels.blit(frame, caps)]
                 if caption and drawn:
                     drawn[min(1, len(drawn) - 1)] += '   ' + paint(caption, 'dim', caps)
                 screen.draw(drawn)
-                screen.pause(0.04)
+                screen.pause(pause)
             screen.draw(lines)
     except KeyboardInterrupt:
         console.raw()

@@ -107,6 +107,8 @@ class Session:
     #: How a faction's cyberspace is shown on connect (D102): one of
     #: `rice.RENDER_MODES`.
     render_mode: str = 'picture'
+    #: How a picture arrives on screen (D109): one of `rice.REVEAL_STYLES`.
+    reveal_style: str = 'dissolve'
     #: The last list of each kind the player was shown, as the keys that were
     #: printed, in printed order. `take 2` means the second row of the board
     #: you last read, which is the only thing a row number can honestly
@@ -384,6 +386,7 @@ class Session:
         self.prompt_style = look.get('prompt', prompt_mod.DEFAULT)
         self.hud = look.get('hud', 'line')
         self.render_mode = look.get('render', 'picture')
+        self.reveal_style = look.get('reveal', 'dissolve')
         caps = self.console.caps
         self.console.caps = Caps(
             color=caps.color, glyphs=caps.glyphs, width=caps.width,

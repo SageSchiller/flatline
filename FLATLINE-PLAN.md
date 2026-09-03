@@ -3633,6 +3633,21 @@ terminal loses nothing. `rice render` governs it with the faction
 pictures and the icon, and nothing about it touches presence, heat, or
 any other number (D35).
 
+### D109: The way it arrives
+
+The picture reveal on connect (D102) had one animation: rows of noise in
+the picture's own colours, settling top to bottom. It is an axis now, the
+ninth. Dissolve is that default; Scan sweeps a bright line down with the
+picture building behind it, the way a sensor reads an image; Wipe reveals
+row by row with no noise; Flash flickers dim and then shows the whole
+thing; Instant skips the animation for people who have seen enough. Each
+composes only from the finished picture, so no style can show a pixel the
+picture does not have, and every one ends on the same image, which is the
+whole of D35: the reveal is visible only where the terminal can animate,
+and the picture that lands is identical either way. It governs the faction
+render and the icon on connect; the portrait and the icon on the sheet
+draw instantly, because a sheet is read, not watched.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -5116,3 +5131,7 @@ prompt for the prompt axis. test_more_prompts.
 
 D108. A bust drawn from the appearance features, on the char and self
 screens. test_the_portrait.
+### 2026-09-03 (e): the way it arrives
+
+D109. Five reveal styles for how a picture lands on connect (dissolve,
+scan, wipe, flash, instant), an earnable axis. test_reveal_styles.

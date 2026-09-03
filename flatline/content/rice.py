@@ -58,12 +58,16 @@ from dataclasses import dataclass
 
 #: The axes. Order is the order `rice` lists them in.
 KINDS = ('palette', 'prompt', 'frame', 'bars', 'marks', 'banner', 'hud',
-         'render')
+         'render', 'reveal')
 
 #: How a faction's cyberspace arrives on connect (D102). A picture, two
 #: pixels a cell in the faction's own colours, where the terminal can; the
 #: text mark where it cannot; or nothing.
 RENDER_MODES = ('picture', 'wide', 'mark', 'none')
+
+#: How a picture arrives on screen (D109). Cosmetic and visible only where
+#: the terminal can animate; the finished picture is identical either way.
+REVEAL_STYLES = ('dissolve', 'scan', 'wipe', 'flash', 'instant')
 
 #: The two states of the run readout (D59). A table rather than two
 #: literals, so `validate.py` can hold the catalogue to it.
@@ -506,6 +510,27 @@ COSMETICS: tuple[Cosmetic, ...] = (
     Cosmetic('none', 'render', 'None',
              'No picture and no mark. The name, the doctrine, and the job.'),
 
+    # ----------------------------------------------------------------- reveal
+    Cosmetic('dissolve', 'reveal', 'Dissolve',
+             'A picture arrives as rows of noise in its own colours, settling '
+             'top to bottom. The default.'),
+    Cosmetic('scan', 'reveal', 'Scan',
+             'A bright line sweeps down and the picture is behind it, the way '
+             'a sensor builds an image one row at a time.',
+             needs=('runs', 5),
+             hint='Five contracts.'),
+    Cosmetic('wipe', 'reveal', 'Wipe',
+             'Row by row, no noise. Clean, and quick.',
+             needs=('clean', 3),
+             hint='Three runs nobody ever knew about.'),
+    Cosmetic('flash', 'reveal', 'Flash',
+             'A dim flicker, and then the whole picture at once.',
+             needs=('runs', 10),
+             hint='Ten contracts.'),
+    Cosmetic('instant', 'reveal', 'Instant',
+             'No animation. The picture, straight away, for people who have '
+             'seen enough of them.'),
+
 )
 
 BY_KEY: dict[tuple[str, str], Cosmetic] = {(c.kind, c.key): c for c in COSMETICS}
@@ -518,6 +543,7 @@ DEFAULTS: dict[str, str] = {
     'palette': 'cyberpunk-neon', 'prompt': 'classic', 'frame': 'single',
     'bars': 'blocks', 'marks': 'plain', 'banner': 'block', 'hud': 'line',
     'render': 'picture',
+    'reveal': 'dissolve',
 }
 
 

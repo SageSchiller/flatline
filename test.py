@@ -11429,6 +11429,66 @@ def test_the_portrait() -> None:
     T.ok('38;2;' not in out16, 'no portrait at sixteen colours')
 
 
+
+def test_reveal_styles() -> None:
+    """D109: the ways a picture arrives, as an earnable cosmetic."""
+    T.section('reveal styles')
+    from flatline import anim, pixels
+    from flatline.content import rice as rice_content
+    import random as _random
+
+    T.eq(set(anim.REVEAL_STYLES), set(rice_content.REVEAL_STYLES),
+         'the engine and the catalogue agree on the styles')
+    T.ok('reveal' in rice_content.KINDS
+         and rice_content.DEFAULTS['reveal'] == 'dissolve',
+         'reveal is an axis with a sane default')
+    for style in anim.REVEAL_STYLES:
+        T.ok(any(c.kind == 'reveal' and c.key == style
+                 for c in rice_content.COSMETICS),
+             f'{style} is an earnable reveal style')
+
+    pix = pixels.render('sixes')
+    for style in anim.REVEAL_STYLES:
+        frames = 4 if style == 'flash' else pixels.SETTLE_FRAMES
+        for i in range(frames + 1):
+            f = anim._reveal_frame(style, pix, i, frames, _random.Random(1))
+            T.ok(len(f) == len(pix) and all(len(r) == len(pix[0]) for r in f),
+                 f'{style} frame {i} is the right shape')
+        # The last frame of every style is the finished picture.
+        T.eq(anim._reveal_frame(style, pix, frames, frames, _random.Random(1)),
+             [list(r) for r in pix] if style != 'dissolve'
+             else pixels.scrambled(pix, 1.0, _random.Random(1)),
+             f'{style} ends on the whole picture')
+    # A wipe halfway shows the top and not the bottom.
+    half = anim._reveal_frame('wipe', pix, pixels.SETTLE_FRAMES // 2,
+                              pixels.SETTLE_FRAMES, _random.Random(1))
+    T.ok(any(c for c in half[0]) and not any(c for c in half[-1]),
+         'a wipe fills from the top')
+
+    # reveal prints the finished picture whatever the style, capturing.
+    caps = Caps(ColorLevel.TRUE, GlyphLevel.UNICODE, 80, theme.CYBERPUNK_NEON)
+    for style in anim.REVEAL_STYLES:
+        con = Console(caps, stream=io.StringIO())
+        con.start_capture()
+        anim.reveal(con, pix, 'The Sixes', quick=True, style=style)
+        out = con.end_capture()
+        T.ok('▀' in out, f'{style} prints the picture when it cannot animate')
+
+    # The session carries it, and the connect screen reads it.
+    game = Game.new(Character.from_origin('gutter', 'r'), seed=13579)
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    con = Console(caps, stream=io.StringIO())
+    sess = Session(console=con, slot='rv'); sess.game = game
+    sess.reveal_style = 'instant'
+    con.start_capture()
+    sess.execute(f'take {contract.cid}')
+    sess.execute('jack in --force')
+    out = con.end_capture()
+    T.ok('▀' in out, 'the picture still shows under instant')
+    sess.execute('jack out --anyway')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
@@ -11442,7 +11502,7 @@ SUITES = (
     test_named_shelf, test_and_in_nights, test_the_fourth_wave,
     test_the_job_itself, test_pictures, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
-    test_more_prompts, test_the_portrait,
+    test_more_prompts, test_the_portrait, test_reveal_styles,
     test_economy,
     test_combat,
     test_advancement,
