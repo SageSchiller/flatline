@@ -6389,8 +6389,8 @@ def test_arcs() -> None:
     # D59: a line of readout after anything that spends a tick, and the four
     # ways to have it.
     from flatline.content import rice
-    T.ok('hud' in rice.KINDS and len(rice.BY_KIND['hud']) == 4,
-         'the hud is a rice axis with four states')
+    T.ok('hud' in rice.KINDS and len(rice.BY_KIND['hud']) >= 4,
+         'the hud is a rice axis with four states or more')
     game = Game.new(Character.from_origin('gutter', 'Hud'), seed=4242)
     contract = game.city.board[0]
     game.city.where = contract.district
@@ -11100,6 +11100,60 @@ def test_pictures() -> None:
          '`render` lists and draws')
 
 
+
+def test_the_instrument() -> None:
+    """D103: a colour in the markup, gradient meters, the HUD panel."""
+    T.section('the instrument')
+    from flatline.content import rice as rice_content
+    true_caps = Caps(ColorLevel.TRUE, GlyphLevel.UNICODE, 80, theme.CYBERPUNK_NEON)
+    c256 = Caps(ColorLevel.ANSI256, GlyphLevel.UNICODE, 80, theme.CYBERPUNK_NEON)
+    c16 = Caps(ColorLevel.ANSI16, GlyphLevel.UNICODE, 80, theme.CYBERPUNK_NEON)
+    none = Caps(ColorLevel.NONE, GlyphLevel.ASCII, 80, theme.NEUTRAL)
+
+    T.eq(ui.plain('[#ff1744]hot[/] and [ok]fine[/]'), 'hot and fine',
+         'a colour tag is markup')
+    T.ok('38;2;255;23;68' in ui.render('[#ff1744]x[/]', true_caps),
+         'and renders as itself in truecolour')
+    T.ok('38;5;' in ui.render('[#ff1744]x[/]', c256), 'the cube at 256')
+    T.ok('\033[' in ui.render('[#ff1744]x[/]', c16)
+         and '38;' not in ui.render('[#ff1744]x[/]', c16),
+         'one of sixteen below that')
+    T.eq(ui.render('[#ff1744]x[/]', none), 'x', 'and nothing with no colour')
+    T.eq(ui.nearest_ansi(255, 23, 68), 'brightred', 'the nearest is sensible')
+    T.eq(ui.blend(('#000000', '#ffffff'), 0.5), '#808080', 'blend halves')
+
+    bar = ui.gradient_bar(0.5, 10, true_caps, label='50/100')
+    T.eq(ui.plain(bar).count('█'), 5, 'a gradient bar fills like a bar')
+    T.ok('[#' in bar and '50/100' in ui.plain(bar), 'with colours and a label')
+    T.ok(ui.width(bar.split(' ')[0]) == 10, 'and the right width')
+    T.ok(ui.gradient_bar(0.0, 10, true_caps).count('[#') == 0,
+         'an empty bar has no colour runs')
+    spark = ui.sparkline_coloured([0, 25, 50, 75, 100], 5, true_caps, 0, 100)
+    T.eq(len(ui.plain(spark)), 5, 'a coloured sparkline keeps its cells')
+    T.ok(spark.count('[#') >= 3, 'in more than one colour')
+
+    T.ok('panel' in rice_content.HUD_MODES
+         and any(c.key == 'panel' and c.kind == 'hud'
+                 for c in rice_content.COSMETICS),
+         'the panel is a HUD mode you can earn')
+    game = Game.new(Character.from_origin('gutter', 'pn'), seed=13579)
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    con = Console(true_caps, stream=io.StringIO())
+    sess = Session(console=con, slot='pn'); sess.game = game
+    sess.hud = 'panel'
+    con.start_capture()
+    sess.execute(f'take {contract.cid}')
+    sess.execute('jack in --force')
+    sess.execute('scan')
+    out = con.end_capture()
+    plain = strip_ansi(out)
+    T.ok('trace' in plain and 'noise' in plain and 'GREEN' in plain,
+         'the panel has both meters and the alert')
+    T.ok('38;2;' in out, 'and they are coloured')
+    sess.execute('jack out --anyway')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
@@ -11111,7 +11165,7 @@ SUITES = (
     test_remembered_inside, test_second_look, test_second_wave,
     test_the_way_in, test_more_to_say, test_the_door, test_corporate_night,
     test_named_shelf, test_and_in_nights, test_the_fourth_wave,
-    test_the_job_itself, test_pictures,
+    test_the_job_itself, test_pictures, test_the_instrument,
     test_economy,
     test_combat,
     test_advancement,

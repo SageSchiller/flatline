@@ -64,7 +64,7 @@ RENDER_MODES = ('picture', 'wide', 'mark', 'none')
 
 #: The two states of the run readout (D59). A table rather than two
 #: literals, so `validate.py` can hold the catalogue to it.
-HUD_MODES = ('line', 'bar', 'terse', 'quiet')
+HUD_MODES = ('line', 'bar', 'terse', 'quiet', 'panel')
 
 #: Every condition kind, and the meta counter it reads. Declared as a table so
 #: `validate.py` can check that the engine actually maintains each one: an
@@ -437,6 +437,13 @@ COSMETICS: tuple[Cosmetic, ...] = (
     Cosmetic('quiet', 'hud', 'Quiet',
              'No readout. The prompt still carries the trace, because it '
              'always does; everything else is one `status` away.'),
+    Cosmetic('panel', 'hud', 'Panel',
+             'Two lines of instrument after every tick: the trace as a meter '
+             'coloured cool to hot by how far along it is, the noise here, '
+             'the alert in its own colour, the tick and the focus.',
+             needs=('runs', 2),
+             hint='Two contracts. By then you know what the numbers are.'),
+
     # ----------------------------------------------------------------- render
     Cosmetic('picture', 'render', 'Picture',
              'Their cyberspace as a picture, two pixels a cell, in their '

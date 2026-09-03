@@ -447,12 +447,12 @@ def _resolve(sess) -> None:
     # The card (D62): the one framed thing in the game, because this is the
     # one moment that is a result rather than a stream.
     history = state.trace_history
-    spark = (ui.sparkline(history, 30, c.caps, lo=0, hi=100)
+    spark = (ui.sparkline_coloured(history, 30, c.caps, lo=0, hi=100)
              if len(history) > 1 else '')
     rows = [
         f'[dim]ticks[/]    {summary["ticks"]}',
         f'[dim]trace[/]    [trace]{summary["trace"]}/100[/]'
-        + (f'  [trace]{spark}[/]' if spark else ''),
+        + (f'  {spark}' if spark else ''),
         f'[dim]alert[/]    {summary["alert"]}',
         f'[dim]residue[/]  [residue]{summary["residue"]}[/]',
         f'[dim]haul[/]     {len(summary["haul"])} assets, '
@@ -2905,6 +2905,9 @@ def _hud(sess) -> None:
     if mode == 'bar':
         c.raw(f'  {trace}')
         return
+    if mode == 'panel':
+        _hud_panel(sess)
+        return
     c.raw(f'  {trace} [dim]{bullet} noise {state.node.noise} {bullet} '
           f'tick {state.tick} {bullet} alert {state.alert}[/]')
     _escalation_check(sess)
@@ -2914,6 +2917,36 @@ def _hud(sess) -> None:
     # connection, and none of the consequences ever land.
     if sess.run is not None and not sess.run.running:
         _resolve(sess)
+
+
+#: What the alert word looks like on the panel.
+ALERT_ROLE = {'green': 'ok', 'amber': 'warn', 'red': 'err', 'lockdown': 'err'}
+
+
+def _hud_panel(sess) -> None:
+    """Two lines of instrument (D103): the trace as a meter coloured by
+    how far along it is, the noise here, the alert in its own colour, and
+    the tick, focus and free actions. Opt-in through `rice hud panel`,
+    because the one-line readout is right for most people and this is
+    for the ones who want the deck to look like a deck."""
+    state, c = sess.run, sess.console
+    from ..run.session import NOISE_ESCALATE
+    bullet = c.caps.g('bullet')
+    label = state.trace_label()
+    if state.blind_trace:
+        trace = f'[trace]trace {label}[/]'
+    else:
+        trace = ui.gradient_bar(state.trace_pct, 16, c.caps,
+                                label=f'{label}', label_role='trace')
+    noise = ui.gradient_bar(min(1.0, state.node.noise / max(1, NOISE_ESCALATE)),
+                            16, c.caps, label=f'{state.node.noise} here',
+                            label_role='noise')
+    alert = f'[{ALERT_ROLE.get(state.alert, "dim")}][bold]{state.alert.upper()}[/][/]'
+    free = getattr(state, 'free_actions', 0)
+    tail = (f'[dim]tick {state.tick} {bullet} focus {state.focus}[/]'
+            + (f' [ok]{bullet} {free} free[/]' if free else ''))
+    c.raw(f'  [dim]trace[/] {trace}   {alert}')
+    c.raw(f'  [dim]noise[/] {noise}   {tail}')
 
 
 def _escalation_check(sess) -> None:

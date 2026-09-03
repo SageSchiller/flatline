@@ -2954,7 +2954,8 @@ def check_markup(rep: Report) -> None:
 
     for where, text in sources:
         for span in ui.parse(text):
-            if span.role and span.role not in known:
+            if span.role and span.role not in known \
+                    and not span.role.startswith('#'):
                 rep.error('markup', f'{where}: unknown role {span.role!r}')
 
     # Footnotes. An unbalanced brace does not crash, it swallows the rest of

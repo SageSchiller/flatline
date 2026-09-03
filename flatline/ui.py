@@ -237,7 +237,10 @@ def detect_caps(theme_name: str | None = None, ascii_only: bool = False,
 # markup
 # --------------------------------------------------------------------------
 
-_TAG = re.compile(r'\[(/|[a-z_][a-z0-9_]*)\]')
+#: A role, or a colour: `[#ff1744]` is a twenty-four-bit colour in the
+#: markup (D103), for the gradients, which no palette role can express.
+#: It degrades like a role: the cube at 256, the nearest of sixteen below.
+_TAG = re.compile(r'\[(/|#[0-9a-fA-F]{6}|[a-z_][a-z0-9_]*)\]')
 #: Control sequences, for stripping already-rendered output back to text.
 _ANSI = re.compile(r'\033\[[0-9;?]*[a-zA-Z]')
 
@@ -390,7 +393,15 @@ def _sgr(caps: Caps, role: str | None, attrs: frozenset[str]) -> str:
         parts.append('4')
     if 'rev' in attrs:
         parts.append('7')
-    if role:
+    if role and role.startswith('#'):
+        r, g, b = theme._hex_rgb(role)
+        if caps.color is ColorLevel.TRUE:
+            parts.append(f'38;2;{r};{g};{b}')
+        elif caps.color is ColorLevel.ANSI256:
+            parts.append(f'38;5;{theme._to_256(role)}')
+        else:
+            parts.append(str(theme.ANSI16[nearest_ansi(r, g, b)]))
+    elif role:
         col = getattr(caps.palette, role, None)
         if col is not None:
             if caps.color is ColorLevel.TRUE:
@@ -401,6 +412,90 @@ def _sgr(caps: Caps, role: str | None, attrs: frozenset[str]) -> str:
             else:
                 parts.append(str(theme.ANSI16[col.ansi]))
     return f'\033[{";".join(parts)}m' if parts else ''
+
+
+#: The sixteen, as points, for the rung that has nothing else.
+_ANSI_POINTS = {
+    'black': (0, 0, 0), 'red': (170, 0, 0), 'green': (0, 170, 0),
+    'yellow': (170, 140, 0), 'blue': (0, 0, 170), 'magenta': (170, 0, 170),
+    'cyan': (0, 170, 170), 'white': (190, 190, 190),
+    'brightblack': (100, 100, 100), 'brightred': (255, 80, 80),
+    'brightgreen': (80, 255, 80), 'brightyellow': (255, 255, 80),
+    'brightblue': (90, 90, 255), 'brightmagenta': (255, 80, 255),
+    'brightcyan': (80, 255, 255), 'brightwhite': (255, 255, 255),
+}
+
+
+def nearest_ansi(r: int, g: int, b: int) -> str:
+    """The closest of the sixteen to a colour, by distance."""
+    return min(_ANSI_POINTS, key=lambda k: sum(
+        (a - c) ** 2 for a, c in zip(_ANSI_POINTS[k], (r, g, b))))
+
+
+def blend(stops, t: float) -> str:
+    """A colour along a list of hex stops, as hex, at t in [0, 1]."""
+    t = max(0.0, min(1.0, t))
+    if len(stops) == 1:
+        return stops[0]
+    pos = t * (len(stops) - 1)
+    i = min(len(stops) - 2, int(pos))
+    f = pos - i
+    a, b = theme._hex_rgb(stops[i]), theme._hex_rgb(stops[i + 1])
+    return '#%02x%02x%02x' % tuple(int(round(x + (y - x) * f))
+                                   for x, y in zip(a, b))
+
+
+#: Cool to hot: what a rising number looks like (D103).
+HEAT_STOPS = ('#00c853', '#c6ff00', '#ffab00', '#ff6d00', '#ff1744')
+
+
+def gradient_bar(pct: float, cells: int, caps: Caps, stops=HEAT_STOPS,
+                 label: str | None = None, label_role: str = 'trace') -> str:
+    """A meter whose fill is coloured by how far along it is, as markup.
+
+    Where the terminal has no colour it is the plain bar: the number is
+    the same, which is the whole of D35.
+    """
+    pct = max(0.0, min(1.0, pct))
+    filled = int(round(pct * cells))
+    full, empty = caps.g('bar_full'), caps.g('bar_empty')
+    parts, last = [], None
+    for i in range(filled):
+        colour = blend(stops, i / max(1, cells - 1))
+        if colour != last:
+            if last is not None:
+                parts.append('[/]')
+            parts.append(f'[{colour}]')
+            last = colour
+        parts.append(full)
+    if last is not None:
+        parts.append('[/]')
+    parts.append(f'[dim]{empty * (cells - filled)}[/]')
+    if label is not None:
+        parts.append(f' [{label_role}]{label}[/]')
+    return ''.join(parts)
+
+
+def sparkline_coloured(values, cells: int, caps: Caps, lo: float = 0.0,
+                       hi: float | None = None, stops=HEAT_STOPS) -> str:
+    """`sparkline`, with every column coloured by its own level."""
+    line = sparkline(values, cells, caps, lo, hi)
+    if not line:
+        return ''
+    chars = SPARK if caps.glyphs is GlyphLevel.UNICODE else SPARK_ASCII
+    parts, last = [], None
+    for ch in line:
+        level = chars.index(ch) / max(1, len(chars) - 1) if ch in chars else 0.0
+        colour = blend(stops, level)
+        if colour != last:
+            if last is not None:
+                parts.append('[/]')
+            parts.append(f'[{colour}]')
+            last = colour
+        parts.append(ch)
+    if last is not None:
+        parts.append('[/]')
+    return ''.join(parts)
 
 
 def render(s: str, caps: Caps) -> str:
