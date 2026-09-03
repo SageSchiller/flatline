@@ -2057,7 +2057,10 @@ def city_steps(game) -> list[tuple[str, str]]:
                               f'both hit harder when you are'))
     # A package in the bag is a step wherever the job is (D65).
     errand = game.city.errand
-    if errand and errand.get('kind') == 'courier':
+    # Anything being carried somewhere: a package or a person (D100). The
+    # escort kind fell through this branch and the fallback below said
+    # `rest 1` for ever with somebody waiting to be walked to the Row.
+    if errand and errand.get('to'):
         to = errand.get('to', '')
         if to in districts.BY_KEY and to != game.city.where:
             # The same refusal the contract walk checks for, on the same
@@ -2067,22 +2070,30 @@ def city_steps(game) -> list[tuple[str, str]]:
             # every time you asked (D75).
             hunted, hop_name = _hunted_on_route(game, to)
             if hunted:
-                # With the numbers, because "heat cools while you lie low"
-                # is true and useless at ninety-seven: it cools about a
-                # point a shift, so the honest reading is thirty shifts,
-                # and a player told to rest without being told that will
-                # rest twice and conclude the game is stuck.
-                hot = max(game.alias.attention(k)
-                          for k in factions.FACTION_KEYS)
+                # The same ways out as the contract walk (D100): `rest 3`
+                # at heat a hundred was a loop with a friendly voice, and
+                # the fallback then named the same walk `walk` refuses.
+                who = next((k for k in factions.FACTION_KEYS
+                            if factions.BY_KEY[k].short == hunted), '')
+                hot = int(game.alias.attention(who)) if who else 0
                 cost = (ALIAS_COST // 2 if 'no_history' in game.char.riders()
                         else ALIAS_COST)
-                steps.append(('rest 3',
-                              f'{hunted} are hunting you in {hop_name} and '
-                              f'the delivery goes through it. Heat is {hot} '
-                              f'and cools about a point a shift, so this is '
-                              f'slow: `burn` ends the name for {cost:,}c, '
-                              f'and `{game.city.walk_to(to)} --anyway` walks '
-                              f'into them'))
+                route = game.city.walk_to(to)
+                if hot >= HEAT_WAITS_OUT or int(game.city.bounties.get(who, 0)):
+                    steps.append((f'{route} --anyway',
+                                  f'{hunted} are hunting you in {hop_name} '
+                                  f'and the delivery goes through it. Heat '
+                                  f'is {hot}, which does not cool this '
+                                  f'week: walk into them and the street '
+                                  f'prices it, or `burn` the name for '
+                                  f'{cost:,}c'))
+                else:
+                    steps.append((f'rest {max(1, hot - HEAT_WAITS_OUT + 8)}',
+                                  f'{hunted} are hunting you in {hop_name} '
+                                  f'and the delivery goes through it. Heat '
+                                  f'is {hot} and cools about a point a '
+                                  f'shift; `{route} --anyway` walks into '
+                                  f'them'))
             else:
                 steps.append((game.city.walk_to(to),
                               f'deliver {errand.get("what", "the package")} '
@@ -2319,10 +2330,14 @@ def city_steps(game) -> list[tuple[str, str]]:
                                  f'and the board changes every shift')]
             if game.city.errand:
                 to = game.city.errand.get('to', '')
-                if to in districts.BY_KEY and to != game.city.where:
+                if (to in districts.BY_KEY and to != game.city.where
+                        and not _hunted_on_route(game, to)[0]):
                     return steps + [(game.city.walk_to(to),
                                      f'{why}. The package you are carrying '
                                      f'pays in {districts.BY_KEY[to].name}')]
+                if any(cmd.endswith('--anyway') or cmd.startswith('rest')
+                       for cmd, _ in steps):
+                    return steps
             return steps + [('rest 1',
                              f'{why}. A shift passes and the board turns; '
                              f'`train intrusion` is the number every door '

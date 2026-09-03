@@ -3439,7 +3439,10 @@ the board the way the nudge does. Patience is counted per host as well as
 per door. A dispatched hunter on your host is answered before anything
 else is typed. A walk stops when a scene fires, because five scenes and
 two decisions arrived in one verb. The escort holding what they came for
-is signalled out, not moved fifty-eight times.
+is signalled out, not moved fifty-eight times. And a delivery of any
+kind, package or person, gets the same honest ways out as the contract
+walk when the route is hunted: the escort kind had fallen through to
+"rest 1" for ever with somebody waiting to be walked to the Row.
 
 **The honest career.** The buyout went from twenty-six thousand to seven
 in fifty-seven shifts on the D95 terms, three Kagawa nights and the
