@@ -154,6 +154,9 @@ class City:
     #: faction -> the construct that cut you loose last time (D89). Their
     #: next network runs it on the route, awake.
     grudges: dict = field(default_factory=dict)
+    #: Errands already taken this window, as 'district:window:index' (D101):
+    #: a collection at the same door paid nine times in one shift.
+    errands_taken: set = field(default_factory=set)
     next_cid: int = 1
     #: district -> listings, and the shift they were rolled.
     stock: dict = field(default_factory=dict)
@@ -954,12 +957,10 @@ class City:
 
         alias.runs += 1
 
+        learned_clean = 0.0
         if outcome == 'clean' and summary.get('objective'):
             gain = 6 + summary.get('haul_value', 0) // 900
-            self.pending.append(PendingFallout(
-                due=self.shift + RESIDUE_DELAY, faction=target,
-                heat=0.0, posture=fac.hardening,
-                note=f'[dim]{fac.short} has changed something.[/]'))
+            learned_clean = fac.hardening
             told.append(f'[ok]Work recorded.[/] {gain} standing with your patron.')
 
         if residue:
@@ -999,10 +1000,18 @@ class City:
                 # job unwinnable by trying it.
                 learned = fac.hardening * (0.4 if summary.get('reached')
                                            else 0.15)
+                # One line per run (D101): the clean hardening and the
+                # residue's were two items and two lines.
                 self.pending.append(PendingFallout(
                     due=self.shift + RESIDUE_DELAY, faction=target,
-                    heat=heat, posture=learned, note=note))
+                    heat=heat, posture=learned + learned_clean, note=note))
+                learned_clean = 0.0
 
+        if learned_clean:
+            self.pending.append(PendingFallout(
+                due=self.shift + RESIDUE_DELAY, faction=target,
+                heat=0.0, posture=learned_clean,
+                note=f'[dim]{fac.short} has changed something.[/]'))
         if outcome in ('severed', 'burned'):
             alias.add_heat(target, 12)
             told.append(f'[warn]{fac.short} logged the intrusion attempt.[/]')
@@ -1078,6 +1087,7 @@ class City:
             'grounded': self.grounded,
             'done_titles': list(self.done_titles),
             'grudges': dict(self.grudges),
+            'errands_taken': sorted(self.errands_taken),
             'next_cid': self.next_cid,
             'stock': {k: [l.to_dict() for l in v] for k, v in self.stock.items()},
             'stock_shift': self.stock_shift,
@@ -1115,6 +1125,7 @@ class City:
             last_street=str(d.get('last_street', '') or ''),
             grounded=int(d.get('grounded', -1)),
             grudges={str(k): str(v) for k, v in (d.get('grudges') or {}).items()},
+            errands_taken={str(k) for k in (d.get('errands_taken') or [])},
             done_titles=[str(t) for t in (d.get('done_titles') or [])],
             next_cid=int(d.get('next_cid', 1)),
             stock={k: [Listing.from_dict(l) for l in v]

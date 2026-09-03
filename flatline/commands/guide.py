@@ -184,6 +184,9 @@ def _now_city(sess):
         goes = [(cmd, why) for cmd, why in all_steps
                 if cmd.split()[0] in ('jack', 'walk', 'travel', 'rest',
                                       'drop')]
+        # Not the jack in after the drop it contradicts (D101).
+        if any(cmd == 'drop' for cmd, _ in steps):
+            goes = [g for g in goes if g[0].split()[0] in ('rest',)]
         for go in goes[:2]:
             if go not in steps:
                 steps.append(go)

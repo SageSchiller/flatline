@@ -1270,6 +1270,21 @@ def way_in(game, contract) -> str:
             f'working ticks, this shift')
 
 
+def job_read(char, contract) -> str:
+    """The objective verb's own odds, beside the doors (D101)."""
+    kind = contract.objective
+    if kind not in ('corrupt', 'implant', 'wipe'):
+        return ''
+    odds = contract_mod.objective_odds(char, kind, int(contract.posture))
+    verb = {'corrupt': 'the edit', 'implant': 'the implant',
+            'wipe': 'the wipe'}[kind]
+    skill = contract_mod.objective_skill(kind)
+    role = ('ok' if odds >= 0.7 else 'warn' if odds >= contract_mod.DOOR_TIGHT
+            else 'err')
+    return (f'[{role}]{verb} lands at {odds:.0%}[/] [dim]with what you '
+            f'carry: {skill} and the payload are the numbers[/]')
+
+
 def _show_contract(sess, contract) -> None:
     game, c = sess.game, sess.console
     from ..world.contracts import OBJECTIVE_BLURB, OBJECTIVE_PROGRAM
@@ -1302,6 +1317,8 @@ def _show_contract(sess, contract) -> None:
                  f'{contract_mod.SIZE_WORDS[contract.size_mod][1]}[/]'),
         ('the way in', way_in(game, contract)),
         ('reads as', readiness(game.char, int(contract.posture))),
+        *([('the job', job_read(game.char, contract))]
+          if job_read(game.char, contract) else []),
         *([('their way', _net_signature(contract.target))]
           if _net_signature(contract.target) else []),
         ('posture', f'{int(contract.posture)} [dim]'
@@ -1672,10 +1689,20 @@ def _suggest_contract(game):
             return float('inf')
         return 0.0
 
+    def verb_cost(c) -> float:
+        # The job itself, priced like a door (D101): tight is a lean,
+        # shut is a wall.
+        odds = contract_mod.objective_odds(game.char, c.objective,
+                                           int(c.posture))
+        if odds < contract_mod.DOOR_TIGHT:
+            return float('inf') if odds <= 0.1 else 15.0
+        return 0.0
+
     def cost(c):
         return (int(c.posture)
                 + (0 if equipped(c) else 12)
                 + (0 if possible(c) else 20)
+                + verb_cost(c)
                 + history_cost(c) + calendar_cost(c) + street_cost(c) + desk
                 + variety_cost(c) + door_cost(c),
                 c.size_mod if green else 0.0,
@@ -2145,7 +2172,7 @@ def city_steps(game) -> list[tuple[str, str]]:
                          key=lambda p: p.price, default=None)
             if better is not None:
                 steps.append((f'buy {better.name.lower()}',
-                              f'every door you have failed was your breaker: '
+                              f'every door you fail is your breaker: '
                               f'{on_deck.name} is rating {on_deck.rating} and '
                               f'{better.name} is {better.rating}, here for '
                               f'{_shelf_price(game, better.key):,}c'))
@@ -2319,8 +2346,35 @@ def city_steps(game) -> list[tuple[str, str]]:
             if any(not c.held and game.city.shifts_to(c.district)
                    >= c.expires - game.city.shift for c in live):
                 causes.append('expires before the walk')
-            why = ('nothing on the board is yours tonight: what is there '
-                   + (', or '.join(causes) if causes else 'is not for you'))
+            softest = min(live, key=lambda c: int(c.posture)) if live else None
+            one = ''
+            if softest is not None:
+                if _dead_to_you(game, softest.cid):
+                    one = 'has already cut you loose'
+                elif _door_odds(game.char, int(softest.posture)) < contract_mod.DOOR_TIGHT:
+                    one = 'reads shut for what you carry'
+                elif _hunted_on_route(game, softest.district)[0]:
+                    one = 'goes through people who are looking for you'
+                elif int(softest.posture) > ceiling_for(game):
+                    one = 'is above what your record says you are ready for'
+                elif (not softest.held and game.city.shifts_to(softest.district)
+                      >= softest.expires - game.city.shift):
+                    one = 'expires before the walk'
+            why = ('nothing on the board is yours tonight: the softest of it, '
+                   + (f'{softest.title}, {one}' if softest is not None and one
+                      else ', or '.join(causes) if causes else 'is not for you'))
+            # A bounty walls the board and the fee is in the account: the
+            # name is the problem, and `burn` is the answer (D101).
+            walled = [k for k, v in game.city.bounties.items() if v]
+            burn_cost = (ALIAS_COST // 2 if 'no_history' in game.char.riders()
+                         else ALIAS_COST)
+            if (walled and game.char.credits >= burn_cost
+                    and any(_hunted_on_route(game, c.district)[0] for c in live)):
+                return steps + [('burn --confirm',
+                                 f'{why}. A bounty is on this name and every '
+                                 f'walk goes through it: a new name costs '
+                                 f'{burn_cost:,}c and every relationship this '
+                                 f'one has, and the board opens')]
             offers = street_world.errands_here(game)
             if offers and not game.city.errand:
                 best = max(range(len(offers)), key=lambda i: offers[i]['pay'])
@@ -2350,7 +2404,14 @@ def city_steps(game) -> list[tuple[str, str]]:
     chair = any(h.get('chair') for h in tries)
     if _dead_to_you(game, contract.cid):
         last = tries[-1]
-        if chair:
+        verb_odds = contract_mod.objective_odds(game.char, contract.objective,
+                                                int(contract.posture))
+        if any(h.get('refused', 0) >= 3 for h in tries):
+            reason = (f'the {contract.objective} itself refused, over and '
+                      f'over, at {verb_odds:.0%} with what you carry: '
+                      f'{contract_mod.objective_skill(contract.objective)} '
+                      f'is the number')
+        elif chair:
             reason = ('you reached the chair and the room would not let '
                       'you use it: something awake on it, or a room that '
                       'went red and stayed there. The same network is the '
@@ -3276,6 +3337,7 @@ def cmd_errands(sess, args) -> None:
         job = offers[n - 1]
         if job['kind'] in ('courier', 'escort'):
             game.city.errand = dict(job)
+            game.city.errands_taken.add(job.get('key', ''))
             to = districts.BY_KEY[job['to']]
             c.ok(f'You take {job["what"]}. {to.name}, '
                  f'{game.city.shifts_to(to.key)} shift'
@@ -3293,9 +3355,15 @@ def cmd_errands(sess, args) -> None:
             sess.autosave()
             return
         if job['kind'] == 'collect':
+            game.city.errands_taken.add(job.get('key', ''))
             street_world.collect(sess, job)
+            # A door, a conversation and the walk there is a shift, like
+            # the watch (D101).
+            if sess.game is not None and sess.pending is None:
+                _advance(sess, 1)
             sess.autosave()
             return
+        game.city.errands_taken.add(job.get('key', ''))
         # watch: a shift, here, now
         pay = job['pay']
         c.say(f'You stand a shift at {job["at"]}. Nothing is asked of you '

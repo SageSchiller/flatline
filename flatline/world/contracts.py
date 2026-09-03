@@ -170,6 +170,22 @@ def objective_ready(char, kind: str, posture: int) -> bool:
     return objective_possible(char, kind, posture)
 
 
+def objective_odds(char, kind: str, posture: int) -> float:
+    """The chance the objective verb lands, with what is owned (D101).
+    The same sum `push_check` and `wipe_check` roll, read before the walk:
+    a build that walked through every door typed `push` seventeen times
+    at ten per cent because nothing had priced the job itself."""
+    from ..run.checks import DIE, OFFSET
+    if kind not in ('corrupt', 'implant', 'wipe'):
+        return 1.0
+    need = objective_resistance(kind, posture) + OFFSET - objective_power(char, kind)
+    return max(0.0, min(1.0, (DIE - need + 1) / DIE))
+
+
+def objective_skill(kind: str) -> str:
+    return {'corrupt': 'Sabotage', 'wipe': 'Sabotage'}.get(kind, 'Intrusion')
+
+
 def objective_possible(char, kind: str, posture: int) -> bool:
     """Whether the die could carry it at all (D14: the same sum the run
     prints). A ten-sided die offset by five is five points of reach."""

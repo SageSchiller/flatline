@@ -12,7 +12,7 @@ updated: 2026-09-01
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-09-01.** D86 to D89 landed in one session, from three play-tests run in parallel with three different briefs (a first-timer who does what `now` says, an explorer who ignores it, and a run specialist who types every verb by hand). What they found, in order of size: the story layer was gated on meeting people and nothing ever said to meet anyone, and forty-two scenes declared a district that nothing read; the advice could recommend the same severed run five nights running and never once name Intrusion; a credential warden was an unanswerable wall for the Chromed origin and the board could not see it; and D6's severed-connection cooldown had never been implemented. All fixed, with `test_people_are_the_story`, `test_night_before`, `test_wall_and_clock` and `test_remembered_inside` holding them. Two things were added rather than fixed: the construct that cut you loose is on the route next time, awake and named, and the other runners can turn up inside a network with consequences that read their opinion of you. `validate.py` clean, `test.py` green at **16,626 checks** (D90 to D100 followed on 2026-09-02, from a second and a third wave of the same method). The next thing worth doing is another round of the same method: play it three ways and fix what the players say, because every one of the fourteen decisions since D75 came out of somebody playing rather than somebody guessing.
+> **State as of 2026-09-01.** D86 to D89 landed in one session, from three play-tests run in parallel with three different briefs (a first-timer who does what `now` says, an explorer who ignores it, and a run specialist who types every verb by hand). What they found, in order of size: the story layer was gated on meeting people and nothing ever said to meet anyone, and forty-two scenes declared a district that nothing read; the advice could recommend the same severed run five nights running and never once name Intrusion; a credential warden was an unanswerable wall for the Chromed origin and the board could not see it; and D6's severed-connection cooldown had never been implemented. All fixed, with `test_people_are_the_story`, `test_night_before`, `test_wall_and_clock` and `test_remembered_inside` holding them. Two things were added rather than fixed: the construct that cut you loose is on the route next time, awake and named, and the other runners can turn up inside a network with consequences that read their opinion of you. `validate.py` clean, `test.py` green at **16,637 checks** (D90 to D101 followed on 2026-09-02, from a second and a third wave of the same method). The next thing worth doing is another round of the same method: play it three ways and fix what the players say, because every one of the fourteen decisions since D75 came out of somebody playing rather than somebody guessing.
 >
 > **State as of 2026-08-21, end of the long session.** **Phases 0 through 5 are done, D17's finish line is passed, Phase 7 is closed, and D63 to D65 are the deep work.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **15,311 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone. **D63, the mechanics deep dive** in six parts: every declared number and rider has a reader (`check_reads`); the intrusion layer's holes closed (`mask` decays, sealed records, armour wears, faction style knobs, soft wardens); the catalogue readable (`inspect`, a bare `load`, `fit`, passives once per kind, program riders, six mid-tier parts); the vices capped (Threes, collections, hook-4 warnings); twenty-four relics with histories; and programs held to skill rank plus two. **D64, the play test**: networks in six shapes by doctrine with the brief reading the sums; the city grown to twelve districts (the Stacks, Meridian Row, the Hall) with people, places, threads, events and relics; and the advice made into a chain that ends in a run, with seven dead ends closed and `test_advice` to keep them closed. **D65, the street is real**: encounters in four tiers answered by run, talk, pay or stand with printed checks; warning-then-lethal under the black-ICE contract; two street skills; `errands` (courier, watch, collect, escort); `arrange` to pay a faction for their streets; and the whole of it hooked into travel, rest and the close-call band. Before those, on the same day: D50 to D62, the onboarding layer, decisions that are read, the Deepwater spine, the city deeper, voices and hours, district arcs, the rival bond, the drawn map, the HUD, the tutorial's second half, run conditions, and the rest of the Phase 7 list.
 >
@@ -3465,6 +3465,44 @@ strike landed inside it. A push after the implant has taken is refused
 for free. The shelf line reaches the wire. A payload built for the job is
 advised before the walk when the local shelf has one.
 
+### D101: The job itself
+
+The fifth wave's corporate follower confirmed the pivot-first brief (two
+clean corporate nights in two at posture forty-five once the objective
+rank existed) and found the next gap in one sentence: a build that could
+walk through every door in a corporate network typed `push` seventeen
+times at ten per cent, green throughout, until the trace filled, and
+every screen before the chair had said it was fine. The doors were
+priced, the room was priced, and the job itself was not.
+
+So the objective verb is priced everywhere the doors are. `board <id>`
+has a third read ("the edit lands at 10% with what you carry: Sabotage
+and the payload are the numbers"); the recommender treats a tight verb
+as a lean and a shut one as a wall; the brief's patience covers `push`,
+`wipe` and `pull` as it covers a crack, and after three refusals at under
+even odds it names the rank and leaves; the drop reason reads the verb
+before the chair. The named shelf's guaranteed mask and forger are tier
+two exactly, because "best rating" had landed on a thirteen-thousand-
+credit tier three. With a grudge awake on the route and a mask in the
+deck, the mask goes on at the door.
+
+And the regression pass on a new origin and seed: a collection errand
+could be taken again and again in one shift (nine times, a thousand
+credits and nine experience from one doorway), because the offers are
+deterministic in the window and nothing marked one taken; each is now
+once per window and a collection costs the shift a watch does. The
+escort brief treated the job as a place to reach and left with the
+escort still inside three nights running; an escort is their pace, and
+the brief waits, says whose pace it is, and leaves when they are out.
+Counting quiet ticks at lockdown summoned the hunter the tick after the
+brief said wait: loud ticks only again at both levels, lockdown quicker
+about it, and a watch under lockdown is over. When a bounty walls the
+board and the fee is in the account, the fallback names `burn`. No `jack
+in` follows a `drop`. The breaker nudge stopped saying "every door you
+have failed" to somebody who had failed none. One posture line per run.
+And quitting the game at a street question is standing there, settled
+before it closes, because the street does not wait for a session either.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -4904,3 +4942,10 @@ D99. The epilogue reads the career. `test_and_in_nights`.
 D100. Pivot-first is the corporate answer (nine paid in fifteen against
 one). The first-timer's dead ends, the honest career's deck spiral, the
 lender's work on the board. `test_the_fourth_wave`.
+
+### 2026-09-02 (j): the job itself
+
+D101, from the fifth wave: the objective verb priced on the board, in
+the recommender and in the brief's patience; the errand that paid nine
+times; the escort waited for; the response counting loud ticks only;
+burn named when a bounty walls the board. `test_the_job_itself`.

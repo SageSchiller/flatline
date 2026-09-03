@@ -225,7 +225,20 @@ class Session:
         # out of the question, and keeping them in a conversation they have
         # asked to leave is the thing every wizard ever built gets wrong.
         if text.lower() in ('quit', 'exit'):
-            self.console.say(f'[dim]{q.on_cancel or "Left it there."}[/]')
+            if q.must_answer:
+                # The street does not wait for a session either (D101):
+                # leaving the terminal at a knife in a doorway is standing
+                # there, and it is settled before the game closes.
+                try:
+                    q.handler(self, '')
+                except CommandError as e:
+                    if str(e):
+                        self.console.err(str(e))
+                self.console.footnotes()
+                if self.pending is not None:
+                    self.pending = None
+            else:
+                self.console.say(f'[dim]{q.on_cancel or "Left it there."}[/]')
             self.execute(text)
             return
         # A verb typed at a yes-or-no question is somebody moving on, not

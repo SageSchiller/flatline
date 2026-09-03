@@ -50,8 +50,10 @@ DOOR_PATIENCE = 3
 #: And at one host, across its doors, before the brief prefers another
 #: host, if there is one (D100).
 HOST_PATIENCE = 5
-#: Ticks at red or worse before the response arrives (D92).
+#: Loud ticks at red before the response arrives (D92), and at lockdown
+#: (D101).
 RESPONSE_AFTER = 6
+RESPONSE_AFTER_LOCKDOWN = 3
 #: Trace added per tick before any modifier. Deliberately small: most of the
 #: pressure should come from what the player does, not from the clock alone.
 TRACE_PER_TICK = 1.1
@@ -1135,9 +1137,14 @@ class RunState:
         # counts, loud or not: lockdown is the response, and a rule
         # nobody ever met is not a rule (D97: zero dispatches in seventeen
         # corporate runs).
-        if self.noisy_tick or self.alert == 'lockdown':
+        # Loud ticks only, at both levels (D101: counting quiet ticks at
+        # lockdown summoned the hunter the tick after the brief said
+        # wait). Lockdown is quicker about it.
+        if self.noisy_tick:
             self.red_ticks += 1
-        if self.responded or self.red_ticks < RESPONSE_AFTER:
+        after = (RESPONSE_AFTER_LOCKDOWN if self.alert == 'lockdown'
+                 else RESPONSE_AFTER)
+        if self.responded or self.red_ticks < after:
             return
         pool = ice_content.available('hunter', self.net.faction)
         if not pool:
@@ -1980,7 +1987,34 @@ class RunState:
                 done=False, steps=('jack out',))
 
         where = self._objective_where(target, found)
+        if kind == 'escort' and self.escort:
+            where = (f'{self.escort["name"]} is on {self.escort["node"]}, '
+                     f'{self.escort["state"]}'
+                     + (', carrying it' if self.escort.get('done') else '')
+                     + '. Their pace, not yours: stay in until they are out.')
         steps = self._better_step(self._objective_steps(kind, target, found))
+        # The objective verb has its own patience (D101): a build that
+        # could walk through every door typed `push` seventeen times at
+        # ten per cent, green throughout, until the trace filled.
+        refused = self.failed.get(('verb', kind), 0)
+        if (refused >= DOOR_PATIENCE and steps
+                and steps[0].split()[0] in ('push', 'wipe', 'pull')
+                and self.here == self.net.objective_node):
+            from ..commands.run import push_check, wipe_check
+            payload = programs.best(self.char.deck.loaded, 'payload')
+            check = None
+            if kind == 'wipe' and payload is not None:
+                check = wipe_check(self, payload)
+            elif kind in ('implant', 'corrupt') and payload is not None:
+                check = push_check(self, kind, payload)
+            if check is not None and check.chance < 0.5:
+                skill = 'Sabotage' if kind == 'corrupt' else 'Intrusion'
+                if kind == 'wipe':
+                    skill = 'Sabotage'
+                where = (f'{where} The {kind} has refused {refused} times '
+                         f'at {check.chance:.0%}: {skill} is the number, and '
+                         f'this one is not tonight.').strip()
+                steps = ('jack out',)
         # The night that is over (D88). The brief prices each door against
         # the clock and never the whole job: at lockdown with the trace at
         # ninety it went on saying `wait` and `crack`, one long shot at a
@@ -2162,6 +2196,8 @@ class RunState:
         """
         if self.objective_met():
             return ('jack out',)
+        if kind == 'escort':
+            return self._escort_steps()
         if target is None:
             return ('scan',)
         if not found:
@@ -2169,6 +2205,19 @@ class RunState:
         if self.here != self.net.objective_node:
             return self._approach_steps()
         return self._finish_steps(kind)
+
+    def _escort_steps(self) -> tuple[str, ...]:
+        """An escort is their pace, not yours (D101). The brief treated it
+        as a place to reach, said the zone had not been reached, and left
+        with the escort still inside three nights running."""
+        escort = self.escort
+        if not escort or escort['state'] in ('out', 'dead'):
+            return ('jack out',)
+        if escort['state'] == 'hold':
+            return ('signal move',)
+        if escort.get('done') or escort['state'] == 'leaving':
+            return ('wait',)
+        return ('wait',)
 
     def _search_steps(self) -> tuple[str, ...]:
         """You have not found it. Search, in the order a person would.
@@ -2558,6 +2607,11 @@ class RunState:
                 return ('wait',)
             hunter = self._huntable()
             return (f'strike {hunter}',) if hunter else ('jack out',)
+        if kind == 'surveil' and self.alert == 'lockdown':
+            # Twelve quiet ticks at two and a half times to bank one, and
+            # the response on the way (D101): a watch under lockdown is
+            # over.
+            return ('jack out',)
         if kind == 'surveil' and self.alert in ('red', 'lockdown'):
             if not self._something_hunting():
                 return ('wait',)
@@ -2776,6 +2830,15 @@ class RunState:
         char = self.char
         node = self.node
 
+        # A grudge awake on the route and a mask in the deck: the mask
+        # goes on at the door (D101), before the pivot wakes the room.
+        if (self.tick <= 1 and steps and steps[0] != 'jack out'
+                and self.masked <= 0 and 'masked_door' not in self.spent
+                and programs.best(char.deck.loaded, 'mask') is not None
+                and any(c.grudge and c.alive for n in self.net.nodes.values()
+                        for c in n.ice)):
+            self.spent.add('masked_door')
+            return ('mask',) + steps
         # Something dispatched onto this host (D92) is answered before
         # anything else is typed (D100): the brief went on probing under a
         # Kestrel until the masking took it. Hit it if you carry something

@@ -10544,14 +10544,16 @@ def test_corporate_night() -> None:
         game.char.deck.load('siphon')
         return game, sess, state
 
-    # Lockdown counts every tick; red counts the loud ones.
+    # Lockdown is quicker about the response, but only loud ticks count
+    # (D101: counting quiet ones summoned it the tick after the brief said
+    # wait).
     game, sess, state = fixture()
     state.alert = 'lockdown'
-    state.noisy_tick = False
-    for _ in range(session_mod.RESPONSE_AFTER):
+    state.noisy_tick = True
+    for _ in range(session_mod.RESPONSE_AFTER_LOCKDOWN):
         state._response_tick()
     T.ok(state.responded or not fac_content.BY_KEY['kagawa'],
-         'a quiet lockdown still brings the response')
+         'a loud lockdown brings the response quickly')
 
     # The exit is priced with a tick for the exit.
     game, sess, state = fixture()
@@ -10862,6 +10864,160 @@ def test_the_fourth_wave() -> None:
          'the shelf line reaches the wire')
 
 
+
+def test_the_job_itself() -> None:
+    """D101: the objective verb is priced, the errand pays once, the escort
+    is waited for, and the fifth wave's other findings."""
+    T.section('the job itself')
+    from flatline.commands import city as city_cmd
+    from flatline.commands import guide
+    from flatline.run import network as net_mod
+    from flatline.run import session as session_mod
+    from flatline.world import contracts as contract_world
+    from flatline.world import market as market_mod
+    from flatline.world import street as street_world
+
+    # The verb's odds, on the board and in the recommender.
+    game = Game.new(Character.from_origin('gutter', 'vb'), seed=4242)
+    game.char.library.append('siphon')
+    for key in list(game.char.deck.loaded):
+        game.char.deck.unload(key)
+    game.char.deck.load('crowbar')
+    game.char.deck.load('siphon')
+    odds = contract_world.objective_odds(game.char, 'corrupt', 45)
+    T.ok(0.0 <= odds <= 1.0, 'the objective verb has odds')
+    T.ok(contract_world.objective_odds(game.char, 'surveil', 45) == 1.0,
+         'a watch needs no verb')
+    corrupt = next((c for c in game.city.board if c.objective == 'corrupt'),
+                   None)
+    if corrupt is not None:
+        line = city_cmd.job_read(game.char, corrupt)
+        T.ok('the edit lands at' in line and 'Sabotage' in line,
+             f'the board prices the edit ({line!r})')
+        sess, out = play([f'board {corrupt.cid}'], game=game)
+        T.ok('the job' in out and 'lands at' in out, 'and shows it')
+    game.char.base_skills['sabotage'] = 0
+    for c in game.city.board:
+        c.objective = 'corrupt'
+        c.posture = 50.0
+    pick = city_cmd._suggest_contract(game)
+    T.ok(pick is None or contract_world.objective_odds(game.char, 'corrupt', 50)
+         >= contract_world.DOOR_TIGHT,
+         'a corrupt the build cannot land is not recommended')
+
+    # A collection pays once, and costs a shift.
+    game = Game.new(Character.from_origin('gutter', 'er'), seed=1234)
+    found = False
+    for where in ('marrow', 'ninth', 'glasshouse', 'freeport', 'stacks'):
+        game.city.where = where
+        for shift in range(0, 12, 3):
+            game.city.shift = shift
+            offers = street_world.errands_here(game)
+            idx = next((i for i, o in enumerate(offers) if o['kind'] == 'collect'),
+                       None)
+            if idx is not None:
+                found = True
+                break
+        if found:
+            break
+    if found:
+        game.char.credits = 0
+        before_shift = game.city.shift
+        sess, out = play([f'errands take {idx + 1}'], game=game)
+        again = street_world.errands_here(game)
+        T.ok(all(o['kind'] != 'collect' or o.get('key') !=
+                 offers[idx].get('key') for o in again),
+             'the collection is off the list once taken')
+        T.ok(game.city.shift > before_shift or sess.pending is not None,
+             'and it cost a shift, or a doorway')
+        T.ok(game.city.errands_taken == City.from_dict(game.city.to_dict()).errands_taken,
+             'and the mark survives a save')
+
+    # The escort is waited for.
+    game = Game.new(Character.from_origin('gutter', 'es'), seed=7)
+    net = net_mod.generate(Rng(7).fork('network', 'esc'), 'sixes', 26,
+                           'escort', 1.0)
+    con = quiet_console()
+    state = RunState.begin(net, game.char, Rng(7)('combat'), con,
+                           contract={'objective': 'escort', 'title': 'E'})
+    state.escort = {'key': '', 'name': 'x', 'node': net.entry,
+                    'integrity': 10, 'state': 'working', 'skill': 3,
+                    'done': False, 'progress': 0, 'panic': ''}
+    T.eq(state.brief().steps[0], 'wait', 'while they work, you wait')
+    state.escort['done'] = True
+    state.escort['state'] = 'leaving'
+    T.eq(state.brief().steps[0], 'wait', 'while they leave, you wait')
+    T.ok('Their pace, not yours' in state.brief().where,
+         'and the brief says whose pace it is')
+    state.escort['state'] = 'out'
+    T.eq(state.brief().steps, ('jack out',), 'once they are out, you go')
+
+    # A watch under lockdown is over; the response counts loud ticks only.
+    game = Game.new(Character.from_origin('gutter', 'wl'), seed=7)
+    net = net_mod.generate(Rng(7).fork('network', 'wl'), 'sixes', 26,
+                           'surveil', 1.0)
+    state = RunState.begin(net, game.char, Rng(7)('combat'), quiet_console(),
+                           contract={'objective': 'surveil', 'title': 'W'})
+    state.here = net.objective_node
+    chair = state.net.node(net.objective_node)
+    chair.known = chair.open = chair.mapped = True
+    state.alert = 'lockdown'
+    T.eq(state._finish_steps('surveil'), ('jack out',),
+         'a watch under lockdown is over')
+    state.noisy_tick = False
+    for _ in range(8):
+        state._response_tick()
+    T.ok(not state.responded, 'quiet ticks at lockdown summon nothing')
+    state.noisy_tick = True
+    for _ in range(session_mod.RESPONSE_AFTER_LOCKDOWN):
+        state._response_tick()
+    T.ok(state.responded or not __import__('flatline.content.ice', fromlist=['x']).available('hunter', 'sixes'),
+         'three loud ones do')
+
+    # The shelf's guaranteed mask and forger are tier two exactly.
+    game = Game.new(Character.from_origin('gutter', 'sh'), seed=5150)
+    for shift in range(0, 36, market_mod.REFRESH):
+        game.city.shift = shift
+        game.city.refresh_stock(game.rng)
+        for category in ('mask', 'forger'):
+            where = market_mod.shelf_for(game.city.stock, category, tier=2)
+            T.ok(any(p.tier == 2 for _, p in where),
+                 f'shift {shift}: a tier-two {category} exactly')
+
+    # No jack in after a drop; the fallback names burn when a bounty walls
+    # the board.
+    game = Game.new(Character.from_origin('gutter', 'dr'), seed=4242)
+    contract = game.city.board[0]
+    game.city.accepted = contract.cid
+    game.city.where = contract.district
+    for _ in range(3):
+        game.history.append({'cid': contract.cid, 'title': contract.title,
+                             'faction': contract.target, 'outcome': 'burned',
+                             'done': False, 'alert': 'red', 'ticks': 10,
+                             'trace': 25, 'pay': 0, 'short': 0, 'held': 0,
+                             'reached': False, 'chair': False, 'day': 1,
+                             'shift': 0, 'objective': contract.objective})
+    sess = Session(console=quiet_console(), slot='dr'); sess.game = game
+    _, steps, _ = guide.what_now(sess)
+    T.ok(any(cmd == 'drop' for cmd, _ in steps), 'drop is a step')
+    T.ok(not any(cmd == 'jack in' for cmd, _ in steps),
+         'and no jack in follows it')
+
+    # Quitting at a street question is standing there.
+    from flatline.content import street as street_content
+    enc = next(e for e in street_content.ENCOUNTERS
+               if any(o.key == 'stand' for o in e.options))
+    game = Game.new(Character.from_origin('gutter', 'qs'), seed=4242)
+    sess = Session(console=quiet_console(), slot='qs'); sess.game = game
+    sess.console.start_capture()
+    street_world.begin(sess, enc, 'sixes', 50)
+    T.ok(sess.pending is not None, 'a street question is waiting')
+    sess.execute('quit')
+    out = ui.plain(sess.console.end_capture())
+    T.ok(sess.pending is None and not sess.running,
+         'quit settles it and leaves')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
@@ -10873,6 +11029,7 @@ SUITES = (
     test_remembered_inside, test_second_look, test_second_wave,
     test_the_way_in, test_more_to_say, test_the_door, test_corporate_night,
     test_named_shelf, test_and_in_nights, test_the_fourth_wave,
+    test_the_job_itself,
     test_economy,
     test_combat,
     test_advancement,

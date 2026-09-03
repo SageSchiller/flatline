@@ -175,8 +175,12 @@ def restock(rng: Stream, district_key: str, shift: int) -> list[Listing]:
                    if 'market' in d.services and d.max_tier >= SHELF_TIER]
         turn = (shift // REFRESH + markets.index(district_key)) % len(SHELF_ROTATION)
         category = SHELF_ROTATION[turn]
+        # Exactly tier two for the two that decide hard work: "best
+        # rating" landed on a thirteen-thousand-credit tier three (D101).
         pool = [p for p in programs.by_category(category)
-                if not p.unique and SHELF_TIER <= p.tier <= district.max_tier]
+                if not p.unique and (p.tier == SHELF_TIER
+                                     if category in ('mask', 'forger')
+                                     else SHELF_TIER <= p.tier <= district.max_tier)]
         if pool:
             best = max(pool, key=lambda p: (p.rating, -p.price))
             if ('program', best.key) not in seen:

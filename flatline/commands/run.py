@@ -573,6 +573,9 @@ def _resolve(sess) -> None:
         'found': bool(state.net.objective_node
                       and (state.net.node(state.net.objective_node)
                            or state.node).known),
+        # How many times the objective verb itself refused (D101).
+        'refused': int(state.failed.get(
+            ('verb', contract.objective if contract else ''), 0)),
         # Whether you stood on the objective at all: a badge short of a
         # zone you reached anyway was not what ended the night.
         'reached': bool(state.net.objective_node
@@ -1638,6 +1641,7 @@ def cmd_push(sess, args) -> None:
     else:
         c.err('It will not take.')
         c.say(check.explain())
+        state.failed[('verb', kind)] = state.failed.get(('verb', kind), 0) + 1
 
 
 @command('wipe', 'Destroy an asset.',
@@ -1678,6 +1682,7 @@ def cmd_wipe(sess, args) -> None:
               f'the thing it was meant to delete is not.')
         c.say(check.explain())
         state.leave_residue(3, node)
+        state.failed[('verb', 'wipe')] = state.failed.get(('verb', 'wipe'), 0) + 1
         return
     asset.taken = True
     state.done['wipe'] = asset.uid

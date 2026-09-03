@@ -568,7 +568,14 @@ def errands_here(game) -> list[dict]:
         pay = WATCH_BASE + here.security * 2
         out.append({'kind': 'watch', 'at': where, 'pay': int(pay),
                     'from': city.where})
-    return out
+    # Once each per window (D101). The offers are deterministic in the
+    # district and the window so looking twice shows the same two, which
+    # also meant taking twice paid twice.
+    window = f'{city.where}:{city.shift // 3}'
+    for i, job in enumerate(out):
+        job['key'] = f'{window}:{i}'
+    return [job for job in out
+            if job['key'] not in getattr(city, 'errands_taken', ())]
 
 
 #: Escort pay per hop, and what a collector keeps of what they collect.
