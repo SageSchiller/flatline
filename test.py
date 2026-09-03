@@ -11338,6 +11338,44 @@ def test_more_palettes() -> None:
          'a mono terminal is told, not shown nothing')
 
 
+
+def test_more_prompts() -> None:
+    """D107: three more prompt shapes, and the gallery renders them."""
+    T.section('more prompts')
+    from flatline import prompt as prompt_mod
+    from flatline.content import rice as rice_content
+    caps = Caps(ColorLevel.NONE, GlyphLevel.UNICODE, 80, theme.NEUTRAL)
+    for key in ('angle', 'tag', 'rail'):
+        T.ok(key in prompt_mod.BY_KEY, f'{key} is a prompt style')
+        T.ok(any(c.kind == 'prompt' and c.key == key
+                 for c in rice_content.COSMETICS),
+             f'{key} is an earnable prompt')
+        # The hard rule: every style shows the trace in a run.
+        run = prompt_mod.sample_run(key, caps)
+        T.ok('62' in run, f'{key} keeps the trace in a run')
+        # And it renders itself with no character loaded, not Classic.
+        game = Game.new(Character.from_origin('gutter', 'p'), seed=1)
+        sess = Session(console=quiet_console(), slot='pp'); sess.game = game
+        line = prompt_mod.render(sess, key)
+        T.ok(line and line != prompt_mod.render(sess, 'classic'),
+             f'{key} in the city is its own shape')
+
+    # `rice gallery prompt` renders each prompt as a prompt.
+    from flatline import save as save_mod
+    save_mod.write_meta({**save_mod.read_meta(), 'runs_completed': 99,
+                         'clean_runs': 99, 'errands_done': 30, 'shell': {}})
+    game = Game.new(Character.from_origin('gutter', 'g'), seed=1)
+    con = Console(Caps(ColorLevel.TRUE, GlyphLevel.UNICODE, 80,
+                       theme.CYBERPUNK_NEON), stream=io.StringIO())
+    sess = Session(console=con, slot='galp'); sess.game = game
+    con.start_capture()
+    sess.execute('rice gallery prompt')
+    out = strip_ansi(con.end_capture())
+    T.ok('prompt,' in out, 'the gallery knows the kind')
+    T.ok('scan --quiet' in out, 'and renders each as a real prompt')
+    T.ok('Angle' in out and 'Rail' in out, 'including the new ones')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
@@ -11351,6 +11389,7 @@ SUITES = (
     test_named_shelf, test_and_in_nights, test_the_fourth_wave,
     test_the_job_itself, test_pictures, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
+    test_more_prompts,
     test_economy,
     test_combat,
     test_advancement,

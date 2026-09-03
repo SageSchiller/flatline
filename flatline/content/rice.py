@@ -12,7 +12,7 @@ putting it here rather than in `Character`: you lose everything else, and the
 terminal you spent a week getting right is still yours when you sit down with
 somebody new. The city takes the runner. It does not get the shell.
 
-Seven axes, seventy-one pieces:
+Eight axes, 86 pieces:
 
 - **palette** is the colour scheme, and the one people care about most.
 - **frame** is the box-drawing: rules, headers, table lines.
@@ -26,9 +26,12 @@ Seven axes, seventy-one pieces:
   fixed tear, and the braille one repacks the same pixels at two by four
   dots per cell.
 - **hud** is whether a line of readout follows every action that spends a
-  tick inside a run (D59). Four states, all yours from the start: it is a
-  preference about how much the stream tells you, not a reward, and the
-  prompt carries the trace whichever you choose.
+  tick inside a run (D59). Five states, all yours from the start (the panel
+  is earned): a preference about how much the stream tells you, not a
+  reward, and the prompt carries the trace whichever you choose.
+- **render** is how a faction's cyberspace and your own icon arrive on
+  connect (D102, D105): a picture two pixels to a cell where the terminal
+  can, the text mark where it cannot, or nothing.
 
 **Nothing here is allowed to affect play**, and `validate.py` enforces it in
 two directions: no cosmetic carries an effects dict, and no unlock condition
@@ -245,6 +248,18 @@ COSMETICS: tuple[Cosmetic, ...] = (
              'to read and never got round to changing it.',
              needs=('clean', 8),
              hint='Eight runs nobody ever knew about.'),
+    Cosmetic('angle', 'prompt', 'Angle',
+             'Guillemets, and the trace inside them. Compact.',
+             needs=('runs', 4),
+             hint='Four contracts.'),
+    Cosmetic('tag', 'prompt', 'Tag',
+             'Place, hour and account as labels, the way a log line reads.',
+             needs=('errands', 8),
+             hint='Eight pieces of street work.'),
+    Cosmetic('rail', 'prompt', 'Rail',
+             'Segments divided by an upright, like a rack readout.',
+             needs=('clean', 4),
+             hint='Four runs nobody ever knew about.'),
 
     # ------------------------------------------------------------------ frame
     Cosmetic('single', 'frame', 'Single',

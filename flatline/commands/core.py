@@ -1449,11 +1449,18 @@ def _rice_gallery(sess, kind: str) -> None:
             c.blank()
             c.raw(f'[accent]{item.name}[/]'
                   + (' [dim](worn)[/]' if worn else ''))
-            c.raw('  ' + c.bar(0.62, 'trace', 18, 'trace 62/100')
-                  + '   [warn]AMBER[/]')
-            c.raw('  [ok]' + c.caps.g('check') + ' ice down[/]  '
-                  '[err]black ICE[/]  [accent]ap-arc21[/]  '
-                  '[credit]4,200c[/]  [residue]18 residue[/]')
+            if kind == 'prompt':
+                # The one axis a status line does not show: render the
+                # prompt itself, in a run, so the gallery of prompts is a
+                # gallery of prompts.
+                line = prompt_mod.sample_run(item.key, c.caps)
+                c.raw(f'  [dim]{line}[/]scan --quiet')
+            else:
+                c.raw('  ' + c.bar(0.62, 'trace', 18, 'trace 62/100')
+                      + '   [warn]AMBER[/]')
+                c.raw('  [ok]' + c.caps.g('check') + ' ice down[/]  '
+                      '[err]black ICE[/]  [accent]ap-arc21[/]  '
+                      '[credit]4,200c[/]  [residue]18 residue[/]')
         finally:
             c.caps = was
 
@@ -1502,7 +1509,7 @@ def _preview(sess, look: dict) -> None:
 
 @command('rice', 'Customise the shell. Earned, and yours to keep.',
          group='session', bare=True, aliases=('shell',),
-         usage='rice [kind] [name] [gallery] [--try] [--preview] [--reset]',
+         usage='rice [[kind] [[name] [[gallery] [[--try] [[--preview] [[--reset]',
          detail='Eight axes: palette, prompt, frame, bars, marks, banner, '
                 'hud, render. Most '
                 'of them are earned by playing, and everything you earn is '
@@ -1513,7 +1520,7 @@ def _preview(sess, look: dict) -> None:
                 'care whether you live, a colour scheme should be free.\n\n'
                 '`rice <kind> <name> --try` shows you a screen of real output '
                 'in it without keeping it, `rice --preview` does the same '
-                'for what you are already wearing, and `rice gallery [kind]` '
+                'for what you are already wearing, and `rice gallery [[kind]` '
                 'renders the same lines under every one you own at once.')
 def cmd_rice(sess, args) -> None:
     c = sess.console

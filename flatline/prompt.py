@@ -59,6 +59,18 @@ STYLES: tuple[Style, ...] = (
     Style('terse', 'Terse',
           'For people who have played enough that the prompt is furniture.',
           'mrw» '),
+    Style('angle', 'Angle',
+          'Guillemets and nothing else. The compact form for people who read '
+          'the trace and not the words.',
+          '‹marrow morning 1,200c› '),
+    Style('tag', 'Tag',
+          'The state as labels, the way a log line reads: place, hour, and '
+          'what is in the account.',
+          '#marrow @morning ¤1,200 > '),
+    Style('rail', 'Rail',
+          'Segments divided by an upright, like the readout on a rack of '
+          'equipment that has one job.',
+          'marrow┃morning┃1,200c┃ '),
     Style('json', 'Structured',
           'The state as a record. Somebody built this deck for machines to '
           'read and never got round to changing it.',
@@ -115,6 +127,9 @@ def render(sess, style: str = DEFAULT) -> str:
         'terse': 'fl» ',
         'json': '{state:none} > ',
         'caret': '<flatline> ',
+        'angle': '‹flatline› ',
+        'tag': '#flatline > ',
+        'rail': 'flatline┃ ',
     }.get(key, 'flatline > ')
 
 
@@ -147,6 +162,17 @@ def _shape(key: str, where: str, mid: str, tail: str, slug: str, short: str,
         return '{' + fields + '} > '
     if key == 'caret':
         return f'<{where}|{mid}|{tail}> '
+    if key == 'angle':
+        return f'‹{where} {mid} {tail}› '
+    if key == 'tag':
+        # The trace is not optional in a run (D107): the account becomes the
+        # trace, kept, and only the city form abbreviates the money.
+        if root == 'run':
+            return f'#{where} @{mid} {tail} > '
+        c = tail.rstrip('c').replace(',', '')
+        return f'#{where} @{mid} ¤{c} > '
+    if key == 'rail':
+        return f'{where}┃{mid}┃{tail}┃ '
     return f'{where} {bullet} {mid} {bullet} {tail} > '
 
 

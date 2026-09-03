@@ -3601,6 +3601,19 @@ the only honest way to choose between colours is to see them next to each
 other rendering the actual game rather than a swatch. It refuses a
 colourless terminal rather than printing a page of nothing.
 
+### D107: More prompts, and a gallery that renders them
+
+Three more prompt shapes, the most-riced object in the practice: Angle
+(guillemets and the trace inside them), Tag (place, hour and account as
+labels, the way a log line reads), and Rail (segments divided by an
+upright, like a rack readout). Each keeps the hard rule that a run prompt
+shows the trace, checked against a live run by validate. And rice gallery,
+which renders a status line under every earned scheme, renders the prompt
+itself for the prompt axis, so a gallery of prompts is a gallery of
+prompts rather than the same status line eleven times. The rice module
+header caught up: eight axes now, not seven, and the piece count is
+computed rather than remembered.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -5076,3 +5089,7 @@ after the faction's cyberspace and shown on the `icon` screen.
 D106. Six new palettes (Sendai, Meridian, Chorus, Freeport, Ember, Void),
 each earned differently, and `rice gallery` to see them all live.
 `test_more_palettes`.
+### 2026-09-03 (c): more prompts
+
+D107. Angle, Tag and Rail prompt shapes, and rice gallery renders the
+prompt for the prompt axis. test_more_prompts.
