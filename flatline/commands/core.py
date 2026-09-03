@@ -627,11 +627,52 @@ def _epilogue(sess) -> None:
     from ..content import legacy
     game, c = sess.game, sess.console
     lines = legacy.epilogue(game.story.flags)
-    if not lines:
-        return
-    c.blank()
-    c.rule('what you left behind, in people', role='accent2')
-    c.bullets(lines, role='dim')
+    if lines:
+        c.blank()
+        c.rule('what you left behind, in people', role='accent2')
+        c.bullets(lines, role='dim')
+    # And in nights (D99). The epilogue read the decisions back and not
+    # the career, and a character who had run nine times, been emptied by
+    # a collection and burned a name ended as a list of other people.
+    career = career_lines(game)
+    if career:
+        c.blank()
+        c.rule('and in nights', role='accent2')
+        c.bullets(career, role='dim')
+
+
+def career_lines(game) -> list[str]:
+    """Two or three lines the log can say about a career, for the end."""
+    history = game.history
+    if not history:
+        return []
+    out: list[str] = []
+    done = [h for h in history if h.get('done')]
+    severed = [h for h in history if h.get('outcome') == 'severed']
+    names = len(game.aliases)
+    out.append(f'{len(history)} night{"s" if len(history) != 1 else ""} in '
+               f'the chair, {len(done)} of them paid, under '
+               f'{names} name{"s" if names != 1 else ""}.')
+    if done:
+        best = max(done, key=lambda h: int(h.get('pay', 0)))
+        who = (fac_content.BY_KEY[best['faction']].short
+               if best.get('faction') in fac_content.BY_KEY else 'somebody')
+        out.append(f'The best of them was {best.get("title") or "a night "
+                   "nobody was paying for"}, against {who}, on day '
+                   f'{best.get("day", 0)}: {int(best.get("pay", 0)):,}c.')
+    if severed:
+        worst = max(severed, key=lambda h: int(h.get('trace', 0)))
+        who = (fac_content.BY_KEY[worst['faction']].short
+               if worst.get('faction') in fac_content.BY_KEY else 'somebody')
+        from ..content import ice as ice_content
+        held = game.city.grudges.get(worst.get('faction', ''), '')
+        it = ice_content.BY_KEY.get(held)
+        out.append(f'The worst was day {worst.get("day", 0)}, when {who} '
+                   f'cut the line at {worst.get("alert", "red")}'
+                   + (f', and a {it.name} has been running since'
+                      if it is not None else '')
+                   + '.')
+    return out
 
 
 def _bequeath(sess, how: str) -> None:

@@ -10660,6 +10660,31 @@ def test_named_shelf() -> None:
              f'the mask advice names a shelf ({[c for c, _ in steps]})')
 
 
+
+def test_and_in_nights() -> None:
+    """D99: the ending reads the career, not only the decisions."""
+    T.section('and in nights')
+    from flatline.commands import core as core_cmd
+    game = Game.new(Character.from_origin('gutter', 'ep'), seed=4242)
+    T.eq(core_cmd.career_lines(game), [], 'nothing to say before a night')
+    game.history.extend([
+        {'cid': 'c1', 'title': 'Small Favour', 'faction': 'sixes',
+         'outcome': 'clean', 'done': True, 'pay': 1315, 'day': 1,
+         'alert': 'green', 'trace': 43, 'ticks': 16, 'objective': 'surveil'},
+        {'cid': 'c2', 'title': 'Loose Thread', 'faction': 'switchboard',
+         'outcome': 'severed', 'done': False, 'pay': 0, 'day': 2,
+         'alert': 'lockdown', 'trace': 100, 'ticks': 14, 'objective': 'surveil'},
+    ])
+    game.city.grudges['switchboard'] = 'drover'
+    lines = core_cmd.career_lines(game)
+    T.eq(len(lines), 3, 'three lines for a career with a best and a worst')
+    T.ok('2 nights' in lines[0] and '1 of them paid' in lines[0],
+         'the count')
+    T.ok('Small Favour' in lines[1] and '1,315c' in lines[1], 'the best')
+    T.ok('day 2' in lines[2] and 'Drover' in lines[2],
+         f'the worst, with the construct by name ({lines[2]!r})')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
@@ -10670,7 +10695,7 @@ SUITES = (
     test_people_are_the_story, test_night_before, test_wall_and_clock,
     test_remembered_inside, test_second_look, test_second_wave,
     test_the_way_in, test_more_to_say, test_the_door, test_corporate_night,
-    test_named_shelf,
+    test_named_shelf, test_and_in_nights,
     test_economy,
     test_combat,
     test_advancement,
