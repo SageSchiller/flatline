@@ -601,3 +601,173 @@ _ICON_RENDERS = {
     'deadname': _icon_deadname, 'process': _icon_process,
     'janitor': _icon_janitor, 'meter': _icon_meter,
 }
+
+
+# --------------------------------------------------------------------------
+# a portrait (D108)
+# --------------------------------------------------------------------------
+#
+# Appearance is a build axis with 102 features (D33) and it was a sentence.
+# This composes a head-and-shoulders bust from the ones that can be drawn:
+# the build sets the shoulders, the dress the collar, the face the head, the
+# eyes and hair and marks the rest. It is not a likeness of anybody; it is a
+# reading of the feature keys, deterministic from them, so the same look
+# always draws the same bust. Skin is a neutral tone chosen from the whole
+# look's hash rather than from any one feature, because none of the features
+# name it and the picture should not invent one. Nothing here matters (D35).
+
+PORTRAIT_WIDTH = 28
+PORTRAIT_HEIGHT = 34
+
+_SKIN = ((222, 184, 152), (198, 160, 130), (170, 132, 104), (140, 106, 82),
+         (110, 84, 66), (232, 204, 180), (186, 150, 128))
+_HAIR_COL = {
+    'cropped': (60, 52, 46), 'shaved': (70, 62, 56), 'long': (52, 44, 40),
+    'bleached': (226, 214, 180), 'dyed': (200, 60, 140), 'greying': (150, 150, 156),
+    'locked': (40, 34, 30), 'undercut': (50, 44, 40), 'thinning': (110, 104, 98),
+    'braided': (60, 46, 38), 'wig': (90, 60, 120), 'unkempt': (66, 56, 48),
+    'severe': (30, 28, 30), 'none': None,
+}
+_DRESS_COL = {
+    'grey': (86, 90, 98), 'workwear': (74, 82, 96), 'corporate': (44, 52, 74),
+    'armoured': (54, 58, 66), 'street': (96, 72, 60), 'clinical': (214, 218, 224),
+    'expensive': (30, 32, 44), 'layered': (80, 68, 60), 'devotional': (72, 56, 92),
+    'salvage': (92, 84, 66), 'immaculate': (236, 236, 240), 'nothing': None,
+    'nightwatch': (36, 44, 58), 'bright': (210, 90, 70),
+}
+_EYE_COL = {
+    'brown': (90, 60, 40), 'grey': (130, 138, 148), 'tired': (110, 90, 78),
+    'mismatched': (90, 140, 200), 'optics': (60, 240, 255), 'blackout': (10, 10, 14),
+    'pale': (170, 190, 200), 'shielded': (40, 46, 54), 'flickering': (120, 230, 200),
+    'warm': (140, 90, 50), 'narrow': (80, 66, 54), 'reconstructed': (200, 210, 220),
+}
+
+
+def render_portrait(look: dict, width: int = PORTRAIT_WIDTH,
+                    height: int = PORTRAIT_HEIGHT):
+    """A head-and-shoulders bust composed from an appearance dict."""
+    look = look or {}
+    key = ':'.join(f'{k}={look.get(k, "")}' for k in sorted(look))
+    rng = random.Random('portrait:' + key)
+    pix = _blank(width, height)
+    cx = width // 2
+    skin = _SKIN[rng.randrange(len(_SKIN))]
+    shadow = shade(skin, 0.78)
+
+    # -- shoulders and collar, from build and dress --------------------
+    build = look.get('build', 'unremarkable')
+    span = {'slight': 0.30, 'wiry': 0.32, 'tall': 0.34, 'heavy': 0.46,
+            'soft': 0.42, 'compact': 0.40, 'stooped': 0.34, 'rangy': 0.34,
+            'gaunt': 0.30, 'blocky': 0.46, 'asymmetric': 0.40}.get(build, 0.38)
+    dress = look.get('dress', 'grey')
+    coat = _DRESS_COL.get(dress, (86, 90, 98))
+    sh_top = int(height * 0.66)
+    if coat is not None:
+        for y in range(sh_top, height):
+            t = (y - sh_top) / max(1, height - sh_top)
+            half = int((0.22 + span * (0.5 + 0.5 * t)) * width)
+            off = 1 if (build == 'asymmetric' and y % 2) else 0
+            for x in range(cx - half, cx + half + 1):
+                _put(pix, x + off, y, coat if (x + y) % 9 else shade(coat, 1.12))
+        # a collar notch
+        for y in range(sh_top, sh_top + 3):
+            for x in range(cx - 2, cx + 3):
+                _put(pix, x, y, shade(coat, 0.7))
+
+    # -- head, from face ----------------------------------------------
+    face = look.get('face', 'plain')
+    hw = {'sharp': 6, 'broad': 8, 'young': 6, 'severe': 6, 'gaunt': 5,
+          'still': 7}.get(face, 7)
+    hh = int(height * 0.42)
+    hcy = int(height * 0.30)
+    for y in range(hcy - hh // 2, hcy + hh // 2 + 1):
+        ny = (y - hcy) / (hh / 2)
+        w_at = hw * (1 - 0.35 * ny * ny) ** 0.5 if abs(ny) <= 1 else 0
+        w_at = int(round(w_at))
+        for x in range(cx - w_at, cx + w_at + 1):
+            _put(pix, x, y, skin)
+        # a cheek shadow on the far side
+        if w_at:
+            _put(pix, cx + w_at, y, shadow)
+            if face == 'lopsided':
+                _put(pix, cx - w_at, y, shade(skin, 0.9))
+    jaw = hcy + hh // 2
+    # -- neck: from the jaw down to the collar, so the head is attached --
+    for y in range(jaw - 1, sh_top + 1):
+        for x in range(cx - 2, cx + 3):
+            _put(pix, x, y, shadow if x in (cx - 2, cx + 2) else shade(skin, 0.9))
+    # face-specific marks
+    if face in ('scarred', 'worn'):
+        for y in range(hcy - 2, hcy + 3):
+            _put(pix, cx - hw + 2, y, shade(skin, 0.6))
+    if face == 'burned':
+        for y in range(hcy - 3, jaw):
+            for x in range(cx + 1, cx + hw):
+                if rng.random() < 0.4:
+                    _put(pix, x, y, shade(skin, 0.7))
+
+    # -- eyes, from eyes ----------------------------------------------
+    eyes = look.get('eyes', 'tired')
+    ec = _EYE_COL.get(eyes, (110, 90, 78))
+    ey = hcy - 1
+    for ex in (cx - hw // 2 - 1, cx + hw // 2):
+        _put(pix, ex, ey, ec)
+        if eyes in ('optics', 'flickering', 'reconstructed'):
+            _put(pix, ex, ey, ec)
+            _put(pix, ex - 1, ey, shade(ec, 0.6))
+            _put(pix, ex + 1, ey, shade(ec, 0.6))
+        elif eyes == 'blackout':
+            _put(pix, ex - 1, ey, ec)
+            _put(pix, ex, ey, ec)
+    if eyes == 'mismatched':
+        _put(pix, cx + hw // 2, ey, (200, 120, 60))
+    # a brow line
+    for x in range(cx - hw + 1, cx + hw):
+        if (x - cx) % 2 == 0:
+            _put(pix, x, ey - 2, shade(skin, 0.72))
+    # nose and mouth, minimal
+    _put(pix, cx, hcy + 1, shadow)
+    for x in range(cx - 1, cx + 2):
+        _put(pix, x, hcy + hh // 2 - 1,
+             shade(skin, 0.62) if eyes != 'blackout' else shade(skin, 0.7))
+
+    # -- hair, from hair ----------------------------------------------
+    hair = look.get('hair', 'cropped')
+    hc = _HAIR_COL.get(hair, (60, 52, 46))
+    if hc is not None and hair not in ('shaved', 'none'):
+        top = hcy - hh // 2
+        length = {'long': int(height * 0.22), 'braided': int(height * 0.20),
+                  'locked': int(height * 0.18), 'thinning': 1,
+                  'undercut': 2, 'severe': 2}.get(hair, 3)
+        for y in range(top - 2, top + 2):
+            for x in range(cx - hw - 1, cx + hw + 2):
+                if 0 <= y and abs(x - cx) <= hw + 1:
+                    _put(pix, x, y, hc)
+        for y in range(top, top + length):
+            for x in (cx - hw - 1, cx + hw + 1):
+                _put(pix, x, y, hc)
+        if hair == 'bleached' or hair == 'dyed':
+            _put(pix, cx - 1, top - 1, shade(hc, 1.2))
+    if hair == 'shaved':
+        for x in range(cx - hw, cx + hw + 1):
+            _put(pix, x, hcy - hh // 2, shade(skin, 0.85))
+
+    # -- marks, from marks --------------------------------------------
+    marks = look.get('marks', 'ports')
+    if marks == 'ports':
+        _put(pix, cx - hw, hcy - 1, (120, 200, 220))
+        _put(pix, cx - hw, hcy, (90, 160, 190))
+    elif marks in ('ink', 'gang', 'religious', 'tally'):
+        col = {'ink': (40, 60, 120), 'gang': (180, 40, 60),
+               'religious': (200, 180, 90), 'tally': (60, 60, 66)}[marks]
+        for y in range(hcy, jaw - 1):
+            _put(pix, cx - hw + 1, y, col)
+    elif marks in ('subdermal', 'corporate', 'clinic', 'surgical'):
+        col = (150, 160, 172)
+        for x in range(cx + 1, cx + hw):
+            _put(pix, x, hcy - hh // 2 + 1, col)
+    elif marks in ('burns', 'brand'):
+        for y in range(hcy, jaw):
+            if rng.random() < 0.5:
+                _put(pix, cx + hw - 1, y, shade(skin, 0.6))
+    return pix

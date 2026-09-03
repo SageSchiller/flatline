@@ -319,6 +319,7 @@ def cmd_char(sess, args) -> None:
     origin = char.origin_data
 
     c.header(char.handle, origin.name + (f', {game.over}' if game.over else ''))
+    _portrait(sess, char)
     c.kv([
         (('ran as', f'[dim]{game.alias.name}[/] [dim]({game.alias.runs} run'
                     f'{"s" if game.alias.runs != 1 else ""}), and does not '
@@ -626,6 +627,19 @@ def cmd_deck(sess, args) -> None:
         c.blank()
         c.warn('No thermal headroom. Overclocking is not available until the '
                'cooling outpaces the components.')
+
+
+def _portrait(sess, char) -> None:
+    """The bust drawn from the character's appearance (D108), where the
+    terminal can and the render mode allows. The written description that
+    follows is always the real content, so a text terminal loses nothing."""
+    from .. import anim, pixels
+    c = sess.console
+    if sess.render_mode in ('picture', 'wide') and pixels.can_render(c.caps):
+        pix = pixels.render_portrait(char.look)
+        if pix:
+            c.blank()
+            anim.reveal(c, pix, '', quick=True)
 
 
 def _icon_picture(sess, key: str) -> None:
@@ -6285,6 +6299,7 @@ def cmd_self(sess, args) -> None:
     label, why = char.memorable_band
 
     c.header(char.handle, f'running as {game.alias.name}')
+    _portrait(sess, char)
     c.blank()
     for line in appearance.describe(char.look, char.marks):
         c.say(line)

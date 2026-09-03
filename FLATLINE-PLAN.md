@@ -3614,6 +3614,25 @@ prompts rather than the same status line eleven times. The rice module
 header caught up: eight axes now, not seven, and the piece count is
 computed rather than remembered.
 
+### D108: A portrait
+
+Appearance is a build axis with a hundred and two features across eight
+slots (D33), and on the sheet it was a sentence. `pixels.render_portrait`
+composes a head-and-shoulders bust from the ones that can be drawn: the
+build sets the shoulders, the dress the collar and its colour, the face
+the head and its scars, the eyes their colour and whether they are optics
+or blackout or mismatched, the hair its shape and colour, the marks the
+ports and ink and subdermal panels. It is not a likeness of anybody; it
+is a reading of the feature keys, deterministic from them, so the same
+look always draws the same bust, and the skin is a neutral tone chosen
+from the whole look's hash rather than from any one feature, because none
+of the features name it and the picture should not invent one. It is
+drawn on `char` and `self` where the terminal and the render mode allow,
+above the written description, which stays the real content so a text
+terminal loses nothing. `rice render` governs it with the faction
+pictures and the icon, and nothing about it touches presence, heat, or
+any other number (D35).
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -5093,3 +5112,7 @@ each earned differently, and `rice gallery` to see them all live.
 
 D107. Angle, Tag and Rail prompt shapes, and rice gallery renders the
 prompt for the prompt axis. test_more_prompts.
+### 2026-09-03 (d): a portrait
+
+D108. A bust drawn from the appearance features, on the char and self
+screens. test_the_portrait.

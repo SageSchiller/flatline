@@ -11376,6 +11376,59 @@ def test_more_prompts() -> None:
     T.ok('Angle' in out and 'Rail' in out, 'including the new ones')
 
 
+
+def test_the_portrait() -> None:
+    """D108: a bust drawn from the appearance features."""
+    T.section('the portrait')
+    from flatline import pixels
+    from flatline.content import appearance as appearance_content
+    from flatline.content import origins
+    true_caps = Caps(ColorLevel.TRUE, GlyphLevel.UNICODE, 80, theme.CYBERPUNK_NEON)
+    c16 = Caps(ColorLevel.ANSI16, GlyphLevel.UNICODE, 80, theme.CYBERPUNK_NEON)
+
+    look = appearance_content.default()
+    pix = pixels.render_portrait(look)
+    T.ok(pix and len(pix) == pixels.PORTRAIT_HEIGHT
+         and all(len(r) == pixels.PORTRAIT_WIDTH for r in pix),
+         'the portrait renders at its size')
+    T.eq(pix, pixels.render_portrait(look), 'and is deterministic from the look')
+    T.ok(pixels.render_portrait(look) != pixels.render_portrait(
+        {**look, 'dress': 'immaculate', 'hair': 'bleached', 'eyes': 'optics'}),
+         'a different look draws a different bust')
+    T.eq(pixels.render_portrait({}), pixels.render_portrait({}),
+         'an empty look is stable')
+    T.eq(len(pixels.blit(pix, true_caps)), pixels.PORTRAIT_HEIGHT // 2,
+         'two pixels a cell')
+    T.eq(pixels.blit(pix, c16), [], 'and nothing at sixteen colours')
+
+    # Every origin's starting look, and every single feature value, draws
+    # without crashing.
+    for o in origins.ORIGINS:
+        T.ok(pixels.render_portrait(dict(o.look)),
+             f'{o.key} draws a portrait')
+    base = appearance_content.default()
+    for slot in appearance_content.SLOT_KEYS:
+        for feat in appearance_content.BY_SLOT.get(slot, ()):
+            pix = pixels.render_portrait({**base, slot: feat.key})
+            T.ok(pix, f'{slot}={feat.key} draws')
+
+    # `char` and `self` draw it in truecolour and do not at sixteen.
+    game = Game.new(Character.from_origin('chromed', 'pt'), seed=5150)
+    con = Console(true_caps, stream=io.StringIO())
+    sess = Session(console=con, slot='pt'); sess.game = game
+    con.start_capture(); sess.execute('char'); out = con.end_capture()
+    T.ok('▀' in out, 'char draws the portrait in truecolour')
+    con.start_capture(); sess.execute('self'); out = con.end_capture()
+    T.ok('▀' in out, 'self draws it too')
+    # The written description still carries the real content.
+    T.ok(any(w in strip_ansi(out) for w in ('wiry', 'chrome', 'eyes', 'built')),
+         'and the words are still there')
+    con16 = Console(c16, stream=io.StringIO())
+    s16 = Session(console=con16, slot='pt16'); s16.game = game
+    con16.start_capture(); s16.execute('char'); out16 = con16.end_capture()
+    T.ok('38;2;' not in out16, 'no portrait at sixteen colours')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
@@ -11389,7 +11442,7 @@ SUITES = (
     test_named_shelf, test_and_in_nights, test_the_fourth_wave,
     test_the_job_itself, test_pictures, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
-    test_more_prompts,
+    test_more_prompts, test_the_portrait,
     test_economy,
     test_combat,
     test_advancement,
