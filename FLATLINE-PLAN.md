@@ -4,7 +4,7 @@ tags:
   - project-plan
   - game
 created: 2026-08-12
-updated: 2026-09-01
+updated: 2026-09-03
 ---
 
 # flatline: Build Plan and Progress Log
@@ -12,7 +12,7 @@ updated: 2026-09-01
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-09-01.** D86 to D89 landed in one session, from three play-tests run in parallel with three different briefs (a first-timer who does what `now` says, an explorer who ignores it, and a run specialist who types every verb by hand). What they found, in order of size: the story layer was gated on meeting people and nothing ever said to meet anyone, and forty-two scenes declared a district that nothing read; the advice could recommend the same severed run five nights running and never once name Intrusion; a credential warden was an unanswerable wall for the Chromed origin and the board could not see it; and D6's severed-connection cooldown had never been implemented. All fixed, with `test_people_are_the_story`, `test_night_before`, `test_wall_and_clock` and `test_remembered_inside` holding them. Two things were added rather than fixed: the construct that cut you loose is on the route next time, awake and named, and the other runners can turn up inside a network with consequences that read their opinion of you. `validate.py` clean, `test.py` green at **16917 checks** (D90 to D105 followed on 2026-09-02, from a second and a third wave of the same method). The next thing worth doing is another round of the same method: play it three ways and fix what the players say, because every one of the fourteen decisions since D75 came out of somebody playing rather than somebody guessing.
+> **State as of 2026-09-01.** D86 to D89 landed in one session, from three play-tests run in parallel with three different briefs (a first-timer who does what `now` says, an explorer who ignores it, and a run specialist who types every verb by hand). What they found, in order of size: the story layer was gated on meeting people and nothing ever said to meet anyone, and forty-two scenes declared a district that nothing read; the advice could recommend the same severed run five nights running and never once name Intrusion; a credential warden was an unanswerable wall for the Chromed origin and the board could not see it; and D6's severed-connection cooldown had never been implemented. All fixed, with `test_people_are_the_story`, `test_night_before`, `test_wall_and_clock` and `test_remembered_inside` holding them. Two things were added rather than fixed: the construct that cut you loose is on the route next time, awake and named, and the other runners can turn up inside a network with consequences that read their opinion of you. `validate.py` clean, `test.py` green at **17,638 checks** (D90 to D111 followed on 2026-09-02 and 2026-09-03: the visual layer, from pictures and the drawn instrument through the schematic map, player icons, more palettes and prompts, the portrait, reveal styles, seen ICE with screen disruption, and a glyph per host type in the scan). The next thing worth doing is another round of the same method: play it three ways and fix what the players say, because every one of the fourteen decisions since D75 came out of somebody playing rather than somebody guessing.
 >
 > **State as of 2026-08-21, end of the long session.** **Phases 0 through 5 are done, D17's finish line is passed, Phase 7 is closed, and D63 to D65 are the deep work.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **15,311 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone. **D63, the mechanics deep dive** in six parts: every declared number and rider has a reader (`check_reads`); the intrusion layer's holes closed (`mask` decays, sealed records, armour wears, faction style knobs, soft wardens); the catalogue readable (`inspect`, a bare `load`, `fit`, passives once per kind, program riders, six mid-tier parts); the vices capped (Threes, collections, hook-4 warnings); twenty-four relics with histories; and programs held to skill rank plus two. **D64, the play test**: networks in six shapes by doctrine with the brief reading the sums; the city grown to twelve districts (the Stacks, Meridian Row, the Hall) with people, places, threads, events and relics; and the advice made into a chain that ends in a run, with seven dead ends closed and `test_advice` to keep them closed. **D65, the street is real**: encounters in four tiers answered by run, talk, pay or stand with printed checks; warning-then-lethal under the black-ICE contract; two street skills; `errands` (courier, watch, collect, escort); `arrange` to pay a faction for their streets; and the whole of it hooked into travel, rest and the close-call band. Before those, on the same day: D50 to D62, the onboarding layer, decisions that are read, the Deepwater spine, the city deeper, voices and hours, district arcs, the rival bond, the drawn map, the HUD, the tutorial's second half, run conditions, and the rest of the Phase 7 list.
 >
@@ -3669,6 +3669,30 @@ of the name going flat. It obeys the one rule everything in `anim` obeys:
 on anything that is not a live colour tty it does nothing at all, the
 render mode turns it off with the pictures, and the words that follow it
 are the whole of the content (D35).
+
+### D111: A shape per host in the scan
+
+A scan is the first thing a player reads, and it read as a wall of the
+same word. `workstation`, `workstation`, `fileserver`, `workstation`.
+Now each host type carries a one-cell glyph in front of its name, so the
+table reads as a column of shapes before it reads as words: a door for
+the gateway, a diamond for the relay, a house for the workstation, a
+drawer of files for the fileserver, a dial for the controller, a lattice
+for the auth server, and a locked square for the vault. Boxy things are
+infrastructure, the round dial is the controller that reaches into the
+world, and the house is somebody's desk. The eye sorts the segment in one
+pass and only then reads the labels.
+
+The honeypot is the point of the design, not an exception to it. It shows
+as a workstation and it draws the workstation glyph, so the shape gives it
+away no more than the word ever did; the disguise is one property read in
+one place (`display_type`), and the glyph follows it without knowing the
+difference. Every mark is a single cell in both a unicode and an ASCII
+form, so the column stays true on a plain terminal (`> - . = * # X`) and
+never goes ragged. It touches no number: the glyph rides the type cell and
+nothing else, the host id a player types back stays clean, and `validate`
+and `test_host_glyphs` hold both. `HOST_GLYPHS` lives with the node
+content it describes, keyed by the name the player sees.
 
 ### D17: The finish line
 

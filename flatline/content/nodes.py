@@ -86,6 +86,30 @@ NODE_TYPES: tuple[NodeType, ...] = (
 
 BY_KEY: dict[str, NodeType] = {n.key: n for n in NODE_TYPES}
 
+#: One-cell glyphs per host type, so a scan reads as a shape and not only a
+#: word. Keyed by the *display* name, which means a disguised honeypot borrows
+#: the workstation glyph and gives nothing away until it is unmasked (D111).
+#: Each entry is (unicode, ascii) so a plain terminal still gets a marker.
+HOST_GLYPHS: dict[str, tuple[str, str]] = {
+    'gateway': ('⊟', '>'),
+    'relay': ('◇', '-'),
+    'workstation': ('⌂', '.'),
+    'fileserver': ('▤', '='),
+    'controller': ('◎', '*'),
+    'auth server': ('▦', '#'),
+    'vault': ('▣', 'X'),
+}
+
+
+def host_glyph(display_name: str, ascii_only: bool = False) -> str:
+    """The one-cell mark for a host as the player sees it. Unknown types get a
+    neutral dot rather than nothing, so the column never goes ragged."""
+    pair = HOST_GLYPHS.get(display_name)
+    if pair is None:
+        return '.' if ascii_only else '·'
+    return pair[1] if ascii_only else pair[0]
+
+
 
 # --------------------------------------------------------------------------
 # services

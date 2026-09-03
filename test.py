@@ -11571,6 +11571,80 @@ def test_ice_and_disruption() -> None:
     T.eq(state.outcome, 'severed', 'trace complete still severs with pictures on')
 
 
+def test_host_glyphs() -> None:
+    """D111: a one-cell glyph per host type in the scan, disguise intact."""
+    T.section('host glyphs')
+    from flatline.content import nodes as node_content
+    from flatline.run.network import Node
+    from flatline.ui import width
+
+    # Every type a player can see has a glyph, and no glyph is orphaned.
+    seen = {n.name for n in node_content.NODE_TYPES}
+    T.eq(set(node_content.HOST_GLYPHS), seen,
+         'every display type has a glyph, and only display types do')
+
+    # Both forms of every glyph are exactly one cell, so the column never
+    # goes ragged, and the unicode and ascii forms are never the same char.
+    for name, (uni, asc) in node_content.HOST_GLYPHS.items():
+        T.eq(width(uni), 1, f'{name}: unicode glyph is one cell')
+        T.eq(width(asc), 1, f'{name}: ascii glyph is one cell')
+        T.ok(uni != asc, f'{name}: unicode and ascii differ')
+    # The glyphs are distinct from each other in both forms: the column is a
+    # legend, and two hosts of different types must never share a mark.
+    T.eq(len({u for u, _ in node_content.HOST_GLYPHS.values()}),
+         len(node_content.HOST_GLYPHS), 'unicode glyphs are all distinct')
+    T.eq(len({a for _, a in node_content.HOST_GLYPHS.values()}),
+         len(node_content.HOST_GLYPHS), 'ascii glyphs are all distinct')
+
+    # The accessor honours the ascii flag and is deterministic.
+    T.eq(node_content.host_glyph('vault'), '▣', 'unicode by default')
+    T.eq(node_content.host_glyph('vault', True), 'X', 'ascii on request')
+    T.eq(node_content.host_glyph('vault'), node_content.host_glyph('vault'),
+         'the glyph is deterministic')
+    # An unknown type is a neutral mark, never a crash or a gap.
+    T.eq(node_content.host_glyph('nonesuch'), '·', 'unknown type is a dot')
+    T.eq(node_content.host_glyph('nonesuch', True), '.', 'unknown ascii dot')
+
+    # The honeypot's whole point: it wears the workstation glyph while it is
+    # disguised, so the scan gives it away no more than the word does. And it
+    # keeps wearing it once unmasked, because the display name does too.
+    ws = node_content.host_glyph('workstation')
+    hp = Node(uid='hp-x', type='honeypot', zone='interior', disguised=True)
+    T.eq(node_content.host_glyph(hp.display_type), ws,
+         'a disguised honeypot borrows the workstation glyph')
+    hp.disguised = False
+    T.eq(node_content.host_glyph(hp.display_type), ws,
+         'and still, once identified, matches its display name')
+    # A real host of another type reads as itself.
+    ctl = Node(uid='c-x', type='controller', zone='interior')
+    T.eq(node_content.host_glyph(ctl.display_type), '◎',
+         'a controller reads as a controller')
+
+    # In a live scan the glyph rides the type cell, and only the type cell:
+    # it never leaks into the host id the player has to type back.
+    char = Character.from_origin('gutter', 'x')
+    game = Game.new(char, seed=13579)
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    sess, _ = play([f'take {contract.cid}'], game=game)
+    sess.game.city.where = contract.district
+    sess.console.start_capture()
+    sess.execute('jack in --force')
+    sess.execute('scan')
+    out = strip_ansi(sess.console.end_capture())
+    T.ok(any(u in out for u, _ in node_content.HOST_GLYPHS.values()),
+         'a live scan carries at least one host glyph')
+    # The glyph sits before a type word, never fused to a host id. Every host
+    # id is followed by whitespace, so no glyph ever bleeds into it.
+    for line in out.splitlines():
+        for uid in sess.run.net.nodes if sess.run else ():
+            if line.startswith(uid):
+                rest = line[len(uid):]
+                T.ok(rest[:1] in (' ', ''),
+                     f'{uid}: the id is clean, glyph rides the type cell')
+                break
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
@@ -11585,7 +11659,7 @@ SUITES = (
     test_the_job_itself, test_pictures, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,
-    test_ice_and_disruption,
+    test_ice_and_disruption, test_host_glyphs,
     test_economy,
     test_combat,
     test_advancement,

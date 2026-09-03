@@ -829,11 +829,17 @@ def cmd_scan(sess, args) -> None:
     if 'dowse_eye' in riders:
         heads.append('boundary')
         roles.append('ice')
+    # A one-cell glyph per host type (D111): the scan reads as a column of
+    # shapes, not only words, and a disguised honeypot borrows the workstation
+    # mark so the table still gives nothing away.
+    plain = c.caps.glyphs is not ui.GlyphLevel.UNICODE
     rows = []
     for uid in found:
         node = state.net.nodes[uid]
         route = state.route_to(uid)
-        row = [uid, node.display_type, node.zone,
+        dtype = node.display_type
+        glyph = node_content.host_glyph(dtype, plain)
+        row = [uid, f'{glyph} {dtype}', node.zone,
                'open' if node.open else f'tier {node.tier}',
                str(len(route)) if route else
                ('1' if uid in state.node.edges else '2+')]
