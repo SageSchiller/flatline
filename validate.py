@@ -1028,6 +1028,7 @@ def check_rice(rep: Report) -> None:
         'marks': set(ui.MARKS),
         'banner': set(anim.BANNERS),
         'hud': set(rice.HUD_MODES),
+        'render': set(rice.RENDER_MODES),
     }
 
     seen: set[tuple[str, str]] = set()

@@ -781,3 +781,110 @@ def connect(console, target_name: str, quick: bool = False) -> None:
         console.raw()
         for row in final():
             console.emit(row)
+
+
+
+# --------------------------------------------------------------------------
+# pictures (D102)
+# --------------------------------------------------------------------------
+
+
+def reveal(console, pix, caption: str, quick: bool = False) -> None:
+    """A picture arriving: rows of noise in its own colours settling top to
+    bottom, then the picture. Prints the picture and returns when it
+    cannot animate."""
+    from . import pixels
+    caps = console.caps
+    rows = pixels.blit(pix, caps)
+    if not rows:
+        return
+    lines = ['  ' + r for r in rows]
+    if caption:
+        lines[min(1, len(lines) - 1)] += '   ' + paint(caption, 'dim', caps)
+    if quick or not can_animate(console):
+        for line in lines:
+            console.emit(line)
+        console.blank()
+        return
+    rng = random.Random(len(caption) + len(pix))
+    try:
+        with _Screen(console) as screen:
+            for i in range(pixels.SETTLE_FRAMES + 1):
+                frame = pixels.scrambled(pix, i / pixels.SETTLE_FRAMES, rng)
+                drawn = ['  ' + r for r in pixels.blit(frame, caps)]
+                if caption and drawn:
+                    drawn[min(1, len(drawn) - 1)] += '   ' + paint(caption, 'dim', caps)
+                screen.draw(drawn)
+                screen.pause(0.04)
+            screen.draw(lines)
+    except KeyboardInterrupt:
+        console.raw()
+        for line in lines:
+            console.emit(line)
+    console.blank()
+
+
+def flatline(console, quick: bool = False, style: str = 'block') -> None:
+    """The game's name, done properly (D102).
+
+    The heart trace runs, the beats come further apart, and then it is a
+    line, and the word above it is the only word this game has ever been
+    about. Nothing here matters (D35): the character is already dead.
+    """
+    caps = console.caps
+    ascii_only = caps.glyphs is GlyphLevel.ASCII
+    fits = caps.width >= MARK_WIDTH + 2
+    rows = banner_rows(style, ascii_only, fits, caps)
+    span = max((len(r) for r in rows), default=SMALL_WIDTH)
+    pad = ' ' * max(0, (min(caps.width, 80) - span) // 2)
+    lit = [pad + paint(r, 'err', caps) for r in rows]
+
+    def final() -> list[str]:
+        return ([''] + lit
+                + [pad + paint(trace_row(span, 0, False, ascii_only), 'err', caps)]
+                + [''])
+
+    if quick or not can_animate(console):
+        for line in final():
+            console.emit(line)
+        return
+    try:
+        with _Screen(console) as screen:
+            # The beats, slowing: the gap between them grows each pass.
+            offset = 0
+            for gap in (22, 22, 30, 38, 50, 70):
+                beat = _BEAT_ASCII if ascii_only else _BEAT
+                flat = '_' if ascii_only else _FLAT
+                pattern = (beat + flat * gap) * 4
+                for step in range(0, len(beat) + gap, 3):
+                    line = pattern[step:step + span]
+                    screen.draw([''] + lit + [pad + paint(line, 'ok' if gap < 40 else 'warn', caps)])
+                    screen.pause(0.045)
+                    offset += 3
+            for _ in range(10):
+                screen.draw([''] + lit + [pad + paint(trace_row(span, 0, False, ascii_only), 'err', caps)])
+                screen.pause(0.09)
+            screen.draw(final())
+    except KeyboardInterrupt:
+        console.raw()
+        for line in final():
+            console.emit(line)
+
+
+def sever(console, last_line: str, quick: bool = False) -> None:
+    """The connection cut from the far end: the last thing on the screen
+    tears sideways for a moment (D102). Prints nothing when it cannot
+    animate, because a torn line on a page is a typo."""
+    caps = console.caps
+    if quick or not can_animate(console) or not last_line:
+        return
+    ascii_only = caps.glyphs is GlyphLevel.ASCII
+    try:
+        with _Screen(console) as screen:
+            for i in range(6):
+                torn = _glitched([last_line], ascii_only)
+                screen.draw([paint(torn[0], 'err' if i % 2 else 'dim', caps)])
+                screen.pause(0.05)
+            screen.draw([''])
+    except KeyboardInterrupt:
+        console.raw()

@@ -104,6 +104,9 @@ class Session:
     #: `rice.HUD_MODES`. Read from the shell (`rice hud`), cached here so an
     #: action does not read the meta file.
     hud: str = 'line'
+    #: How a faction's cyberspace is shown on connect (D102): one of
+    #: `rice.RENDER_MODES`.
+    render_mode: str = 'picture'
     #: The last list of each kind the player was shown, as the keys that were
     #: printed, in printed order. `take 2` means the second row of the board
     #: you last read, which is the only thing a row number can honestly
@@ -380,6 +383,7 @@ class Session:
         look = self.shell
         self.prompt_style = look.get('prompt', prompt_mod.DEFAULT)
         self.hud = look.get('hud', 'line')
+        self.render_mode = look.get('render', 'picture')
         caps = self.console.caps
         self.console.caps = Caps(
             color=caps.color, glyphs=caps.glyphs, width=caps.width,

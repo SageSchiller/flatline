@@ -275,7 +275,7 @@ def cmd_jack_in(sess, args) -> None:
     c.blank()
     # Whose network this is, as a shape before it is a sentence. After five
     # runs a player knows the mark without reading the name under it.
-    _sigil(c, contract.target)
+    _sigil(c, contract.target, mode=sess.render_mode)
     # What their cyberspace is made of. Printed once, because it is the visual
     # key for the whole run and players learn to read it.
     c.say(f'[ice]{cyberspace.signature(contract.target).arrival}[/]')
@@ -438,6 +438,10 @@ def _resolve(sess) -> None:
                     'and a nosebleed you did not feel start.'),
         'flatline': '[err][bold]FLATLINE.[/][/]',
     }.get(summary['outcome'], '')
+    if summary['outcome'] == 'severed':
+        # The last thing on the screen tears for a moment (D102).
+        from .. import anim
+        anim.sever(c, c.transcript[-1] if c.transcript else '')
     c.say(verdict)
 
     # The card (D62): the one framed thing in the game, because this is the
@@ -471,6 +475,9 @@ def _resolve(sess) -> None:
         game.over = 'flatlined'
         from .. import save as save_mod
         save_mod.bump_meta(flatlines=1)
+        # The game's name, done properly (D102).
+        from .. import anim
+        anim.flatline(c, style=sess.shell.get('banner', 'block'))
         c.blank()
         c.say('[err]It held on long enough. There is no disconnection, no '
               'room coming back, no cold hands: the feed simply stops being a '
@@ -954,8 +961,59 @@ def cmd_map(sess, args) -> None:
           '`scan` to reach further.[/]')
 
 
-def _sigil(c, faction: str) -> None:
-    """The faction's mark, beside their name."""
+@command('render', 'A faction\'s cyberspace, as a picture.',
+         group='info', usage='render [faction]',
+         detail='D102. What their network looks like from inside, drawn two '
+                'pixels to a cell in their own colours on a terminal that '
+                'can do it, and as the eleven-by-four mark on one that '
+                'cannot. Alone it lists the twelve; with a name it draws '
+                'one. `rice render` decides how it arrives on connect. '
+                'Nothing here touches a number.')
+def cmd_render(sess, args) -> None:
+    c = sess.console
+    from .. import pixels
+    query = (args.rest() or '').lower().strip()
+    if not query:
+        c.header('Renders', 'what their cyberspace is made of')
+        for fac in fac_content.FACTIONS:
+            sig = cyberspace.signature(fac.key)
+            first = sig.arrival.split('.')[0] if sig else ''
+            c.raw(f'  [accent]{fac.key:<11}[/] [dim]{first}.[/]')
+        c.blank()
+        c.say('[dim]`render <faction>` draws one'
+              + ('' if pixels.can_render(c.caps) else
+                 '. This terminal cannot do the picture, so it gets the '
+                 'mark') + '.[/]')
+        return
+    fac = next((f for f in fac_content.FACTIONS
+                if f.key.startswith(query) or f.short.lower().startswith(query)
+                or f.name.lower().startswith(query)), None)
+    if fac is None:
+        raise CommandError('which faction: '
+                           + ', '.join(f.key for f in fac_content.FACTIONS))
+    c.blank()
+    c.rule(fac.name, role='accent2')
+    _sigil(c, fac.key, mode=sess.render_mode if sess.render_mode != 'none'
+           else 'picture', quick=True)
+    sig = cyberspace.signature(fac.key)
+    if sig:
+        c.say(f'[ice]{sig.arrival}[/]')
+
+
+def _sigil(c, faction: str, mode: str = 'picture', quick: bool = False) -> None:
+    """The faction's cyberspace: a picture where the terminal can do one
+    (D102), the mark where it cannot or where the player would rather."""
+    from .. import anim, pixels
+    if mode in ('picture', 'wide') and pixels.can_render(c.caps):
+        wide = mode == 'wide' and c.caps.width >= 70
+        pix = pixels.render(faction,
+                            width=60 if wide else pixels.WIDTH,
+                            height=24 if wide else pixels.HEIGHT)
+        if pix:
+            anim.reveal(c, pix, fac_content.BY_KEY[faction].name, quick=quick)
+            return
+    if mode == 'none':
+        return
     rows = cyberspace.sigil(faction,
                             c.caps.glyphs is ui.GlyphLevel.ASCII)
     if not rows:

@@ -11018,6 +11018,88 @@ def test_the_job_itself() -> None:
          'quit settles it and leaves')
 
 
+
+def test_pictures() -> None:
+    """D102: pictures in a terminal, and nothing in them matters."""
+    T.section('pictures')
+    from flatline import anim, pixels
+    from flatline.content import factions as fac_content
+    from flatline.content import rice as rice_content
+
+    true_caps = Caps(ColorLevel.TRUE, GlyphLevel.UNICODE, 80, theme.CYBERPUNK_NEON)
+    c256 = Caps(ColorLevel.ANSI256, GlyphLevel.UNICODE, 80, theme.CYBERPUNK_NEON)
+    c16 = Caps(ColorLevel.ANSI16, GlyphLevel.UNICODE, 80, theme.CYBERPUNK_NEON)
+    ascii_caps = Caps(ColorLevel.TRUE, GlyphLevel.ASCII, 80, theme.CYBERPUNK_NEON)
+
+    for fac in fac_content.FACTIONS:
+        pix = pixels.render(fac.key)
+        T.ok(pix and len(pix) == pixels.HEIGHT
+             and all(len(r) == pixels.WIDTH for r in pix),
+             f'{fac.key} renders at the standard size')
+        again = pixels.render(fac.key)
+        T.eq(pix, again, f'{fac.key} renders the same twice')
+        rows = pixels.blit(pix, true_caps)
+        T.eq(len(rows), pixels.HEIGHT // 2, f'{fac.key}: two pixels a cell')
+        T.ok(all('\033[38;2;' in r for r in rows), 'in truecolour')
+        T.ok(all('\033[38;5;' in r for r in pixels.blit(pix, c256)),
+             'and in the cube at 256')
+        T.eq(pixels.blit(pix, c16), [], 'and not at all at sixteen')
+        T.eq(pixels.blit(pix, ascii_caps), [], 'nor in ASCII')
+        wide = pixels.render(fac.key, width=60, height=24)
+        T.ok(len(wide) == 24 and len(wide[0]) == 60, f'{fac.key} renders wide')
+    T.eq(pixels.render('nobody'), [], 'an unknown faction renders nothing')
+    import random as _random
+    pix = pixels.render('kagawa')
+    T.eq(pixels.scrambled(pix, 1.0, _random.Random(1)), pix,
+         'fully settled is the picture')
+    T.ok(pixels.scrambled(pix, 0.0, _random.Random(1)) != pix,
+         'unsettled is not')
+
+    # The reveal and the flatline print their last frame where they cannot
+    # move, and never a control code the capture cannot strip.
+    con = Console(true_caps, stream=io.StringIO())
+    con.start_capture()
+    anim.reveal(con, pix, 'Kagawa Vertical', quick=True)
+    out = con.end_capture()
+    T.ok('Kagawa Vertical' in strip_ansi(out) and '▀' in out,
+         'the reveal prints the picture and the caption')
+    con.start_capture()
+    anim.flatline(con, quick=True)
+    out = strip_ansi(con.end_capture())
+    T.ok(anim._FLAT * 10 in out, 'the flatline ends flat')
+    con.start_capture()
+    anim.sever(con, 'the last line', quick=True)
+    T.eq(con.end_capture(), '', 'a sever that cannot animate prints nothing')
+
+    # The cosmetic axis, and what the connect screen does with it.
+    T.ok('render' in rice_content.KINDS and rice_content.DEFAULTS['render']
+         in rice_content.RENDER_MODES, 'render is an axis with a default')
+    game = Game.new(Character.from_origin('gutter', 'px'), seed=13579)
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    con = Console(true_caps, stream=io.StringIO())
+    sess = Session(console=con, slot='px'); sess.game = game
+    con.start_capture()
+    sess.execute(f'take {contract.cid}')
+    sess.execute('jack in --force')
+    out = con.end_capture()
+    T.ok('▀' in out or '▄' in out, 'connecting in truecolour shows the picture')
+    sess.execute('jack out --anyway')
+    con16 = Console(c16, stream=io.StringIO())
+    sess = Session(console=con16, slot='px16'); sess.game = game
+    game.city.grounded = -1
+    con16.start_capture()
+    sess.execute(f'take {contract.cid}')
+    sess.execute('jack in --force')
+    out = con16.end_capture()
+    T.ok('\033[38;2;' not in out and '\033[38;5;' not in out,
+         'and the mark at sixteen colours')
+    sess.execute('jack out --anyway')
+    sess, out = play(['render', 'render kagawa'], game=game)
+    T.ok('Renders' in out and 'terraces' in out.lower(),
+         '`render` lists and draws')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
@@ -11029,7 +11111,7 @@ SUITES = (
     test_remembered_inside, test_second_look, test_second_wave,
     test_the_way_in, test_more_to_say, test_the_door, test_corporate_night,
     test_named_shelf, test_and_in_nights, test_the_fourth_wave,
-    test_the_job_itself,
+    test_the_job_itself, test_pictures,
     test_economy,
     test_combat,
     test_advancement,

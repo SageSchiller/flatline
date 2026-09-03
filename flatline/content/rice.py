@@ -54,7 +54,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 #: The axes. Order is the order `rice` lists them in.
-KINDS = ('palette', 'prompt', 'frame', 'bars', 'marks', 'banner', 'hud')
+KINDS = ('palette', 'prompt', 'frame', 'bars', 'marks', 'banner', 'hud',
+         'render')
+
+#: How a faction's cyberspace arrives on connect (D102). A picture, two
+#: pixels a cell in the faction's own colours, where the terminal can; the
+#: text mark where it cannot; or nothing.
+RENDER_MODES = ('picture', 'wide', 'mark', 'none')
 
 #: The two states of the run readout (D59). A table rather than two
 #: literals, so `validate.py` can hold the catalogue to it.
@@ -431,6 +437,22 @@ COSMETICS: tuple[Cosmetic, ...] = (
     Cosmetic('quiet', 'hud', 'Quiet',
              'No readout. The prompt still carries the trace, because it '
              'always does; everything else is one `status` away.'),
+    # ----------------------------------------------------------------- render
+    Cosmetic('picture', 'render', 'Picture',
+             'Their cyberspace as a picture, two pixels a cell, in their '
+             'own colours, arriving row by row. Forty cells by eight.'),
+    Cosmetic('wide', 'render', 'Wide',
+             'The same picture at half again the width and height, for a '
+             'terminal with the room.',
+             needs=('runs', 5),
+             hint='Five contracts. Somebody\'s render is worth a bigger '
+                  'window by then.'),
+    Cosmetic('mark', 'render', 'Mark',
+             'The eleven-by-four mark and nothing else. What every terminal '
+             'gets when it cannot do the picture.'),
+    Cosmetic('none', 'render', 'None',
+             'No picture and no mark. The name, the doctrine, and the job.'),
+
 )
 
 BY_KEY: dict[tuple[str, str], Cosmetic] = {(c.kind, c.key): c for c in COSMETICS}
@@ -442,6 +464,7 @@ BY_KIND: dict[str, tuple[Cosmetic, ...]] = {
 DEFAULTS: dict[str, str] = {
     'palette': 'cyberpunk-neon', 'prompt': 'classic', 'frame': 'single',
     'bars': 'blocks', 'marks': 'plain', 'banner': 'block', 'hud': 'line',
+    'render': 'picture',
 }
 
 
