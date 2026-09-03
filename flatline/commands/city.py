@@ -628,6 +628,19 @@ def cmd_deck(sess, args) -> None:
                'cooling outpaces the components.')
 
 
+def _icon_picture(sess, key: str) -> None:
+    """The icon as a picture (D105), on the sheet and when you put one on,
+    where the terminal can draw one. `render` mode decides; a text terminal
+    reads the render string that follows either way."""
+    from .. import anim, pixels
+    c = sess.console
+    if sess.render_mode in ('picture', 'wide') and pixels.can_render(c.caps):
+        pix = pixels.render_icon(key)
+        if pix:
+            c.blank()
+            anim.reveal(c, pix, '', quick=True)
+
+
 @command('icon', 'The shape you wear in the net.',
          contexts=('city',), group='character', usage='icon [wear <key>] [buy <key>]',
          detail='Your icon is what cyberspace renders you as, and it is a real '
@@ -677,6 +690,7 @@ def cmd_icon(sess, args) -> None:
                                'wearing it.')
         char.icon = key
         c.ok(f'You are {icon.name} now.')
+        _icon_picture(sess, key)
         c.say(f'[dim]{icon.render}[/]')
         gap = char.coherence_gap
         if gap:
@@ -686,6 +700,7 @@ def cmd_icon(sess, args) -> None:
 
     icon = char.icon_data
     c.header('Icon', icon.name)
+    _icon_picture(sess, char.icon)
     c.say(icon.render)
     c.blank()
     c.say(f'[dim]{icon.blurb}[/]')

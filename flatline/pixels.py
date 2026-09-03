@@ -391,3 +391,213 @@ def scrambled(pix, settled: float, rng: random.Random):
         out.append([rng.choice(palette) if rng.random() < 0.7 else None
                     for _ in row])
     return out
+
+
+# --------------------------------------------------------------------------
+# the player's icon (D105)
+# --------------------------------------------------------------------------
+#
+# The fourth build axis (D18) is the shape you wear in cyberspace, and it was
+# a line of prose. It is a small picture now: your mark, arriving in the net,
+# drawn the same way the faction pictures are but smaller and centred so it
+# reads as a figure rather than a scene. Nothing here matters (D35): it is
+# drawn or it is not, and the coherence cost the icon carries is unchanged.
+
+#: A player icon is smaller than a faction render: a figure, not a place.
+ICON_WIDTH = 22
+ICON_HEIGHT = 16
+
+#: Each icon's own colours. Not the palette's: your mark is your mark, the
+#: way a faction's sigil is theirs.
+ICON_RGB: dict[str, dict[str, RGB]] = {
+    'plain': {'body': (150, 152, 160), 'edge': (92, 94, 102)},
+    'corporate': {'suit': (52, 60, 82), 'skin': (202, 172, 150),
+                  'badge': (232, 210, 92), 'shirt': (212, 216, 226)},
+    'null': {'edge': (44, 50, 66), 'hole': (7, 8, 12)},
+    'swarm': {'a': (120, 200, 232), 'b': (68, 130, 202), 'c': (204, 232, 250)},
+    'predator': {'dark': (18, 20, 28), 'edge': (128, 30, 42),
+                 'eye': (244, 64, 64)},
+    'mirror': {'you': (146, 158, 190), 'them': (196, 160, 176),
+               'split': (232, 236, 246)},
+    'deadname': {'skin': (216, 188, 164), 'hair': (58, 42, 34),
+                 'coat': (114, 92, 126), 'warm': (250, 226, 202)},
+    'process': {'box': (34, 54, 46), 'text': (118, 210, 160),
+                'done': (92, 232, 152), 'todo': (28, 46, 40)},
+    'janitor': {'overall': (70, 80, 96), 'skin': (192, 168, 150),
+                'cart': (112, 118, 130), 'low': (52, 58, 70)},
+    'meter': {'grey': (120, 122, 130), 'dark': (68, 70, 78),
+              'num': (212, 214, 222)},
+}
+
+
+def render_icon(key: str, width: int = ICON_WIDTH, height: int = ICON_HEIGHT):
+    """The picture of a player icon, or [] for one that has none."""
+    fn = _ICON_RENDERS.get(key)
+    if fn is None:
+        return []
+    rng = random.Random(f'icon:{key}')
+    return fn(width, height, rng)
+
+
+def _figure(pix, colour, edge=None):
+    """A person-shaped silhouette centred in the frame: a round head over a
+    body that widens to the shoulders. The base every human icon bends."""
+    h, w = len(pix), len(pix[0])
+    cx = w // 2
+    hr = max(1, h // 8)
+    hcy = 1 + hr
+    for y in range(hcy - hr, hcy + hr + 1):
+        for x in range(cx - hr, cx + hr + 1):
+            if (x - cx) ** 2 + (y - hcy) ** 2 <= hr * hr + 1:
+                _put(pix, x, y, colour)
+    top = hcy + hr + 1
+    for y in range(top, h - 1):
+        t = (y - top) / max(1, h - 2 - top)
+        half = int(1 + hr + t * (w * 0.30))
+        for x in range(cx - half, cx + half + 1):
+            _put(pix, x, y, colour)
+    if edge is not None:
+        for y in range(h):
+            for x in range(w):
+                if pix[y][x] == colour:
+                    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                        nx, ny = x + dx, y + dy
+                        if 0 <= ny < h and 0 <= nx < w and pix[ny][nx] is None:
+                            _put(pix, nx, ny, edge)
+
+
+def _icon_plain(w, h, rng):
+    c = ICON_RGB['plain']
+    pix = _blank(w, h)
+    _figure(pix, c['body'], edge=c['edge'])
+    return pix
+
+
+def _icon_corporate(w, h, rng):
+    c = ICON_RGB['corporate']
+    pix = _blank(w, h)
+    _figure(pix, c['suit'])
+    cx, hr = w // 2, max(1, h // 8)
+    for y in range(2, 2 + hr):
+        for x in range(cx - hr + 1, cx + hr):
+            _put(pix, x, y, c['skin'])
+    _rect(pix, cx - 1, 1 + 2 * hr + 1, cx + 2, 2 + 2 * hr + 2, c['shirt'])
+    _put(pix, cx + 2, 2 + 2 * hr + 3, c['badge'])
+    _put(pix, cx + 2, 3 + 2 * hr + 3, c['badge'])
+    return pix
+
+
+def _icon_null(w, h, rng):
+    c = ICON_RGB['null']
+    pix = _blank(w, h)
+    _figure(pix, c['hole'], edge=c['edge'])
+    for y in range(h):
+        for x in range(w):
+            if pix[y][x] == c['hole'] and rng.random() < 0.86:
+                pix[y][x] = None
+    return pix
+
+
+def _icon_swarm(w, h, rng):
+    c = ICON_RGB['swarm']
+    pix = _blank(w, h)
+    cx, cy = w / 2, h / 2
+    cols = (c['a'], c['b'], c['c'])
+    for _ in range(95):
+        ang = rng.random() * math.tau
+        rad = rng.random() ** 0.5
+        _put(pix, int(cx + math.cos(ang) * rad * w * 0.42),
+             int(cy + math.sin(ang) * rad * h * 0.46), rng.choice(cols))
+    return pix
+
+
+def _icon_predator(w, h, rng):
+    c = ICON_RGB['predator']
+    pix = _blank(w, h)
+    for i in range(w):
+        t = i / w
+        y = int(h * 0.2 + t * h * 0.6)
+        thick = int(1 + (1 - abs(t - 0.5) * 2) * h * 0.30)
+        for d in range(-thick, thick + 1):
+            _put(pix, i, y + d, c['dark'] if abs(d) < thick else c['edge'])
+    for i in range(int(w * 0.5), w, 2):
+        y = int(h * 0.2 + (i / w) * h * 0.6)
+        _put(pix, i, y + 3, c['edge'])
+    _put(pix, int(w * 0.78), int(h * 0.5), c['eye'])
+    return pix
+
+
+def _icon_mirror(w, h, rng):
+    c = ICON_RGB['mirror']
+    pix = _blank(w, h)
+    cx = w // 2
+    _figure(pix, c['you'])
+    for y in range(h):
+        for x in range(cx, w):
+            if pix[y][x] == c['you']:
+                _put(pix, min(w - 1, x + 1), y, c['them'])
+    for y in range(h):
+        _put(pix, cx, y, c['split'])
+    return pix
+
+
+def _icon_deadname(w, h, rng):
+    c = ICON_RGB['deadname']
+    pix = _blank(w, h)
+    _figure(pix, c['coat'])
+    cx, hr = w // 2, max(1, h // 8)
+    hcy = 1 + hr
+    for y in range(hcy - hr, hcy + hr + 1):
+        for x in range(cx - hr, cx + hr + 1):
+            if (x - cx) ** 2 + (y - hcy) ** 2 <= hr * hr:
+                _put(pix, x, y, c['skin'])
+    for x in range(cx - hr, cx + hr + 1):
+        _put(pix, x, hcy - hr, c['hair'])
+    _put(pix, cx - hr - 1, hcy - 1, c['warm'])
+    _put(pix, cx - hr - 1, hcy, c['warm'])
+    return pix
+
+
+def _icon_process(w, h, rng):
+    c = ICON_RGB['process']
+    pix = _blank(w, h)
+    _rect(pix, 2, 3, w - 2, h - 3, c['box'])
+    for x in range(3, w - 3):
+        _put(pix, x, 5, c['text'] if x % 2 else c['box'])
+    for x in range(3, w - 3):
+        done = x < 3 + int((w - 6) * 0.62)
+        _put(pix, x, h - 6, c['done'] if done else c['todo'])
+    _put(pix, w - 4, 4, c['done'])
+    return pix
+
+
+def _icon_janitor(w, h, rng):
+    c = ICON_RGB['janitor']
+    pix = _blank(w, h)
+    cx = int(w * 0.4)
+    _rect(pix, cx - 2, 2, cx + 2, 4, c['skin'])
+    _rect(pix, cx - 3, 4, cx + 3, h - 2, c['overall'])
+    _rect(pix, cx + 4, h - 6, w - 2, h - 2, c['cart'])
+    _rect(pix, cx + 4, h - 7, w - 3, h - 6, c['low'])
+    return pix
+
+
+def _icon_meter(w, h, rng):
+    c = ICON_RGB['meter']
+    pix = _blank(w, h)
+    _rect(pix, 3, 4, w - 3, h - 4, c['grey'])
+    _rect(pix, 3, 4, w - 3, 6, c['dark'])
+    for x in range(5, w - 5, 4):
+        _put(pix, x, 8, c['num'])
+        _put(pix, x, 9, c['num'])
+        _put(pix, x + 1, 9, c['num'])
+        _put(pix, x, 10, c['num'])
+    return pix
+
+
+_ICON_RENDERS = {
+    'plain': _icon_plain, 'corporate': _icon_corporate, 'null': _icon_null,
+    'swarm': _icon_swarm, 'predator': _icon_predator, 'mirror': _icon_mirror,
+    'deadname': _icon_deadname, 'process': _icon_process,
+    'janitor': _icon_janitor, 'meter': _icon_meter,
+}

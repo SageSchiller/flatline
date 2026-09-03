@@ -11224,6 +11224,59 @@ def test_the_schematic() -> None:
         sess.execute('jack out --anyway')
 
 
+
+def test_player_icons() -> None:
+    """D105: the shape you wear in cyberspace, as a picture."""
+    T.section('player icons')
+    from flatline import pixels
+    from flatline.content import icons as icon_content
+    true_caps = Caps(ColorLevel.TRUE, GlyphLevel.UNICODE, 80, theme.CYBERPUNK_NEON)
+    c16 = Caps(ColorLevel.ANSI16, GlyphLevel.UNICODE, 80, theme.CYBERPUNK_NEON)
+
+    for icon in icon_content.ICONS:
+        pix = pixels.render_icon(icon.key)
+        T.ok(pix and len(pix) == pixels.ICON_HEIGHT
+             and all(len(r) == pixels.ICON_WIDTH for r in pix),
+             f'{icon.key} renders at the icon size')
+        T.eq(pix, pixels.render_icon(icon.key), f'{icon.key} is deterministic')
+        rows = pixels.blit(pix, true_caps)
+        T.eq(len(rows), pixels.ICON_HEIGHT // 2, f'{icon.key}: two pixels a cell')
+        T.eq(pixels.blit(pix, c16), [], f'{icon.key}: not at sixteen colours')
+    T.eq(pixels.render_icon('nobody'), [], 'an unknown icon renders nothing')
+    T.ok(set(pixels._ICON_RENDERS) == {i.key for i in icon_content.ICONS},
+         'every icon has a render and no render is orphaned')
+
+    # The connect screen draws it in truecolour and does not at sixteen.
+    game = Game.new(Character.from_origin('chromed', 'ic'), seed=13579)
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    con = Console(true_caps, stream=io.StringIO())
+    sess = Session(console=con, slot='ic'); sess.game = game
+    con.start_capture()
+    sess.execute(f'take {contract.cid}')
+    sess.execute('jack in --force')
+    out = con.end_capture()
+    T.ok('arrive as something' in strip_ansi(out), 'connect announces the icon')
+    T.ok('▀' in out, 'and draws it in truecolour')
+    sess.execute('jack out --anyway')
+
+    con16 = Console(c16, stream=io.StringIO())
+    game.city.grounded = -1
+    sess = Session(console=con16, slot='ic16'); sess.game = game
+    con16.start_capture()
+    sess.execute(f'take {contract.cid}')
+    sess.execute('jack in --force')
+    out16 = con16.end_capture()
+    T.ok('38;2;' not in out16, 'no picture at sixteen colours')
+    sess.execute('jack out --anyway')
+
+    # `icon` shows it, and the render string is still the caption.
+    sess, out = play(['icon'], game=game, seed=13579)
+    T.ok(game.char.icon_data.render.split('.')[0] in out
+         or game.char.icon_data.render[:20] in out,
+         'the icon screen still carries the words')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
@@ -11236,7 +11289,7 @@ SUITES = (
     test_the_way_in, test_more_to_say, test_the_door, test_corporate_night,
     test_named_shelf, test_and_in_nights, test_the_fourth_wave,
     test_the_job_itself, test_pictures, test_the_instrument,
-    test_the_schematic,
+    test_the_schematic, test_player_icons,
     test_economy,
     test_combat,
     test_advancement,

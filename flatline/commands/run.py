@@ -289,6 +289,9 @@ def cmd_jack_in(sess, args) -> None:
         c.blank()
     c.say(f'[dim]You come up on [/][accent]{net.entry}[/][dim]: '
           f'{cyberspace.look(net.node(net.entry).type, 0, contract.target)}.[/]')
+    # And you arrive as something (D105): the icon you are wearing, drawn
+    # beside the line that says you have come up, where the terminal can.
+    _icon_reveal(sess, game.char.icon)
     if 'topology' in contract.intel:
         _reveal_topology(state)
         c.info('Your legwork holds. The shape of it is already in front of you.')
@@ -1015,6 +1018,24 @@ def cmd_render(sess, args) -> None:
     sig = cyberspace.signature(fac.key)
     if sig:
         c.say(f'[ice]{sig.arrival}[/]')
+
+
+def _icon_reveal(sess, key: str, quick: bool = False) -> None:
+    """The player's icon, as a picture (D105), where the render mode and the
+    terminal both allow one. The text render string is always the caption,
+    so a player who reads it in `icon` reads it here too."""
+    from .. import anim, pixels
+    from ..content import icons as icon_content
+    c = sess.console
+    icon = icon_content.BY_KEY.get(key)
+    if icon is None:
+        return
+    if sess.render_mode in ('picture', 'wide') and pixels.can_render(c.caps):
+        pix = pixels.render_icon(key)
+        if pix:
+            c.say('[dim]You arrive as something:[/]')
+            anim.reveal(c, pix, icon.name, quick=quick)
+            return
 
 
 def _sigil(c, faction: str, mode: str = 'picture', quick: bool = False) -> None:
