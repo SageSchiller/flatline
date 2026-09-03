@@ -11154,6 +11154,76 @@ def test_the_instrument() -> None:
     sess.execute('jack out --anyway')
 
 
+
+def test_the_schematic() -> None:
+    """D104: the network drawn as a schematic, reading the tree's fields."""
+    T.section('the schematic')
+    from flatline import schematic
+    from flatline.run import network as net_mod
+    caps = Caps(ColorLevel.NONE, GlyphLevel.UNICODE, 78, theme.NEUTRAL)
+    ascii_caps = Caps(ColorLevel.NONE, GlyphLevel.ASCII, 78, theme.NEUTRAL)
+    for seed, fac, post in ((7, 'kagawa', 45), (3, 'sixes', 24),
+                            (9, 'deepwater', 72)):
+        net = net_mod.generate(Rng(seed).fork('network', 's'), fac, post,
+                               'exfiltrate', 1.0)
+        for n in net.nodes.values():
+            n.known = True
+        game = Game.new(Character.from_origin('gutter', 's'), seed=seed)
+        state = RunState.begin(net, game.char, Rng(seed)('combat'),
+                               quiet_console(),
+                               contract={'objective': 'exfiltrate', 'title': 'T'})
+        rows = schematic.draw(net, state, caps)
+        T.ok(rows, f'{fac} draws')
+        text = '\n'.join(ui.plain(r) for r in rows)
+        for node in net.nodes.values():
+            T.ok(node.uid in text, f'{fac}: {node.uid} is on it')
+        T.ok('@' + net.entry in text, f'{fac}: you are marked at the entry')
+        obj = net.node(net.objective_node)
+        T.ok('!' in text, f'{fac}: the job is marked')
+        for row in rows[:-1]:
+            T.ok(ui.width(row) <= 78, f'{fac}: a row fits')
+        # No colour leaks a bare code, and the ASCII rung is really ASCII.
+        arows = schematic.draw(net, state, ascii_caps)
+        T.ok(all(ui.plain(r).isascii() for r in arows),
+             f'{fac}: the ASCII schematic is ASCII')
+        # Nothing crashes when almost nothing is known.
+        for n in net.nodes.values():
+            n.known = n.uid == net.entry
+        T.ok(schematic.draw(net, state, caps) or True,
+             f'{fac}: one known host does not crash')
+
+    # An empty network draws nothing rather than raising.
+    game = Game.new(Character.from_origin('gutter', 'e'), seed=1)
+    net = net_mod.generate(Rng(1).fork('network', 'e'), 'sixes', 22,
+                           'exfiltrate', 1.0)
+    state = RunState.begin(net, game.char, Rng(1)('combat'), quiet_console(),
+                           contract={'objective': 'exfiltrate', 'title': 'T'})
+    for n in net.nodes.values():
+        n.known = False
+    T.eq(schematic.draw(net, state, caps), [], 'nothing known draws nothing')
+
+    # `map` uses it, and `map --tree` does not.
+    game = Game.new(Character.from_origin('gutter', 'm'), seed=13579)
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    sess, _ = play([f'take {contract.cid}', 'jack in --force'], game=game)
+    if sess.run is not None:
+        for n in sess.run.net.nodes.values():
+            n.known = True
+        sess.console.start_capture()
+        sess.execute('map')
+        schematic_out = ui.plain(sess.console.end_capture())
+        sess.console.start_capture()
+        sess.execute('map --tree')
+        tree_out = ui.plain(sess.console.end_capture())
+        T.ok('perimeter' in schematic_out and 'core' in schematic_out,
+             'map draws the schematic with its columns')
+        T.ok('the way to the job' in schematic_out, 'and the legend')
+        T.ok('Also connected' in tree_out or 'map --flat' in tree_out,
+             'map --tree is the old view')
+        sess.execute('jack out --anyway')
+
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
@@ -11166,6 +11236,7 @@ SUITES = (
     test_the_way_in, test_more_to_say, test_the_door, test_corporate_night,
     test_named_shelf, test_and_in_nights, test_the_fourth_wave,
     test_the_job_itself, test_pictures, test_the_instrument,
+    test_the_schematic,
     test_economy,
     test_combat,
     test_advancement,

@@ -896,11 +896,12 @@ def cmd_probe(sess, args) -> None:
 
 @command('map', 'The shape of where you are: the city, or the network.',
          group='recon', usage='map [--flat]',
-         detail='In the city: the nine districts, how they join, and the walk '
+         detail='In the city: the districts, how they join, and the walk '
                 'from here to each of them. In a run: every host you have '
-                'found and what connects to what, with `--flat` for the same '
-                'thing listed by zone. The same picture either way, because it '
-                'is the same question.')
+                'found, drawn as a schematic with the zones as columns from '
+                'the perimeter to the core, you and the job and what is awake '
+                'marked, and the way to the job lit (D104). `--tree` for the '
+                'older list-shaped view, `--flat` for the list by zone.')
 def cmd_map(sess, args) -> None:
     if sess.run is None:
         from .city import city_map
@@ -914,9 +915,25 @@ def cmd_map(sess, args) -> None:
              if len(visible) >= 3 else '')
     c.header('Known hosts', f'{len(visible)} of {len(net.nodes)}{shape}')
 
-    if args.has('flat') or state.here not in visible:
+    if args.has('flat'):
         _map_flat(sess, visible)
         return
+    # The schematic (D104), unless asked for the tree or too narrow to draw
+    # one. It reads the same fields the tree does.
+    if not args.has('tree') and c.caps.width >= 48 and state.here in visible:
+        from .. import schematic
+        rows = schematic.draw(net, state, c.caps,
+                              tall=sess.render_mode == 'wide')
+        if rows:
+            c.blank()
+            for row in rows[:-1]:
+                c.raw(row)
+            c.blank()
+            c.raw(rows[-1])
+            pairs_seen = set()
+            c.say('[dim]`map --tree` for the list, `map --flat` for the '
+                  'zones, `scan` to reach further.[/]')
+            return
 
     ascii_only = c.caps.glyphs is ui.GlyphLevel.ASCII
     # Drawn from the entry rather than from where you are standing, so the
