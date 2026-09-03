@@ -96,7 +96,7 @@ HOST_GLYPHS: dict[str, tuple[str, str]] = {
     'workstation': ('⌂', '.'),
     'fileserver': ('▤', '='),
     'controller': ('◎', '*'),
-    'auth server': ('▦', '#'),
+    'auth server': ('⌘', '#'),
     'vault': ('▣', 'X'),
 }
 
