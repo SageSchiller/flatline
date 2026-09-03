@@ -362,15 +362,21 @@ def generate_board(rng: Stream, shift: int, alias, posture: dict,
     used = set(avoid or ())
     cid = start_id
     patrons = _weighted_patrons(alias, flags or ())
+    #: How many jobs on one board may point at the same faction before it is
+    #: discouraged. Two is a choice; four is a theme night (D114).
+    target_cap = 2
+    hit: dict[str, int] = {}
     for _ in range(count):
         patron = rng.weighted(patrons)
-        target = pick_target(rng, patron, alias)
+        over = {t for t, n in hit.items() if n >= target_cap}
+        target = pick_target(rng, patron, alias, over=over)
         if target is None:
             continue
         contract = make_one(rng, cid, patron, target, shift, alias,
                             posture, used)
         used.add(contract.title)
         out.append(contract)
+        hit[target] = hit.get(target, 0) + 1
         cid += 1
     return out
 
@@ -398,7 +404,7 @@ def _weighted_patrons(alias, flags=()) -> dict[str, float]:
     return weights
 
 
-def pick_target(rng: Stream, patron: str, alias) -> str | None:
+def pick_target(rng: Stream, patron: str, alias, over=()) -> str | None:
     """Who the patron wants hit. Driven by the relations table."""
     weights: dict[str, float] = {}
     for key in factions.FACTION_KEYS:
@@ -413,6 +419,12 @@ def pick_target(rng: Stream, patron: str, alias) -> str | None:
         rep = alias.reputation(key)
         if rep >= 60:
             weight *= 0.25
+        # And a target already all over the board is discouraged (D114): a
+        # widely-disliked corp is every patron's default, and a night of
+        # five jobs against one faction is no real choice of who to hit.
+        # Softly, so a thin relations table still fills the board.
+        if key in over:
+            weight *= 0.12
         weights[key] = weight
     if not weights:
         return None

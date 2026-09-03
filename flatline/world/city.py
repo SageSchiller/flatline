@@ -683,17 +683,31 @@ class City:
         index = next((i for i in spare if self.board[i].cid in dead),
                      spare[-1])
         old = self.board[index]
-        soft = min(factions.FACTION_KEYS,
-                   key=lambda k: self.posture.get(
-                       k, factions.BY_KEY[k].posture))
-        posture = int(self.posture.get(soft, factions.BY_KEY[soft].posture))
+        # A doable rung, but not the same fingerprint every night (D114). The
+        # old rule always took the single lowest-posture faction (Sixes) and
+        # the first ready objective (surveil), so the soft slot read as a
+        # template across every seed. Pick among the soft factions a young
+        # runner can actually start against, and among the objectives they
+        # can run, so the guarantee holds while the face of it rotates.
+        stream = rng('contracts')
+
+        def _post(k):
+            return int(self.posture.get(k, factions.BY_KEY[k].posture))
+        soft_pool = sorted(
+            k for k in factions.FACTION_KEYS
+            if _post(k) <= ceiling
+            and contract_mod.door_odds(char, _post(k))
+            >= contract_mod.DOOR_TIGHT)
+        soft = stream.pick(soft_pool) if soft_pool else min(
+            factions.FACTION_KEYS, key=_post)
+        posture = _post(soft)
         patron = next((k for k in factions.FACTION_KEYS
                        if k != soft
                        and factions.BY_KEY[k].relations.get(soft, 0) < 0),
                       old.patron)
-        kind = next((o for o in ('surveil', 'exfiltrate', 'corrupt')
-                     if contract_mod.objective_ready(char, o, posture)),
-                    'surveil')
+        ready = [o for o in ('surveil', 'exfiltrate', 'corrupt', 'wipe')
+                 if contract_mod.objective_ready(char, o, posture)]
+        kind = stream.pick(ready) if ready else 'surveil'
         self.board[index] = contract_mod.make_one(
             rng('contracts'), self.next_cid, patron, soft,
             self.shift, alias, self.posture,

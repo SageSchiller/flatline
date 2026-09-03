@@ -1522,7 +1522,11 @@ VAULT_SERVICE = contract_mod.VAULT_SERVICE
 DOORS = 3
 
 #: The objective, short enough for a column.
-SHORT_OBJECTIVE = {'exfiltrate': 'exfil', 'surveil': 'watch',
+# The board reads the objective's own name (D114). It used to abbreviate
+# surveil to 'watch', which gave one objective three names at once: the board
+# said watch, the brief said surveil, the verb was observe. Now the board and
+# the brief agree, and the verb `observe` is the only other word for it.
+SHORT_OBJECTIVE = {'exfiltrate': 'exfil', 'surveil': 'surveil',
                    'implant': 'implant', 'corrupt': 'corrupt',
                    'wipe': 'wipe', 'escort': 'escort'}
 
@@ -3542,7 +3546,7 @@ def cmd_burn(sess, args) -> None:
 
 
 @command('rep', 'How the city feels about you, in full.',
-         group='info', usage='rep',
+         group='info', aliases=('factions',), usage='rep',
          detail=(
                 'How the whole city feels about you: standing with each '
                 'faction, the heat on your current name, their security '

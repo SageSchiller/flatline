@@ -173,7 +173,8 @@ def _now_city(sess):
             cid = take[0].split()[1]
             steps.append(('board', f'or read the rest of it: `board {cid}` '
                                    f'reads the one above'))
-        also = ['look', 'errands', 'market', 'map', 'char', 'help']
+        also = ['look', 'journal', 'errands', 'market', 'map', 'char',
+                'help']
     else:
         all_steps = city_cmds.city_steps(game)
         steps.extend(all_steps[:2])
@@ -190,7 +191,8 @@ def _now_city(sess):
         for go in goes[:2]:
             if go not in steps:
                 steps.append(go)
-        also = ['job', 'map', 'deck', 'market', 'errands', 'look', 'help']
+        also = ['job', 'map', 'deck', 'market', 'errands', 'look',
+                'journal', 'help']
     # `city_steps` opens with the same advice when the budget is unspent,
     # and a list that says `spend` twice reads as two different things to
     # do rather than one said twice.
@@ -255,6 +257,13 @@ def _story_nudge(sess) -> list[tuple[str, str]]:
                  f'{thread.name} has more of it in {place.name}, '
                  f'{hops} shift{"s" if hops != 1 else ""} away, and it is '
                  f'waiting for you to be there')]
+    # The first couple of runs, before the spine has found the player,
+    # nothing above fires and `now` never hinted a story exists at all: a
+    # player who lives in `now` could run a career and never learn the best
+    # thing in the game is there (D114). One quiet line until it starts.
+    if game.char.runs < 2 and not story.active_threads():
+        return [('journal', 'the city has a story, and it starts to find you '
+                            'once you have a couple of runs behind you')]
     return []
 
 
