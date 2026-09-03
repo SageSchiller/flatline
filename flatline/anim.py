@@ -611,6 +611,113 @@ def _post_line(label: str, state: str, caps: Caps, width: int) -> str:
             + paint(state, role, caps))
 
 
+# --------------------------------------------------------------------------
+# the skyline (D112): the boot's one full-colour picture
+# --------------------------------------------------------------------------
+
+#: Fixed. The boot is not allowed to touch a game stream (D35), and a city
+#: that came out different every launch would read as a fault rather than a
+#: place. The day the netrunning layer first drew a picture.
+SKYLINE_SEED = 20260901
+#: Pixels tall. Even, because a half-block cell is two pixels and the blit
+#: pairs rows. Ten text rows.
+_SCENE_H = 20
+
+
+def scene(caps, palette, lit: float = 1.0, sweep=None):
+    """The neon waterfront as a pixel grid, or None where pictures are off.
+
+    A night sky over a synthwave sun, a skyline whose windows come on as
+    `lit` climbs from nothing to one, and dark water under it that holds the
+    horizon glow and a scatter of the same lights thrown back. Drawn in the
+    player's own accent, so the palette they earned themes the title. It is
+    the one place the boot uses the picture layer the rest of the game earned
+    (D102), and like everything in the layer it is drawn or it is not: at
+    sixteen colours or in ASCII the terminal gets the wordmark alone.
+    """
+    from . import pixels
+    if not pixels.can_render(caps):
+        return None
+    w = min(76, caps.width - 2) & ~1
+    if w < 40:
+        return None
+    h = _SCENE_H
+    horizon = int(h * 0.60)
+    accent, accent2 = palette.accent.rgb, palette.accent2.rgb
+    sky_top = (9, 7, 26)
+    hor = pixels.lerp(accent2, (255, 130, 120), 0.40)
+    scn = pixels._blank(w, h, sky_top)
+    rng = random.Random(SKYLINE_SEED)
+    for y in range(horizon):                                    # the sky
+        c = pixels.lerp(sky_top, hor, (y / max(1, horizon)) ** 1.6)
+        for x in range(w):
+            scn[y][x] = c
+    for _ in range(int(w * 0.22)):                              # stars
+        sx, sy = rng.randrange(w), rng.randrange(max(1, horizon // 2))
+        b = rng.randint(120, 210)
+        scn[sy][sx] = (b, b, min(255, b + 25))
+    cx, cy, radius = w // 2, horizon, int(h * 0.50)             # the sun
+    for y in range(max(0, cy - radius), cy):
+        for x in range(cx - radius, cx + radius + 1):
+            if not 0 <= x < w:
+                continue
+            dx, dy = (x - cx) / radius, (y - cy) / radius
+            if dx * dx + dy * dy <= 1.0:
+                vt = (y - (cy - radius)) / max(1, radius)
+                if vt > 0.45 and (cy - y) % 2 == 0:             # scanline gaps
+                    continue
+                scn[y][x] = pixels.lerp((255, 246, 205), (255, 54, 150),
+                                        vt ** 1.2)
+    silhouette, wins = (12, 10, 24), []                         # the skyline
+    x = 0
+    while x < w:
+        bw = rng.randint(3, 7)
+        top = horizon - rng.randint(int(h * 0.14), int(h * 0.40))
+        pixels._rect(scn, x, top, min(w, x + bw), horizon, silhouette)
+        rim = pixels.shade(accent if rng.random() < 0.6 else accent2, 0.95)
+        for xx in range(x, min(w, x + bw)):                     # neon rim light
+            pixels._put(scn, xx, top, rim)
+        for wy in range(top + 2, horizon, 2):                   # lit windows
+            for wx in range(x + 1, min(w, x + bw), 2):
+                if rng.random() < 0.5 * lit:
+                    wc = rng.choice([accent, accent2, (255, 200, 110)])
+                    pixels._put(scn, wx, wy, wc)
+                    wins.append((wx, wy, wc))
+        x += bw + rng.randint(1, 2)
+    base_top, base_bot = (16, 6, 24), (3, 2, 8)                 # the water
+    for y in range(horizon, h):
+        c = pixels.lerp(base_top, base_bot, (y - horizon) / max(1, h - horizon))
+        for xx in range(w):
+            scn[y][xx] = c
+    for d in range(h - horizon):                               # horizon glow
+        fade = max(0.0, 0.55 - d * 0.16)
+        for xx in range(w):
+            scn[horizon + d][xx] = pixels.lerp(scn[horizon + d][xx], hor, fade)
+    for (wx, wy, wc) in wins:                                   # reflections
+        ry = horizon + (horizon - wy)
+        if horizon <= ry < h:
+            scn[ry][wx] = pixels.lerp(scn[ry][wx], wc, 0.35)
+    if sweep is not None:                                       # a light sweep
+        for y in range(h):
+            row = scn[y]
+            for x in range(w):
+                near = abs(x - sweep)
+                if near < 3 and row[x] is not None:
+                    row[x] = pixels.lerp(row[x], (255, 255, 255),
+                                         (3 - near) / 7)
+    return scn
+
+
+def scene_rows(caps, palette, lit: float = 1.0, sweep=None) -> list[str]:
+    """The skyline blitted to centred text rows, or [] where pictures are off."""
+    from . import pixels
+    grid = scene(caps, palette, lit, sweep)
+    if grid is None:
+        return []
+    pad = ' ' * max(0, (min(caps.width, 80) - len(grid[0])) // 2)
+    return [pad + r for r in pixels.blit(grid, caps)]
+
+
 def boot(console, char=None, quick: bool = False,
          style: str = 'block') -> None:
     """The cold start. Prints its last frame and returns if it cannot animate.
@@ -632,8 +739,17 @@ def boot(console, char=None, quick: bool = False,
     width = min(caps.width - 1, MARK_WIDTH)
     pad = ' ' * max(0, (min(caps.width, 80) - span) // 2)
 
+    # The skyline sits above the wordmark, on the terminals that can draw it
+    # and at the wide styles that leave room for it. A minimal banner (none,
+    # small) reads as a request for a quiet start, so it gets one. `head` is
+    # everything above the wordmark, shared by the animation and the final
+    # frame so the title does not jump when the motion ends.
+    show_scene = fits and style not in ('none', 'small')
+    scene_full = scene_rows(caps, palette, 1.0) if show_scene else []
+    head = [''] + (scene_full + [''] if scene_full else [])
+
     def final() -> list[str]:
-        out = [''] + [pad + r for r in gradient(rows, palette, caps)]
+        out = list(head) + [pad + r for r in gradient(rows, palette, caps)]
         if traced:
             out.append(pad + paint(
                 trace_row(span, 0, False, ascii_only), 'err', caps))
@@ -665,7 +781,21 @@ def boot(console, char=None, quick: bool = False,
                 screen.pause(0.055 if state == 'ok' else 0.16)
             screen.pause(0.22)
 
-            # 2. It clears, and the mark decrypts into place.
+            # 2. It clears, and the city comes up: the sky, then the windows
+            #    lighting a bank at a time, then a sweep of light off the
+            #    water. Only where the terminal can draw it.
+            if scene_full:
+                power = 8
+                for i in range(1, power + 1):
+                    screen.draw([''] + scene_rows(caps, palette, i / power))
+                    screen.pause(0.05)
+                grid = scene(caps, palette, 1.0)
+                span_px = len(grid[0]) if grid else 0
+                for sx in range(-2, span_px + 3, 5):
+                    screen.draw([''] + scene_rows(caps, palette, 1.0, sweep=sx))
+                    screen.pause(0.025)
+
+            # 3. And the mark decrypts into place beneath it.
             if not rows:
                 screen.draw(final())
                 return
@@ -673,17 +803,17 @@ def boot(console, char=None, quick: bool = False,
             for i in range(steps + 1):
                 t = i / steps
                 frame = [scramble(r, t, rng, ascii_only) for r in rows]
-                screen.draw([''] + [pad + r for r in
+                screen.draw(head + [pad + r for r in
                                     gradient(frame, palette, caps)])
                 screen.pause(0.032)
 
-            # 3. And then the part the game is named after.
+            # 4. And then the part the game is named after.
             if traced:
                 lit = gradient(rows, palette, caps)
                 for i in range(26):
                     beating = i < 18
                     line = trace_row(span, i * 3, beating, ascii_only)
-                    screen.draw([''] + [pad + r for r in lit]
+                    screen.draw(head + [pad + r for r in lit]
                                 + [pad + paint(line, 'ok' if beating else 'err',
                                                caps)])
                     screen.pause(0.045 if beating else 0.07)

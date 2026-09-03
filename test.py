@@ -11101,6 +11101,82 @@ def test_pictures() -> None:
 
 
 
+def test_the_skyline() -> None:
+    """D112: the boot's one full-colour picture, and how it powers on."""
+    T.section('the skyline')
+    from flatline import anim
+    pal = theme.CYBERPUNK_NEON
+    true_caps = Caps(ColorLevel.TRUE, GlyphLevel.UNICODE, 80, pal)
+    c256 = Caps(ColorLevel.ANSI256, GlyphLevel.UNICODE, 80, pal)
+    c16 = Caps(ColorLevel.ANSI16, GlyphLevel.UNICODE, 80, pal)
+    ascii_caps = Caps(ColorLevel.TRUE, GlyphLevel.ASCII, 80, pal)
+
+    # Drawn only where the picture layer is (D102): truecolour and 256 draw
+    # it, sixteen and ASCII get the wordmark alone.
+    T.ok(anim.scene(true_caps, pal) is not None, 'truecolour draws the city')
+    T.ok(anim.scene(c256, pal) is not None, '256 colours draw it')
+    T.eq(anim.scene(c16, pal), None, 'sixteen colours do not')
+    T.eq(anim.scene(ascii_caps, pal), None, 'ASCII does not')
+    T.eq(anim.scene_rows(c16, pal), [], 'and it blits to nothing there')
+
+    grid = anim.scene(true_caps, pal)
+    T.eq(len(grid), anim._SCENE_H, 'the scene is the declared height')
+    widths = {len(r) for r in grid}
+    T.eq(len(widths), 1, 'the scene is a rectangle')
+    w = widths.pop()
+    T.ok(w % 2 == 0 and w <= 76, 'an even width, inside the budget')
+    T.eq(anim.scene_rows(true_caps, pal), anim.scene_rows(true_caps, pal),
+         'the same terminal draws the same city every time')
+    T.eq(len(anim.scene_rows(true_caps, pal)), anim._SCENE_H // 2,
+         'two pixels a cell')
+
+    # The palette themes it: a window is drawn in the player's own accent.
+    flat = [px for row in grid for px in row]
+    T.ok(pal.accent.rgb in flat or pal.accent2.rgb in flat,
+         'the city is lit in the palette the player earned')
+
+    # Power-on: windows come on as `lit` climbs, never off. Amber is a window
+    # colour and nothing else, so counting it measures the lit windows alone.
+    amber = (255, 200, 110)
+
+    def amber_count(lit):
+        g = anim.scene(true_caps, pal, lit)
+        return sum(px == amber for row in g for px in row)
+
+    counts = [amber_count(lit) for lit in (0.0, 0.25, 0.5, 0.75, 1.0)]
+    T.eq(counts[0], 0, 'a dark city has no lit windows')
+    T.ok(counts[-1] > 0, 'a woken city has some')
+    T.ok(all(a <= b for a, b in zip(counts, counts[1:])),
+         'windows only ever come on, never off')
+
+    # The sweep changes the picture (a bar of light crosses it).
+    T.ok(anim.scene(true_caps, pal, 1.0, sweep=w // 2) != grid,
+         'the light sweep leaves a mark')
+
+    # In the boot, the city rides above the wordmark on a capable terminal,
+    # and is simply absent on one that cannot draw it. `▀` is the half-block
+    # the picture is made of and nothing else in the boot uses it.
+    def boot_out(caps, style='block'):
+        con = Console(caps, stream=io.StringIO())
+        con.start_capture()
+        anim.boot(con, char=None, quick=True, style=style)
+        return con.end_capture()
+
+    T.ok('▀' in boot_out(true_caps), 'the boot shows the city in truecolour')
+    T.ok('▀' not in boot_out(c16), 'and shows none at sixteen colours')
+    # A minimal banner asks for a quiet start and gets one.
+    T.ok('▀' not in boot_out(true_caps, 'none'), 'the none banner draws no city')
+    T.ok('▀' not in boot_out(true_caps, 'small'), 'nor does the small one')
+
+    # The animated boot ends on the same picture, and no self-test survives it.
+    con, term = animated_console()
+    with no_pauses():
+        anim.boot(con, char=None, style='block')
+    screen = term.screen()
+    T.ok(any('▀' in line for line in screen),
+         'the animated boot ends with the city on screen')
+
+
 def test_the_instrument() -> None:
     """D103: a colour in the markup, gradient meters, the HUD panel."""
     T.section('the instrument')
@@ -11686,7 +11762,7 @@ SUITES = (
     test_remembered_inside, test_second_look, test_second_wave,
     test_the_way_in, test_more_to_say, test_the_door, test_corporate_night,
     test_named_shelf, test_and_in_nights, test_the_fourth_wave,
-    test_the_job_itself, test_pictures, test_the_instrument,
+    test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,
     test_ice_and_disruption, test_host_glyphs,
