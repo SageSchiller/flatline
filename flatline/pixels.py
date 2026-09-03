@@ -427,6 +427,15 @@ ICON_RGB: dict[str, dict[str, RGB]] = {
                 'cart': (112, 118, 130), 'low': (52, 58, 70)},
     'meter': {'grey': (120, 122, 130), 'dark': (68, 70, 78),
               'num': (212, 214, 222)},
+    'wraith': {'body': (70, 96, 128), 'rim': (150, 224, 255)},
+    'ronin': {'armour': (34, 38, 52), 'edge': (120, 150, 210),
+              'blade': (224, 236, 248), 'eye': (248, 72, 72),
+              'crest': (208, 70, 96)},
+    'seraph': {'body': (238, 240, 250), 'glow': (255, 246, 210),
+               'wing': (198, 210, 244), 'halo': (255, 214, 120)},
+    'reaper': {'cloak': (16, 16, 22), 'trim': (78, 40, 96),
+               'skull': (214, 210, 196), 'socket': (8, 8, 12),
+               'glint': (236, 60, 60)},
 }
 
 
@@ -439,31 +448,63 @@ def render_icon(key: str, width: int = ICON_WIDTH, height: int = ICON_HEIGHT):
     return fn(width, height, rng)
 
 
-def _figure(pix, colour, edge=None):
-    """A person-shaped silhouette centred in the frame: a round head over a
-    body that widens to the shoulders. The base every human icon bends."""
+def _head(w: int, h: int):
+    """Where the head sits. Shared, so anything drawn on the face (skin, a
+    hood, a halo) lands where the silhouette actually put the head."""
+    hr = max(2, h // 6)
+    return w // 2, 1 + hr, hr
+
+
+def _outline(pix, colour, edge) -> None:
+    """A one-pixel rim in `edge` around every `colour` pixel that borders the
+    background. What reads as a lit edge rather than a flat cut-out."""
     h, w = len(pix), len(pix[0])
-    cx = w // 2
-    hr = max(1, h // 8)
-    hcy = 1 + hr
-    for y in range(hcy - hr, hcy + hr + 1):
+    marks = []
+    for y in range(h):
+        for x in range(w):
+            if pix[y][x] == colour:
+                for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1),
+                               (-1, -1), (1, -1), (-1, 1), (1, 1)):
+                    nx, ny = x + dx, y + dy
+                    if 0 <= ny < h and 0 <= nx < w and pix[ny][nx] is None:
+                        marks.append((nx, ny))
+    for x, y in marks:
+        _put(pix, x, y, edge)
+
+
+def _figure(pix, colour, edge=None):
+    """A head-and-shoulders bust centred in the frame: a round head, a real
+    neck, shoulders that are the widest point, and a chest that holds its
+    width rather than flaring to a cone. The base every human icon bends.
+
+    The old figure was a circle on a triangle and read as a traffic cone. A
+    person is read at the shoulders, so the shoulders are drawn first and the
+    body hangs off them."""
+    h, w = len(pix), len(pix[0])
+    cx, hcy, hr = _head(w, h)
+    for y in range(hcy - hr, hcy + hr + 1):                     # the head
         for x in range(cx - hr, cx + hr + 1):
             if (x - cx) ** 2 + (y - hcy) ** 2 <= hr * hr + 1:
                 _put(pix, x, y, colour)
-    top = hcy + hr + 1
-    for y in range(top, h - 1):
-        t = (y - top) / max(1, h - 2 - top)
-        half = int(1 + hr + t * (w * 0.30))
+    neck_top = hcy + hr
+    neck_w = max(1, hr - 1)
+    shoulder_top = neck_top + max(2, h // 8)
+    shoulder_w = int(w * 0.34)
+    chest_w = int(w * 0.29)
+    ramp = max(2, h // 6)
+    for y in range(neck_top, h):
+        if y < shoulder_top:                                    # the neck
+            half = neck_w
+        elif y < shoulder_top + ramp:                           # the shoulders
+            t = (y - shoulder_top) / ramp
+            half = round(neck_w + (shoulder_w - neck_w) * (t ** 0.55))
+        else:                                                   # the chest
+            t = (y - shoulder_top - ramp) / max(1, h - (shoulder_top + ramp))
+            half = round(shoulder_w - (shoulder_w - chest_w) * t)
         for x in range(cx - half, cx + half + 1):
             _put(pix, x, y, colour)
     if edge is not None:
-        for y in range(h):
-            for x in range(w):
-                if pix[y][x] == colour:
-                    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-                        nx, ny = x + dx, y + dy
-                        if 0 <= ny < h and 0 <= nx < w and pix[ny][nx] is None:
-                            _put(pix, nx, ny, edge)
+        _outline(pix, colour, edge)
 
 
 def _icon_plain(w, h, rng):
@@ -477,13 +518,18 @@ def _icon_corporate(w, h, rng):
     c = ICON_RGB['corporate']
     pix = _blank(w, h)
     _figure(pix, c['suit'])
-    cx, hr = w // 2, max(1, h // 8)
-    for y in range(2, 2 + hr):
+    cx, hcy, hr = _head(w, h)
+    for y in range(hcy - hr + 1, hcy + hr):                     # the face
         for x in range(cx - hr + 1, cx + hr):
-            _put(pix, x, y, c['skin'])
-    _rect(pix, cx - 1, 1 + 2 * hr + 1, cx + 2, 2 + 2 * hr + 2, c['shirt'])
-    _put(pix, cx + 2, 2 + 2 * hr + 3, c['badge'])
-    _put(pix, cx + 2, 3 + 2 * hr + 3, c['badge'])
+            if (x - cx) ** 2 + (y - hcy) ** 2 <= hr * hr:
+                _put(pix, x, y, c['skin'])
+    collar = hcy + hr + 1
+    for y in range(collar, min(h, collar + 3)):                 # a shirt V
+        d = y - collar
+        for x in range(cx - 1 - d, cx + 2 + d):
+            _put(pix, x, y, c['shirt'])
+    _put(pix, cx + int(w * 0.16), collar + 2, c['badge'])       # the badge
+    _put(pix, cx + int(w * 0.16), collar + 3, c['badge'])
     return pix
 
 
@@ -545,16 +591,15 @@ def _icon_deadname(w, h, rng):
     c = ICON_RGB['deadname']
     pix = _blank(w, h)
     _figure(pix, c['coat'])
-    cx, hr = w // 2, max(1, h // 8)
-    hcy = 1 + hr
-    for y in range(hcy - hr, hcy + hr + 1):
+    cx, hcy, hr = _head(w, h)
+    for y in range(hcy - hr, hcy + hr + 1):                     # the face
         for x in range(cx - hr, cx + hr + 1):
-            if (x - cx) ** 2 + (y - hcy) ** 2 <= hr * hr:
+            if (x - cx) ** 2 + (y - hcy) ** 2 <= hr * hr + 1:
                 _put(pix, x, y, c['skin'])
-    for x in range(cx - hr, cx + hr + 1):
+    for x in range(cx - hr, cx + hr + 1):                       # swept hair
         _put(pix, x, hcy - hr, c['hair'])
-    _put(pix, cx - hr - 1, hcy - 1, c['warm'])
-    _put(pix, cx - hr - 1, hcy, c['warm'])
+        _put(pix, x, hcy - hr + 1, c['hair'] if x < cx else pix[hcy - hr + 1][x])
+    _put(pix, cx - hr - 1, hcy, c['warm'])                      # an earring
     return pix
 
 
@@ -595,11 +640,84 @@ def _icon_meter(w, h, rng):
     return pix
 
 
+def _icon_wraith(w, h, rng):
+    c = ICON_RGB['wraith']
+    pix = _blank(w, h)
+    _figure(pix, c['body'])
+    _outline(pix, c['body'], c['rim'])                          # a lit edge
+    for y in range(h):                                          # then a haze
+        for x in range(w):
+            if pix[y][x] == c['body'] and rng.random() < 0.55:
+                pix[y][x] = None
+    return pix
+
+
+def _icon_ronin(w, h, rng):
+    c = ICON_RGB['ronin']
+    pix = _blank(w, h)
+    _figure(pix, c['armour'], edge=c['edge'])
+    cx, hcy, hr = _head(w, h)
+    _line(pix, cx - hr, hcy - hr, cx - hr - 2, hcy - hr - 3, c['crest'])
+    _line(pix, cx + hr, hcy - hr, cx + hr + 2, hcy - hr - 3, c['crest'])
+    _put(pix, cx - 1, hcy, c['eye'])                            # a visor glare
+    _put(pix, cx + 1, hcy, c['eye'])
+    _line(pix, cx + 2, h - 2, w - 2, 1, c['blade'])             # a drawn katana
+    _put(pix, cx + 1, h - 2, c['crest'])                        # the tsuba
+    return pix
+
+
+def _icon_seraph(w, h, rng):
+    c = ICON_RGB['seraph']
+    pix = _blank(w, h)
+    cx, hcy, hr = _head(w, h)
+    sy = hcy + hr                                               # wings root here
+    span = int(w * 0.40)
+    for i in range(span):                                       # broad feathers
+        t = i / max(1, span - 1)
+        length = int((1 - t) * h * 0.42) + 1
+        y0 = sy - int(t * h * 0.10)
+        for dy in range(length):
+            col = c['wing'] if dy < length - 1 else shade(c['wing'], 0.7)
+            _put(pix, cx - hr - 2 - i, y0 - dy, col)
+            _put(pix, cx + hr + 2 + i, y0 - dy, col)
+    for a in range(0, 360, 12):                                 # a nimbus, behind
+        x = cx + int(round(math.cos(math.radians(a)) * (hr + 2)))
+        y = hcy + int(round(math.sin(math.radians(a)) * (hr + 1)))
+        _put(pix, x, y, c['halo'])
+    _figure(pix, c['body'], edge=c['glow'])
+    return pix
+
+
+def _icon_reaper(w, h, rng):
+    c = ICON_RGB['reaper']
+    pix = _blank(w, h)
+    cx, top = w // 2, 1
+    for y in range(top, h):                                     # a robe
+        t = (y - top) / max(1, h - 1 - top)
+        half = int(2 + t * (w * 0.36))
+        for x in range(cx - half, cx + half + 1):
+            _put(pix, x, y, c['cloak'])
+            if x in (cx - half, cx + half):
+                _put(pix, x, y, c['trim'])                      # a lit hem
+    fy = 3                                                      # the hood's skull
+    for y in range(fy, fy + 5):
+        for x in range(cx - 2, cx + 3):
+            if (x - cx) ** 2 + ((y - (fy + 2)) * 1.3) ** 2 <= 6:
+                _put(pix, x, y, c['skull'])
+    for dx in (-1, 1):                                          # eye sockets
+        _put(pix, cx + dx, fy + 1, c['socket'])
+        _put(pix, cx + dx, fy + 2, c['socket'])
+    _put(pix, cx - 1, fy + 2, c['glint'])                       # a glint in one
+    return pix
+
+
 _ICON_RENDERS = {
     'plain': _icon_plain, 'corporate': _icon_corporate, 'null': _icon_null,
     'swarm': _icon_swarm, 'predator': _icon_predator, 'mirror': _icon_mirror,
     'deadname': _icon_deadname, 'process': _icon_process,
     'janitor': _icon_janitor, 'meter': _icon_meter,
+    'wraith': _icon_wraith, 'ronin': _icon_ronin, 'seraph': _icon_seraph,
+    'reaper': _icon_reaper,
 }
 
 

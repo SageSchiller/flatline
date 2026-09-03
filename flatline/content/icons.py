@@ -163,6 +163,55 @@ ICONS: tuple[Icon, ...] = (
                   'plausibly reading a meter looks worse for the disguise '
                   'having been there.',
          penalty={'pretext_bonus': -2}),
+
+    Icon('wraith', 'Wraith',
+         'A person-shaped smear of interference, there and not there. Cheap '
+         'to hold and hard to lock, which is the whole of the pitch.',
+         'A dim outline with a bright edge and not much inside it. Lock-on '
+         'keeps resolving and losing you, half a metre from where you were.',
+         price=5000, coherence=20,
+         effects={'evade_bonus': 3, 'noise_mult': 0.85},
+         drawback='There is not enough of you to read the room. A tell a solid '
+                  'shape would feel coming arrives a beat late in this.',
+         penalty={'tell_lead': -1}),
+
+    Icon('ronin', 'Ronin',
+         'A masterless blade, rendered the old way: armour, a crest, and a '
+         'weapon the protocol keeps trying and failing to file as a person.',
+         'A helmed figure the environment draws a frame sharper than '
+         'everything around it, blade already out. The crest is somebody '
+         'else\'s colours, worn without their leave.',
+         price=4400, coherence=12,
+         effects={'ice_damage': 2, 'evade_bonus': 1},
+         drawback='A drawn blade is a statement and statements carry. '
+                  'Everything you do in it is louder than the same thing done '
+                  'in something quiet.',
+         penalty={'noise_mult': 1.2}),
+
+    Icon('seraph', 'Seraph',
+         'Something luminous and winged, rendered at a fidelity that costs '
+         'real money and reads as real standing. People simply believe it.',
+         'A bright haloed figure, wings half-spread, a full stop brighter than '
+         'the room. Nobody who renders like this has ever had to explain '
+         'themselves, and the net has learned to assume as much.',
+         price=8600, coherence=28,
+         effects={'pretext_bonus': 3, 'rep_mult': 1.15},
+         drawback='It is the opposite of forgettable. Every system it passes '
+                  'through remembers that it did, and the heat finds you '
+                  'faster for the glow.',
+         penalty={'heat_mult': 1.2}),
+
+    Icon('reaper', 'Reaper',
+         'A hood, a robe, and a face that is mostly skull. A threat rendered '
+         'as a person, and the things that watch you flinch first.',
+         'A cowled shape with a pale skull where a face should be and one '
+         'socket lit red. It moves like it has already decided how this ends.',
+         price=6800, coherence=24,
+         effects={'composure': 3, 'ice_damage': 1},
+         drawback='Nothing about it says staff, or process, or harmless. It '
+                  'arrives loud and everything that can raise an alarm raises '
+                  'one about it.',
+         penalty={'noise_mult': 1.3, 'pretext_bonus': -3}),
 )
 
 BY_KEY: dict[str, Icon] = {i.key: i for i in ICONS}
