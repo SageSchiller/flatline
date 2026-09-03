@@ -316,7 +316,12 @@ def _flinch(sess, enc, faction, outcome, rng, hurt, then) -> None:
         c.raw(f'  [accent]give[/]     Make it not worth the trouble  '
               f'[credit]{cost:,}c[/]')
     c.blank()
-    c.say('[dim]An empty line is taking it as it comes.[/]')
+    # A second question, said to be one (D100): it took Integrity fourteen
+    # to four when a verb was typed at it, because nothing said that
+    # anything but the two words above was taking it as it comes.
+    c.say('[dim]A second question, and it does not wait: `cover`'
+          + (', `give`' if cost >= 120 else '')
+          + ', or anything else, which is taking it as it comes.[/]')
     keys = ['cover'] + (['give'] if cost >= 120 else [])
 
     def answered(s, text: str) -> None:
