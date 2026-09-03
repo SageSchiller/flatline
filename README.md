@@ -102,7 +102,7 @@ slow effect but no effect, and looks identical to a slow one from outside.
 
 ## The design
 
-`FLATLINE-PLAN.md` is the long version: eighty-nine numbered locked decisions,
+`FLATLINE-PLAN.md` is the long version: a hundred numbered locked decisions,
 the systems design, and a session log. **Read it first** before changing
 anything structural.
 
@@ -120,6 +120,12 @@ The three ideas everything else hangs off:
   route, awake, with your name on it. And a room you keep working in
   at red sends something: six loud ticks and a hunter arrives on your
   host, named, with a tell.
+- **The advice knows what it does not know.** `now` is one real move, and it
+  reads the same sums the verbs do: it will not name a door you cannot
+  open, a job that has already cut you loose, or a walk through somebody
+  hunting you. Inside a run, `job` prices the whole night against the
+  clock and says when it is over, and with Intrusion 4 it walks through
+  doors rather than breaking them.
 - **No hidden dice.** `odds` prints the entire sum and the exact percentage
   before you commit, for a crack or a strike, and `odds <any verb>` prints
   what that verb costs tonight; a failed check names the term that sank it. The
