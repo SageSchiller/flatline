@@ -12,7 +12,7 @@ updated: 2026-09-03
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-09-01.** D86 to D89 landed in one session, from three play-tests run in parallel with three different briefs (a first-timer who does what `now` says, an explorer who ignores it, and a run specialist who types every verb by hand). What they found, in order of size: the story layer was gated on meeting people and nothing ever said to meet anyone, and forty-two scenes declared a district that nothing read; the advice could recommend the same severed run five nights running and never once name Intrusion; a credential warden was an unanswerable wall for the Chromed origin and the board could not see it; and D6's severed-connection cooldown had never been implemented. All fixed, with `test_people_are_the_story`, `test_night_before`, `test_wall_and_clock` and `test_remembered_inside` holding them. Two things were added rather than fixed: the construct that cut you loose is on the route next time, awake and named, and the other runners can turn up inside a network with consequences that read their opinion of you. `validate.py` clean, `test.py` green at **18,126 checks** (D90 to D113 followed on 2026-09-02 and 2026-09-03: the visual layer, from pictures and the drawn instrument through the schematic map, player icons, more palettes and prompts, the portrait, reveal styles, seen ICE with screen disruption, a glyph per host type across the scan, the map, and the node header, a full-colour city that the boot now comes up on, and the player icons redrawn as proper busts with four more to buy). The next thing worth doing is another round of the same method: play it three ways and fix what the players say, because every one of the fourteen decisions since D75 came out of somebody playing rather than somebody guessing.
+> **State as of 2026-09-01.** D86 to D89 landed in one session, from three play-tests run in parallel with three different briefs (a first-timer who does what `now` says, an explorer who ignores it, and a run specialist who types every verb by hand). What they found, in order of size: the story layer was gated on meeting people and nothing ever said to meet anyone, and forty-two scenes declared a district that nothing read; the advice could recommend the same severed run five nights running and never once name Intrusion; a credential warden was an unanswerable wall for the Chromed origin and the board could not see it; and D6's severed-connection cooldown had never been implemented. All fixed, with `test_people_are_the_story`, `test_night_before`, `test_wall_and_clock` and `test_remembered_inside` holding them. Two things were added rather than fixed: the construct that cut you loose is on the route next time, awake and named, and the other runners can turn up inside a network with consequences that read their opinion of you. `validate.py` clean, `test.py` green at **18,126 checks** (D90 to D113 followed on 2026-09-02 and 2026-09-03: the visual layer, from pictures and the drawn instrument through the schematic map, player icons, more palettes and prompts, the portrait, reveal styles, seen ICE with screen disruption, a glyph per host type across the scan, the map, and the node header, a full-colour city that the boot now comes up on, and the player icons redrawn as bold abstract sigils with four more to buy). The next thing worth doing is another round of the same method: play it three ways and fix what the players say, because every one of the fourteen decisions since D75 came out of somebody playing rather than somebody guessing.
 >
 > **State as of 2026-08-21, end of the long session.** **Phases 0 through 5 are done, D17's finish line is passed, Phase 7 is closed, and D63 to D65 are the deep work.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **15,311 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone. **D63, the mechanics deep dive** in six parts: every declared number and rider has a reader (`check_reads`); the intrusion layer's holes closed (`mask` decays, sealed records, armour wears, faction style knobs, soft wardens); the catalogue readable (`inspect`, a bare `load`, `fit`, passives once per kind, program riders, six mid-tier parts); the vices capped (Threes, collections, hook-4 warnings); twenty-four relics with histories; and programs held to skill rank plus two. **D64, the play test**: networks in six shapes by doctrine with the brief reading the sums; the city grown to twelve districts (the Stacks, Meridian Row, the Hall) with people, places, threads, events and relics; and the advice made into a chain that ends in a run, with seven dead ends closed and `test_advice` to keep them closed. **D65, the street is real**: encounters in four tiers answered by run, talk, pay or stand with printed checks; warning-then-lethal under the black-ICE contract; two street skills; `errands` (courier, watch, collect, escort); `arrange` to pay a faction for their streets; and the whole of it hooked into travel, rest and the close-call band. Before those, on the same day: D50 to D62, the onboarding layer, decisions that are read, the Deepwater spine, the city deeper, voices and hours, district arcs, the rival bond, the drawn map, the HUD, the tutorial's second half, run conditions, and the rest of the Phase 7 list.
 >
@@ -3736,32 +3736,38 @@ the theming, and the degradation; the existing boot matrix, which already
 runs every banner at every rung and width, now runs it against the city
 too.
 
-### D113: The icons, redrawn, and four more to buy
+### D113: The icons become sigils, and four more to buy
 
-The player icons (D105) had one good idea and one bad drawing. The bad
-drawing was the human figure: a circle on a triangle that widened all the
-way to the base, so every person-shaped icon read as a traffic cone with a
-head balanced on it. A person is read at the shoulders, so the figure was
-rebuilt around them: a round head, a real neck, shoulders that are the
-widest point, and a chest that holds its width instead of flaring. The
-head geometry moved into one shared `_head`, so anything drawn on the face
-(a suit, hair, a hood) lands where the silhouette actually put it, and a
-shared `_outline` gives an icon a lit edge rather than a flat cut-out.
-Plain, Compliance Shell, Null, Mirror and Deadname all read as people now.
+The player icons (D105) were drawn as little people, heads and shoulders
+seen from the chest up, and at twenty-two by sixteen pixels a person just
+reads as a lump. The right model was never a portrait anyway: a
+netrunner's icon is the mark they wear in the net, so every icon is now a
+bold abstract emblem that fills the frame and reads at a glance. Unmarked
+is a blank grey token, Compliance Shell a corporate crest, Null a hole
+with a broken ring, Predator a snarling maw, Mirror a split diamond,
+Deadname a struck ID card with a ghost of another behind it, Night Cleaner
+a broom under a moon, Meter Reader a gauge. Two small helpers, `_disc` and
+`_ring`, are the vocabulary most of them are built from.
 
-And four more to carry, each a distinct reason to own it. **Wraith**, a
-cheap slippery ghost: a bright edge around not much, evade and quiet, but
-too thin to feel a tell coming. **Ronin**, a cheap aggressive one: a
-helmed blade that damages ICE and slips a lunge, and is loud about both.
-**Seraph**, the expensive social peak: a haloed, winged, luminous shape
-that reads as standing nobody questions, and draws heat for the glow.
-**Reaper**, the nerve build's shape: a cowled skull that steadies you
-against black ICE and frightens what watches, at the cost of being the
-least deniable thing in the room. Each is a picture in `pixels`, a content
-entry in `content/icons` with a real penalty (no new engine riders), and
-each shows up in `icon` and at the workshop with no other wiring, because
-the whole system was already keyed off `ICON_KEYS`. `check_icons`,
-`test_player_icons`, and the effects vocabulary hold all four.
+And four more to carry, each a distinct reason to own it and a sigil to
+match. **Wraith**, a cheap slippery ghost (a rising wisp with hollow
+eyes): evade and quiet, but too thin to feel a tell coming. **Ronin**, a
+cheap aggressive one (a katana across a rising-sun disc): damages ICE and
+slips a lunge, and is loud about both. **Seraph**, the expensive social
+peak (a haloed pair of raised wings): reads as standing nobody questions,
+and draws heat for the glow. **Reaper**, the nerve build's shape (a
+skull): steadies you against black ICE and frightens what watches, at the
+cost of being the least deniable thing in the room.
+
+The pictures are the surface. Underneath, an icon has always been a real
+build axis (D105): `icon.effects` and `icon.penalty` merge straight into
+the character's live modifier stack, and the coherence penalty stacks on
+top when you wear a shape further from human than your Dissonance can
+carry. Each new icon is a content entry with genuine effects and a genuine
+penalty and no new engine rider, and each shows up in `icon` and at the
+workshop with no other wiring, because the whole system was already keyed
+off `ICON_KEYS`. `check_icons`, `test_player_icons`, and the effects
+vocabulary hold all four.
 
 ### D17: The finish line
 
