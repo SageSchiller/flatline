@@ -409,7 +409,9 @@ class Session:
             # already knows what a command is. D50.
             c.say('[accent]Start here[/]')
             for name, blurb in (
-                    ('new', 'make a runner. It asks you three questions.'),
+                    ('begin', 'a first job, right now. The fastest way in, '
+                              'and it teaches itself.'),
+                    ('new', 'skip that and make a runner yourself.'),
                     ('tutorial', 'a guided first run, one step at a time.'),
                     ('help', 'what to read first, and what it all means.')):
                 c.say(f'[fg]{name}[/]{" " * (10 - len(name))}[dim]{blurb}[/]',

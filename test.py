@@ -10865,6 +10865,72 @@ def test_the_fourth_wave() -> None:
 
 
 
+def test_the_cold_open() -> None:
+    """D115: the first job, before there is a you. On rails, never stalls,
+    and rolls into character creation."""
+    T.section('the cold open')
+
+    def fresh():
+        con = quiet_console()
+        return Session(console=con, slot='cold'), con
+
+    def do(sess, con, cmd):
+        con.start_capture()
+        sess.execute(cmd)
+        return strip_ansi(con.end_capture())
+
+    # It opens on the scene and leaves a question waiting for the next line.
+    sess, con = fresh()
+    out = do(sess, con, 'begin')
+    T.ok('borrowed deck' in out, 'the cold open sets the scene')
+    T.ok('Switchboard' in out, 'the voice is on the line')
+    T.ok(sess.pending is not None, 'and it waits for the next line')
+
+    # The real verbs walk it to the end, where creation is waiting.
+    for verb in ('scan', 'crack', 'grab', 'jack out'):
+        T.ok(sess.pending is not None, f'a beat waits before {verb}')
+        out = do(sess, con, verb)
+    T.ok('Deepwater' in out, 'the hook seeds the spine')
+    T.ok('Who are you' in out or 'who are you' in out.lower(),
+         'and hands over to character creation')
+    T.ok(sess.pending is not None and 'origin' in sess.pending.prompt,
+         'the origin question is waiting')
+
+    # It never stalls: a wrong word or an empty line still advances, with the
+    # word shown, so a newcomer cannot get stuck.
+    sess, con = fresh()
+    do(sess, con, 'begin')
+    out = do(sess, con, 'florble')
+    T.ok('scan' in out and 'shapes resolve' in out,
+         'a wrong word is nudged and the scene carries on')
+    out = do(sess, con, '')
+    T.ok(sess.pending is not None, 'an empty line advances rather than cancels')
+
+    # `skip` bails straight to creation.
+    sess, con = fresh()
+    do(sess, con, 'begin')
+    do(sess, con, 'skip')
+    T.ok(sess.pending is not None and 'origin' in sess.pending.prompt,
+         'skip jumps to character creation')
+
+    # It refuses once somebody already exists.
+    sess, con = fresh()
+    sess.game = Game.new(Character.from_origin('gutter', 'x'), seed=1)
+    out = do(sess, con, 'begin')
+    T.ok('already' in out.lower(), 'begin refuses when a character is loaded')
+
+    # Every beat is safe on a plain terminal too (no escapes leak, all ascii).
+    caps = Caps(ColorLevel.NONE, GlyphLevel.ASCII, 80, theme.NEUTRAL)
+    con = Console(caps, stream=io.StringIO())
+    sess = Session(console=con, slot='cold')
+    con.start_capture()
+    sess.execute('begin')
+    for verb in ('scan', 'crack', 'grab', 'jack out'):
+        sess.execute(verb)
+    text = con.end_capture()
+    T.ok(text.isascii(), 'the cold open is ascii-clean on an ascii terminal')
+
+
 def test_the_job_itself() -> None:
     """D101: the objective verb is priced, the errand pays once, the escort
     is waited for, and the fifth wave's other findings."""
@@ -11762,6 +11828,7 @@ SUITES = (
     test_remembered_inside, test_second_look, test_second_wave,
     test_the_way_in, test_more_to_say, test_the_door, test_corporate_night,
     test_named_shelf, test_and_in_nights, test_the_fourth_wave,
+    test_the_cold_open,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

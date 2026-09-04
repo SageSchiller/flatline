@@ -384,6 +384,21 @@ ASK_SPEND = 'spend (1 or 2)? '
 NOT_MADE = 'No runner made. `new` when you are ready.'
 
 
+@command('begin', 'Your first job, right now. The way in.',
+         group='character', bare=True, contexts=('city',), usage='begin',
+         detail='The cold open (D115): a short first heist, on rails, that '
+                'teaches the game by making you run it once before it asks '
+                'you to build anybody. Nothing you do in it can go wrong. '
+                '`new` skips straight to making a character; `tutorial` is '
+                'the slower, fuller guided run.')
+def cmd_begin(sess, args) -> None:
+    if sess.game is not None:
+        raise CommandError('you already have somebody. `new` makes another, '
+                           '`tutorial` walks a run.')
+    from .. import prologue
+    prologue.play(sess)
+
+
 def start_creation(sess, handle: str | None = None) -> None:
     """`new` with nothing after it: a conversation rather than a form.
 
