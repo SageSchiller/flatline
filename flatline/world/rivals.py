@@ -542,13 +542,30 @@ def reckoning_begin(sess, rival: Rival) -> None:
     c.raw(f'  [accent]{"settle":<7}[/] Buy the peace.  '
           + (f'[credit]{price:,}c[/]' if afford
              else f'[dim]{price:,}c, which you do not have[/]'))
+    c.raw(f'  [accent]{"fight":<7}[/] Settle it the other way.  '
+          f'[dim]rounds; {rival.name} is good at this[/]')
     c.raw(f'  [accent]{"walk":<7}[/] Not tonight.  [dim]it keeps[/]')
     c.blank()
     c.say('[dim]Type one. `walk` leaves it for a night you are readier for.'
           '[/]')
     sess.ask('this is happening > ',
              lambda s, line: _reckoning_answer(s, rival, line),
-             must_answer=True, choices=('face', 'settle', 'walk'))
+             must_answer=True, choices=('face', 'settle', 'fight', 'walk'))
+
+
+def _reckoning_fought(sess, rival: Rival, result: str) -> None:
+    game, c = sess.game, sess.console
+    c.blank()
+    if result == 'won':
+        _end_bond(game, rival, -20)
+        c.say(f'[ok]{rival_content.RECKON_FIGHT_WIN.format(name=rival.name)}[/]')
+    elif result == 'lost':
+        _end_bond(game, rival, -30)
+        c.say(f'[warn]{rival_content.RECKON_FIGHT_LOSE.format(name=rival.name)}'
+              f'[/]')
+    else:
+        c.say(f'[dim]{rival_content.RECKON_WALKED.format(name=rival.name)}[/]')
+    sess.autosave()
 
 
 #: Words that are somebody looking at the odds again rather than answering:
@@ -578,6 +595,19 @@ def _reckoning_answer(sess, rival: Rival, line: str) -> None:
     if word in ('walk', 'leave', 'later', 'no', 'not'):
         c.blank()
         c.say(f'[dim]{rival_content.RECKON_WALKED.format(name=rival.name)}[/]')
+        return
+    if word in ('fight', 'hit'):
+        # The other way to settle it (D128). A rival is a tier-three
+        # problem with chrome in them, and losing to one is not the kind
+        # that kills: it is the kind that is told about.
+        from . import fight as fight_mod
+        foe = fight_mod.Foe(tier=3, chromed=True, faction='',
+                            fill={'fac': rival.name,
+                                  'district': game.city.district.name},
+                            them=rival.name)
+        fight_mod.begin(sess, foe,
+                        lambda s, f, result: _reckoning_fought(s, rival,
+                                                               result))
         return
     # Anything else stands in it: facing them is what a runner who did not say
     # otherwise is doing.

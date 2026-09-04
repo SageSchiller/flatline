@@ -16,6 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from ..content import attributes, cyberware, dissonance, districts, drugs, factions
+from ..content import weapons
 from ..content import hardware, programs
 from ..content import shifts
 from ..rng import Stream
@@ -62,7 +63,7 @@ STOCK_KINDS = {
     'market': ('program', 'component', 'drug'),
     'clinic': ('ware', 'drug'),
     'workshop': ('component',),
-    'fence': ('program', 'ware', 'drug'),
+    'fence': ('program', 'ware', 'drug', 'weapon'),
     'fixer': ('drug',),
 }
 
@@ -97,6 +98,9 @@ def _catalogue(kind: str, service: str = ''):
                 if not p.unique]
     if kind == 'ware':
         return [(w.key, w.tier, w.price) for w in cyberware.WARE if not w.unique]
+    if kind == 'weapon':
+        # Off the back of a fence and nowhere else (D128).
+        return [(w.key, w.tier, w.price) for w in weapons.WEAPONS]
     if kind == 'drug':
         # Filtered by who is selling. A clinic and a fence both deal, and
         # they deal in different things: the difference between the two
@@ -279,7 +283,7 @@ def sale_value(kind: str, key: str) -> int:
     """What a fence gives you for something. Deliberately punishing: gear is
     for using, not for arbitrage."""
     table = {'program': programs.BY_KEY, 'ware': cyberware.BY_KEY,
-             'component': hardware.BY_KEY}
+             'component': hardware.BY_KEY, 'weapon': weapons.BY_KEY}
     item = table[kind].get(key)
     return int(getattr(item, 'price', 0) * 0.35) if item else 0
 

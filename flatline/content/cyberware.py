@@ -199,6 +199,27 @@ WARE: tuple[Ware, ...] = (
          penalty={'ice_damage': -2}),
 
     # -- subdermal ---------------------------------------------------------
+    Ware('dermal_weave', 'Dermal Weave', 'Freeport, rebuilt', 'subdermal', 2, 5,
+         2600, 1,
+         'A mesh grown into the skin of the chest and forearms, dock chrome '
+         'for people who get hit by things at work. It takes the edge off a '
+         'blow, which on the street is the difference between a bad night and '
+         'a clinic.',
+         effects={'armour': 1},
+         drawback='It itches in the net. Something about the mesh and the '
+                  'trode field never agreed, and every run is a little less '
+                  'comfortable to sit in.',
+         penalty={'composure': -1}),
+    Ware('plating', 'Subdermal Plating', 'Kohler-Reyes', 'subdermal', 3, 9,
+         6400, 2,
+         'Ceramic plates under the skin, over what matters. Made for '
+         'executives who expect to be shot at and want to be able to say so '
+         'at dinner. A hit that would have put you down puts you down less.',
+         effects={'armour': 2, 'integrity': 2},
+         drawback='You are carrying it everywhere, and everywhere includes '
+                  'the chair. Everything you do at the deck takes '
+                  'fractionally longer, forever.',
+         penalty={'tick_mult': 1.06}),
     Ware('coolant_mesh', 'Subdermal Coolant Mesh', 'Kohler-Reyes',
          'subdermal', 2, 5, 3400, 2,
          'A closed loop under the skin that takes heat off the deck through '

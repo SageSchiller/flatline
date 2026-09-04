@@ -17,7 +17,11 @@ from __future__ import annotations
 
 from ..content import districts, factions, spots
 from ..content import street as street_content
+from dataclasses import replace
+
 from ..run.checks import Check
+from ..content.attributes import ATTR_KEYS
+from . import fight as fight_mod
 
 #: Danger to tier: below 45 a lean, below 60 a press, below 75 a taking,
 #: and past that the kind that kills (once you have been warned).
@@ -86,7 +90,14 @@ def check_for(game, enc, option, faction: str, danger: int) -> Check | None:
                   + (danger // 20 if faction else 0))
     check.add(attr, char.attr(attr))
     check.add(skill, char.skill(skill) * 2)
-    check.add(second, char.skill(second))
+    # The third term is an attribute for `stand`, `fight` and `front`
+    # (Nerve). It used to be looked up as a skill, and found nothing.
+    check.add(second, char.attr(second) if second in ATTR_KEYS
+              else char.skill(second))
+    if kind == 'fight':
+        w = fight_mod.weapon_of(char)
+        if w is not None:
+            check.add(w.name.lower(), 1)
     if kind == 'talk' and char.has_technique('face'):
         check.add('a face', 4)
     if faction and kind == 'talk':
@@ -109,6 +120,163 @@ def can_bolt(game, enc) -> bool:
     """Bolt: leave before it starts, once a day, not from tier 4."""
     return (game.char.has_technique('bolt') and enc.tier < 4
             and game.city.bolted != game.city.shift)
+
+
+# --------------------------------------------------------------------------
+# the answers the street did not write (D128)
+# --------------------------------------------------------------------------
+
+#: Runs before a front has anything behind it.
+FRONT_AFTER = 3
+
+
+def _pseudo(key: str, kind: str):
+    """An Option-shaped thing for `check_for`, for answers that are not in
+    the encounter's own list."""
+    return street_content.Option(key, '', kind, street_content.Outcome(''),
+                                 street_content.Outcome(''))
+
+
+def menace_check(game, enc, faction: str, danger: int) -> Check:
+    check = check_for(game, enc, _pseudo('menace', 'fight'), faction, danger)
+    check.name = f'menace ({enc.name.lower()})'
+    check.resistance += 1
+    return check
+
+
+def front_check(game, enc, faction: str, danger: int) -> Check:
+    check = check_for(game, enc, _pseudo('front', 'front'), faction, danger)
+    check.resistance += 2
+    if faction and game.alias.attention(faction) >= 50:
+        # The one time being known is the point.
+        check.add('your name did the walking', 2)
+    return check
+
+
+def extra_answers(game, enc, faction: str, danger: int) -> list:
+    """(key, label, tail) for `fight`, `menace` and `front`, when each is
+    on. Never the only thing on the menu: the encounter's own answers are
+    always there, so nobody is ever made to fight."""
+    out = []
+    char = game.char
+    if street_content.fightable(enc):
+        w = fight_mod.weapon_of(char)
+        check = check_for(game, enc, _pseudo('fight', 'fight'), faction, danger)
+        out.append(('fight', 'Fight them' + (f', with the {w.name.lower()}'
+                                              if w else ''),
+                    f'[dim]{check.summary()}, then rounds[/]'))
+        if char.has_technique('menace') and enc.tier < 4:
+            check = menace_check(game, enc, faction, danger)
+            out.append(('menace', 'Let them see what it would cost',
+                        f'[dim]{check.summary()}[/]'))
+    if (game.alias.runs >= FRONT_AFTER
+            and any(o.check == 'talk' for o in enc.options)):
+        check = front_check(game, enc, faction, danger)
+        out.append(('front', 'Tell them who you are',
+                    f'[dim]{check.summary()}[/]'))
+    return out
+
+
+def _print_extras(c, extras) -> None:
+    for key, label, tail in extras:
+        c.raw(f'  [accent]{key:<8}[/] {label}  {tail}')
+
+
+def _start_fight(sess, enc, faction: str, danger: int,
+                 first_hit: bool = False) -> None:
+    game = sess.game
+    fac = factions.BY_KEY.get(faction)
+    foe = fight_mod.Foe(tier=enc.tier, chromed=street_content.chromed(enc),
+                        faction=faction, fill=_fill(game, enc, faction),
+                        danger=danger,
+                        them=f"{fac.short}'s people" if fac else 'them')
+    fight_mod.begin(sess, foe,
+                    lambda s, f, result: _fight_then(s, enc, faction, danger,
+                                                     f, result),
+                    first_hit=first_hit)
+
+
+def _fight_then(sess, enc, faction: str, danger: int, f, result: str) -> None:
+    """What a fight on the street means afterwards. Losing is the
+    encounter's worst outcome, under the same contract as everything else
+    (D6: the warning, then the strike). Winning is remembered."""
+    game, c = sess.game, sess.console
+    rng = game.rng('events')
+    fac = factions.BY_KEY.get(faction)
+    if result == 'lost':
+        stand = next((o for o in enc.options if o.check == 'stand'),
+                     enc.options[-1])
+        _apply(sess, enc, faction, replace(stand.lose, text=''), rng,
+               won=False)
+        return
+    told = []
+    if result == 'won':
+        if fac is not None:
+            game.alias.add_heat(faction, 2 * enc.tier)
+            game.alias.adjust_rep(faction, -enc.tier)
+            game.story.flags.add(f'fought:{faction}')
+            told.append(f'[dim]{fac.short} heat +{2 * enc.tier}, and they '
+                        f'will remember: the next of theirs you meet will '
+                        f'be worse.[/]')
+        elif enc.tier <= 2:
+            take = rng.int(30, 90) * enc.tier
+            game.char.credits += take
+            told.append(f'[credit]+{take:,}c[/] [dim]for what they had on '
+                        f'them.[/]')
+        game.city.news.append(f'[warn]{enc.name}[/] in '
+                              f'{game.city.district.name}: you won it.')
+    else:
+        if fac is not None:
+            game.alias.add_heat(faction, 1)
+            told.append(f'[dim]{fac.short} heat +1. They know your face '
+                        f'now.[/]')
+        game.city.news.append(f'[warn]{enc.name}[/] in '
+                              f'{game.city.district.name}: you got out.')
+    for line in told:
+        c.say(line)
+    game.story.flags.add(f'street:{enc.key}')
+    sess.record_progress()
+    sess.autosave()
+
+
+def _menace(sess, enc, faction: str, danger: int) -> None:
+    game, c = sess.game, sess.console
+    rng = game.rng('events')
+    check = menace_check(game, enc, faction, danger).resolve(rng)
+    c.blank()
+    c.say(f'[dim]{check.explain()}[/]')
+    if check.success:
+        c.say(f'[ok]{rng.pick(street_content.MENACE_WIN)}[/]')
+        if faction:
+            game.alias.adjust_rep(faction, 1)
+        _apply(sess, enc, faction, street_content.Outcome(''), rng, won=True)
+        return
+    c.say(f'[err]{rng.pick(street_content.MENACE_LOSE)}[/]')
+    _start_fight(sess, enc, faction, danger, first_hit=True)
+
+
+def _front(sess, enc, faction: str, danger: int) -> None:
+    game, c = sess.game, sess.console
+    rng = game.rng('events')
+    check = front_check(game, enc, faction, danger).resolve(rng)
+    talk = next(o for o in enc.options if o.check == 'talk')
+    c.blank()
+    c.say(f'[dim]{check.explain()}[/]')
+    if check.success:
+        c.say(f'[ok]{rng.pick(street_content.FRONT_WIN)}[/]')
+        if faction:
+            game.alias.adjust_rep(faction, 1)
+            c.say(f'[dim]{factions.BY_KEY[faction].short} rep +1. It will be '
+                  f'a story by morning.[/]')
+        game.story.flags.add('fronted')
+        _apply(sess, enc, faction, replace(talk.win, text=''), rng, won=True)
+        return
+    c.say(f'[err]{rng.pick(street_content.FRONT_LOSE)}[/]')
+    stand = next((o for o in enc.options if o.check == 'stand'), talk)
+    lo, hi = stand.lose.hurt
+    _apply(sess, enc, faction,
+           replace(stand.lose, text='', hurt=(lo + 1, hi + 1)), rng,
+           won=False)
 
 
 # --------------------------------------------------------------------------
@@ -149,6 +317,9 @@ def begin(sess, enc, faction: str = '', danger: int = 0,
             tail = f'[dim]{check.summary()}[/]'
         keys.append(opt.key)
         c.raw(f'  [accent]{opt.key:<8}[/] {opt.label}  {tail}')
+    extras = extra_answers(game, enc, faction, danger)
+    _print_extras(c, extras)
+    keys += [k for k, _, _ in extras]
     if can_bolt(game, enc):
         keys.append('bolt')
         c.raw(f'  [accent]{"bolt":<8}[/] Leave before it starts  '
@@ -186,6 +357,7 @@ def _restate(sess, enc, faction: str, danger: int) -> None:
         else:
             tail = f'[dim]{check.summary()}[/]'
         c.raw(f'  [accent]{opt.key:<8}[/] {opt.label}  {tail}')
+    _print_extras(c, extra_answers(game, enc, faction, danger))
     if can_bolt(game, enc):
         c.raw(f'  [accent]{"bolt":<8}[/] Leave before it starts  '
               f'[dim]Streetcraft 2, once a day[/]')
@@ -228,8 +400,27 @@ def _answer(sess, enc, faction: str, danger: int, text: str,
         sess.autosave()
         return
     keys = [o.key for o in enc.options]
+    extras = extra_answers(game, enc, faction, danger)
+    ekeys = [k for k, _, _ in extras]
+    keys += ekeys
     if can_bolt(game, enc):
         keys.append('bolt')
+    word = low.split()[0] if low else ''
+    if word and word not in {o.key for o in enc.options}:
+        exact = [k for k in ekeys if k == word]
+        prefix = [k for k in ekeys if k.startswith(word)]
+        clash = any(o.key.startswith(word) for o in enc.options)
+        chosen = exact[0] if exact else (
+            prefix[0] if len(prefix) == 1 and not clash else None)
+        if chosen == 'fight':
+            _start_fight(sess, enc, faction, danger)
+            return
+        if chosen == 'menace':
+            _menace(sess, enc, faction, danger)
+            return
+        if chosen == 'front':
+            _front(sess, enc, faction, danger)
+            return
     opt = next((o for o in enc.options if o.key == low
                 or o.key.startswith(low)), None)
     if opt is None and low.split()[0] in ASIDES:
@@ -477,6 +668,9 @@ def on_arrival(sess, faction: str, danger: int) -> bool:
     if faction in game.city.arrangements:
         from .city import ARRANGE_TIER_CAP
         tier = min(tier, ARRANGE_TIER_CAP)
+    if f'fought:{faction}' in game.story.flags:
+        # You beat their people once. They send better ones (D128).
+        tier = min(4, tier + 1)
     enc = choose(rng, game, 'faction', tier, faction)
     if enc is None:
         return False

@@ -1,4 +1,4 @@
-"""The fourteen skill lines and the techniques they unlock.
+"""The fifteen skill lines and the techniques they unlock.
 
 The design rule for this file: **a rank must change what you can type, not
 just what you roll.** Ranks 2 and 4 of every line unlock a technique, which is
@@ -336,6 +336,30 @@ SKILLS: tuple[Skill, ...] = (
                       'Once per encounter, the first thing that reaches you on '
                       'the street takes half what it would have. It is not '
                       'armour. It is having been hit before.'),
+        )),
+    Skill(
+        'violence', 'Violence', 'grit',
+        'Hurting people on the street, and not being hurt back.',
+        'The street can be fought (D128). Not by everyone, not for long, and '
+        'never well without this. Violence is the trade of a short, ugly '
+        'exchange in a doorway: hitting first, hitting somewhere that counts, '
+        'and knowing which of the four of them is the one the other three are '
+        'watching. It is the one skill in the game the net does not care '
+        'about, and the net is where you will be bleeding afterwards.',
+        (
+            Technique('finisher', 'Finisher', 2, '',
+                      '`finish` in a fight: end it in one once they are hurt.',
+                      'Once they are below half, `finish` is a single hard '
+                      'check that ends the fight on a success and leaves you '
+                      'wide open on a failure. It is how a fight stops being '
+                      'a queue of small hits.'),
+            Technique('menace', 'Menace', 4, '',
+                      '`menace` on the street: let them see what it would cost.',
+                      'A street answer that is not a fight and is not talking: '
+                      'you let them see, exactly, what a fight would cost '
+                      'them. Grit and Violence against the tier. Win and they '
+                      'find somewhere else to be; lose and it is a fight, and '
+                      'they go first.'),
         )),
 )
 

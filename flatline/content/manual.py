@@ -388,7 +388,7 @@ TOPICS: tuple[Topic, ...] = (
         terms=('stats',),
         group='character'),
     Topic(
-        'skills', 'The fourteen skill lines',
+        'skills', 'The fifteen skill lines',
         'What each buys, and why ranks 2 and 4 are the ones that matter.',
         '  [accent]Intrusion[/]     breaking services. The bread and butter.\n'
         '  [accent]Cryptography[/]  encrypted stores and key material.\n'
@@ -408,9 +408,11 @@ TOPICS: tuple[Topic, ...] = (
         '  [accent]Streetcraft[/]   reading a street, and being read by it '
         'the way you meant.\n'
         '  [accent]Fieldcraft[/]    the body on the street: carrying hurt, '
-        'walking far, staying up.\n\n'
-        'The last two are the half of the game that happens with the deck in '
-        'the bag. See `help street`.\n\n'
+        'walking far, staying up.\n'
+        '  [accent]Violence[/]      hurting people on the street, and not '
+        'being hurt back.\n\n'
+        'The last three are the half of the game that happens with the deck '
+        'in the bag. See `help street`.\n\n'
         '[warn]Every attribute governs at least two of them[/], four for '
         'Logic and two or three for everybody else, so there is no attribute '
         'you can safely ignore and no single best one.\n\n'
@@ -1053,14 +1055,44 @@ TOPICS: tuple[Topic, ...] = (
         'asking. Nobody\'s people are out there too: somebody behind you for '
         'three streets, four kids in a walkway with one knife held wrong, a '
         'stairwell in the dark with a step missing.\n\n'
-        '[warn]You do not fight.[/] You [accent]run[/], you [accent]talk[/], you '
-        '[accent]pay[/], or you [accent]stand[/] there, and each is a printed '
-        'check like every other check in the game: Reflex and Fieldcraft to '
-        'run, Guile and Streetcraft to talk, Grit and Fieldcraft to stand. '
-        'Two skills are the street\'s: [fg]streetcraft[/] (Bolt at rank 2 '
-        'leaves before it starts, once a day; A Face at rank 4 makes talking '
-        'easier and paying cheaper) and [fg]fieldcraft[/] (Scar Tissue at 2 '
-        'heals a point more per rest; Shrug at 4 halves the first hit).\n\n'
+        '[warn]You never have to fight.[/] You [accent]run[/], you '
+        '[accent]talk[/], you [accent]pay[/], or you [accent]stand[/] there, '
+        'and each is a printed check like every other check in the game: '
+        'Reflex and Fieldcraft to run, Guile and Streetcraft to talk, Grit '
+        'and Fieldcraft to stand. Two skills are the street\'s: '
+        '[fg]streetcraft[/] (Bolt at rank 2 leaves before it starts, once a '
+        'day; A Face at rank 4 makes talking easier and paying cheaper) and '
+        '[fg]fieldcraft[/] (Scar Tissue at 2 heals a point more per rest; '
+        'Shrug at 4 halves the first hit). Once you have a few runs behind '
+        'you, [accent]front[/] is the bluff: Guile, Streetcraft and Nerve, '
+        'standing with the faction when it lands and a worse beating when it '
+        'does not.\n\n'
+        '[warn]You can fight.[/] [accent]fight[/] is on the menu of every '
+        'encounter with people in it, and never the only thing on it. It is '
+        'not a check; it is rounds. Each round you [accent]strike[/] (Grit '
+        'and [fg]violence[/], plus what you carry), [accent]guard[/] '
+        '(Reflex and Fieldcraft, and it sets up the next strike), '
+        '[accent]jack[/] (the deck against their chrome: Logic and '
+        '[fg]warfare[/], and the weapon program you have loaded; nothing to '
+        'reach in four kids with one knife), or [accent]break[/] (out of it, '
+        'at a price), and then they hit you, less armour. Violence at rank 2 '
+        'adds [accent]finish[/], one hard check that ends it once they are '
+        'hurt; at rank 4, [accent]menace[/] on the street lets them see what '
+        'it would cost and they leave, or they go first.\n\n'
+        '[warn]What you carry.[/] A fence sells five things, and the axis that '
+        'matters is quiet or loud. Knuckledusters, a blade and a shock baton '
+        'are quiet. A pistol and a smartgun are loud: every fight one is '
+        'drawn in is a Nightwatch matter, won or lost. `carry` shows and '
+        'swaps; `carry nothing` walks without it. Dermal weave and plating '
+        'are chrome that takes a point or two off every hit.\n\n'
+        '[warn]What winning costs.[/] Beat a faction\'s people and they '
+        'remember: heat, standing, and the next of theirs you meet is a tier '
+        'worse, all the way up the ladder to the kind that kills. Win at the '
+        'top of it and you have killed somebody, which leaves a mark and '
+        'brings the law. Lose and it is the encounter\'s worst outcome, '
+        'under the same rules as everything else: the Integrity you spend '
+        'here is the Integrity you jack in with. Combat is a way to survive '
+        'the street. It is never a way to do a job.\n\n'
         '[warn]What it costs.[/] Integrity, the same number the net spends, and '
         'credits, and heat, and sometimes the deck or a mark. At the top of '
         'the ladder it can cost everything: [err]the street can kill you[/], '
@@ -1083,10 +1115,11 @@ TOPICS: tuple[Topic, ...] = (
         'worth money. Going anyway is a choice; so is `rest`, and so is '
         '`burn`, and so is paying.',
         see=('death', 'heat', 'skills', 'city'),
-        commands=('errands', 'arrange', 'travel', 'rest', 'rep'),
-        covers=('street',),
+        commands=('errands', 'arrange', 'travel', 'rest', 'rep', 'carry'),
+        covers=('street', 'weapons'),
         terms=('mugging', 'ambush', 'encounter', 'beating', 'physical',
-               'courier', 'odd jobs', 'violence'),
+               'courier', 'odd jobs', 'fight', 'combat', 'weapon', 'gun',
+               'armour', 'armor'),
         group='city'),
     Topic(
         'relics', 'Things there is one of',

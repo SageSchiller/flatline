@@ -195,7 +195,8 @@ ORIGINS: tuple[Origin, ...] = (
         'more move. You know what they are waiting for. It has not helped as '
         'much as you expected.',
         attrs={'nerve': 2, 'reflex': 1, 'guile': -1},
-        skills={'warfare': 1, 'forensics': 1, 'streetcraft': 1},
+        skills={'warfare': 1, 'forensics': 1, 'streetcraft': 1,
+                'violence': 1},
         credits=1500,
         cyberware=('threat_overlay',),
         programs=('cudgel', 'sable', 'mirrorbox'),
@@ -228,7 +229,7 @@ ORIGINS: tuple[Origin, ...] = (
         'the far side of a window. You are aware this is a symptom. It has not '
         'made you want to reverse it.',
         attrs={'reflex': 2, 'nerve': 1, 'grit': 1, 'guile': -2},
-        skills={'warfare': 1, 'stealth': 1},
+        skills={'warfare': 1, 'stealth': 1, 'violence': 1},
         credits=400,
         cyberware=('spinal_bus', 'ocular_suite', 'reflex_governor'),
         programs=('crowbar', 'cudgel'),

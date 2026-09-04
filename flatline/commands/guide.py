@@ -326,7 +326,7 @@ def _system_nudges(sess, char) -> list[tuple[str, str]]:
         out.append((f'train {ready[0]}',
                     f'{char.xp} experience will buy {tech.name}, which is a '
                     f'verb you do not have: {tech.summary.lower().rstrip(".")}'
-                    f'. `train` lists all fourteen'))
+                    f'. `train` lists all fifteen'))
         return out
 
     # Chrome, once there is money for it and nothing in you yet. The game

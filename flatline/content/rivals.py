@@ -444,6 +444,17 @@ RECKON_FACE_LOSE = (
     'You stand in it and {name} takes the inch anyway, in front of the people '
     'it will travel to. You are still standing when it is over. You are just '
     'standing smaller, and the city files the difference.')
+RECKON_FIGHT_WIN = (
+    'It is over, and {name} is on the ground, and the thing about a runner '
+    'on the ground is that everybody who was waiting to see which way it '
+    'went has seen. Whatever there was between you is settled in the only '
+    'currency the street takes.'
+)
+RECKON_FIGHT_LOSE = (
+    '{name} wins it, and takes their time about the last of it, and says '
+    'nothing, which is worse than anything they could have said. The '
+    'people who were watching will tell it their way.'
+)
 RECKON_SETTLED = (
     'You pay {name} what it takes, and it takes a real number, and the thing '
     'in the air goes out of it. Bought peace is still peace. It holds for '

@@ -10,11 +10,16 @@ the ladder it can kill you, under the same contract as black ICE (D6):
 telegraphed first, then absolute. Nobody dies on the street without having
 been told, in so many words, that next time they would not be asking.
 
-You do not fight. There are no guns in your hands and never will be (the
-locked direction stands). You get out of it the way people who live here
-get out of it: you run, you talk, you pay, or you stand there and take it,
-and two skills decide how well each of those goes. The checks are printed
-like every other check in the game.
+You get out of it the way people who live here get out of it: you run,
+you talk, you pay, or you stand there and take it, and two skills decide
+how well each of those goes. The checks are printed like every other check
+in the game. And since D128 you can fight, when there is somebody to
+fight: `fight` is on the menu of every encounter with people in it, it is
+never the only thing on the menu, and it is a short exchange rather than a
+check (see `world/fight.py`). `front` is the bluff, once you have a name
+worth bluffing with. The founding rule that there were no street fights
+(D2) was unlocked by the author on 2026-09-03; the half of it that stays
+is that combat is a way to survive the street and never a way to do a job.
 
 An encounter is a `Question` (D50): a prompt, a handful of answers, the
 next line you type. It never happens inside a run.
@@ -30,9 +35,188 @@ CHECKS: dict[str, tuple[str, str, str]] = {
     # answer -> (attribute, skill x2, second skill x1)
     'run': ('reflex', 'fieldcraft', 'streetcraft'),
     'talk': ('guile', 'streetcraft', 'subterfuge'),
-    'stand': ('grit', 'fieldcraft', 'nerve'),
+    # `stand` read Nerve as a skill for the whole life of the layer and
+    # found nothing, and the ladder was tuned around that. Streetcraft is
+    # the term it was tuned with in effect: zero untrained, a little when
+    # you know the street (D128).
+    'stand': ('grit', 'fieldcraft', 'streetcraft'),
     'careful': ('reflex', 'fieldcraft', 'streetcraft'),
+    # D128. `fight` is the opening strike's sum, shown on the menu; the
+    # exchange itself prints its own. `front` is the bluff.
+    'fight': ('grit', 'violence', 'nerve'),
+    'front': ('guile', 'streetcraft', 'nerve'),
 }
+
+#: Encounters with nobody in them to fight: a stair, a pot of soup, a
+#: crowd on a landing, somebody handing you a paper. `fight` is not
+#: offered, and neither is `menace`.
+NOBODY_TO_FIGHT: frozenset[str] = frozenset({
+    'stair', 'soup', 'stairs_crowd', 'paperboy', 'vespers_word',
+})
+
+#: People with nothing in them for the deck to reach: four kids with one
+#: knife, an amateur tail, a courier. `jack` needs chrome to hit.
+UNCHROMED: frozenset[str] = frozenset({
+    'knives', 'tail', 'courier', 'queue_jumper',
+})
+
+
+def fightable(enc: Encounter) -> bool:
+    return enc.key not in NOBODY_TO_FIGHT
+
+
+def chromed(enc: Encounter) -> bool:
+    """Whether their people carry chrome. Somebody's people do, unless the
+    encounter says otherwise; nobody's people mostly do not."""
+    if enc.key in UNCHROMED:
+        return False
+    return enc.who == 'faction' or enc.key in ('crossed', 'hounds_people',
+                                               'backqueue', 'colonnade_coat')
+
+
+# -- the fight, in words (D128) ---------------------------------------------
+#: Second person, present tense, deadpan. `{fac}` fills where there is one.
+
+#: How it starts, by tier.
+FIGHT_OPEN = {
+    1: 'It goes the way these go: no announcement, a half step, and then it '
+       'is happening and everybody involved is slightly surprised.',
+    2: 'There is a moment where it could still be a conversation, and then '
+       'there is not, and the one nearest you has already moved.',
+    3: 'Nobody says anything. The van door stays open. They come in '
+       'together, which is how you can tell they have done this before.',
+    4: 'They were not here to talk, and now neither are you. It is very '
+       'quiet, and it is going to be over quickly one way or the other.',
+}
+
+#: Their condition, by the share of them left.
+FOE_STATE = ((0.99, 'untouched'), (0.6, 'hurt'), (0.3, 'reeling'),
+             (0.0, 'nearly done'))
+
+STRIKE_WIN = (
+    'You hit them. It is not the movies: it is a short ugly noise and a '
+    'step back, and something in the arithmetic of the doorway changes.',
+    'It lands. Not where you meant, somewhere better, and the one you hit '
+    'stops being the one to worry about.',
+    'You go first and you go somewhere that counts, and for a moment the '
+    'only person in the walkway making a sound is them.',
+)
+STRIKE_CRIT = (
+    'You hit them properly. There is a noise like a dropped bag of tools '
+    'and one of them is not standing any more.',
+)
+STRIKE_LOSE = (
+    'You swing and it is not there. They let you, which is the part that '
+    'tells you what kind of night this is.',
+    'It does not land. Something about the angle, something about the '
+    'light, something about you.',
+)
+GUARD_WIN = (
+    'You get an arm up and take it on the arm, and the arm will complain '
+    'tomorrow and you will be there to hear it.',
+    'You give ground and turn, and what was meant for your head goes past '
+    'your ear, and now you know where they are.',
+)
+GUARD_LOSE = (
+    'You cover up and it comes in under the cover, which is where these '
+    'things go.',
+)
+JACK_WIN = (
+    'You do not touch them. You reach into the chrome they paid too much '
+    'for and turn something off, and they find out what their optics were '
+    'doing for them by not having it.',
+    'The deck is in your hand and their reflex boost is a construct with a '
+    'person attached, and you have killed constructs before. The person '
+    'sits down.',
+    'Something under their skin stops answering. You can see them realise, '
+    'and you can see them realise who did it.',
+)
+JACK_LOSE = (
+    'They see the deck. They know what a deck is for and they close the '
+    'distance before you finish, which is what a deck is not for.',
+)
+JACK_NOTHING = 'There is nothing in them for the deck to reach.'
+FINISH_WIN = (
+    'You end it. One more, where it needs to go, and the walkway is a '
+    'walkway again with people lying in it.',
+)
+FINISH_LOSE = (
+    'You go for the end of it and it is not the end of it, and you are '
+    'wide open for exactly as long as it takes them to notice.',
+)
+BREAK_WIN = (
+    'You go. Not fast, not clever: gone, through the gap that a fight '
+    'opens in the people having it, and they are too busy to follow.',
+)
+BREAK_LOSE = (
+    'You try for the gap and the gap has somebody in it.',
+)
+FOE_HIT = (
+    'They hit you. It is exactly as bad as it sounds.',
+    'One of them gets through and you hear it before you feel it.',
+    'It lands on you and the street tilts a few degrees and comes back.',
+    'They are not tired yet. That was to show you they are not tired yet.',
+)
+FOE_HIT_ARMOUR = 'Most of it stops at the plating.'
+FOE_STUNNED = 'The one you hit is still finding out where their hands are.'
+FOE_MISS = 'They come in and there is nothing there.'
+FOE_GLANCE = 'Most of it goes into the arm, which is what the arm was for.'
+
+#: The end of it, by tier. `{fac}` fills.
+FIGHT_WON = {
+    1: 'It is over. They were not expecting anybody to do that, and they '
+       'are going to have to think about the street differently, later, '
+       'somewhere else.',
+    2: 'It is over. Somebody is on the ground and somebody is walking away '
+       'in the wrong direction, and you are the one still standing in the '
+       'doorway, which is not nothing on this street.',
+    3: 'It is over, and the van leaves without what it came for. You stand '
+       'there for a moment with your hands doing something on their own, '
+       'and then you put them in your pockets and walk.',
+    4: 'It is over. Nobody is getting up, and you check, because the kind '
+       'that kills is the kind that does not stop. It is very quiet. You '
+       'are going to remember this one for longer than the others.',
+}
+FIGHT_LOST = {
+    1: 'They win. It was always most likely that they would win, and the '
+       'walkway agrees with them.',
+    2: 'You lose. There is a moment near the end where you understand that '
+       'you have lost and a moment after it where they make sure.',
+    3: 'You lose, and they take their time about the rest of it, because '
+       'time is the one thing the van has plenty of.',
+    4: 'You lose. There is nothing to say about it that the ground is not '
+       'already saying.',
+}
+FIGHT_KILLED = ('You did that. Whatever else the night was, it is also the '
+                'night you did that, and something in how you stand has '
+                'already changed to fit.')
+FIGHT_LOUD = ('A gun went off in {district}. Everyone within four streets '
+              'heard which kind, and one of them is the Nightwatch.')
+
+MENACE_WIN = (
+    'You do not say anything. You let them look at you, and you let them '
+    'work out what a fight would cost them, and they do the sum faster '
+    'than you expected and find somewhere else to be.',
+)
+MENACE_LOSE = (
+    'You let them look. They look. One of them laughs, which is the sound '
+    'of somebody who has decided, and they go first.',
+)
+FRONT_WIN = (
+    'You tell them who you are. You tell it like it is already a story '
+    'they have heard, and you watch them decide that it is.',
+    'You do not slow down. You name the last thing you did to somebody '
+    'like them, and the number, and you let the number do the walking.',
+    '"Ask around," you say, and keep walking, and the thing about that is '
+    'that they will, and what they hear will be true.',
+)
+FRONT_LOSE = (
+    'You tell them who you are. They know. That is the problem.',
+    'It is a good line and you deliver it well, and one of them explains '
+    'with the flat of a hand why lines are for people who can back them.',
+    'You name-drop a job. It turns out one of them was on the other end '
+    'of it.',
+)
 
 #: Base resistance by tier, before the district's danger (a point per
 #: twenty, when it is somebody's people). Set so that an untrained runner

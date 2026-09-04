@@ -83,6 +83,8 @@ class Character:
     #: Damage carried out of a run. Heals with rest, never spontaneously.
     hurt: int = 0
     runs: int = 0
+    #: What is in your hand on the street (D128): a weapon key, or ''.
+    weapon: str = ''
 
     # ------------------------------------------------------------------
     # creation
@@ -554,6 +556,7 @@ class Character:
             'drift_seen': self.drift_seen,
             'hurt': self.hurt,
             'runs': self.runs,
+            'weapon': self.weapon,
         }
 
     @classmethod
@@ -584,4 +587,5 @@ class Character:
             drift_seen=int(d.get('drift_seen', 0)),
             hurt=int(d.get('hurt', 0)),
             runs=int(d.get('runs', 0)),
+            weapon=str(d.get('weapon') or ''),
         )

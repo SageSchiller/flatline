@@ -8611,7 +8611,7 @@ def test_street() -> None:
     # The skills exist and the attributes still govern at least two each.
     T.ok('streetcraft' in skills.SKILL_KEYS and 'fieldcraft' in skills.SKILL_KEYS,
          'the two street skills exist')
-    T.eq(len(skills.SKILLS), 14, 'fourteen lines')
+    T.eq(len(skills.SKILLS), 15, 'fifteen lines')
     T.ok(street_world.tier_for(30) == 1 and street_world.tier_for(50) == 2
          and street_world.tier_for(65) == 3 and street_world.tier_for(80) == 4,
          'danger maps to the ladder')
@@ -11209,6 +11209,242 @@ def test_tactic_tools() -> None:
          and not sess.game.char.has_technique('crash'),
          'the tools are not techniques')
 
+def test_the_fight() -> None:
+    """D128: the street can be fought, and never has to be. A skill, a
+    weapon shelf, armour, an exchange in rounds, and what winning costs."""
+    T.section('the fight')
+    from flatline.content import skills, street as street_content, weapons
+    from flatline.content import cyberware, manual
+    from flatline.world import street as street_world
+    from flatline.world import fight as fight_mod
+    from flatline.world import rivals as rival_world
+    from flatline.world import market as market_mod
+    from flatline.content import districts
+
+    # The fifteenth line, with its two verbs at 2 and 4, from rank only.
+    v = skills.BY_KEY['violence']
+    T.ok(v.attr == 'grit' and [t.rank for t in v.techniques] == [2, 4],
+         'Violence is a Grit line with techniques at 2 and 4')
+    T.ok({t.key for t in v.techniques} == {'finisher', 'menace'},
+         'and they are Finisher and Menace')
+    T.ok(len(weapons.WEAPONS) == 5 and any(w.loud for w in weapons.WEAPONS)
+         and any(not w.loud for w in weapons.WEAPONS),
+         'five things to carry, on a quiet-or-loud axis')
+    T.ok(all(w.name[:2] not in ('A ', 'An') for w in weapons.WEAPONS),
+         'no weapon name carries an article: it is read after "with the"')
+    T.ok(cyberware.BY_KEY['dermal_weave'].effects.get('armour') == 1
+         and cyberware.BY_KEY['plating'].effects.get('armour') == 2,
+         'two pieces of chrome are armour')
+    T.ok('fight' in manual.BY_KEY['street'].body
+         and 'never have to fight' in manual.BY_KEY['street'].body,
+         'the manual says you can, and that you never have to')
+    fence = next(d for d in districts.DISTRICTS if 'fence' in d.services)
+    stocked = [l.key for l in market_mod.restock(Rng(4)('market'), fence.key, 1)
+               if l.kind == 'weapon']
+    T.ok(bool(stocked), f'a fence stocks them ({", ".join(stocked)})')
+
+    def fresh(origin='gutter', seed=5, attrs=None, **ranks):
+        char = Character.from_origin(origin, 't')
+        for k, r in ranks.items():
+            char.base_skills[k] = r
+        for k, val in (attrs or {}).items():
+            char.base_attrs[k] = val
+        game = Game.new(char, seed=seed)
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    def do(sess, con, cmd):
+        con.start_capture()
+        sess.execute(cmd)
+        return strip_ansi(con.end_capture())
+
+    def street(sess, con, key, faction='sixes', danger=50):
+        con.start_capture()
+        street_world.begin(sess, street_content.BY_KEY[key], faction, danger)
+        return strip_ansi(con.end_capture())
+
+    def until_done(sess, con, move, limit=14):
+        out = ''
+        for _ in range(limit):
+            if sess.pending is None:
+                break
+            out += do(sess, con, move)
+        return out
+
+    # The menu: fight beside the street's own answers, never instead.
+    sess, con, game = fresh()
+    menu = street(sess, con, 'lean')
+    T.ok('fight' in menu and all(k in menu for k in ('talk', 'pay', 'stand', 'run')),
+         'fight is on the menu next to every answer the street already had')
+    T.ok('front' not in menu, 'no front before there is a name to front with')
+    sess.pending = None
+    T.ok('fight' not in street(sess, con, 'stair'),
+         'and a stair with a step missing offers nobody to fight')
+    sess.pending = None
+    game.alias.runs = 3
+    T.ok('front' in street(sess, con, 'toll'), 'three runs in, front is there')
+    sess.pending = None
+    sess2, con2, game2 = fresh(violence=4)
+    T.ok('menace' in street(sess2, con2, 'toll'), 'Violence 4 puts menace on it')
+    sess2.pending = None
+    T.ok('menace' not in street(sess2, con2, 'finish', danger=80),
+         'and not against the kind that kills')
+    sess2.pending = None
+
+    # An exchange: a trained fighter with a blade ends a press.
+    sess, con, game = fresh(attrs={'grit': 6, 'nerve': 5}, violence=5)
+    game.char.weapon = 'blade'
+    heat0 = game.alias.raw_heat('sixes')
+    street(sess, con, 'lean')
+    out = do(sess, con, 'fight')
+    T.ok('a fight' in out and 'strike' in out and 'break' in out,
+         'fight opens the exchange with strike and break on it')
+    T.ok('with the blade' in out, 'and names what is in your hand')
+    out += until_done(sess, con, 'strike')
+    T.ok(sess.pending is None and 'you won it' in out, 'and a fighter wins it')
+    T.ok('fought:sixes' in game.story.flags
+         and game.alias.raw_heat('sixes') > heat0,
+         'winning is remembered: a flag and heat')
+    T.ok("Sixes's people: untouched" in out and 'Integrity' in out,
+         'the exchange prints their state and yours each round')
+
+    # The netrunner's route: the deck against their chrome.
+    sess, con, game = fresh(attrs={'logic': 6}, warfare=5, intrusion=3)
+    game.char.deck.loaded = ['sledge']
+    street(sess, con, 'lean')
+    out = do(sess, con, 'fight')
+    T.ok('jack' in out, 'chromed people can be jacked')
+    out = do(sess, con, 'jack')
+    T.ok('their hits -1' in out and f'(-{fight_mod.jack_damage(game.char)}' in out,
+         'a jack takes their chrome off and their hits down')
+    sess.pending = None
+    sess, con, game = fresh(warfare=5)
+    street(sess, con, 'knives', faction='')
+    out = do(sess, con, 'fight')
+    T.ok('jack' not in out.split('strike', 1)[1] and 'nothing in them' in out,
+         'four kids with one knife have nothing to reach')
+    sess.pending = None
+
+    # Always a way out: break, at a price.
+    sess, con, game = fresh(attrs={'reflex': 6}, fieldcraft=5)
+    heat0 = game.alias.raw_heat('sixes')
+    street(sess, con, 'toll', danger=0)
+    do(sess, con, 'fight')
+    out = do(sess, con, 'break')
+    T.ok(sess.pending is None and 'out of it' in out,
+         'break leaves a fight you started')
+    T.ok(game.alias.raw_heat('sixes') == heat0 + 1, 'and they know your face')
+
+    # The contract: a tier-four loss warns, and the second one does not.
+    sess, con, game = fresh()
+    game.char.weapon = 'pistol'
+    law0 = game.alias.raw_heat('nightwatch')
+    street(sess, con, 'finish', danger=80)
+    out = do(sess, con, 'fight') + until_done(sess, con, 'strike')
+    T.ok('you lost it' in out and game.char.integrity == 1 and not game.over,
+         'an untrained runner loses to the kind that kills, and is at one')
+    T.ok('warned:sixes' in game.story.flags and 'warning' in out,
+         'and has been told, in so many words')
+    T.ok(game.alias.raw_heat('nightwatch') == law0 + fight_mod.LOUD_HEAT,
+         'a pistol drawn is a Nightwatch matter, won or lost')
+    game.char.hurt = 0
+    street(sess, con, 'finish', danger=80)
+    do(sess, con, 'fight')
+    until_done(sess, con, 'strike')
+    T.ok(bool(game.over) or sess.game is None,
+         'the second time, it does not stop')
+
+    # Winning at the top of the ladder is killing somebody.
+    sess, con, game = fresh(attrs={'grit': 6, 'nerve': 5}, violence=5)
+    game.char.weapon = 'pistol'
+    law0 = game.alias.raw_heat('nightwatch')
+    street(sess, con, 'finish', danger=0)
+    out = do(sess, con, 'fight') + until_done(sess, con, 'strike')
+    T.ok('you won it' in out and 'blooded' in game.char.marks
+         and 'killer' in game.story.flags,
+         'a won tier-four fight leaves the blooded mark')
+    T.ok(game.alias.raw_heat('nightwatch')
+         == law0 + fight_mod.LOUD_HEAT + fight_mod.KILL_HEAT,
+         'and the law hears both the gun and what it did')
+
+    # They send better people next time.
+    def tiers_seen(flagged: bool) -> set:
+        seen = set()
+        for seed in range(30):
+            s_, c_, g_ = fresh(seed=seed)
+            if flagged:
+                g_.story.flags.add('fought:sixes')
+            c_.start_capture()
+            fired = street_world.on_arrival(s_, 'sixes', 30)
+            c_.end_capture()
+            if fired:
+                seen.add(street_content.BY_KEY[g_.city.last_street].tier)
+            s_.pending = None
+        return seen
+    T.ok(max(tiers_seen(False), default=1) == 1
+         and max(tiers_seen(True), default=1) >= 2,
+         'a faction you beat meets you a tier up')
+
+    # Front: the bluff, and menace: the look.
+    sess, con, game = fresh(attrs={'guile': 6, 'nerve': 6}, streetcraft=5)
+    game.alias.runs = 3
+    rep0 = game.alias.reputation('sixes')
+    street(sess, con, 'toll', danger=0)
+    out = do(sess, con, 'front')
+    T.ok(sess.pending is None and 'guile' in out, 'front is a printed check')
+    T.ok(game.alias.reputation('sixes') == rep0 + 1 and 'fronted' in game.story.flags,
+         'and when it lands it is standing')
+    sess, con, game = fresh(attrs={'grit': 6, 'nerve': 6}, violence=4)
+    street(sess, con, 'toll', danger=0)
+    out = do(sess, con, 'menace')
+    T.ok(sess.pending is None and 'somewhere else to be' in out,
+         'menace that takes ends it without a fight')
+
+    # Carrying: buy, swap, walk without, sell, and it saves.
+    sess, con, game = fresh()
+    game.city.where = fence.key
+    game.city.stock[fence.key] = [market_mod.Listing(kind='weapon', key='blade',
+                                                     price=700)]
+    game.char.credits = 5000
+    do(sess, con, 'buy blade')
+    T.ok(game.char.weapon == 'blade', 'a bought weapon is in your hand')
+    T.ok(Character.from_dict(game.char.to_dict()).weapon == 'blade',
+         'and it survives a save')
+    T.ok('Blade' in do(sess, con, 'char'), 'the sheet says what you carry')
+    do(sess, con, 'carry nothing')
+    T.ok(game.char.weapon == '' and 'blade' in game.char.library,
+         'carry nothing puts it in the bag')
+    do(sess, con, 'carry blade')
+    T.ok(game.char.weapon == 'blade', 'and carry <name> takes it back out')
+    do(sess, con, 'carry nothing')
+    credits = game.char.credits
+    do(sess, con, 'sell blade')
+    T.ok(game.char.credits == credits + market_mod.sale_value('weapon', 'blade'),
+         'a fence buys it back, badly')
+    T.ok('+4' in do(sess, con, 'inspect pistol') and 'loud' in do(sess, con, 'inspect pistol'),
+         'inspect prints the number and who hears it')
+
+    # The reckoning can be settled the other way.
+    sess, con, game = fresh(attrs={'grit': 6, 'nerve': 5}, violence=5)
+    game.char.weapon = 'blade'
+    rival = rival_world.Rival(key='hound', disposition=-80)
+    con.start_capture()
+    rival_world.reckoning_begin(sess, rival)
+    menu = strip_ansi(con.end_capture())
+    T.ok('fight' in menu, 'fight is on the reckoning')
+    out = do(sess, con, 'fight')
+    T.ok('a fight' in out, 'and starts one')
+    until_done(sess, con, 'strike')
+    T.ok('reckoned:hound' in game.story.flags and rival.bond is None,
+         'which settles it either way')
+
+    # The founding rule, amended and not deleted.
+    T.ok('never a way to do a job' in manual.BY_KEY['street'].body,
+         'combat survives the street and never does a job')
+
+
 
 def test_the_lifepath() -> None:
     """D126: your origin's complication comes to find you after the first run,
@@ -12488,7 +12724,7 @@ SUITES = (
     test_the_cold_open, test_ambitions, test_the_lifeline, test_the_reckoning,
     test_the_nemesis_run, test_the_partner, test_the_ways_in,
     test_planting_a_way_in, test_the_changing_world, test_swagger_and_legend,
-    test_the_lifepath, test_tactic_tools,
+    test_the_lifepath, test_tactic_tools, test_the_fight,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

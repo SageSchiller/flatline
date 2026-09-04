@@ -17,6 +17,7 @@ from ..content import rivals as rival_content
 from ..content import shifts
 from ..content import skills as skill_content
 from ..content import traits as trait_content
+from ..content import weapons as weapon_content
 from ..game import Game
 from ..model.character import Character
 from ..model import identity
@@ -330,6 +331,11 @@ def cmd_char(sess, args) -> None:
         ('credits', f'[credit]{char.credits:,}c[/]'),
         ('integrity', f'{char.integrity}/{char.integrity_max}'
                       + _warned_line(game)),
+        ('carrying', (f'{weapon_content.BY_KEY[char.weapon].name}'
+                      + (' [dim](loud)[/]' if weapon_content.BY_KEY[char.weapon].loud else '')
+                      if char.weapon in weapon_content.BY_KEY else '[dim]nothing[/]')
+                     + (f' [dim]armour {char.bonus("armour")}[/]'
+                        if char.bonus('armour') else '')),
         ('dissonance', f'{char.dissonance} [dim]({char.dissonance_band[1]})[/]'),
         ('looks', f'[dim]{appearance.summary(char.look)}[/]'),
         ('read as', f'{char.memorable_band[0]} '
@@ -955,7 +961,8 @@ def cmd_market(sess, args) -> None:
     want = (args.get(0) or '').rstrip('s').lower()
     kind = {'program': 'program', 'ware': 'ware', 'cyberware': 'ware',
             'component': 'component', 'part': 'component',
-            'drug': 'drug', 'chem': 'drug'}.get(want)
+            'drug': 'drug', 'chem': 'drug', 'weapon': 'weapon',
+            'gun': 'weapon', 'knife': 'weapon'}.get(want)
 
     qualifies = game.char.dissonance >= drift.DEEP_CLINIC_BAND
     listings = game.city.listings(kind, deep=None if qualifies else False)
@@ -1050,6 +1057,15 @@ def cmd_buy(sess, args) -> None:
         game.char.stash[listing.key] = game.char.stash.get(listing.key, 0) + 1
         c.info(f'In the bag. `dose {listing.key}` when you want it, '
                f'`chem` for what it will do to you.')
+    elif listing.kind == 'weapon':
+        old = game.char.weapon
+        game.char.weapon = listing.key
+        if old:
+            game.char.library.append(old)
+            c.info(f'{weapon_content.BY_KEY[old].name} went in the bag. '
+                   f'`carry` swaps.')
+        c.info(f'In your hand, for the street. `help street` for what a '
+               f'fight is; `carry nothing` to walk without it.')
     else:
         old = game.char.deck.parts.get(hardware.BY_KEY[listing.key].slot)
         game.char.deck.fit(listing.key)
@@ -1125,11 +1141,14 @@ def cmd_sell(sess, args) -> None:
         rows = []
         for key in game.char.library:
             item = (programs.BY_KEY.get(key) or cyberware.BY_KEY.get(key)
-                    or hardware.BY_KEY.get(key))
+                    or hardware.BY_KEY.get(key)
+                    or weapon_content.BY_KEY.get(key))
             if item is None:
                 continue
             kind = ('program' if key in programs.BY_KEY
-                    else 'ware' if key in cyberware.BY_KEY else 'component')
+                    else 'ware' if key in cyberware.BY_KEY
+                    else 'weapon' if key in weapon_content.BY_KEY
+                    else 'component')
             rows.append((item.name, kind,
                          f'[credit]{market_mod.sale_value(kind, key):,}c[/]'))
         if not rows:
@@ -1146,11 +1165,13 @@ def cmd_sell(sess, args) -> None:
 
     for key in list(game.char.library):
         item = (programs.BY_KEY.get(key) or cyberware.BY_KEY.get(key)
-                or hardware.BY_KEY.get(key))
+                or hardware.BY_KEY.get(key) or weapon_content.BY_KEY.get(key))
         if not item or query not in item.name.lower():
             continue
         kind = ('program' if key in programs.BY_KEY
-                else 'ware' if key in cyberware.BY_KEY else 'component')
+                else 'ware' if key in cyberware.BY_KEY
+                else 'weapon' if key in weapon_content.BY_KEY
+                else 'component')
         value = market_mod.sale_value(kind, key)
         if kind == 'program' and game.char.library.count(key) <= \
                 game.char.deck.loaded.count(key):
@@ -1164,6 +1185,58 @@ def cmd_sell(sess, args) -> None:
         raise CommandError('to sell somebody out: `betray <runner>`. `who` '
                            'lists them and what they would fetch.')
     raise CommandError(f'you do not have anything called {query!r} in storage')
+
+
+@command('carry', 'What is in your hand on the street, and swap it.',
+         contexts=('city',), group='character', usage='carry [<weapon>|nothing]',
+         detail=(
+                'A fight (D128) uses what you carry: a landed strike adds the '
+                'weapon\'s damage, and a loud one is a Nightwatch matter every '
+                'time it is drawn. `carry` alone shows what is in your hand and '
+                'what is in the bag; `carry <name>` swaps; `carry nothing` puts '
+                'it away, for a street where being seen with it is the problem.'))
+def cmd_carry(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    char = game.char
+    held = weapon_content.BY_KEY.get(char.weapon)
+    bagged = [k for k in char.library if k in weapon_content.BY_KEY]
+    if not len(args):
+        c.header('In hand', held.name if held else 'nothing')
+        if held:
+            c.say(f'[dim]+{held.damage} a landed strike, '
+                  f'{"loud" if held.loud else "quiet"}. `inspect {held.key}` '
+                  f'for the rest.[/]')
+        if bagged:
+            c.say('[dim]In the bag: '
+                  + ', '.join(weapon_content.BY_KEY[k].name for k in bagged)
+                  + '.[/]')
+        elif not held:
+            c.say('[dim]Nothing in the bag either. A fence sells them.[/]')
+        armour = char.bonus('armour')
+        if armour:
+            c.say(f'[dim]Armour {armour}: that much off every hit that '
+                  f'reaches you.[/]')
+        return
+    query = args.rest().lower()
+    if query in ('nothing', 'none', 'away', 'no'):
+        if not held:
+            raise CommandError('your hands are already empty.')
+        char.library.append(char.weapon)
+        char.weapon = ''
+        c.ok(f'{held.name} goes in the bag.')
+        return
+    for key in bagged:
+        item = weapon_content.BY_KEY[key]
+        if query == key or query in item.name.lower():
+            char.library.remove(key)
+            if held:
+                char.library.append(char.weapon)
+            char.weapon = key
+            c.ok(f'{item.name} in hand'
+                 + (f', {held.name} in the bag.' if held else '.'))
+            return
+    raise CommandError(f'nothing in the bag called {query!r}. `carry` lists '
+                       f'what there is.')
 
 
 # --------------------------------------------------------------------------
@@ -4120,7 +4193,8 @@ def _drift(sess) -> None:
 
 def _item(listing):
     table = {'program': programs.BY_KEY, 'ware': cyberware.BY_KEY,
-             'component': hardware.BY_KEY, 'drug': drug_content.BY_KEY}
+             'component': hardware.BY_KEY, 'drug': drug_content.BY_KEY,
+             'weapon': weapon_content.BY_KEY}
     return table[listing.kind].get(listing.key)
 
 
@@ -4133,6 +4207,8 @@ def _listing_detail(listing, item) -> str:
     if listing.kind == 'drug':
         return (f'{item.up} up, {item.down} down, '
                 + ('no hook' if not item.hook else f'hook {item.hook}'))
+    if listing.kind == 'weapon':
+        return f'+{item.damage} a hit, {"loud" if item.loud else "quiet"}'
     first = next(iter(item.effects.items()), None)
     return (f'{item.slot}: {SHORT_KEY.get(first[0], first[0])} '
             f'{_brief_value(*first)}' if first else f'{item.slot}')
@@ -4178,7 +4254,8 @@ def find_item(query: str):
     if not q:
         return None
     tables = (('program', programs.BY_KEY), ('ware', cyberware.BY_KEY),
-              ('component', hardware.BY_KEY), ('drug', drug_content.BY_KEY))
+              ('component', hardware.BY_KEY), ('drug', drug_content.BY_KEY),
+              ('weapon', weapon_content.BY_KEY))
     for kind, table in tables:
         if q in table:
             return kind, table[q]
@@ -4241,6 +4318,15 @@ def describe_item(sess, kind: str, item) -> None:
         rows.append(('up', f'{item.up} shift{"s" if item.up != 1 else ""}'))
         rows.append(('down', f'{item.down} shift{"s" if item.down != 1 else ""}'))
         rows.append(('hook', 'none' if not item.hook else str(item.hook)))
+    elif kind == 'weapon':
+        rows.append(('a landed strike', f'+{item.damage}'))
+        rows.append(('who hears it', '[err]loud: every fight it is drawn in '
+                     'is a Nightwatch matter[/]' if item.loud
+                     else '[ok]quiet[/]'))
+        if item.rider == 'stun':
+            rows.append(('a hit', 'halves their next one'))
+        if item.rider == 'smartlink':
+            rows.append(('needs', 'neural chrome fitted, or it hits for 2 less'))
     if getattr(item, 'unique', False):
         rows.append(('one of a kind', '[accent2]not sold anywhere[/]'))
     c.kv(rows)

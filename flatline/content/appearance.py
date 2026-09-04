@@ -390,6 +390,10 @@ EARNED: tuple[Feature, ...] = (
             'the colour of somebody whose body has stopped believing the '
             'reports it is getting from itself',
             memorable=3, presence=-1),
+    Feature('marks', 'blooded', 'Blooded',
+            'something in the way you stand in a doorway now, which the '
+            'people who do this for a living recognise and the rest do not',
+            memorable=1, presence=2),
 )
 
 EARNED_BY_KEY: dict[str, Feature] = {f.key: f for f in EARNED}

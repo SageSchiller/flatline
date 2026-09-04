@@ -39,6 +39,7 @@ ADDITIVE: dict[str, str] = {
     'pretext_bonus': 'Bonus to social engineering checks',
     'evade_bonus': 'Bonus to slipping a lock-on when a hunter lunges',
     'composure': 'Resistance to black ICE and panic',
+    'armour': 'Street damage absorbed from each hit in a fight',
     'cover': 'How fast the story a faction is assembling about you falls apart',
     'tell_lead': 'Ticks of advance warning on an ICE tell',
     'legwork_bonus': 'Quality of information bought before a run',
