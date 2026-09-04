@@ -12138,7 +12138,8 @@ def test_the_deck_in_the_city() -> None:
     stranger.bond = ''
     stranger.disposition = 0
     do(sess, con, f'message {stranger.key}')
-    T.ok('not answered' in do(sess, con, f'message {stranger.key}'), 'once a shift each')
+    T.ok('Nothing back yet' in do(sess, con, f'message {stranger.key}'),
+         'once a shift each')
     hostile = game.city.rivals[3]
     hostile.bond = ''
     hostile.disposition = -40
@@ -12336,6 +12337,122 @@ def test_the_play_test_found() -> None:
     game.char.weapon = 'blade'
     T.ok(not any(cmd == 'help street' for cmd, _ in guide_mod._system_nudges(sess, game.char)),
          'and not told again once they have committed')
+
+
+def test_the_deck_under_pressure() -> None:
+    """D138: what hammering the deck and living with it for sixty shifts
+    found. Vague searches, dead watches, doubled names, mail that was a
+    status board rather than news, and three ads on a loop."""
+    T.section('the deck under pressure')
+    from flatline.content import feed, npcs, districts
+    from flatline.world import deck as deck_world
+    from flatline.world import market as market_mod
+
+    def fresh(seed=13, origin='defector'):
+        char = Character.from_origin(origin, 't')
+        game = Game.new(char, seed=seed)
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    def do(sess, con, cmd):
+        con.start_capture()
+        sess.execute(cmd)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    # A vague query is a question, not a confident wrong answer.
+    sess, con, game = fresh()
+    T.ok('could be' in do(sess, con, 'search a'),
+         'a one-letter search asks which of them you meant')
+    T.ok(deck_world.lookup('a') is None and len(deck_world.ambiguous('a')) > 1,
+         'and the lookup says it means more than one thing')
+    T.ok(deck_world.lookup('katana') is not None,
+         'while a real name still means one thing')
+    T.ok(deck_world.lookup('adrenal')[1].key == 'adrenal',
+         'and an exact key beats every prefix that shares it')
+
+    # A watch that could never fire is refused.
+    out = do(sess, con, 'watch eightfold')
+    T.ok('one of a kind' in out and not game.city.watches,
+         'a watch on something never sold is refused, not silently kept')
+    T.ok('could be' in do(sess, con, 'watch a'), 'and a vague watch asks too')
+
+    # The transcript prints the name; the line does not print it again.
+    T.ok('{name}' not in feed.NO_REPLY_YET and '{name}' not in feed.NO_LINE,
+         'no reply and no line do not repeat the name the prefix just said')
+
+    # A watch is news, not a status board: it speaks when a thing lands or
+    # gets cheaper, and says nothing while it sits there.
+    sess, con, game = fresh()
+    here = game.city.where
+    game.city.stock = {here: [market_mod.Listing(kind='program', key='siphon', price=900)]}
+    do(sess, con, 'watch siphon')
+    T.ok(len(deck_world.pings(game)) == 1, 'a watched thing landing is news')
+    T.ok(not deck_world.pings(game), 'and it does not say so again')
+    game.city.stock[here] = [market_mod.Listing(kind='program', key='siphon', price=1200)]
+    T.ok(not deck_world.pings(game), 'nor when it gets dearer')
+    game.city.stock[here] = [market_mod.Listing(kind='program', key='siphon', price=500)]
+    T.ok(len(deck_world.pings(game)) == 1, 'but cheaper is news')
+    game.city.stock[here] = []
+    deck_world.pings(game)
+    game.city.stock[here] = [market_mod.Listing(kind='program', key='siphon', price=1200)]
+    T.ok(len(deck_world.pings(game)) == 1, 'and so is landing again after it was gone')
+
+    # Sixty days of a quiet life is one piece of junk mail a day.
+    sess, con, game = fresh(origin='courier')
+    game.city.stock = {}
+    seen = []
+    for day in range(12):
+        game.city.shift = day * deck_world.DAY
+        u = deck_world.unread(game)
+        seen.append(len(u))
+        deck_world.mark_read(game, [m.id for m in u])
+    T.ok(max(seen) <= 1, f'a quiet inbox is one thing a day at most ({seen})')
+
+    # And an entangled life is a rhythm, not a wall.
+    sess, con, game = fresh(origin='protege', seed=31)
+    game.city.rivals[0].bond = 'partner'
+    game.city.rivals[0].disposition = 70
+    game.city.rivals[1].bond = 'nemesis'
+    game.city.rivals[1].disposition = -80
+    game.debt.amount = 6400
+    game.debt.lender = 'sixes'
+    for n in npcs.NPCS:
+        if n.where:
+            game.story.meet(n.key)
+    game.city.pit['rank'] = 2
+    msgs = deck_world.messages(game)
+    T.ok(len(msgs) <= deck_world.MAIL_CAP,
+         f'an inbox is capped at {deck_world.MAIL_CAP} ({len(msgs)})')
+    T.ok(sum(1 for m in msgs if m.kind == 'fixer') <= deck_world.FIXER_CAP,
+         'and at most two fixers write at once')
+    busy = []
+    for day in range(12):
+        game.city.shift = day * deck_world.DAY
+        u = deck_world.unread(game)
+        busy.append(len(u))
+        deck_world.mark_read(game, [m.id for m in u])
+    T.ok(min(busy[1:]) <= 2, f'an entangled inbox still has quiet days ({busy})')
+    T.ok(all(k in deck_world.EVERY or k == 'watch' for k in deck_world.PRIORITY),
+         'every kind that recurs has a cadence')
+
+    # The ads rotate rather than looping over three.
+    sess, con, game = fresh(origin='courier')
+    keys = set()
+    for day in range(30):
+        game.city.shift = day * deck_world.DAY
+        keys.add(deck_world.ad_for(game).key)
+    T.ok(len(keys) >= 6, f'a quiet month sees a rotation of ads ({len(keys)})')
+    T.ok(sum(1 for a in feed.ADS if a.when == 'any') >= 8,
+         'because there are enough of them for everybody')
+
+    # The advertising is the one thing that gets through a broken deck.
+    sess, con, game = fresh()
+    game.char.deck.hurt('cpu', 3)
+    T.ok('still arriving' in do(sess, con, 'ads'),
+         'the ads arrive whatever state the deck is in')
+    T.ok('in pieces' in do(sess, con, 'mail'), 'and nothing else does')
 
 
 
@@ -13627,6 +13744,7 @@ SUITES = (
     test_the_rough_street, test_a_fighters_living, test_help_is_current,
     test_the_match, test_the_pit, test_the_deck_in_the_city,
     test_a_real_deck, test_the_play_test_found,
+    test_the_deck_under_pressure,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

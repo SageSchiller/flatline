@@ -12,7 +12,7 @@ updated: 2026-09-03
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-09-01.** D86 to D89 landed in one session, from three play-tests run in parallel with three different briefs (a first-timer who does what `now` says, an explorer who ignores it, and a run specialist who types every verb by hand). What they found, in order of size: the story layer was gated on meeting people and nothing ever said to meet anyone, and forty-two scenes declared a district that nothing read; the advice could recommend the same severed run five nights running and never once name Intrusion; a credential warden was an unanswerable wall for the Chromed origin and the board could not see it; and D6's severed-connection cooldown had never been implemented. All fixed, with `test_people_are_the_story`, `test_night_before`, `test_wall_and_clock` and `test_remembered_inside` holding them. Two things were added rather than fixed: the construct that cut you loose is on the route next time, awake and named, and the other runners can turn up inside a network with consequences that read their opinion of you. `validate.py` clean, `test.py` green at **18,578 checks** (D90 to D114 followed on 2026-09-02 and 2026-09-03: the visual layer, from pictures and the drawn instrument through the schematic map, player icons, more palettes and prompts, the portrait, reveal styles, seen ICE with screen disruption, a glyph per host type across the scan, the map, and the node header, a full-colour city that the boot now comes up on, and the player icons redrawn as a bestiary of creatures and characters with four more to buy, and a story/quest play-test that fixed the first-runs signposting, and a cold-open first job, sharper run beats, an ambitions ladder, a blank-prompt lifeline for newcomers, a nemesis reckoning that gives the rival arc a payoff, the nemesis as a felt in-run obstacle racing you for the objective, and its mirror the partner who helps in the run offers to crew for good, and three ways into every job that make a build matter for the run itself, and a plantable backdoor that turns an in-run choice into an easier run later, and a faction-power layer with a `world` dashboard so a campaign visibly reshapes the city, and a swagger/legend layer that lets the player be good at it, and origin lifepath openings so who you started as reaches into your story, and two tactic tools, Shroud and Sledge, that each buy a verb the deck could not do before, and, unlocking the founding no-combat rule at the author's call, a street that can be fought (D128 to D132, 2026-09-03 and 2026-09-04): a fifteenth skill, an exchange in rounds with a netrunner's route through their chrome, a play-test that found the overworld safe by construction and gave districts danger of their own, twelve weapons in four styles, armour worn and fitted, chrome that fights, loot, a fighter's living in muscle work and fights that teach, a balance simulation across eight builds, and every help topic brought up to date with all of it). The next thing worth doing is another round of the same method: play it three ways and fix what the players say, because every one of the fourteen decisions since D75 came out of somebody playing rather than somebody guessing.
+> **State as of 2026-09-01.** D86 to D89 landed in one session, from three play-tests run in parallel with three different briefs (a first-timer who does what `now` says, an explorer who ignores it, and a run specialist who types every verb by hand). What they found, in order of size: the story layer was gated on meeting people and nothing ever said to meet anyone, and forty-two scenes declared a district that nothing read; the advice could recommend the same severed run five nights running and never once name Intrusion; a credential warden was an unanswerable wall for the Chromed origin and the board could not see it; and D6's severed-connection cooldown had never been implemented. All fixed, with `test_people_are_the_story`, `test_night_before`, `test_wall_and_clock` and `test_remembered_inside` holding them. Two things were added rather than fixed: the construct that cut you loose is on the route next time, awake and named, and the other runners can turn up inside a network with consequences that read their opinion of you. `validate.py` clean, `test.py` green at **18,599 checks** (D90 to D114 followed on 2026-09-02 and 2026-09-03: the visual layer, from pictures and the drawn instrument through the schematic map, player icons, more palettes and prompts, the portrait, reveal styles, seen ICE with screen disruption, a glyph per host type across the scan, the map, and the node header, a full-colour city that the boot now comes up on, and the player icons redrawn as a bestiary of creatures and characters with four more to buy, and a story/quest play-test that fixed the first-runs signposting, and a cold-open first job, sharper run beats, an ambitions ladder, a blank-prompt lifeline for newcomers, a nemesis reckoning that gives the rival arc a payoff, the nemesis as a felt in-run obstacle racing you for the objective, and its mirror the partner who helps in the run offers to crew for good, and three ways into every job that make a build matter for the run itself, and a plantable backdoor that turns an in-run choice into an easier run later, and a faction-power layer with a `world` dashboard so a campaign visibly reshapes the city, and a swagger/legend layer that lets the player be good at it, and origin lifepath openings so who you started as reaches into your story, and two tactic tools, Shroud and Sledge, that each buy a verb the deck could not do before, and, unlocking the founding no-combat rule at the author's call, a street that can be fought (D128 to D132, 2026-09-03 and 2026-09-04): a fifteenth skill, an exchange in rounds with a netrunner's route through their chrome, a play-test that found the overworld safe by construction and gave districts danger of their own, twelve weapons in four styles, armour worn and fitted, chrome that fights, loot, a fighter's living in muscle work and fights that teach, a balance simulation across eight builds, and every help topic brought up to date with all of it). The next thing worth doing is another round of the same method: play it three ways and fix what the players say, because every one of the fourteen decisions since D75 came out of somebody playing rather than somebody guessing.
 >
 > **State as of 2026-08-21, end of the long session.** **Phases 0 through 5 are done, D17's finish line is passed, Phase 7 is closed, and D63 to D65 are the deep work.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **15,311 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone. **D63, the mechanics deep dive** in six parts: every declared number and rider has a reader (`check_reads`); the intrusion layer's holes closed (`mask` decays, sealed records, armour wears, faction style knobs, soft wardens); the catalogue readable (`inspect`, a bare `load`, `fit`, passives once per kind, program riders, six mid-tier parts); the vices capped (Threes, collections, hook-4 warnings); twenty-four relics with histories; and programs held to skill rank plus two. **D64, the play test**: networks in six shapes by doctrine with the brief reading the sums; the city grown to twelve districts (the Stacks, Meridian Row, the Hall) with people, places, threads, events and relics; and the advice made into a chain that ends in a run, with seven dead ends closed and `test_advice` to keep them closed. **D65, the street is real**: encounters in four tiers answered by run, talk, pay or stand with printed checks; warning-then-lethal under the black-ICE contract; two street skills; `errands` (courier, watch, collect, escort); `arrange` to pay a faction for their streets; and the whole of it hooked into travel, rest and the close-call band. Before those, on the same day: D50 to D62, the onboarding layer, decisions that are read, the Deepwater spine, the city deeper, voices and hours, district arcs, the rival bond, the drawn map, the HUD, the tutorial's second half, run conditions, and the rest of the Phase 7 list.
 >
@@ -4622,6 +4622,49 @@ summarises; and `carry` said "a fence sells them" while you were standing
 at a fence with two weapons on the shelf, so it names the nearest one and
 its price, which is what the deck is for. `test_the_play_test_found`
 holds all nine.
+
+### D138: The deck under pressure
+
+Three more play-tests, aimed at the deck: one that hammers every verb with
+bad input and broken hardware, one that lives sixty shifts with it, and one
+entangled in everything the mail can carry. No crashes in any of them, and
+the save round-tripped. Seven fixes, and the two that matter were only
+visible over time.
+
+**Mail was a status board, not news.** Sixty shifts with three watches on
+common things produced an inbox of four every single morning, three of
+them the same three watches saying the same three things, and it was never
+once empty. A watch says something now when a thing *lands* where it was
+not, or lands *cheaper* than the deck last called news, and says nothing
+at all while it sits on a shelf; the mail entry carries the price the deck
+last called news, so the inbox and the spoken ping agree about what is
+new. Then the opposite test, a runner with a partner, a nemesis, a debt,
+a rank on the wall and every fixer in the city on speaking terms, produced
+*thirteen* messages at once, seven of them fixers. Each kind writes on its
+own cadence now (a partner every three days, a fixer every two, the ad
+daily because junk mail is daily by nature), the fixers are capped at two
+and rotate on their own cadence rather than daily, and the inbox is capped
+at eight with a priority order. A quiet life is now exactly one piece of
+junk mail a day; an entangled one is a rhythm between one and seven.
+
+**Three ads on a loop.** Only three of the eighteen were written for
+everybody, so a character with no debt, no habit and no holes in them saw
+those three for sixty days. Seven more general ones, and even when
+something has read you, one morning in three is somebody who has not,
+because a targeted ad every day is a targeted ad nobody reads. A quiet
+month now sees nine of them.
+
+And five smaller ones the hammering found. `search a` answered
+confidently about Auspex, so a query that means more than one thing is now
+a question that lists them, and a substring under three characters is not
+a search at all. A watch could be set on a one-of-a-kind thing, which is a
+slot spent on something no shelf will ever have. `message` printed the
+name twice, because the transcript prefix already says who is talking.
+`watch drop` would not take the partial name that `watch` had accepted.
+And `ads` was the one deck verb with no hardware gate, which is now
+deliberate rather than an oversight: the advertising arrives whatever
+state the deck is in, and nobody has ever worked out how.
+`test_the_deck_under_pressure` holds all of it.
 
 ### D17: The finish line
 

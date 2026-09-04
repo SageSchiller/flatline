@@ -113,6 +113,34 @@ ADS: tuple[Ad, ...] = (
        'The Kagawa Vertical is monitored by systems that care. This is a '
        'statement of fact and also a threat and also, we think, rather '
        'lovely.'),
+    Ad('noodle', 'The noodle bar on the Marrow exchange',
+       'Open. Still open. Open when the exchange is not, which is the '
+       'point, and open when the exchange is, which is a favour to '
+       'nobody and yet here we are.'),
+    Ad('landlord', 'A letting agent',
+       'Rooms in the Terraces. Water most days. The lift is a stairwell '
+       'and the stairwell is a queue, and we would rather you heard that '
+       'from us.', tone='wry'),
+    Ad('school', 'A private tutor, allegedly',
+       'Learn intrusion in six weeks. Certificates issued. Our alumni are '
+       'employed across the city in a range of positions, and we do not '
+       'take questions about which ones.', tone='wry'),
+    Ad('funeral', 'A funeral society',
+       'Plans from four hundred a month. In this city that is not morbid, '
+       'it is planning, and the difference is entirely about who is doing '
+       'the arithmetic.'),
+    Ad('recycler', 'Freeport Reclamation',
+       'We take anything with copper in it. We take anything with a '
+       'person in it too, but that is a different number and a different '
+       'gate.'),
+    Ad('church', 'A congregation that meets in a car park',
+       'You are not too far gone. That is not a religious claim, it is an '
+       'observation, and we make it to everybody, and we have not been '
+       'wrong yet in a way anybody came back to tell us about.'),
+    Ad('translator', 'A translation service',
+       'Contracts read, clauses explained, in plain language, by people '
+       'who used to write them. We cannot get you out of it. We can tell '
+       'you what you are in.', tone='wry'),
     Ad('umbrella', 'A man with umbrellas',
        'It is going to rain. It is always going to rain. A man on the '
        'Freeport gate has umbrellas and no opinion about where you got the '
@@ -206,8 +234,9 @@ REPLIES: dict[str, tuple[str, ...]] = {
         'as read again.',
     ),
 }
-NO_REPLY_YET = '{name} has not answered the last one. They will, or they will not.'
-NO_LINE = '{name} is dead, and the deck does not know that yet, and sends it.'
+NO_REPLY_YET = 'Nothing back yet. They will, or they will not.'
+NO_LINE = ('It sends. It will keep sending. The deck does not know yet, and '
+           'nobody is going to tell it.')
 
 #: What the search says.
 SEARCH_NONE = ('The net does not know where that is this cycle, which '

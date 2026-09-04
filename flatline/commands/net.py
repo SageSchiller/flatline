@@ -112,7 +112,11 @@ def cmd_watch(sess, args) -> None:
         return
     first = (args.get(0) or '').lower()
     if first in ('drop', 'stop', 'forget'):
-        hit = deck_world.lookup(' '.join(args.rest().split()[1:]))
+        rest = ' '.join(args.rest().split()[1:])
+        hit = deck_world.lookup(rest)
+        if hit is None:
+            hit = next(((k, i) for k, i in deck_world.matches(rest)
+                        if i.key in watches), None)
         if hit is None or hit[1].key not in watches:
             raise CommandError('you are not watching that. `watch` lists them.')
         watches.remove(hit[1].key)
@@ -120,8 +124,19 @@ def cmd_watch(sess, args) -> None:
         return
     hit = deck_world.lookup(args.rest())
     if hit is None:
+        several = deck_world.ambiguous(args.rest())
+        if several:
+            raise CommandError(f'{args.rest()!r} could be: '
+                               + ', '.join(i.name for _, i in several[:8])
+                               + '. Watch for one of them.')
         raise CommandError(f'the net has no catalogue entry called {args.rest()!r}.')
     kind, item = hit
+    if getattr(item, 'unique', False):
+        # A watch that can never fire is a slot spent on nothing (D138).
+        raise CommandError(f'{item.name} is one of a kind. It is not sold '
+                           f'anywhere and no shelf will ever have it: '
+                           f'`search {item.key}` for where people stop '
+                           f'asking about it.')
     if item.key in watches:
         raise CommandError(f'already watching for {item.name}.')
     cap = deck_world.watch_capacity(game.char)
@@ -173,10 +188,17 @@ def cmd_message(sess, args) -> None:
                 'hurt, drifting, a habit, a loud weapon, a debt, a name on the '
                 'wall. One of them is in every `mail`. This shows three. They '
                 'change nothing, which is the one thing on the deck that does '
-                'not, and they would like you to know they are aware of that.'))
+                'not, and they would like you to know they are aware of that. They '
+                'arrive whatever state the deck is in.'))
 def cmd_ads(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     c.header('Sponsored', game.city.when)
+    if not deck_world.working(game.char):
+        # Deliberate (D138): every other verb on the deck is gated on the
+        # hardware and this one is not, because the joke is the system.
+        c.say('[dim]The deck is in pieces and the advertising is still '
+              'arriving. Nobody has ever worked out how.[/]')
+        c.blank()
     seen = set()
     for salt in ('', 'b', 'c'):
         ad = deck_world.ad_for(game, salt)

@@ -37,6 +37,19 @@ CATALOGUES = (('program', programs.BY_KEY), ('ware', cyberware.BY_KEY),
 #: A day, in shifts: the window mail is composed over.
 DAY = 3
 MAIL_READ_CAP = 200
+#: How often each kind writes, in days (D138). Mail is news, not a status
+#: board: a partner who writes every morning is somebody you stop reading,
+#: and a pit that says your rank every morning is a rank you stop caring
+#: about. The ad is the exception, because junk mail is daily by nature.
+EVERY = {'partner': 3, 'nemesis': 3, 'fixer': 2, 'lender': 2, 'story': 2,
+         'pit': 3, 'bounty': 2, 'ad': 1}
+#: At most this many from the fixers at once, and this many in total: an
+#: inbox with thirteen things in it is an inbox nobody reads.
+FIXER_CAP = 2
+MAIL_CAP = 8
+#: Which kinds survive the cap, most important first.
+PRIORITY = ('story', 'partner', 'nemesis', 'bounty', 'lender', 'pit',
+            'fixer', 'watch', 'ad')
 #: Shelves a search prints before it starts summarising: a common
 #: program is on eleven of them, and eleven lines is not an answer.
 SEARCH_SHOWN = 4
@@ -99,9 +112,13 @@ def ad_for(game, salt: str = '') -> feed.Ad:
     """The ad that has read you: the most specific that holds, or one of
     the ones for everybody."""
     live = [a for a in feed.ADS if a.when != 'any' and when(game, a.when)]
-    if live:
+    general = [a for a in feed.ADS if a.when == 'any']
+    # Even when something has read you, one morning in three is somebody
+    # who has not (D138): a targeted ad every day is a targeted ad nobody
+    # reads.
+    if live and _pick(game, (True, True, False), 'ads' + salt):
         return _pick(game, live, 'ad' + salt)
-    return _pick(game, [a for a in feed.ADS if a.when == 'any'], 'ad' + salt)
+    return _pick(game, general, 'ad' + salt)
 
 
 # --------------------------------------------------------------------------
@@ -114,57 +131,82 @@ def messages(game) -> list[Message]:
     from . import street as street_world
     city, char, alias, story = game.city, game.char, game.alias, game.story
     day = _day(game)
+
+    def every(kind: str) -> int:
+        return day // EVERY.get(kind, 1)
+
     out: list[Message] = []
     here = city.district.name
     partner = rival_world.active_partner(city.rivals)
     if partner is not None:
-        out.append(Message(f'partner:{partner.key}:{day}', partner.name, 'partner',
+        out.append(Message(f'partner:{partner.key}:{every("partner")}', partner.name, 'partner',
                            _pick(game, feed.PARTNER_MAIL, 'partner').format(district=here),
                            do=f'who {partner.name.lower()}'))
     for r in city.rivals:
         if r.alive and r.bond == 'nemesis':
-            out.append(Message(f'nemesis:{r.key}:{day}', r.name, 'nemesis',
+            out.append(Message(f'nemesis:{r.key}:{every("nemesis")}', r.name, 'nemesis',
                                _pick(game, feed.NEMESIS_MAIL, 'nemesis')))
+    # The fixers, two at most, and the same two until one of them has
+    # nothing (D138): every fixer in the city writing every other day is
+    # seven messages nobody reads.
+    fixers: list[Message] = []
     for npc in npcs.NPCS:
         if not story.satisfied(f'met:{npc.key}', game):
             continue
         if 'muscle' in npc.offers and street_world.fixer_jobs(game, npc):
-            out.append(Message(f'muscle:{npc.key}:{day // 2}', npc.name, 'fixer',
-                               _pick(game, feed.FIXER_MAIL, 'fixer' + npc.key),
-                               do=f'deal {npc.key} muscle'))
+            fixers.append(Message(f'muscle:{npc.key}:{every("fixer")}', npc.name,
+                                  'fixer',
+                                  _pick(game, feed.FIXER_MAIL, 'fixer' + npc.key),
+                                  do=f'deal {npc.key} muscle'))
         if 'work' in npc.offers and offers.BY_NPC_WORK.get(npc.key) \
                 and not any(x.from_npc == npc.key for x in city.board):
-            out.append(Message(f'work:{npc.key}:{day // 3}', npc.name, 'fixer',
-                               feed.WORK_MAIL[0], do=f'deal {npc.key} work'))
+            fixers.append(Message(f'work:{npc.key}:{every("fixer")}', npc.name,
+                                  'fixer', feed.WORK_MAIL[0],
+                                  do=f'deal {npc.key} work'))
+    if fixers:
+        # The rotation turns on the fixers' own cadence, not daily: a
+        # different two every morning is two new messages every morning.
+        start = every('fixer') % len(fixers)
+        out.extend((fixers + fixers)[start:start + FIXER_CAP])
     if game.debt.owed:
         lender = factions.BY_KEY.get(game.debt.lender)
-        out.append(Message(f'lender:{day}', lender.short if lender else 'a lender', 'lender',
+        out.append(Message(f'lender:{every("lender")}', lender.short if lender else 'a lender', 'lender',
                            _pick(game, feed.LENDER_MAIL, 'lender').format(amount=f'{game.debt.amount:,}'),
                            do='debt'))
     for thread in story.active_threads():
         short = story.waiting_on(thread, game)
         if short:
-            out.append(Message(f'story:{thread.key}:{day}', thread.name, 'story',
+            out.append(Message(f'story:{thread.key}:{every("story")}', thread.name, 'story',
                                feed.STORY_MAIL.format(short=short), do='story'))
     rank = int(city.pit.get('rank', 0))
     if 0 < rank < pit_content.TOP:
         nxt = pit_content.BY_RUNG[rank + 1].name
-        out.append(Message(f'pit:{rank}:{day // 2}', 'the pit', 'pit',
+        out.append(Message(f'pit:{rank}:{every("pit")}', 'the pit', 'pit',
                            feed.PIT_MAIL[0].format(rank=rank, next=nxt), do='pit'))
     for fac, amount in city.bounties.items():
         if amount and fac in factions.BY_KEY:
-            out.append(Message(f'bounty:{fac}:{day}', 'unsigned', 'bounty',
+            out.append(Message(f'bounty:{fac}:{every("bounty")}', 'unsigned', 'bounty',
                                feed.BOUNTY_MAIL[0].format(faction=factions.BY_KEY[fac].short),
                                do='rep'))
     for key in city.watches:
-        hit = _find_on_shelves(game, key)
-        if hit:
-            district, price, kind = hit[0]
-            out.append(Message(f'watch:{key}:{day}', 'your deck', 'watch',
+        best = _best_shelf(game, key)
+        if best:
+            district, price, kind = best
+            # The id carries the price the deck last called news, not the
+            # day and not the current price (D138), so mail and the ping
+            # agree about what is new: a watch on a thing that is always
+            # in stock said the same thing every morning for sixty
+            # mornings, and the inbox was never empty.
+            told = int(city.messaged.get(f'watch:{key}', 0)) or price
+            out.append(Message(f'watch:{key}:{told}', 'your deck', 'watch',
                                feed.WATCH_MAIL.format(item=_name(key), district=district, price=f'{price:,}'),
                                do=f'walk {_district_key(district)}'))
     ad = ad_for(game)
     out.append(Message(f'ad:{ad.key}:{day}', f'sponsored, by {ad.sponsor}', 'ad', ad.text))
+    if len(out) > MAIL_CAP:
+        out.sort(key=lambda m: PRIORITY.index(m.kind) if m.kind in PRIORITY
+                 else len(PRIORITY))
+        out = out[:MAIL_CAP]
     return out
 
 
@@ -186,27 +228,40 @@ def mark_read(game, ids) -> None:
 # --------------------------------------------------------------------------
 
 
-def lookup(query: str):
-    """(kind, item) from any catalogue by key, name, prefix or substring."""
+#: Below this, a substring is not a search, it is a shrug: `search a`
+#: used to answer confidently about Auspex (D138).
+VAGUE = 3
+
+
+def matches(query: str) -> list:
+    """Everything a query could mean, best first: exact key, exact name,
+    prefix, then substring. Empty when it means nothing."""
     q = query.strip().lower()
     if not q:
-        return None
-    for kind, table in CATALOGUES:
-        if q in table:
-            return kind, table[q]
+        return []
+    exact, prefix, loose = [], [], []
     for kind, table in CATALOGUES:
         for item in table.values():
-            if item.name.lower() == q:
-                return kind, item
-    for kind, table in CATALOGUES:
-        for item in table.values():
-            if item.name.lower().startswith(q) or item.key.startswith(q):
-                return kind, item
-    for kind, table in CATALOGUES:
-        for item in table.values():
-            if q in item.name.lower():
-                return kind, item
-    return None
+            name = item.name.lower()
+            if q == item.key or q == name:
+                exact.append((kind, item))
+            elif name.startswith(q) or item.key.startswith(q):
+                prefix.append((kind, item))
+            elif len(q) >= VAGUE and q in name:
+                loose.append((kind, item))
+    return exact or prefix or loose
+
+
+def lookup(query: str):
+    """(kind, item) when a query means one thing, else None."""
+    hits = matches(query)
+    return hits[0] if len(hits) == 1 else None
+
+
+def ambiguous(query: str) -> list:
+    """The candidates when a query means more than one thing."""
+    hits = matches(query)
+    return hits if len(hits) > 1 else []
 
 
 def _name(key: str) -> str:
@@ -234,6 +289,11 @@ def search(game, query: str) -> tuple[list[str], str]:
     """Lines to print, and a note about what the search cost."""
     hit = lookup(query)
     if hit is None:
+        several = ambiguous(query)
+        if several:
+            names = ', '.join(i.name for _, i in several[:8])
+            more = f', and {len(several) - 8} more' if len(several) > 8 else ''
+            return [f'{query!r} could be: {names}{more}. Ask for one of them.'], ''
         return [f'The net has no catalogue entry called {query!r}.'], ''
     kind, item = hit
     note = ''
@@ -260,18 +320,34 @@ def search(game, query: str) -> tuple[list[str], str]:
     return lines, note
 
 
+def _best_shelf(game, key: str):
+    """The cheapest shelf holding it, or None."""
+    hits = _find_on_shelves(game, key)
+    return min(hits, key=lambda t: t[1]) if hits else None
+
+
 def pings(game) -> list[str]:
-    """Watch hits not yet said this cycle. Called after time moves."""
+    """What a watch has to say, which is only ever news (D138): a thing
+    landing where it was not, or landing cheaper than it was. A watch on
+    something permanently in stock used to say so every single cycle."""
     out = []
-    cycle = game.city.shift // DAY
     said = game.city.messaged
     for key in list(game.city.watches):
-        hit = _find_on_shelves(game, key)
-        if hit and said.get(f'watch:{key}') != cycle:
-            said[f'watch:{key}'] = cycle
-            district, price, _ = hit[0]
-            out.append(f'[dim]Your deck:[/] {_name(key)} is on a shelf in '
-                       f'{district}, [credit]{price:,}c[/].')
+        best = _best_shelf(game, key)
+        mark = f'watch:{key}'
+        was = int(said.get(mark, 0))
+        if best is None:
+            # Gone. The next time it lands is news again.
+            if was:
+                said[mark] = 0
+            continue
+        district, price, _ = best
+        if was and price >= was:
+            continue
+        said[mark] = price
+        out.append(f'[dim]Your deck:[/] {_name(key)} '
+                   + ('is on a shelf in' if not was else 'is cheaper in')
+                   + f' {district}, [credit]{price:,}c[/].')
     return out
 
 
