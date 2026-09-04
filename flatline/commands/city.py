@@ -3678,6 +3678,11 @@ def _approach_menu(sess, contract) -> None:
     c.table(('approach', 'cost', 'what it is', ''), rows,
             roles=('accent', 'credit', 'dim', None))
     c.blank()
+    if game.city.backdoors.get(contract.target) and chosen == 'breach':
+        c.say(f'[ok]You left a way into {contract.target_data.short} last '
+              f'time. A straight `jack in` uses it, if they have not found '
+              f'it.[/]')
+        c.blank()
     c.say('[dim]`approach social` or `approach inside` to prepare one, each a '
           'shift. `approach breach` to go straight in.[/]')
 

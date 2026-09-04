@@ -11141,6 +11141,59 @@ def test_the_ways_in() -> None:
          'a sold-out inside job is a trap you walk into')
 
 
+def test_planting_a_way_in() -> None:
+    """D123: an in-run decision that pays off runs later. Leave a backdoor,
+    come up past the wall next time, until they find it."""
+    T.section('planting a way in')
+    from flatline.run import network as net_mod
+    from flatline.run.session import RunState
+    from flatline.rng import Rng
+    from flatline.commands import run as run_cmd
+
+    # The backdoor survives a save.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+    game.city.backdoors['kagawa'] = 7
+    from flatline.world.city import City
+    T.eq(City.from_dict(game.city.to_dict()).backdoors, {'kagawa': 7},
+         'a planted way in round-trips through a save')
+
+    def next_run(seed):
+        char = Character.from_origin('gutter', 't')
+        gm = Game.new(char, seed=seed)
+        gm.city.backdoors['sixes'] = 1
+        net = net_mod.generate(Rng(seed).fork('network', 't'), 'sixes', 20,
+                               'exfiltrate', 1.0)
+        con = quiet_console()
+        st = RunState.begin(net, char, Rng(seed)('combat'), con,
+                            contract={'objective': 'exfiltrate', 'title': 'T'})
+        st.render_mode = 'none'
+
+        class C:
+            target = 'sixes'
+
+            class target_data:
+                short = 'Sixes'
+                posture = 20
+        con.start_capture()
+        run_cmd._apply_backdoor(type('S', (), {'game': gm})(), st, net, C, con)
+        return st, net, gm, strip_ansi(con.end_capture())
+
+    # Over many seeds it both grants and burns, and each does what it says.
+    granted = burned = False
+    for seed in range(1, 20):
+        st, net, gm, out = next_run(seed)
+        if 'still open' in out:
+            granted = True
+            T.ok(all(n.known for n in net.nodes.values())
+                 and 'sixes' in gm.city.backdoors,
+                 'a live backdoor hands you the map and stays')
+        elif 'closed' in out:
+            burned = True
+            T.ok('sixes' not in gm.city.backdoors,
+                 'a found backdoor is gone')
+    T.ok(granted and burned, 'the backdoor both holds and gets found, over time')
+
+
 def test_the_partner() -> None:
     """D121: the mirror of the nemesis. A partner helps in the run, and deep
     enough, comes to run with you for good."""
@@ -12230,6 +12283,7 @@ SUITES = (
     test_named_shelf, test_and_in_nights, test_the_fourth_wave,
     test_the_cold_open, test_ambitions, test_the_lifeline, test_the_reckoning,
     test_the_nemesis_run, test_the_partner, test_the_ways_in,
+    test_planting_a_way_in,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

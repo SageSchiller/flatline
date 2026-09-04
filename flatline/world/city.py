@@ -154,6 +154,9 @@ class City:
     #: faction -> the construct that cut you loose last time (D89). Their
     #: next network runs it on the route, awake.
     grudges: dict = field(default_factory=dict)
+    #: faction -> the shift you left a way in on their network (D123). The
+    #: next run on them starts past the wall, until they find it and it burns.
+    backdoors: dict = field(default_factory=dict)
     #: Errands already taken this window, as 'district:window:index' (D101):
     #: a collection at the same door paid nine times in one shift.
     errands_taken: set = field(default_factory=set)
@@ -1101,6 +1104,7 @@ class City:
             'grounded': self.grounded,
             'done_titles': list(self.done_titles),
             'grudges': dict(self.grudges),
+            'backdoors': dict(self.backdoors),
             'errands_taken': sorted(self.errands_taken),
             'next_cid': self.next_cid,
             'stock': {k: [l.to_dict() for l in v] for k, v in self.stock.items()},
@@ -1139,6 +1143,7 @@ class City:
             last_street=str(d.get('last_street', '') or ''),
             grounded=int(d.get('grounded', -1)),
             grudges={str(k): str(v) for k, v in (d.get('grudges') or {}).items()},
+            backdoors={str(k): int(v) for k, v in (d.get('backdoors') or {}).items()},
             errands_taken={str(k) for k in (d.get('errands_taken') or [])},
             done_titles=[str(t) for t in (d.get('done_titles') or [])],
             next_cid=int(d.get('next_cid', 1)),

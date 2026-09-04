@@ -38,6 +38,7 @@ COST = {
     'pull': (2, 5, 4),
     'push': (2, 6, 6),
     'wipe': (2, 7, 5),
+    'plant': (2, 5, 8),
     'scrub': (2, 2, 0),
     'strike': (1, 7, 2),
     'overload': (1, 22, 6),
@@ -310,6 +311,9 @@ def cmd_jack_in(sess, args) -> None:
                 node.known = True
     # The way in you chose in the city (D122), applied before the first tick.
     _apply_approach(state, net, contract, c)
+    # Or the way you left in last time (D123), if you did not commit one.
+    if not (contract.approach or {}).get('kind'):
+        _apply_backdoor(sess, state, net, contract, c)
     if state.ally:
         from ..content import rivals as rival_content
         style, detail = rival_content.ALLY_SPECIALTY[state.ally['style']]
@@ -853,6 +857,41 @@ def _apply_approach(state, net, contract, c) -> None:
                     awake.state = 'awake'
                     awake.known = True
                     break
+
+
+def _apply_backdoor(sess, state, net, contract, c) -> None:
+    """A way you left into this faction last time (D123). They find it
+    sometimes, and then it is gone and they are harder for it; otherwise you
+    come up past the wall, on a network that does not know you are back."""
+    game = sess.game
+    target = contract.target
+    if not game.city.backdoors.get(target):
+        return
+    short = contract.target_data.short
+    posture = int(game.city.posture.get(target, contract.target_data.posture))
+    if game.rng('events').chance(0.25 + posture / 400.0):
+        del game.city.backdoors[target]
+        game.city.posture[target] = min(100, posture + 3)
+        c.blank()
+        c.say(f'[warn]The way you left into {short} is closed. They found it, '
+              f'and a network that has found one backdoor looks harder for a '
+              f'second.[/]')
+        return
+    _reveal_topology(state)
+    entry = net.node(net.entry)
+    if entry:
+        entry.open = entry.known = entry.mapped = True
+    state.tier = max(state.tier, 1)
+    obj_uid = net.objective_node
+    if obj_uid and obj_uid in net.nodes:
+        for e in net.nodes[obj_uid].edges:
+            node = net.nodes.get(e)
+            if node:
+                node.known = node.mapped = node.open = True
+                break
+    c.blank()
+    c.say(f'[ok]The way you left into {short} is still open. You come up past '
+          f'the wall, on a network that does not know you are back.[/]')
 
 
 def _host_glyph(caps, node) -> str:
@@ -1790,6 +1829,36 @@ def cmd_pull(sess, args) -> None:
             c.box(['[ok][bold]That is what you came for.[/][/]',
                    '[dim]It is in the deck and it is loud. The way out is '
                    'the whole job now.[/]'], title='secured', role='ok')
+
+
+@command('plant', 'Leave a quiet way back in, for next time.',
+         group='action', contexts=('run',), ticks=2, usage='plant',
+         detail='Two ticks in a host you hold to leave a way back onto this '
+                'faction, so the next run against them comes up past the '
+                'wall. It leaves a lot of evidence, which is heat later, and '
+                'they find it eventually and it burns. The long game, and the '
+                'reason to run the same people twice.')
+def cmd_plant(sess, args) -> None:
+    state, c = sess.require_run(), sess.console
+    game = sess.game
+    node = state.node
+    if not node.open:
+        raise CommandError('you leave one in a host you hold. Open this one '
+                           'first, or `connect` to one you have.')
+    target = (game.city.current.target if game.city and game.city.current
+              else state.net.faction)
+    short = fac_content.BY_KEY[target].short
+    if game.city.backdoors.get(target):
+        raise CommandError(f'you already have a way into {short}. A second '
+                           f'is how they find the first.')
+    _act(sess, 'plant', node=node)
+    if not state.running:
+        return
+    game.city.backdoors[target] = game.city.shift
+    c.blank()
+    c.ok(f'A way back into {short} is in place.')
+    c.say('[dim]The next run against them comes up past the wall. It is '
+          'evidence until they find it, and they will.[/]')
 
 
 @command('push', 'Leave something behind: an implant or an edit.',
