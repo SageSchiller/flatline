@@ -1193,6 +1193,122 @@ NPCS: tuple[Npc, ...] = (
                          'the one I want."',
         },
         hours=('morning', 'afternoon')),
+    Npc('hollis', 'Hollis', 'keeps the ledger under the fence',
+        'shambles', 'fence', 'grim', ('intel', 'muscle'),
+        'A woman at a card table with a ledger, a cash box and a shotgun, in '
+        'that order of importance to her. She does not look up when you come '
+        'down the ramp. She writes something. Then she looks up, and it turns '
+        'out she wrote it about you.',
+        'Runs the floor for Carrion and has done for eleven years, which is '
+        'nine years longer than anybody who has ever held the wall. She is '
+        'not a fighter and has never pretended to be. She is the reason '
+        'nobody has died on that floor, and she says so the way other people '
+        'say the weather.',
+        ('"Nobody dies down here. That is not sentiment, it is the only rule '
+         'I enforce, and I enforce it with the thing on the table."',
+         '"You want to know what I write in the book? I write what people '
+         'are worth. Not what they win. What they are worth."',
+         '"They all think the wall is about the wall."',
+         '"You are up two rungs and you have not once asked what the house '
+         'makes on you. Everybody asks eventually, and the ones who never '
+         'ask get a longer line in the book."',
+         '"There is no cage, there is no gate, and there is a ramp with '
+         'nobody standing on it. Anybody can leave. Write that down '
+         'somewhere you will read it later."'),
+        topics={
+            'wall': '"Five names. It has been five names since before I got '
+                    'here, and the number of people who have been on it is '
+                    'about sixty. They come up, they go along, they go off. '
+                    'Mother is the only one who stayed."',
+            'house': '"Carrion take a tenth and the whole of the floor, and '
+                     'in exchange nobody dies and nobody gets robbed on the '
+                     'ramp. It is the most honest arrangement in this '
+                     'district and I will not hear otherwise."',
+            'mother': '"Nine years. She has been offered the ramp, the book '
+                      'and my chair, and she says no, and she keeps saying '
+                      'no, and one day somebody is going to take the blade '
+                      'off her and she is going to be relieved."',
+        },
+        hours=('night',)),
+    Npc('pell', 'Pell', 'cooks the thing you are on',
+        'shambles', 'clinic', 'unsettling', ('intel',),
+        'Somebody in a clinic apron that has never been in a clinic, sorting '
+        'strips into paper envelopes with the concentration of a person doing '
+        'arithmetic they enjoy. They know what you have been taking before '
+        'you say anything, and they say so, kindly, which is the worst part.',
+        'Cooks in the back of a clinic that pretends not to know, and has the '
+        'unnerving warmth of somebody who genuinely believes they are in a '
+        'caring profession. In their own account of themselves they are a '
+        'pharmacist with an unusual customer base, and the terrible thing is '
+        'how much evidence there is for that.',
+        ('"You are two shifts off a comedown and your left hand knows it '
+         'before you do. Do not look at it, you will only start watching."',
+         '"I do not sell to people who are not already buying. I want that '
+         'on the record, because the record is all anybody gets."',
+         '"Everything I make, somebody asked for. That is not a defence. It '
+         'is just true, and I have noticed that people want it to be a '
+         'defence, and it is not."',
+         '"The clinic at the front does not know what the back does. That '
+         'is not a lie, it is an arrangement, and arrangements are how '
+         'anybody in this district sleeps."',
+         '"You will tell me it is only for the work. They all say the work. '
+         'I have never once heard anybody say the other thing, and the '
+         'other thing is what it is."'),
+        topics={
+            'redline': '"It is a fighter\'s drug and fighters are not '
+                       'careful people, so I cut it for people who are not '
+                       'careful. The crash is the honest part. The crash is '
+                       'the price on the label."',
+            'habit': '"There is a number, and you are on it, and I could '
+                     'tell you what it is. People think they want to know. '
+                     'They want to be told they are lower than they are."',
+            'clean': '"Getting off it is a clinic, a fortnight and money, '
+                     'and the fortnight is the part nobody has. I will tell '
+                     'you that for free, and I will still sell you the strip '
+                     'on the way out, and both of those are me being honest '
+                     'with you."',
+        },
+        hours=('afternoon', 'night')),
+    Npc('vig', 'Marek Vig', 'sells the fact that you exist',
+        'row', 'fixer', 'deceitful', ('intel',),
+        'A man in a good coat under the colonnade with a handset and no '
+        'apparent business, who greets you by the handle you were running '
+        'under last month, and then apologises for it, and the apology is the '
+        'introduction.',
+        'Buys attention and sells it on. Every advertisement in this city '
+        'that knows something about the person reading it knows it because '
+        'somebody like Vig sold that fact to somebody like the person who '
+        'bought the slot. He is entirely open about this and finds the '
+        'squeamishness of others about it genuinely puzzling.',
+        ('"You were shot at in Marrow. Do not look like that. Everybody who '
+         'bought a slot in Marrow knows, and I am the only one telling you."',
+         '"I do not read your mail. I sell the shape of you, and the shape '
+         'is public, and it has always been public, and the only new thing '
+         'is that it is now itemised."',
+         '"There is a file. There is a file on everybody. Mine is longer '
+         'than yours and I have read it and it was, honestly, quite dull."',
+         '"A billboard went dark last year and came back saying SORRY. '
+         'Nobody has ever claimed it. I have wanted to for eleven months '
+         'and my professional integrity will not let me."',
+         '"You are worth about four hundred a month to the people buying '
+         'slots in the districts you walk through. Do not be insulted. For '
+         'somebody with no property that is a good number."'),
+        topics={
+            'ads': '"Every slot is bought against a description. Hurt, in '
+                   'debt, drifting, armed, recently on a floor with tape on '
+                   'it. You match a description or you do not, and the ones '
+                   'you match are the ones you see."',
+            'file': '"Yours is thirty-one lines. I know because I priced it '
+                    'on Tuesday. It is not a secret, it is a product, and '
+                    'the difference matters more to you than it does to '
+                    'anybody buying."',
+            'slot': '"Twelve hundred buys a district for a shift. Four '
+                    'thousand buys a description. Nobody has ever bought a '
+                    'single person, because a single person is not worth '
+                    'four thousand, which is the most reassuring fact I '
+                    'know."',
+        },
+        hours=('morning', 'afternoon')),
 
 )
 

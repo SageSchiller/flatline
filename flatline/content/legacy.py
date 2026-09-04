@@ -592,6 +592,42 @@ EPILOGUE: tuple[tuple[str, str], ...] = (
      'You told the man with the bad knee you could not get the rota, and he '
      'said that was all right, and came for the number every six shifts '
      'after that.'),
+    # The wall, the back room and the slot (D140)
+    ('weight_dived',
+     'You went down in the third for the house, honestly enough that nobody '
+     'in the room ever knew, which is the only part of it you are still '
+     'quietly proud of.'),
+    ('weight_straight',
+     'The house asked you to lose one and you said no at the table with the '
+     'book open, and they booked you above your rung for a month, and you '
+     'were still standing at the end of it.'),
+    ('weight_told',
+     'You told sixty people on the tape what the house had asked you for, '
+     'and it was true, and it cost Hollis the eleven years she had spent '
+     'making sure nobody died on that floor.'),
+    ('ninety_took',
+     'You took the cleaner cut. Everything Pell told you about it was true, '
+     'including the part you did not listen to.'),
+    ('ninety_stopped',
+     'You asked the person selling it what getting off it looked like, and '
+     'they told you, for free, and put the envelope away.'),
+    ('ninety_reported',
+     'You gave up the back of the clinic. For nine days it was harder to '
+     'get, and then it was not, and the person cooking it stopped reading '
+     'anybody\'s chart.'),
+    ('slot_bought',
+     'You bought the thirty-one lines somebody had assembled about you and '
+     'read them in a doorway, and there was nothing in there you had not '
+     'done.'),
+    ('slot_used',
+     'You bought a description of somebody else from Marek Vig and used it, '
+     'and it worked exactly as advertised, which is the part you think about '
+     'at the wrong hour.'),
+    ('slot_burned',
+     'You put the whole targeting operation in the public log, and for '
+     'eleven days the Row had to say out loud what it was buying, and Vig '
+     'sent you the exact percentage it cost him.'),
+
 )
 
 EPILOGUE_BY_FLAG: dict[str, str] = {flag: line for flag, line in EPILOGUE}

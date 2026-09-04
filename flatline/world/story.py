@@ -86,7 +86,7 @@ class Story:
         if kind == 'ran':
             return f'ran:{value}' in self.flags
         if kind in ('did', 'bond', 'found', 'street', 'warned', 'heard',
-                    'asked', 'visited'):
+                    'asked', 'visited', 'fought', 'job'):
             # A posting finished, a runner decided about you, or a relic
             # found (D63 e). The flag carries its own colons, so it is
             # matched whole rather than parsed.
@@ -110,6 +110,32 @@ class Story:
             return value in game.char.traits
         if kind == 'debt':
             return game.debt.amount >= int(value)
+        if kind == 'skill':
+            # A trained rank (D140), so a story can want somebody who can
+            # actually do the thing it is about to ask for.
+            key, _, rank = value.partition(':')
+            return game.char.skill(key) >= int(rank or 1)
+        if kind == 'pit':
+            # A name on the wall (D134): `pit:champion` is the flag the
+            # house sets, and `pit:<n>` is the rung.
+            if value.isdigit():
+                return int(game.city.pit.get('rank', 0)) >= int(value)
+            return rule in self.flags
+        if kind == 'habit':
+            from ..content import drugs as drug_content
+            key, _, level = value.partition(':')
+            return drug_content.habit(game.char.chem, key) >= int(level or 1)
+        if kind == 'carrying':
+            from ..content import weapons as weapon_content
+            held = (weapon_content.BY_KEY.get(game.char.weapon)
+                    or weapon_content.granted(game.char.installed))
+            if value in ('any', ''):
+                return held is not None
+            if value == 'loud':
+                return held is not None and held.loud
+            return held is not None and held.key == value
+        if kind == 'mark':
+            return value in game.char.marks
         if kind == 'arranged':
             # Arrangements standing with factions (D70). World state rather
             # than a decision, so it is a rule kind and not a flag.

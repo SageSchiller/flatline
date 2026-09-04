@@ -12584,6 +12584,107 @@ def test_the_fight_under_pressure() -> None:
          'while a night at the bottom of the wall is pocket money')
 
 
+def test_the_story_knows_the_street() -> None:
+    """D140: the story predated the fight, the pit, the deck and the chem,
+    and could not see any of them. Rules that read them, and three threads
+    and three people that are about them."""
+    T.section('the story knows the street')
+    from flatline.content import threads as thread_content, npcs, drugs, legacy
+    from flatline.commands.people import _check_story
+
+    def fresh(origin='gutter', seed=7, where='shambles', phase='night'):
+        char = Character.from_origin(origin, 't')
+        game = Game.new(char, seed=seed)
+        game.city.where = where
+        while game.city.phase != phase:
+            game.city.shift += 1
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    def do(sess, con, cmd):
+        con.start_capture()
+        sess.execute(cmd)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    def story(sess, con):
+        con.start_capture()
+        _check_story(sess)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    # The rule engine reads the half of the game with the deck in the bag.
+    sess, con, game = fresh()
+    game.char.base_skills['violence'] = 3
+    game.char.weapon = 'pistol'
+    game.char.marks.append('blooded')
+    game.city.pit['rank'] = 2
+    game.story.flags.add('fought:sixes')
+    for _ in range(3):
+        game.char.chem = drugs.dose(game.char.chem, 'redline')
+    sat = lambda r: game.story.satisfied(r, game)  # noqa: E731
+    for rule, want in (('skill:violence:3', True), ('skill:violence:5', False),
+                       ('pit:2', True), ('pit:4', False),
+                       ('carrying:any', True), ('carrying:loud', True),
+                       ('carrying:blade', False), ('mark:blooded', True),
+                       ('mark:ports', False), ('fought:sixes', True),
+                       ('habit:redline:1', True), ('habit:redline:9', False)):
+        T.ok(sat(rule) is want, f'{rule} reads {want}')
+    for kind in ('skill', 'pit', 'habit', 'carrying', 'mark', 'fought', 'job'):
+        T.ok(kind in thread_content.CONDITIONS,
+             f'{kind} is a condition content may be written against')
+
+    # Three people who are about the new half.
+    for key, where in (('hollis', 'shambles'), ('pell', 'shambles'), ('vig', 'row')):
+        n = npcs.BY_KEY[key]
+        T.ok(n.where == where and len(n.lines) >= 5 and len(n.topics) >= 3,
+             f'{n.name} keeps hours in the right place, with enough to say')
+    T.ok('muscle' in npcs.BY_KEY['hollis'].offers,
+         'the house hands out doorway work as well as bouts')
+
+    # The Weight: a name on the wall gets noticed, and asked.
+    sess, con, game = fresh()
+    game.story.meet('hollis')
+    game.city.pit['rank'] = 2
+    T.ok('Hollis writes a line' in story(sess, con),
+         'two rungs up the wall and the house writes a line about you')
+    game.city.pit['rank'] = 3
+    game.city.shift += 9
+    T.ok('the other way' in story(sess, con), 'and then asks you to lose one')
+    T.ok(game.story.open_choice() is not None, 'which is a decision')
+    do(sess, con, 'choose straight')
+    T.ok('weight_straight' in game.story.flags, 'and it lands')
+
+    # Ninety Seconds: a habit is a story, not just a number.
+    sess, con, game = fresh()
+    game.story.meet('pell')
+    T.ok('Pell knows' not in story(sess, con), 'clean, and nobody says anything')
+    for _ in range(3):
+        game.char.chem = drugs.dose(game.char.chem, 'redline')
+    T.ok('Pell knows before you say anything' in story(sess, con),
+         'on it, and the person who cooks it can see the fortnight in you')
+
+    # The Slot: the ads knew something, and somebody sold it.
+    sess, con, game = fresh(where='row', phase='morning')
+    game.story.meet('vig')
+    game.char.runs = 3
+    T.ok('good coat' not in story(sess, con),
+         'nobody has read anything about you yet')
+    game.char.marks.append('blooded')
+    T.ok('Marek Vig' in story(sess, con),
+         'once you match a description, somebody is selling it')
+
+    # Every decision the new threads offer is remembered at the end.
+    epi = {flag for flag, _ in legacy.EPILOGUE}
+    for key in ('weight', 'ninety', 'slot'):
+        thread = thread_content.BY_KEY[key]
+        for st in thread.stages:
+            for ch in st.choices:
+                for flag in ch.sets:
+                    T.ok(flag in epi, f'{key}: {flag} has an epilogue line')
+    T.ok(len(thread_content.THREADS) >= 38, 'thirty-eight storylines')
+
+
 
 def manual_body(key: str) -> str:
     from flatline.content import manual
@@ -13875,6 +13976,7 @@ SUITES = (
     test_a_real_deck, test_the_play_test_found,
     test_the_deck_under_pressure,
     test_the_fight_under_pressure,
+    test_the_story_knows_the_street,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

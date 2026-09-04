@@ -34,6 +34,10 @@ from dataclasses import dataclass, field
 CONDITIONS = ('runs', 'diss', 'shift', 'credits', 'heat', 'met', 'rep',
               'ran', 'origin', 'debt', 'trait', 'did', 'bond', 'found',
               'street', 'warned', 'heard', 'arranged',
+              # The half of the game with the deck in the bag (D140): what
+              # you can do, what you carry, what you are hooked on, what
+              # the wall says, and what a fight left on you.
+              'skill', 'pit', 'habit', 'carrying', 'mark', 'fought', 'job',
               # `asked:<npc>:<topic>`: set by `ask`, so a scene that is
               # written as a question can wait for the question (D86).
               'asked',
@@ -727,6 +731,215 @@ THREADS: tuple[Thread, ...] = (
                   requires=('ozy_war', 'dw_heard', 'asked:vending:deepwater'),
                   sets=('ozy_deepwater', 'dw_heard')),
         )),
+    # -- the half with the deck in the bag (D140) ---------------------------
+    Thread(
+        'weight', 'The Weight',
+        'The house keeps a book, and the book is not about who wins.',
+        (
+            Stage('noticed', 'Hollis writes a line about you',
+                  'You are two rungs up the wall and Hollis has stopped '
+                  'writing your name and started writing sentences after it. '
+                  'She turns the ledger round so you can read the line, which '
+                  'is a courtesy nobody else on the ramp gets.\n\n'
+                  '"Draws a crowd. Does not know it yet." She turns it back. '
+                  '"That is worth more than the winning. The winning is worth '
+                  'a purse. That is worth a season."',
+                  requires=('met:hollis', 'pit:2'),
+                  sets=('weight_noticed',), where='shambles'),
+            Stage('offer', 'The house would like one to go the other way',
+                  'Hollis does not dress it up, which you find you are '
+                  'grateful for.\n\n'
+                  '"There is money on you now. Enough that the money would '
+                  'like a say. One bout, you go down in the third, and the '
+                  'house makes more on that than on six of you winning." She '
+                  'closes the book. "I am asking because I would rather ask. '
+                  'Carrion would not have asked."',
+                  requires=('weight_noticed', 'pit:3'), where='shambles',
+                  after=2,
+                  choices=(
+                      Choice('dive', 'Go down in the third',
+                             'You go down in the third and you make it '
+                             'honest, which is harder than winning and nobody '
+                             'in the room will ever know you did it. The '
+                             'money changes hands somewhere above you. Hollis '
+                             'writes one line and does not turn the book '
+                             'round.\n\nThe crowd is quieter with you after. '
+                             'Not hostile. Quieter, the way people are with '
+                             'somebody they have stopped being curious about.',
+                             sets=('weight_dived',), credits=4200,
+                             rep={'carrion': 12}),
+                      Choice('straight', 'Fight it straight and tell her so',
+                             'You tell her no, in the room, at the table, '
+                             'with the book open. She looks at you for a long '
+                             'moment and then writes something quite short.'
+                             '\n\n"Good," she says, and means it, and then: '
+                             '"That will cost you. Not from me." The next '
+                             'three bouts the house books you are all a rung '
+                             'above where they should be, and the crowd is '
+                             'very loud for you, and you understand that '
+                             'both of those are the same sentence.',
+                             sets=('weight_straight',), rep={'carrion': -8}),
+                      Choice('tell', 'Tell the floor what was asked',
+                             'You say it on the tape, to sixty people, before '
+                             'the bout. The room does the thing rooms do, '
+                             'which is go quiet and then go very loud, and '
+                             'Hollis sits with her hands flat on the book and '
+                             'lets it happen.\n\nAfterwards she says the only '
+                             'angry thing you will ever hear her say, which '
+                             'is: "Eleven years and nobody has died on that '
+                             'floor. You have just made me the story instead '
+                             'of that."',
+                             sets=('weight_told',), rep={'carrion': -25},
+                             credits=0)),
+                  ),
+            Stage('after', 'What the book was for',
+                  'Hollis is not at the table. The cash box is, and the '
+                  'shotgun is, and a kid of about nineteen is sitting where '
+                  'she sits, holding the ledger like it might go off.\n\n'
+                  'She left the book open at your line. Under whatever she '
+                  'wrote about the crowd, in the same flat hand: "Worth '
+                  'asking. Asked."',
+                  any_of=('weight_dived', 'weight_straight', 'weight_told'),
+                  sets=('weight_closed',), where='shambles', after=4),
+        )),
+    Thread(
+        'ninety', 'Ninety Seconds',
+        'The crash is the price on the label, and the label is honest.',
+        (
+            Stage('noticed', 'Pell knows before you say anything',
+                  'Pell looks up from the envelopes and reads you the way a '
+                  'clinician reads a chart, and the terrible part is the '
+                  'warmth.\n\n"You are on it," they say. "Not badly. I am not '
+                  'saying badly. I am saying I can see the shape of the last '
+                  'fortnight in how you are standing, and so can anybody else '
+                  'who does this for a living, and some of them are not me."',
+                  requires=('met:pell',),
+                  any_of=('habit:redline:1', 'habit:numb:1'),
+                  sets=('ninety_noticed',), where='shambles'),
+            Stage('offer', 'A better batch, and what it costs',
+                  'They have a different envelope out. It is not marked '
+                  'differently and that is somehow worse.\n\n"Cleaner cut. '
+                  'The high is the same and the crash is ninety seconds '
+                  'shorter, which does not sound like much until it is you." '
+                  'They put it down between you. "Cheaper, too. I will not '
+                  'insult you by pretending that is not the point of the '
+                  'conversation."',
+                  requires=('ninety_noticed',),
+                  any_of=('habit:redline:2', 'habit:numb:2'),
+                  where='shambles', after=3,
+                  choices=(
+                      Choice('take', 'Take the cleaner cut',
+                             'It is cleaner. Everything they said was true, '
+                             'which is the thing about Pell that people find '
+                             'hard afterwards. The crash is ninety seconds '
+                             'shorter and it arrives on time and it is a '
+                             'little further down than it used to be, and you '
+                             'have a supply and a price and a person who '
+                             'expects to see you.',
+                             sets=('ninety_took',), credits=-600),
+                      Choice('stop', 'Ask them what getting off it looks like',
+                             'They tell you, in detail, for free, with the '
+                             'envelope still on the counter. A clinic, a '
+                             'fortnight, money, and the fortnight being the '
+                             'part nobody has. Then they put the envelope '
+                             'away without being asked, which is not nothing.'
+                             '\n\n"Come back when you have the fortnight," '
+                             'they say. "Not for this. For the other thing."',
+                             sets=('ninety_stopped',)),
+                      Choice('report', 'Say where the back of the clinic is',
+                             'You tell somebody who can do something about '
+                             'it, and something is done about it, and for '
+                             'about nine days the Shambles is a district '
+                             'where a particular thing is harder to get.\n\n'
+                             'Then it is not. What has changed is that the '
+                             'person who cooked it carefully has gone, and '
+                             'the person who cooks it now does not read '
+                             'anybody\'s chart.',
+                             sets=('ninety_reported',),
+                             rep={'carrion': -10, 'nightwatch': 10})),
+                  ),
+            Stage('after', 'The other thing',
+                  'The clinic at the front has a new sign about a service it '
+                  'has always offered and never advertised. Somewhere behind '
+                  'it, the back room is a store room again, or it is not.\n\n'
+                  'Either way there is an envelope on the counter with your '
+                  'handle on it, and inside it is a folded paper with a '
+                  'number of shifts written on it, and nothing else.',
+                  any_of=('ninety_took', 'ninety_stopped', 'ninety_reported'),
+                  sets=('ninety_closed',), where='shambles', after=5),
+        )),
+    Thread(
+        'slot', 'The Slot',
+        'An advertisement knew something about you that you had told nobody.',
+        (
+            Stage('addressed', 'The ad was about you',
+                  'A slot on the wall of the exchange runs something that is '
+                  'not for everybody. It is for somebody who was recently in '
+                  'the state you are recently in, and it says so, warmly, and '
+                  'then it sells them a thing.\n\nUnder the colonnade on the '
+                  'Row, a man in a good coat says your last handle and then '
+                  'apologises for it, and that is Marek Vig introducing '
+                  'himself.',
+                  requires=('met:vig', 'runs:3'),
+                  any_of=('mark:blooded', 'habit:redline:1', 'heat:30',
+                          'street:knives', 'carrying:loud'),
+                  sets=('slot_addressed',)),
+            Stage('file', 'Thirty-one lines',
+                  '"Yours is thirty-one lines," Vig says. "I priced it on '
+                  'Tuesday." He is not threatening you. He is showing you a '
+                  'product, in the way a man shows you a product, and the '
+                  'product is a description of your last two months assembled '
+                  'from things that were each of them public.\n\n"You can buy '
+                  'it. You can buy somebody else\'s. Or you can do the thing '
+                  'the squeamish ones do, which never works, and which I '
+                  'would honestly quite like to watch."',
+                  requires=('slot_addressed',), where='row', after=2,
+                  choices=(
+                      Choice('buy', 'Buy your own file',
+                             'You buy thirty-one lines about yourself and '
+                             'read them in a doorway, and there is nothing in '
+                             'there you did not do. That is the whole of the '
+                             'horror and it takes about a minute to arrive.'
+                             '\n\nThe slots go quiet about you for a while. '
+                             'Vig did not promise that and does not mention '
+                             'it, and it happens anyway, which is how you '
+                             'learn what you actually bought.',
+                             sets=('slot_bought',), credits=-3000),
+                      Choice('sell', 'Buy somebody else\'s, and use it',
+                             'It is four thousand for a description rather '
+                             'than a name, and a description is enough when '
+                             'you already know who you are looking for. What '
+                             'you do with it is efficient and quiet and works '
+                             'exactly as advertised.\n\nVig is pleased with '
+                             'you in a way you will think about later, at an '
+                             'hour when you would rather be asleep.',
+                             sets=('slot_used',), credits=2600,
+                             rep={'meridian': 10}),
+                      Choice('burn', 'Put the operation in the public log',
+                             'Static will not touch it. Freeport will, and '
+                             'the Stacks print it, and for eleven days the '
+                             'Row is a place where a certain kind of buyer '
+                             'has to say what they are buying.\n\nVig sends a '
+                             'message. It is not a threat, it is a receipt: '
+                             'the eleven days cost him about nine per cent, '
+                             'and he has written the number down, and he '
+                             'wanted you to have it.',
+                             sets=('slot_burned',),
+                             rep={'meridian': -20, 'static': 12,
+                                  'freeport': 10})),
+                  ),
+            Stage('after', 'What the file is now',
+                  'The slots have your shape again, because the shape was '
+                  'never the secret. What is different is that you can hear '
+                  'the buying now: an advertisement lands and you know what '
+                  'description you matched to be shown it, and you can name '
+                  'the line.\n\nIt does not change anything. Vig said that '
+                  'too, and Vig was right about it, and being right about it '
+                  'is his entire profession.',
+                  any_of=('slot_bought', 'slot_used', 'slot_burned'),
+                  sets=('slot_closed',), after=4),
+        )),
+
 )
 
 BY_KEY: dict[str, Thread] = {t.key: t for t in THREADS}
