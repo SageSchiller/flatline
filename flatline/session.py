@@ -96,6 +96,9 @@ class Session:
     seen: set = field(default_factory=set)
     #: Index of the current tutorial step, or -1 when it is not running.
     tutorial_step: int = -1
+    #: How many times the blank-prompt lifeline has been shown (D118). It
+    #: fades after a few, and stops the moment `now` is used.
+    lifelines: int = 0
     #: Which prompt shape the player has chosen. See `prompt.py`.
     prompt_style: str = 'classic'
     #: A question waiting on the next line, or None. See `Question`.
@@ -750,9 +753,30 @@ class Session:
                 if line.strip():
                     self.typed.append(line.strip())
                 self.execute(line)
+                self._lifeline()
         finally:
             self.save_readline()
         return self.exit_code
+
+    def _lifeline(self) -> None:
+        """A fading reminder, for a brand-new runner who has not yet found
+        that an empty line asks the game what to do (D118). The one thing a
+        person who has never played a text game needs is to know the blank
+        prompt is not a test they can fail. It stops the moment they use it,
+        and fades after a few turns regardless, so it never becomes nag: not
+        during a run, not mid-question, not while the tutorial is already
+        holding their hand, and never once a run is behind them.
+        """
+        if (self.game is None or self.run is not None or self.pending is not None
+                or self.tutorial_step >= 0):
+            return
+        if 'now' in self.seen or getattr(self.game.char, 'runs', 0) > 0:
+            return
+        if self.lifelines >= 4:
+            return
+        self.lifelines += 1
+        self.console.say('[dim]Lost? Press Enter, or type `now`, for what to '
+                         'do next.[/]')
 
     # ------------------------------------------------------------------
     # persistence helpers

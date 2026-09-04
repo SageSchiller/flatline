@@ -10931,6 +10931,47 @@ def test_the_cold_open() -> None:
     T.ok(text.isascii(), 'the cold open is ascii-clean on an ascii terminal')
 
 
+def test_the_lifeline() -> None:
+    """D118: the fading blank-prompt reminder for a brand-new runner."""
+    T.section('the lifeline')
+    from flatline.session import Question
+
+    def fresh():
+        con = quiet_console()
+        sess = Session(console=con, slot='life')
+        sess.game = Game.new(Character.from_origin('gutter', 'x'), seed=1)
+        return sess, con
+
+    def show(sess, con):
+        con.start_capture()
+        sess._lifeline()
+        return strip_ansi(con.end_capture()).strip()
+
+    # A brand-new runner gets it, a few times, then it fades.
+    sess, con = fresh()
+    lines = [show(sess, con) for _ in range(6)]
+    T.eq(sum(1 for l in lines if l), 4, 'it shows a few times then fades')
+    T.ok('Enter' in lines[0] and 'now' in lines[0], 'and names the way out')
+
+    # The moment they use `now`, it stops for good.
+    sess, con = fresh()
+    sess.seen.add('now')
+    T.eq(show(sess, con), '', 'once now is used it is silent')
+
+    # And a runner with a job behind them never needs it.
+    sess, con = fresh()
+    sess.game.char.runs = 1
+    T.eq(show(sess, con), '', 'a runner with a job behind them is left alone')
+
+    # Never mid-run, mid-question, or during the tutorial.
+    sess, con = fresh()
+    sess.tutorial_step = 0
+    T.eq(show(sess, con), '', 'the tutorial has its own hand to hold')
+    sess, con = fresh()
+    sess.pending = Question(prompt='? ', handler=lambda s, l: None)
+    T.eq(show(sess, con), '', 'not on top of a waiting question')
+
+
 def test_ambitions() -> None:
     """D117: the ladder between a job and the story, met by playing."""
     T.section('ambitions')
@@ -11896,7 +11937,7 @@ SUITES = (
     test_remembered_inside, test_second_look, test_second_wave,
     test_the_way_in, test_more_to_say, test_the_door, test_corporate_night,
     test_named_shelf, test_and_in_nights, test_the_fourth_wave,
-    test_the_cold_open, test_ambitions,
+    test_the_cold_open, test_ambitions, test_the_lifeline,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,
