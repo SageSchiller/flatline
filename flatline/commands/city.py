@@ -3207,7 +3207,7 @@ SERVICE_VERBS = (
 )
 
 
-def street_content_tier_word(tier: int) -> str:
+def _tier_word(tier: int) -> str:
     from ..content import street as street_content
     return street_content.TIER_NAMES.get(tier, 'a fight')
 
@@ -3623,7 +3623,7 @@ def cmd_errands(sess, args) -> None:
         elif job['kind'] == 'muscle':
             rows.append((str(n), 'muscle',
                          f'stand at {job["at"]} for {job["who"].split(" who")[0]}'
-                         f' [warn]({street_content_tier_word(job["tier"])})[/]',
+                         f' [warn]({_tier_word(job["tier"])})[/]',
                          f'{job["pay"]:,}c'))
         else:
             rows.append((str(n), 'watch', f'a shift at {job["at"]}',

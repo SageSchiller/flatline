@@ -329,6 +329,27 @@ def _system_nudges(sess, char) -> list[tuple[str, str]]:
                     f'. `train` lists all fifteen'))
         return out
 
+    # A fighter's living (D131): somebody with a rank in Violence or a
+    # weapon in hand, somewhere rough enough that muscle work is on offer,
+    # and nothing being carried.
+    from ..world import street as street_world
+    from ..world import fight as fight_mod
+    fighter = char.skill('violence') >= 1 or bool(fight_mod.weapon_of(char))
+    if (fighter and not game.city.errand
+            and street_world.rough(game) >= street_world.MUSCLE_AT
+            and any(j['kind'] == 'muscle' for j in street_world.errands_here(game))):
+        out.append(('errands',
+                    'muscle work is on offer here: stand in a doorway for '
+                    'somebody and be paid if you are the one still standing. '
+                    'It is how a fighter eats between runs'))
+        return out
+    if (fighter and fight_mod.armour_of(char) == 0 and char.credits >= 600
+            and any(s in game.city.district.services for s in ('market', 'fence'))):
+        out.append(('market armour',
+                    'you fight with nothing between you and the hit. A '
+                    'ballistic jacket is six hundred and takes a point off '
+                    'every one that reaches you'))
+        return out
     # Chrome, once there is money for it and nothing in you yet. The game
     # is half about this trade and a career can pass without meeting it.
     # Eleven of the twelve origins ship with a piece already in, so "has

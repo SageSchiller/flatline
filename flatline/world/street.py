@@ -539,9 +539,9 @@ def _flinch(sess, enc, faction, outcome, rng, hurt, then) -> None:
     sum you never saw twice.
 
     So a bad answer that is going to cost you buys one more decision.
-    Nobody throws a punch here and nobody is going to: `cover` is taking
-    it properly, `give` is making it not worth their time, and both are
-    printed checks like everything else (D81).
+    Nobody throws a punch in a flinch; that is what `fight` is for (D128).
+    `cover` is taking it properly, `give` is making it not worth their
+    time, and both are printed checks like everything else (D81).
     """
     game, c = sess.game, sess.console
     char = game.char

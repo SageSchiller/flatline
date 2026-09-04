@@ -11739,6 +11739,72 @@ def test_a_fighters_living() -> None:
          'the manual names the styles and the living')
 
 
+def test_help_is_current() -> None:
+    """D132: the help knows about the combat layer, the README's numbers are
+    the content's, and the guide has a fighter's nudge."""
+    T.section('the help, current')
+    import re
+    from flatline.content import manual, skills, cyberware, weapons, armour
+    from flatline.content import street as street_content
+    from flatline import shell
+    from flatline.commands import guide as guide_mod
+    from flatline.world import street as street_world
+
+    expect = {'chrome': 'chrome that fights', 'heat': 'street hears',
+              'rivals': 'beside you', 'death': 'kind that kills',
+              'money': "fighter's money", 'techniques': 'In a fight',
+              'attributes': 'On the street', 'basics': 'can be fought',
+              'appearance': 'blooded', 'street': 'Four ways to be dangerous',
+              'skills': 'Violence'}
+    for key, phrase in expect.items():
+        T.ok(phrase in manual.BY_KEY[key].body, f'help {key} says: {phrase}')
+    # Prompt answers are accents in the manual, never backticks: the
+    # validator reads a backtick as a shell command.
+    for key in ('chrome', 'death', 'rivals', 'techniques', 'attributes', 'basics'):
+        body = manual.BY_KEY[key].body
+        T.ok(not re.search(r'`(fight|strike|front|jack|finish|menace|break)`', body),
+             f'help {key} marks answers as accents')
+
+    readme = open('README.md', encoding='utf-8').read()
+    techs = sum(len(k.techniques) for k in skills.SKILLS)
+    T.ok(f'{len(skills.SKILLS)} skills with {techs} techniques' in readme,
+         'the README counts the skills and techniques the content has')
+    T.ok(f'{len(cyberware.WARE)} implants' in readme
+         and f'{len(weapons.WEAPONS)} weapons and {len(armour.ARMOUR)} things to wear' in readme,
+         'and the implants, weapons and armour')
+    T.ok(f'{len(street_content.ENCOUNTERS)} ways it stops you' in readme,
+         'and the ways the street stops you')
+    T.ok(f'{len(shell.REGISTRY.commands)} commands' in readme,
+         'and the commands')
+    T.ok('never a way to do a job' in readme, 'and the rule that survived')
+
+    # A fighter, somewhere rough with muscle on offer, is nudged to it.
+    char = Character.from_origin('gutter', 't')
+    char.base_skills['violence'] = 2
+    char.runs = 2
+    game = Game.new(char, seed=3)
+    game.city.where = 'shambles'
+    con = quiet_console()
+    sess = Session(console=con, slot='t')
+    sess.game = game
+    nudged = False
+    for shift in range(0, 30, 3):
+        game.city.shift = shift + 2
+        if any(j['kind'] == 'muscle' for j in street_world.errands_here(game)):
+            nudges = guide_mod._system_nudges(sess, char)
+            nudged = any(cmd == 'errands' and 'muscle' in why for cmd, why in nudges)
+            break
+    T.ok(nudged, 'the guide points a fighter at muscle work')
+    char.credits = 900
+    game.city.where = 'ninth'
+    game.city.shift = 0
+    game.city.errand = {}
+    nudges = guide_mod._system_nudges(sess, char)
+    T.ok(any(cmd == 'market armour' for cmd, _ in nudges)
+         or any(cmd == 'errands' for cmd, _ in nudges),
+         'and at nothing between them and the hit')
+
+
 
 def test_the_lifepath() -> None:
     """D126: your origin's complication comes to find you after the first run,
@@ -13019,7 +13085,7 @@ SUITES = (
     test_the_nemesis_run, test_the_partner, test_the_ways_in,
     test_planting_a_way_in, test_the_changing_world, test_swagger_and_legend,
     test_the_lifepath, test_tactic_tools, test_the_fight,
-    test_the_rough_street, test_a_fighters_living,
+    test_the_rough_street, test_a_fighters_living, test_help_is_current,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

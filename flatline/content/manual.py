@@ -96,7 +96,8 @@ TOPICS: tuple[Topic, ...] = (
         'you did not.\n\n'
         '[warn]The decision the whole game is built around[/] is not which '
         'exploit to use. It is whether to spend time covering your tracks, '
-        'knowing the trace advances while you do it.',
+        'knowing the trace advances while you do it.'
+        '\n\n[warn]The other half.[/] The street, with the deck in the bag, can hurt you and at the top of its ladder kill you, and it can be fought, though it never has to be: every encounter offers a way out that is not a fight. `help street` for all of it.',
         see=('triangle', 'firstrun', 'checks', 'saves', 'reading', 'shell'),
         commands=('board', 'take', 'jack in'),
         terms=('what is this', 'premise', 'overview',),
@@ -381,7 +382,8 @@ TOPICS: tuple[Topic, ...] = (
         '  Cover     = 2x Guile          how fast heat cools\n\n'
         '[warn]The decision:[/] attributes are broad and slow. They set your '
         'ceilings. Skills decide what you can do at all, so early points '
-        'usually go to whichever attribute your intended skills check against.',
+        'usually go to whichever attribute your intended skills check against.'
+        '\n\n[warn]On the street:[/] Grit governs Violence and the strike; Reflex the guard and the way out; Guile the bluff ([accent]front[/]) and the talk-down; Nerve is the third term of standing, striking and fronting; and Logic is the deck against their chrome ([accent]jack[/]).',
         see=('skills', 'chrome', 'checks'),
         commands=('char', 'boost'),
         covers=('attributes',),
@@ -454,7 +456,8 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] read the rank 2 techniques before you spend '
         'anything. Four experience for a new verb is the best value in the '
         'game, and which four verbs you own is most of what makes your '
-        'character yours.',
+        'character yours.'
+        '\n\n[warn]In a fight.[/] Violence has Finisher at 2 ([accent]finish[/], once they are hurt) and Menace at 4 ([accent]menace[/] on the street, before it starts). A Face (Streetcraft 4) puts [accent]talk[/] on a fight, a clean way out; Shrug (Fieldcraft 4) halves the first hit; Bolt (Streetcraft 2) leaves before any of it starts.',
         see=('skills', 'scripting'),
         commands=('techniques', 'train'),
         terms=('abilities',),
@@ -572,7 +575,8 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] a full-chrome build is a real playstyle, not a '
         'punishment track. But you are choosing who to be rather than renting '
         'it, and the one trait that opts out of this system entirely is worth '
-        'reading before you fit anything.',
+        'reading before you fit anything.'
+        '\n\n[warn]The chrome that fights.[/] A targeting suite lands strikes, muscle grafts and hydraulic arms make them count, a reflex booster covers up, an adrenal pump gives you the first second, a pain editor keeps you moving when hurt, and wolvers are a blade you cannot put down. Dermal weave, plating, bone lacing and trauma plate are armour, and they add to what you `wear`, to four at most. All of it is bought the way chrome is bought: with Dissonance. See `help street`.',
         see=('attributes', 'icons', 'money', 'traits', 'chemistry'),
         commands=('chrome', 'install', 'uninstall', 'clinic', 'ground'),
         covers=('cyberware', 'dissonance'),
@@ -817,7 +821,8 @@ TOPICS: tuple[Topic, ...] = (
         'consumable.\n\n'
         '[warn]The decision:[/] a new name costs money, two shifts, and every '
         'relationship you built under the old one. Sometimes that is cheaper '
-        'than the bounty. Usually it is not.',
+        'than the bounty. Usually it is not.'
+        '\n\n[warn]The street hears.[/] A loud weapon (a pistol, a scattergun, a smartgun) drawn in a fight is Nightwatch heat every time, won or lost, and killing somebody at the top of the ladder is more of it. Beating a faction\'s people is heat with them, and a grudge: the next of theirs you meet is a tier worse.',
         see=('triangle', 'factions', 'death', 'safehouse', 'networks'),
         commands=('alias', 'burn', 'rep', 'rest'),
         terms=('wanted', 'police', 'arrest', 'hiding',),
@@ -886,7 +891,8 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] every one of them is worth being on good '
         'terms with and you cannot afford all seven, because the work you '
         'take is work somebody else wanted. Choosing who to disappoint is the '
-        'whole of it, and it is much easier before anybody has decided.',
+        'whole of it, and it is much easier before anybody has decided.'
+        '\n\n[warn]On the street.[/] A partner stands beside you in a street fight and puts one down some rounds. A reckoning can be settled with [accent]fight[/] as well as faced, paid, or walked from; losing one is told about, not died of.',
         see=('contracts', 'people', 'heat', 'factions'),
         commands=('who', 'hire', 'crew', 'ask', 'betray'),
         covers=('rivals',),
@@ -983,7 +989,8 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] stripping a network bare pays roughly twice '
         'what doing only the job pays. It also means touching every node, '
         'which is trace, noise, and residue you did not have to spend. That '
-        'temptation is the game asking you a question every single run.',
+        'temptation is the game asking you a question every single run.'
+        '\n\n[warn]A fighter\'s money.[/] Muscle work (`errands`, in a rough district) pays a few hundred to fifteen hundred a shift, and half the time what the people you beat carried is in your bag afterwards, which a fence buys back badly or you carry. A run still pays more; the street is a living, not a fortune.',
         see=('triangle', 'contracts', 'deck', 'vices', 'legacy'),
         commands=('market', 'buy', 'sell', 'debt'),
         terms=('economy', 'income', 'earning', 'broke', 'poor',),
@@ -1375,7 +1382,8 @@ TOPICS: tuple[Topic, ...] = (
         'remember: next time they will not be asking. `help street`.\n\n'
         '[warn]The decision:[/] because failure is survivable, the correct '
         'play is often to attempt things you will probably lose. A burned run '
-        'costs a night. Not trying costs the campaign.',
+        'costs a night. Not trying costs the campaign.'
+        '\n\n[warn]The street can end you too.[/] A fight at the top of its ladder, the kind that kills, is the one fight that can: lose it and you are left at one and told, in so many words; lose it again with the number still on your name and it does not stop. Every rung below leaves you standing. [accent]break[/] is on every round of every fight.',
         see=('ice', 'heat', 'triangle', 'legacy', 'street'),
         commands=('status', 'jack out'),
         terms=('dying', 'permadeath',),
@@ -1417,7 +1425,8 @@ TOPICS: tuple[Topic, ...] = (
         'A beating leaves a record on you as well as in their system. Past '
         'Submerged, the drift is something other people can see. They '
         'accumulate, they never come off, and they are the only part of this '
-        'that is a record rather than a decision.',
+        'that is a record rather than a decision.'
+        ' Among them: [fg]blooded[/], which is what the top of the street\'s ladder leaves on how you stand in a doorway, once you have won there.',
         see=('chrome', 'heat', 'people', 'origins'),
         commands=('self', 'clinic'),
         covers=('appearance',),

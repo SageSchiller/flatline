@@ -563,9 +563,8 @@ def _reckoning_fought(sess, rival: Rival, result: str) -> None:
         _end_bond(game, rival, -30)
         c.say(f'[warn]{rival_content.RECKON_FIGHT_LOSE.format(name=rival.name)}'
               f'[/]')
-    elif result == 'talked':
-        c.say(f'[dim]{rival_content.RECKON_WALKED.format(name=rival.name)}[/]')
     else:
+        # Talked down or broken off: it keeps, like a walk.
         c.say(f'[dim]{rival_content.RECKON_WALKED.format(name=rival.name)}[/]')
     sess.autosave()
 
