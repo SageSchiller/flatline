@@ -11141,6 +11141,75 @@ def test_the_ways_in() -> None:
          'a sold-out inside job is a trap you walk into')
 
 
+def test_tactic_tools() -> None:
+    """D127: a program slot can buy a way to play. `ghost` needs a Shroud,
+    `crash` needs a Sledge, and neither is a skill you can purchase."""
+    T.section('tactic tools')
+    from flatline.run import network as net_mod
+    from flatline.run.session import RunState
+    from flatline.run.network import IceInstance
+    from flatline.rng import Rng
+    from flatline.content import programs
+
+    # The tools are real programs with riders the engine reads.
+    T.ok(programs.BY_KEY['shroud'].rider == 'shroud_ghost'
+         and programs.BY_KEY['sledge'].rider == 'sledge_crash',
+         'the two tools carry their tactic riders')
+    T.ok('shroud_ghost' in programs.RIDERS and 'sledge_crash' in programs.RIDERS,
+         'and the riders are declared')
+
+    def run_with(loaded):
+        char = Character.from_origin('gutter', 't')
+        char.deck.loaded = list(loaded)
+        game = Game.new(char, seed=5)
+        net = net_mod.generate(Rng(5).fork('network', 't'), 'sixes', 40,
+                               'exfiltrate', 1.0)
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        st = RunState.begin(net, char, Rng(5)('combat'), con,
+                            contract={'objective': 'exfiltrate', 'title': 'T'})
+        st.render_mode = 'none'
+        sess.run = st
+        return sess, con, st
+
+    def do(sess, con, cmd):
+        con.start_capture()
+        sess.execute(cmd)
+        return strip_ansi(con.end_capture())
+
+    # Ghost: only with a Shroud; goes dark and drops every lock.
+    sess, con, st = run_with(['shroud'])
+    ice = IceInstance(uid='x', key='pike', rating=5, state='locked', known=True)
+    st.node.ice.append(ice)
+    st.locked = [ice]
+    do(sess, con, 'ghost')
+    T.ok(st.nullsig > 0, 'ghost puts you off the read')
+    T.ok(not st.locked and ice.state != 'locked', 'and drops the lock on you')
+    sess, con, st = run_with([])
+    T.ok('Shroud' in do(sess, con, 'ghost'), 'no Shroud, no ghost')
+
+    # Crash: only with a Sledge; ends the host and pays for it in alert.
+    sess, con, st = run_with(['sledge'])
+    node = st.node
+    node.ice.append(IceInstance(uid='y', key='pike', rating=3, state='awake',
+                                known=True))
+    before = st.alert
+    do(sess, con, 'crash')
+    T.ok(node.open and all(s.cracked for s in node.services),
+         'crash opens the host outright')
+    T.ok(not any(i.alive for i in node.ice), 'and kills what was on it')
+    T.ok(st.alert != before, 'at a price the whole room hears')
+    sess, con, st = run_with([])
+    T.ok('Sledge' in do(sess, con, 'crash'), 'no Sledge, no crash')
+
+    # Neither is a technique: the design holds that tactics are not bought
+    # as skills, and these are tools, gated on carrying them.
+    T.ok(not sess.game.char.has_technique('ghost')
+         and not sess.game.char.has_technique('crash'),
+         'the tools are not techniques')
+
+
 def test_the_lifepath() -> None:
     """D126: your origin's complication comes to find you after the first run,
     once, and it is a different beat for every origin."""
@@ -12419,7 +12488,7 @@ SUITES = (
     test_the_cold_open, test_ambitions, test_the_lifeline, test_the_reckoning,
     test_the_nemesis_run, test_the_partner, test_the_ways_in,
     test_planting_a_way_in, test_the_changing_world, test_swagger_and_legend,
-    test_the_lifepath,
+    test_the_lifepath, test_tactic_tools,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

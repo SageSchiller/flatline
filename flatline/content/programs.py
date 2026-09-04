@@ -306,6 +306,22 @@ PROGRAMS: tuple[Program, ...] = (
             effects={'ice_damage': 2},
             note='Twice the bite against rating 3 and under. Nothing at all against 6 and up.',
             rider='shrike_edge'),
+    # -- D127: tactic tools, each a verb you cannot do without them -----------
+    Program('shroud', 'Shroud', 'mask', 2, 3, 0.0, 6800, 3,
+            'Not quieter. Gone. For a few seconds it stops the network being '
+            'able to say where you are, or that you are, and anything holding '
+            'a lock on you loses it.',
+            note='`ghost` while it is loaded: a window of a few ticks off the '
+                 'read entirely. A stealth deck\'s endgame, and no use to a '
+                 'deck that has already been seen.',
+            rider='shroud_ghost'),
+    Program('sledge', 'Sledge', 'weapon', 3, 5, 1.8, 5200, 2,
+            'Does not defeat a host. Ends it. Everything on it stops at once, '
+            'which opens it and kills what was watching it, and which every '
+            'monitored thing upstairs hears happen.',
+            note='`crash` while it is loaded: the loud answer to a host you '
+                 'cannot out-quiet, at a price in trace you pay all at once.',
+            rider='sledge_crash'),
     # -- D69: the gaps the catalogue audit found -----------------------------
     Program('handbill', 'Handbill', 'daemon', 1, 2, 1.0, 700, 1,
             'The cheapest autonomous process anybody sells: a loop that sits '
@@ -664,4 +680,7 @@ RIDERS: frozenset[str] = frozenset({
     'shrike_edge', 'banshee_alarm', 'ledger_eye', 'tide_eye', 'dowse_eye',
     'handbill_tick', 'understair_fails', 'bottlecap_edge',
     'cipherwright_focus', 'secondhand_frames',
+    # Tactic tools (D127): each opens a run verb that does not otherwise
+    # exist, so a program slot buys a way to play rather than a bigger number.
+    'shroud_ghost', 'sledge_crash',
 })

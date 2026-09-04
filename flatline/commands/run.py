@@ -39,6 +39,8 @@ COST = {
     'push': (2, 6, 6),
     'wipe': (2, 7, 5),
     'plant': (2, 5, 8),
+    'ghost': (2, 1, 1),
+    'crash': (2, 22, 8),
     'scrub': (2, 2, 0),
     'strike': (1, 7, 2),
     'overload': (1, 22, 6),
@@ -1859,6 +1861,94 @@ def cmd_plant(sess, args) -> None:
     c.ok(f'A way back into {short} is in place.')
     c.say('[dim]The next run against them comes up past the wall. It is '
           'evidence until they find it, and they will.[/]')
+
+
+#: How many ticks a Shroud keeps you off the read (D127).
+GHOST_TICKS = 3
+
+
+def _tool(state, rider: str):
+    """A loaded program carrying this tactic rider (D127), or None. The tool
+    does the work: no tool, no verb, the way a payload gates a pull."""
+    for key in state.char.deck.loaded:
+        prog = programs.BY_KEY.get(key)
+        if prog is not None and prog.rider == rider:
+            return prog
+    return None
+
+
+@command('ghost', 'Drop off the network\'s read entirely, for a moment.',
+         group='action', contexts=('run',), ticks=2, usage='ghost',
+         detail='Needs a Shroud loaded. A window of a few ticks in which the '
+                'network cannot say where you are or that you are, trace does '
+                'not move, and anything holding a lock on you loses it. The '
+                'move a pure stealth deck is built around, and no use at all '
+                'once you have already been seen inside the window.')
+def cmd_ghost(sess, args) -> None:
+    state, c = sess.require_run(), sess.console
+    if _tool(state, 'shroud_ghost') is None:
+        raise CommandError('you have no Shroud loaded. `market program` for '
+                           'one, then `load shroud`.')
+    if state.nullsig > 0:
+        raise CommandError('you are already dark.')
+    _act(sess, 'ghost', node=state.node)
+    if not state.running:
+        return
+    dropped = 0
+    for con in list(state.locked):
+        if con.state == 'locked':
+            con.state = 'awake'
+        dropped += 1
+    state.locked = []
+    state.nullsig = GHOST_TICKS
+    c.blank()
+    c.ok(f'You are gone. For {GHOST_TICKS} ticks the network cannot say where '
+         f'you are.')
+    tail = (f' {dropped} lock{"s" if dropped != 1 else ""} let go of nothing.'
+            if dropped else '')
+    c.say(f'[dim]Trace does not move while you are dark.{tail} Be somewhere '
+          f'else when it lifts.[/]')
+
+
+@command('crash', 'Bring a host down. It opens, and everything hears it.',
+         group='action', contexts=('run',), ticks=2, usage='crash',
+         detail='Needs a Sledge loaded. Ends the host you are standing on '
+                'rather than defeating it: every service opens at once and '
+                'every countermeasure on it dies, at a price in trace and '
+                'noise you pay all in one go. The loud answer to a host you '
+                'cannot out-quiet.')
+def cmd_crash(sess, args) -> None:
+    state, c = sess.require_run(), sess.console
+    if _tool(state, 'sledge_crash') is None:
+        raise CommandError('you have no Sledge loaded. `market program` for '
+                           'one, then `load sledge`.')
+    node = state.node
+    if node.open and all(s.cracked for s in node.services) \
+            and not any(i.alive for i in node.ice):
+        raise CommandError(f'{node.uid} is already down. There is nothing left '
+                           f'on it to bring down.')
+    _act(sess, 'crash', node=node)
+    if not state.running:
+        return
+    killed = 0
+    for con in node.ice:
+        if con.alive:
+            con.state = 'dead'
+            killed += 1
+    for svc in node.services:
+        svc.cracked = True
+    was_open = node.open
+    node.open = True
+    state.opened(node)
+    c.blank()
+    tail = (f' {killed} construct{"s" if killed != 1 else ""} went with it.'
+            if killed else '')
+    c.ok(f'{node.uid} is down.{tail}')
+    if not was_open:
+        c.info(f'{node.uid} is open now, the way rubble is open.')
+    state.escalate(2, 'a host came down all at once')
+    c.say('[dim]Everything that was watching it has stopped. So has everything '
+          'else on it, and the room heard the wall come down.[/]')
 
 
 @command('push', 'Leave something behind: an implant or an edit.',
