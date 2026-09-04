@@ -11141,6 +11141,46 @@ def test_the_ways_in() -> None:
          'a sold-out inside job is a trap you walk into')
 
 
+def test_swagger_and_legend() -> None:
+    """D125: the game lets you be good at this, and the city tells stories."""
+    T.section('swagger and legend')
+    from flatline.world import city as city_mod
+
+    # A clean run sometimes hands you a line to enjoy it by.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=7)
+    seen = set()
+    for _ in range(30):
+        told = game.city.apply_run(
+            game.alias, {'faction': 'sixes', 'outcome': 'clean',
+                         'objective': 'exfiltrate', 'haul_value': 1500,
+                         'residue': 0}, game.rng)
+        for line in told:
+            for s in city_mod.SWAGGER:
+                if s[:24] in line:
+                    seen.add(s)
+    T.ok(len(seen) >= 2, 'a clean run sometimes lets you enjoy being good')
+
+    # Once you are worth a story, the city tells one when you are not there.
+    game.alias.runs = 12
+    legend = set()
+    for _ in range(60):
+        for line in game.city.advance(game.rng, game.alias, 1):
+            for lg in city_mod.LEGEND:
+                if lg[:24] in line:
+                    legend.add(lg)
+    T.ok(legend, 'the city starts telling stories about you once you are known')
+
+    # And it does not, before you have earned it.
+    quiet = Game.new(Character.from_origin('gutter', 'y'), seed=8)
+    quiet.alias.runs = 1
+    early = False
+    for _ in range(40):
+        for line in quiet.city.advance(quiet.rng, quiet.alias, 1):
+            if any(lg[:24] in line for lg in city_mod.LEGEND):
+                early = True
+    T.ok(not early, 'and stays quiet about a runner nobody has heard of')
+
+
 def test_the_changing_world() -> None:
     """D124: factions rise and fall over a campaign, and `world` shows it."""
     T.section('the changing world')
@@ -12340,7 +12380,7 @@ SUITES = (
     test_named_shelf, test_and_in_nights, test_the_fourth_wave,
     test_the_cold_open, test_ambitions, test_the_lifeline, test_the_reckoning,
     test_the_nemesis_run, test_the_partner, test_the_ways_in,
-    test_planting_a_way_in, test_the_changing_world,
+    test_planting_a_way_in, test_the_changing_world, test_swagger_and_legend,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

@@ -1220,6 +1220,35 @@ ARC_CONSEQUENCES: tuple[Event, ...] = (
           'and is not asking things.',
           districts=('terraces',), requires=('trays_sold',),
           weight=CONSEQUENCE_WEIGHT),
+
+    # ----------------------------------------------------------------------
+    # more of the wry and the absurd (D125): the grimdark carries better with
+    # a little more light, kept in the game's own deadpan key.
+    # ----------------------------------------------------------------------
+    Event('vending_union', 'absurd',
+          'The vending machines on the concourse have stopped taking money '
+          'from each other. Nobody knew they were taking money from each '
+          'other. A notice, printed by one of them, thanks you for your '
+          'patience during the dispute.'),
+    Event('sincere_ad', 'wry',
+          'A billboard that has advertised the same energy drink for as long '
+          'as anyone can remember goes dark, comes back with the word SORRY '
+          'in plain text, and after a minute goes back to the drink. Nobody '
+          'has claimed responsibility and nobody is going to.'),
+    Event('optimistic_ice', 'absurd',
+          'Somebody has taped a handwritten sign to a corporate door: THIS '
+          'NODE IS MONITORED BY AI THAT CARES. Underneath, in different pen: '
+          'no it isn\'t. Underneath that, in the first pen again: that\'s '
+          'exactly what it would want you to think.'),
+    Event('professional_pigeon', 'absurd',
+          'A drone the size of a pigeon is following a man who is very calmly '
+          'explaining to it, as he walks, that he already has building '
+          'insurance, that he is happy with his current provider, and that '
+          'this is harassment. The drone appears to be considering this.'),
+    Event('honest_fortune', 'absurd',
+          'A fortune-telling machine in the arcade, asked for a fortune, '
+          'prints: THINGS WILL CONTINUE. A small queue has formed of people '
+          'who find this more useful than they expected to.'),
 )
 
 # -- D56: the other runners, decided --------------------------------------------

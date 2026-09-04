@@ -80,6 +80,46 @@ def grip_baseline(faction: str) -> float:
     return float(GRIP_BASELINE.get(fac.kind if fac else '', 50))
 
 
+#: A run that goes clean gets, sometimes, a line that lets you feel like you
+#: are good at this (D125). The grimdark needs light to throw its shadow, and
+#: the light this game can afford is the deadpan kind: not a hacker in
+#: sunglasses, a professional enjoying, privately, being a professional.
+SWAGGER = (
+    'You were out before the log finished the sentence it was writing about '
+    'you.',
+    'Clean. The kind of clean that has somebody in a chair somewhere insisting '
+    'to their supervisor that nothing happened, because the alternative is '
+    'saying what did.',
+    'Nobody will ever know it was you, which is the second best feeling, a '
+    'long way behind the first, which is knowing it was.',
+    'That went the way you said it would, out loud, to nobody, on the way in.',
+    'Somewhere a very expensive system is generating a report that concludes, '
+    'at length and with confidence, that everything is fine.',
+)
+
+#: How many runs before the city starts telling stories about you, and how
+#: often it does once it has started.
+LEGEND_AFTER = 5
+LEGEND_CHANCE = 0.14
+
+#: The city, talking about you, when you are not there. Earned cool, kept dry.
+LEGEND = (
+    'Somebody in Marrow described a run to somebody else. It was one of yours. '
+    'They got the details wrong in your favour.',
+    'A name that might be yours is being used as a verb by people who have '
+    'never met you.',
+    'Somebody turned down a job on the grounds that it was probably already '
+    'spoken for. It was not. You are becoming a reason things do not happen.',
+    'A fixer quoted a price, then quoted a higher one for the same job without '
+    'you, unprompted, on the theory that anybody who is not you is a '
+    'downgrade.',
+    'There is an argument going in a bar in the Ninth about whether you are '
+    'one person. You would not settle it if you were there, which you might '
+    'be. Nobody is sure what you look like, and you intend to keep it that '
+    'way.',
+)
+
+
 def _shifts(n: int) -> str:
     """A shift count, in the words the rest of the game uses for time."""
     return '1 shift' if n == 1 else f'{n} shifts'
@@ -304,6 +344,15 @@ class City:
                 if char is not None and getattr(char, 'runs', 0) >= 3:
                     told.extend(said)
             self.ambient.extend(self._ambient(rng, satisfied))
+            # Once you are worth a story, the city occasionally tells one
+            # about you when you are not there (D125). One per window, and
+            # never on top of another ambient beat, so it stays a rumour and
+            # not a running commentary.
+            if (not self.ambient and alias.runs >= LEGEND_AFTER
+                    and rng('events').chance(LEGEND_CHANCE)):
+                line = rng('events').pick(LEGEND)
+                self.ambient.append(f'[dim]{line}[/]')
+                told.append(f'[dim]{line}[/]')
         # Top the board back up rather than replacing it, so a contract the
         # player was saving does not vanish because a shift ticked over.
         told.extend(self.top_up_board(rng, alias, char, flags, dead, lender))
@@ -1041,6 +1090,9 @@ class City:
             if crossed:
                 told.append(crossed)
                 self.news.append(crossed)
+            # And, sometimes, a moment to enjoy being good at it (D125).
+            if rng('events').chance(0.4):
+                told.append(f'[dim]{rng("events").pick(SWAGGER)}[/]')
 
         if residue:
             from ..run.session import RESIDUE_TO_HEAT
