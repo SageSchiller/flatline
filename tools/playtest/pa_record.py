@@ -90,10 +90,11 @@ p.mark('the profile after this character: a second character sits down')
 p.finish('achiever')
 q = Play('ACHIEVER, second character, same terminal', origin='gutter', seed=62, handle='Tally II', log=log)
 q.do('record'); q.do('char'); q.do('now')
+second_line = q.do('record').splitlines()[1][:80]
 q.finish('achiever, second character')
 log.close()
 never = [e.key for e in RC.ENTRIES if final[e.counter] == start[e.counter]]
 print(f'A: {p.state()} | turns {p.turns} | errors {len(p.errors)} | runs tried {p.runs_tried} done {p.runs_done}')
 print(f'   earned {[e.key for e in RW.earned(final)]}')
 print(f'   never moved: {never}')
-print(f'   second character sees: {q.do("record").splitlines()[1][:80]!r}')
+print(f'   second character sees: {second_line!r}')
