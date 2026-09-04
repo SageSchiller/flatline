@@ -853,7 +853,7 @@ def errands_here(game) -> list[dict]:
         tier = 3 if rough(game) >= ROUGH_TAKING_AT else 2
         tonight = night(game)
         out.append({'kind': 'muscle', 'at': where, 'tier': tier,
-                    'pay': int((MUSCLE_BASE + rough(game) * 5 + (tier - 2) * 600)
+                    'pay': int((MUSCLE_BASE + rough(game) * 3 + (tier - 2) * 450)
                                * (tonight.muscle if tonight is not None else 1.0)),
                     'chromed': stream.chance(0.5), 'from': city.where,
                     'who': stream.pick(MUSCLE_JOBS)})
@@ -899,7 +899,7 @@ ESCORTEES = (
 
 #: Muscle (D131): somebody who needs somebody stood in front of them.
 MUSCLE_AT = 35
-MUSCLE_BASE = 480
+MUSCLE_BASE = 420
 MUSCLE_JOBS = (
     'a stallholder who has been told what tomorrow costs and would like '
     'somebody to be there when it is collected',

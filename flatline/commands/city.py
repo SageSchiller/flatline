@@ -1272,7 +1272,12 @@ def cmd_carry(sess, args) -> None:
                   + ', '.join(weapon_content.BY_KEY[k].name for k in bagged)
                   + '.[/]')
         elif not held:
-            c.say('[dim]Nothing in the bag either. A fence sells them.[/]')
+            from ..world import deck as deck_world
+            near = deck_world.cheapest(game, 'weapon') if deck_world.working(char) else None
+            c.say('[dim]Nothing in the bag either. '
+                  + (f'{near[0]} is {near[1]:,}c in {near[2]} '
+                     f'(`search <name>` for the rest).'
+                     if near else 'A fence sells them.') + '[/]')
         armour = char.bonus('armour')
         if armour:
             c.say(f'[dim]Armour {armour}: that much off every hit that '
@@ -1328,8 +1333,11 @@ def cmd_wear(sess, args) -> None:
                   + ', '.join(armour_content.BY_KEY[k].name for k in bagged)
                   + '.[/]')
         elif not worn:
-            c.say('[dim]Nothing in the bag either. A market or a fence '
-                  'sells it.[/]')
+            from ..world import deck as deck_world
+            near = deck_world.cheapest(game, 'armour') if deck_world.working(char) else None
+            c.say('[dim]Nothing in the bag either. '
+                  + (f'{near[0]} is {near[1]:,}c in {near[2]}.'
+                     if near else 'A market or a fence sells it.') + '[/]')
         return
     query = args.rest().lower()
     if query in ('nothing', 'none', 'off', 'no'):
@@ -1417,8 +1425,8 @@ def cmd_pit(sess, args) -> None:
                   'the bottom rung.[/]')
         if game.city.phase != 'night':
             c.say(f'[dim]{pit_content.CLOSED}[/]')
-        c.say(f'[dim]`pit next [stake]` or `pit <name> [stake]`, a stake up '
-              f'to {pit_content.MAX_STAKE:,}c; the house keeps a tenth.[/]')
+        c.say(f'[dim]`pit next <stake>` or `pit <name> <stake>`, a stake '
+              f'up to {pit_content.MAX_STAKE:,}c; the house keeps a tenth.[/]')
         return
     if game.city.phase != 'night':
         raise CommandError(pit_content.CLOSED)
@@ -3379,6 +3387,17 @@ SERVICE_VERBS = (
 )
 
 
+def _pit_here(sess, district) -> str:
+    """The pit on the arrival line, where it is (D137). It was findable
+    only by a player who already knew the word."""
+    from ..content import pit as pit_content
+    if district.key != pit_content.WHERE or pit_content.AT not in district.services:
+        return ''
+    night = sess.game is not None and sess.game.city.phase == 'night'
+    return ('[fg]pit[/] [dim](under the fence: people hitting each other for '
+            'money' + (')' if night else ', at night)') + '[/]')
+
+
 def _tier_word(tier: int) -> str:
     from ..content import street as street_content
     return street_content.TIER_NAMES.get(tier, 'a fight')
@@ -3402,6 +3421,9 @@ def here_you_can(sess, district, looking: bool = False) -> None:
         return
     c.blank()
     bullet = c.caps.g('bullet')
+    pit = _pit_here(sess, district)
+    if pit:
+        parts.append(pit)
     c.say('[dim]Here:[/] ' + f' [dim]{bullet}[/] '.join(parts)
           + f' [dim]{bullet}[/] [fg]travel[/] [dim](to move on)[/]',
           subsequent='  ')
@@ -3699,6 +3721,11 @@ def _arrange_rate(game, key: str) -> int:
 def cmd_errands(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     verb = (args.get(0) or '').lower()
+    if verb.isdigit():
+        # A bare number acts on the row, the way it does everywhere else
+        # (D137): `errands 2` used to reprint the list and look broken.
+        args = Args(['take', verb])
+        verb = 'take'
     if verb == 'drop':
         if not game.city.errand:
             raise CommandError('you are not carrying anything.')

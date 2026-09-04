@@ -81,7 +81,7 @@ class Fighter:
 FIGHTERS: tuple[Fighter, ...] = (
     Fighter('bottle', 'Bottle',
             'fights like a man who has been told he is not allowed to any more',
-            1, 1, False, 'hands', 0, 0, 250,
+            1, 1, False, 'hands', 3, 0, 250,
             'Bottle looks at you the way he looks at everybody, which is as '
             'a problem the size of a bottle, and rolls his shoulders, and '
             'somebody in the crowd says "go on, Bottle," without much hope.',
@@ -90,7 +90,7 @@ FIGHTERS: tuple[Fighter, ...] = (
             'would like to buy you a drink, and he means it.'),
     Fighter('hinge', 'Hinge',
             'a docker with a bat and a grievance that predates you',
-            2, 2, False, 'a bat', 1, 0, 500,
+            2, 2, False, 'a bat', 4, 0, 500,
             'Hinge is already on the floor, bat on his shoulder, and he does '
             'not look at you at all; he looks at the wall, at the name above '
             'his, and you understand that you are not the point.',
@@ -99,7 +99,7 @@ FIGHTERS: tuple[Fighter, ...] = (
             'the wall, where your name is now, above his.'),
     Fighter('deacon', 'The Deacon',
             'quiet, chromed, and has read the book on you',
-            3, 3, True, 'a blade', 1, 1, 900,
+            3, 3, True, 'a blade', 5, 1, 900,
             'The Deacon takes the blade out slowly so that you can see what '
             'it is, which is a courtesy, and says your handle, correctly, '
             'and what you did last month, correctly, and then nothing.',
@@ -108,7 +108,7 @@ FIGHTERS: tuple[Fighter, ...] = (
             'and that he will correct it.'),
     Fighter('salt', 'Salt',
             'a metre of wire and a smile, and the smile is the warning',
-            4, 3, True, 'a monowire', 2, 1, 1600,
+            4, 3, True, 'a monowire', 8, 1, 1600,
             'Salt is smiling before she is on the floor and she does not '
             'stop, and the crowd goes quiet in a way it did not for the '
             'others, and the spool in her palm hums once.',
@@ -117,7 +117,7 @@ FIGHTERS: tuple[Fighter, ...] = (
             'that you will find out about later.'),
     Fighter('mother', 'Mother',
             'has held the wall for nine years, and holds the blade',
-            5, 4, True, 'the eightfold blade', 3, 2, 3000,
+            5, 4, True, 'the eightfold blade', 10, 2, 3000,
             'Mother comes down the ramp last, and the room makes the space '
             'for her without being asked, and the blade she carries is the '
             'one the wall is about, folded eight times by somebody who is '

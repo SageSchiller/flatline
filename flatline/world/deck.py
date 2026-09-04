@@ -37,6 +37,9 @@ CATALOGUES = (('program', programs.BY_KEY), ('ware', cyberware.BY_KEY),
 #: A day, in shifts: the window mail is composed over.
 DAY = 3
 MAIL_READ_CAP = 200
+#: Shelves a search prints before it starts summarising: a common
+#: program is on eleven of them, and eleven lines is not an answer.
+SEARCH_SHOWN = 4
 
 
 def _day(game) -> int:
@@ -134,7 +137,8 @@ def messages(game) -> list[Message]:
             out.append(Message(f'work:{npc.key}:{day // 3}', npc.name, 'fixer',
                                feed.WORK_MAIL[0], do=f'deal {npc.key} work'))
     if game.debt.owed:
-        out.append(Message(f'lender:{day}', game.debt.lender or 'a lender', 'lender',
+        lender = factions.BY_KEY.get(game.debt.lender)
+        out.append(Message(f'lender:{day}', lender.short if lender else 'a lender', 'lender',
                            _pick(game, feed.LENDER_MAIL, 'lender').format(amount=f'{game.debt.amount:,}'),
                            do='debt'))
     for thread in story.active_threads():
@@ -246,8 +250,13 @@ def search(game, query: str) -> tuple[list[str], str]:
     if not shelves:
         return [f'[accent]{item.name}[/]: ' + feed.SEARCH_NONE], note
     lines = [f'[accent]{item.name}[/], this cycle:']
-    for district, price, k in sorted(shelves, key=lambda t: t[1]):
+    ordered = sorted(shelves, key=lambda t: t[1])
+    for district, price, k in ordered[:SEARCH_SHOWN]:
         lines.append(f'  {district}: [credit]{price:,}c[/] [dim]({k})[/]')
+    if len(ordered) > SEARCH_SHOWN:
+        rest = len(ordered) - SEARCH_SHOWN
+        lines.append(f'  [dim]and {rest} more shel{"f" if rest == 1 else "ves"}, '
+                     f'dearer, up to {ordered[-1][1]:,}c in {ordered[-1][0]}.[/]')
     return lines, note
 
 
@@ -377,11 +386,11 @@ def sweep(game, district_key: str) -> list[str]:
         out.append('[dim]Nobody here has your name at the top of a list.[/]')
     kind = controller.kind if controller else ''
     chromed = kind in ('corp', 'law', 'broker')
-    out.append(('Their people carry chrome: there is something for the deck '
-                'to reach in a fight.' if chromed else
-                f'{controller.short if controller else "The people here"} '
-                f'mostly do not carry chrome; nobody\'s people here do not. '
-                f'A fight is hands and steel.'))
+    who = controller.short if controller else 'The people here'
+    out.append(f'{who} carry chrome: [fg]jack[/] has something to reach in a '
+               f'fight here.' if chromed else
+               f'{who} mostly do not carry chrome: a fight here is hands '
+               f'and steel, and [fg]jack[/] has nothing to reach.')
     if district.controller == 'nightwatch' or (tonight and tonight.key == 'sweep'):
         out.append('[heat]The Nightwatch is on the street. A gun here is heard '
                    'twice.[/]')
@@ -443,3 +452,19 @@ def listen(game, district_key: str) -> list[str]:
     if not out:
         out.append('[dim]Nothing but carrier.[/]')
     return out
+
+
+def cheapest(game, kind: str):
+    """The cheapest thing of a kind on any shelf: (name, price, district).
+
+    What the deck is for, asked by the commands that would otherwise say
+    "a fence sells them" while you are standing at a fence (D137).
+    """
+    best = None
+    for dkey, listings in game.city.stock.items():
+        for l in listings:
+            if l.kind != kind or l.stock <= 0 or l.deep:
+                continue
+            if best is None or l.price < best[1]:
+                best = (_name(l.key), int(l.price), districts.BY_KEY[dkey].name)
+    return best

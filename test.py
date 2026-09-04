@@ -12229,6 +12229,115 @@ def test_a_real_deck() -> None:
     T.ok('in pieces' not in do(sess, con, 'mail'), 'repaired, it answers again')
 
 
+def test_the_play_test_found() -> None:
+    """D137: what three play-tests found. A bare number at `errands`, the
+    pit invisible to anybody who did not know the word, muscle out-earning
+    a run, a bottom rung that died in one swing, a lender with no name, a
+    sweep with a double negative, a search eleven lines long, and a `carry`
+    that said "a fence sells them" at a fence."""
+    T.section('what the play-test found')
+    from flatline.content import districts, pit as pit_content
+    from flatline.world import street as street_world
+    from flatline.world import deck as deck_world
+    from flatline.world import fight as fight_mod
+    from flatline.world import market as market_mod
+    from flatline.commands import guide as guide_mod
+
+    def fresh(origin='gutter', seed=41, where='shambles', night=True):
+        char = Character.from_origin(origin, 't')
+        game = Game.new(char, seed=seed)
+        game.city.where = where
+        if night:
+            while game.city.phase != 'night':
+                game.city.shift += 1
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    def do(sess, con, cmd):
+        con.start_capture()
+        sess.execute(cmd)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    # A bare number acts on the row, the way it does everywhere else.
+    sess, con, game = fresh()
+    offers = street_world.errands_here(game)
+    out = do(sess, con, f'errands {len(offers)}')
+    T.ok('#  kind' not in out, '`errands <n>` takes it rather than reprinting the list')
+    sess.pending = None
+
+    # The pit is on the arrival line where the pit is.
+    sess, con, game = fresh()
+    T.ok('pit' in do(sess, con, 'look'), 'the Shambles says there is a pit in it')
+    sess2, con2, game2 = fresh(where='vertical')
+    T.ok('pit' not in do(sess2, con2, 'look'), 'and nowhere else does')
+
+    # A run still pays more than a shift of muscle.
+    sess, con, game = fresh()
+    muscle = [j for j in street_world.errands_here(game) if j['kind'] == 'muscle']
+    if muscle:
+        board = [c.pay for c in game.city.board]
+        T.ok(muscle[0]['pay'] < max(board), 'the worst night of muscle pays less than the best run')
+    T.ok(street_world.MUSCLE_BASE + street_world.rough(game) * 3 + 450 < 1500,
+         'and muscle at its top is under fifteen hundred')
+
+    # The wall is five bouts, not five swings.
+    for f in pit_content.FIGHTERS:
+        pool = fight_mod.FOE_POOL[f.tier] + f.pool_bonus
+        char = Character.from_origin('gutter', 't')
+        char.base_skills['violence'] = f.rung
+        T.ok(pool > fight_mod.strike_damage(char),
+             f'{f.name} takes more than one swing from a rung-{f.rung} fighter')
+
+    # A lender has a name.
+    sess, con, game = fresh()
+    game.debt.amount = 5000
+    game.debt.lender = 'sixes'
+    mail = deck_world.messages(game)
+    lender = next((m for m in mail if m.kind == 'lender'), None)
+    T.ok(lender is not None and lender.sender[0].isupper(),
+         'the lender writes under a name, not a key')
+
+    # The sweep says it once, and in English.
+    sess, con, game = fresh()
+    out = do(sess, con, 'sweep')
+    T.ok('never do' not in out and 'do not carry chrome' in out or 'carry chrome' in out,
+         'the sweep says whether there is chrome to reach without a double negative')
+
+    # A search summarises rather than printing eleven lines.
+    sess, con, game = fresh()
+    for d in districts.DISTRICTS:
+        game.city.stock[d.key] = [market_mod.Listing(kind='armour', key='jacket', price=600)]
+    out = do(sess, con, 'search jacket')
+    T.ok('more shel' in out, 'a search past four shelves summarises the rest')
+    T.ok(out.count('c (armour)') <= deck_world.SEARCH_SHOWN,
+         'and prints no more than four')
+
+    # `carry` at a fence says where, not that a fence sells them.
+    sess, con, game = fresh()
+    game.city.stock = {game.city.where: [market_mod.Listing(kind='weapon', key='bat', price=320)]}
+    out = do(sess, con, 'carry')
+    T.ok('Bat is 320c in The Shambles' in out,
+         'an empty hand is told where the nearest weapon is')
+    near = deck_world.cheapest(game, 'weapon')
+    T.ok(near == ('Bat', 320, 'The Shambles'), 'and it is the cheapest in the city')
+
+    # The other half, to somebody who has never touched it.
+    sess, con, game = fresh(origin='academic')
+    game.char.runs = 2
+    game.char.credits = 900
+    game.story.flags.add('street:knives')
+    game.story.flags.add('street:toll')
+    nudges = guide_mod._system_nudges(sess, game.char)
+    T.ok(any(cmd == 'help street' for cmd, _ in nudges),
+         'a runner the street keeps stopping is told the street can be fought')
+    T.ok('twice' in ' '.join(w for _, w in nudges), 'and told in English')
+    game.char.weapon = 'blade'
+    T.ok(not any(cmd == 'help street' for cmd, _ in guide_mod._system_nudges(sess, game.char)),
+         'and not told again once they have committed')
+
+
 
 def manual_body(key: str) -> str:
     from flatline.content import manual
@@ -13517,7 +13626,7 @@ SUITES = (
     test_the_lifepath, test_tactic_tools, test_the_fight,
     test_the_rough_street, test_a_fighters_living, test_help_is_current,
     test_the_match, test_the_pit, test_the_deck_in_the_city,
-    test_a_real_deck,
+    test_a_real_deck, test_the_play_test_found,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

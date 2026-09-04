@@ -350,6 +350,33 @@ def _system_nudges(sess, char) -> list[tuple[str, str]]:
                     'ballistic jacket is six hundred and takes a point off '
                     'every one that reaches you'))
         return out
+    # The pit, where the pit is, to somebody who could stand in it (D137).
+    from ..content import pit as pit_content
+    if (fighter and game.city.where == pit_content.WHERE
+            and pit_content.AT in game.city.district.services
+            and game.city.phase == 'night'
+            and not game.city.pit.get('rank')):
+        out.append(('pit',
+                    'there is a floor with tape on it under the fence here, '
+                    'and a wall with names, and the house pays. Nobody dies '
+                    'in the pit, whatever rung: it is the one fight in the '
+                    'city that is only ever a fight'))
+        return out
+    # The other half of the game, to somebody the street keeps stopping who
+    # has never once had anything in their hand (D137). The fighter nudges
+    # above only ever fire for a player who has already committed, so a
+    # runner could be stopped in a doorway five nights running and never be
+    # told that any of this existed.
+    stopped = sum(1 for f in game.story.flags if f.startswith('street:'))
+    if (not fighter and fight_mod.armour_of(char) == 0 and stopped >= 2
+            and char.credits >= 400):
+        word = 'twice' if stopped == 2 else f'{stopped} times'
+        out.append(('help street',
+                    f'the street has stopped you {word} and you have never '
+                    f'had anything in your hand or anything between you and '
+                    f'the hit. It can be fought, and it never has to be: a '
+                    f'jacket is a few hundred, a blade is less'))
+        return out
     # Chrome, once there is money for it and nothing in you yet. The game
     # is half about this trade and a career can pass without meeting it.
     # Eleven of the twelve origins ship with a piece already in, so "has
