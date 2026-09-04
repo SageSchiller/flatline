@@ -172,6 +172,23 @@ class Play:
         self.settle()
         return f'{thread.key}.{stage.key}:{key}'
 
+    def answer_choices(self, table=None, limit=6):
+        """Answer every open story decision: `table` maps 'thread.stage' to
+        a choice key; anything else takes the first. Returns what was chosen."""
+        table = table or {}
+        out = []
+        for _ in range(limit):
+            found = self.g.story.open_choice()
+            if found is None:
+                break
+            thread, stage = found
+            out.append(self.choose_open(table.get(f'{thread.key}.{stage.key}')))
+        return out
+
+    def shortcut(self, what):
+        """A thing the harness did that a player could not, said in the log."""
+        self.log.write(f'\n!!! HARNESS SHORTCUT: {what}\n')
+
     def state(self):
         g = self.g; c = g.char
         return (f'shift {g.city.shift} ({g.city.phase}) in {g.city.district.name} | '

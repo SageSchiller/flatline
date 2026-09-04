@@ -4993,6 +4993,73 @@ its reasons, the journal's empty state, Hollis at the tape at rung two and
 not before with the pit's story opening after, the tension line, `record`
 under *also*, and a line of the record said after the rest it landed in.
 
+### D145: The third round, and what it found
+
+The method again, on the three corners of the game nobody had ever reached
+by playing: the fourth ending (the one that is a door), the retirement, and
+a bond with another runner. Six personas this time, driven through the real
+dispatcher, each in its own data directory: a player who says yes to
+everyone and takes the other door; a player who plays for retirement and
+walks out on purpose; two campaigns hunting a partner and two hunting a
+nemesis, measured to a bond; a player who goes as far into the net as chrome
+and a habit will take them; a runner who gets a number put on their name on
+purpose and then does only what `now` says; and a fighter who trains
+Violence to the top and takes the last name on the wall. No crashes in any
+of them. Three fixes came out of it, and two things were confirmed rather
+than fixed.
+
+**The advice looped on a loadout it could not afford to fix.** The clearest
+find, from the hunted runner. A fresh gutter deck ships two Crowbars, and a
+runner who accepts an exfiltrate job is told to load a payload there is no
+room for. The advice said "a bigger bank, or carry less" thirty times
+running to a broke runner with no bank to buy, and never once named the move
+that was right in front of them: drop the second Crowbar. `_loadout_step`
+counted a program as droppable only if the plan did not want its kind at
+all, so a duplicate of a wanted program was invisible to it. It counts one
+loaded program per plan slot now and treats the rest, duplicates included, as
+spare, sheds the cheapest that make the room, and says which. The dead-end
+line survives only for a deck that genuinely cannot fit the thing with
+anything shed.
+
+**A partner could almost never form.** The record's "runners who decided
+about you" was zero in every campaign of every round, and the bonds personas
+found why: a bond wants four jobs and a disposition past sixty, and
+`rival.jobs` only ever counted the board work a rival took in competition
+with you, each of which drops their disposition by three. The two gates
+pulled against each other, so the only way to sixty was to keep a rival
+sweet while they raced you, which sixty shifts of hiring never managed. A
+job you actually run beside somebody counts now: an ally who comes through a
+run with you advances the counter, the way the run already lifted their
+disposition. Running with somebody is the thing that makes a partner, so it
+is the thing that counts. The nemesis half is unchanged: you do not run
+beside the people who come to hate you.
+
+**`market chrome` dumped the whole market.** The filter knew `cyberware` and
+`ware` and not the word most players would type. `chrome`, `implant`, `wire`
+and `cyber` all reach the ware shelf now.
+
+**Confirmed, not fixed: the fourth ending is complete.** Going under
+(`dw_under`) ends the character the way the flatline does, with the epilogue
+reading it back ("you went under, with nothing loaded and no contract"), and
+no Afterwards, which is correct: there is no afterwards for somebody who did
+not come back. Saying no (`dw_stayed`) shares the walked Afterwards. The
+reason nobody had reached either by play is that the door stage needs the
+log read, the Archivist's consent and Lark alive all at once, which is three
+cooperating side-threads on top of finishing the posting, the hardest run in
+the game. That is the most demanding content in the game to reach, by
+design; D146's work on the posting is what makes it fairer.
+
+**Confirmed, not fixed: retirement works and is well-gated.** All four gates
+hold, the epilogue and the estate fire, and a fresh character inherits.
+Nothing in `now` surfaces the door before you are close to it, which is the
+intended shape (D95): the door has been there since the first shift and the
+game does not nag about it, it just answers `retire` honestly when asked.
+
+`test_the_third_round` holds the three fixes: the duplicate dropped rather
+than a carry-less loop, the payload loading once the room is made, a bond
+formed from four jobs run together, and `market chrome` filtered to ware.
+`validate.py` clean, `test.py` green.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -6710,3 +6777,11 @@ corrected where it had drifted (the README was ten numbers behind: 70
 programs, 14 drugs, 33 traits, 14 icons, 46 topics, 204 events, 25 one of
 a kind, 91 pieces of terminal across 9 axes, 151 verbs). The build checked:
 `./build.sh` produces `dist/flatline.pyz`.
+
+### 2026-09-04 (r): the third round
+
+D145. Six personas on the three corners nobody had played: the under ending,
+retirement, and a bond. No crashes. Three fixes (a loadout dead-end on a
+duplicate program, a partner bond that could not form, `market chrome`) and
+two confirmations (the under ending is complete; retirement is sound).
+`test_the_third_round`.

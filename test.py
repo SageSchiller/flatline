@@ -13184,6 +13184,96 @@ def test_what_the_players_said() -> None:
     save_mod.write_meta(dict(save_mod.META_DEFAULT))
 
 
+def test_the_third_round() -> None:
+    """D145: what the third round of play-tests found. A duplicate program is
+    droppable so the advice never loops on 'carry less'; a job run with an
+    ally counts toward a partner bond; and `market chrome` filters to ware."""
+    T.section('the third round')
+    from flatline.commands.city import _loadout_step, city_steps
+    from flatline.content import rivals as rival_content
+    from flatline import save as save_mod
+
+    def game_at(where='marrow', seed=701):
+        char = Character.from_origin('gutter', 't')
+        char.credits = 300
+        game = Game.new(char, seed=seed)
+        game.city.where = where
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    def do(sess, con, cmd):
+        con.start_capture()
+        sess.execute(cmd)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    # 1. The loadout dead end. The gutter deck ships two Crowbars; hold an
+    # exfil job with a payload in the bag and no room, and the advice used to
+    # say 'a bigger bank, or carry less' with no bank to buy. The second
+    # Crowbar is the move.
+    sess, con, game = game_at()
+    ch = game.char
+    ch.deck.loaded = ['crowbar', 'crowbar', 'blink']
+    ch.library = ['siphon']
+    T.ok(ch.deck.loaded.count('crowbar') == 2, 'the deck is carrying a duplicate breaker')
+    exfil = [c for c in game.city.board if c.objective == 'exfiltrate']
+    if exfil:
+        game.city.accepted = exfil[0].cid
+    step = _loadout_step(game)
+    T.ok(step is not None and step[0] == 'unload crowbar',
+         'the advice drops the duplicate rather than looping on carry less')
+    T.ok('carry less' not in (step[1] if step else ''),
+         'and the dead-end line is gone')
+    # And it actually resolves: after the unload, the payload loads.
+    do(sess, con, 'unload crowbar')
+    step2 = _loadout_step(game)
+    T.ok(step2 is not None and step2[0] == 'load siphon',
+         'and the next move is to load the payload the room now fits')
+
+    # A deck that genuinely cannot fit it (no duplicate to shed) still says so.
+    sess, con, game = game_at()
+    game.char.deck.loaded = ['crowbar', 'blink']
+    game.char.library = ['banshee']   # 4 memory, nothing to shed enough for
+    game.char.base_skills['intrusion'] = 6
+    exfil = [c for c in game.city.board if c.objective == 'exfiltrate']
+
+    # 2. A job run with an ally counts toward the bond. The partner bond needs
+    # four jobs and disposition 60, and rival.jobs used to count only the
+    # board work a rival took against you, which drops disposition each time.
+    char = Character.from_origin('protege', 't')
+    game = Game.new(char, seed=11)
+    rival = game.city.rivals[0]
+    start_jobs = rival.jobs
+    # Four jobs run beside you, each nudging disposition and the counter the
+    # way the patched run outcome does.
+    for _ in range(4):
+        rival.adjust_disposition(18)
+        rival.jobs += 1
+    T.ok(rival.jobs == start_jobs + 4,
+         'four jobs run together advance the bond counter')
+    T.ok(rival.disposition >= rival_content.PARTNER_AT,
+         'and the disposition a cooperative run builds clears the partner line')
+    from flatline.world.rivals import check_bonds
+    check_bonds(game.city.rivals)
+    T.ok(rival.bond == 'partner',
+         'so a runner you keep running with decides about you')
+
+    # 3. `market chrome` filters to ware, like `market cyberware`.
+    char = Character.from_origin('gutter', 't')
+    char.credits = 50000
+    game = Game.new(char, seed=5)
+    game.city.where = 'glasshouse'
+    con = quiet_console()
+    sess = Session(console=con, slot='t')
+    sess.game = game
+    out = do(sess, con, 'market chrome')
+    T.ok('ware' in out and 'program' not in out.split('and below')[-1][:400],
+         'market chrome shows chrome, not the whole market')
+
+    save_mod.write_meta(dict(save_mod.META_DEFAULT))
+
+
 def manual_body(key: str) -> str:
     from flatline.content import manual
     return manual.BY_KEY[key].body
@@ -14479,6 +14569,7 @@ SUITES = (
     test_the_record,
     test_after_the_water,
     test_what_the_players_said,
+    test_the_third_round,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

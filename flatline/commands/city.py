@@ -980,7 +980,8 @@ def cmd_market(sess, args) -> None:
 
     want = (args.get(0) or '').rstrip('s').lower()
     kind = {'program': 'program', 'ware': 'ware', 'cyberware': 'ware',
-            'component': 'component', 'part': 'component',
+            'chrome': 'ware', 'implant': 'ware', 'wire': 'ware',
+            'cyber': 'ware', 'component': 'component', 'part': 'component',
             'drug': 'drug', 'chem': 'drug', 'weapon': 'weapon',
             'gun': 'weapon', 'knife': 'weapon', 'armour': 'armour',
             'armor': 'armour', 'jacket': 'armour', 'vest': 'armour'}.get(want)
@@ -2360,14 +2361,36 @@ def _loadout_step(game):
     if deck.memory_free >= want.memory:
         return (f'load {want.name.lower()}',
                 f'{want.name} is in the bag and the deck has room: {why}')
-    loaded = [programs.BY_KEY[k] for k in deck.loaded if k in programs.BY_KEY]
-    spare = [p for p in loaded if p.key not in keys]
-    if spare:
-        drop = max(spare, key=lambda p: (p.memory, -p.rating))
+    # A duplicate of a wanted program is spare: the plan wants one
+    # breaker and the gutter deck ships two Crowbars, so `now` told a
+    # broke runner holding an exfil job to get 'a bigger bank, or carry
+    # less' thirty times running, when the move was to drop the second
+    # Crowbar (D145). Keep one loaded program per plan key; the rest,
+    # duplicates included, are droppable.
+    from collections import Counter
+    keep = Counter(p.key for p in plan)
+    spare = []
+    for k in deck.loaded:
+        if k not in programs.BY_KEY:
+            continue
+        if keep.get(k, 0) > 0:
+            keep[k] -= 1
+        else:
+            spare.append(programs.BY_KEY[k])
+    # Enough of them to make the room, cheapest-first so the deck loses
+    # the least it can.
+    freed, drops = deck.memory_free, []
+    for prog in sorted(spare, key=lambda p: (-p.memory, p.rating)):
+        if freed >= want.memory:
+            break
+        drops.append(prog)
+        freed += prog.memory
+    if freed >= want.memory and drops:
+        drop = drops[0]
         return (f'unload {drop.name.lower()}',
                 f'{want.name} needs {want.memory} memory with '
-                f'{deck.memory_free} free, and {drop.name} is not part of '
-                f'the deck you should be carrying: {why}')
+                f'{deck.memory_free} free, and {drop.name} is one more '
+                f'than the deck you should be carrying needs: {why}')
     return ('deck', f'{want.name} needs {want.memory} memory and the deck '
                     f'has {deck.memory_free}. A bigger bank, or carry less')
 

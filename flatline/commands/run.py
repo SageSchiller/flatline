@@ -769,6 +769,15 @@ def _resolve(sess) -> None:
                 game.city.news.append(f'{ally["name"]} died on a job with you.')
             else:
                 who.adjust_disposition(6 if summary.get('objective') else 2)
+                # A job you actually ran together counts toward the
+                # bond (D145). The partner bond wanted four jobs, and
+                # `rival.jobs` only ever counted the board work a rival
+                # took in competition with you, which drops disposition
+                # every time: the two gates pulled against each other,
+                # and 'runners who decided about you' was zero in every
+                # campaign. Running beside somebody is the thing that
+                # makes a partner, so it is the thing that counts.
+                who.jobs += 1
 
     if 'creeping_dissonance' in game.char.riders():
         game.char.dissonance += 1
