@@ -940,6 +940,354 @@ THREADS: tuple[Thread, ...] = (
                   sets=('slot_closed',), after=4),
         )),
 
+    # -- a thread for each way of working (D141) ----------------------------
+    Thread(
+        'nobody', 'Nobody Saw It',
+        'Leaving nothing behind is a pattern, and patterns are what they do.',
+        (
+            Stage('pattern', 'The absence is the signature',
+                  'The desk sergeant has a folder that is thinner than the '
+                  'others and he taps it twice before he opens it.\n\n'
+                  '"Eleven networks in this city have had a bad month and '
+                  'none of them can tell me what happened. Not one alarm. No '
+                  'residue worth the name." He turns it round. "Do you know '
+                  'how many people in this city can do that? I do. It is a '
+                  'short list and I did not have to write it down."',
+                  requires=('met:desk', 'skill:stealth:3', 'runs:5'),
+                  sets=('nobody_named',), where='precinct'),
+            Stage('offer', 'He would like one of them noisy',
+                  '"There is a house in the Terraces that I cannot get a '
+                  'warrant near, because the people who sign warrants are on '
+                  'the second floor of it." He does not blink. "I do not want '
+                  'it robbed. I want it to have an incident. Loud enough to '
+                  'be logged by somebody who is not me."\n\n'
+                  'He puts a card on the desk with no name on it. "You are on '
+                  'the short list either way. This is the version where being '
+                  'on it is worth something."',
+                  requires=('nobody_named',), where='precinct', after=3,
+                  choices=(
+                      Choice('loud', 'Make an incident, on purpose',
+                             'It is the strangest run of your career: every '
+                             'instinct you have spent years training says '
+                             'quiet and you spend the whole of it doing the '
+                             'opposite, deliberately, well.\n\nIt gets logged. '
+                             'Somebody on the second floor has a very bad '
+                             'fortnight. The desk sergeant never mentions it '
+                             'again and the folder gets thicker, with other '
+                             'people in it.',
+                             sets=('nobody_loud',), credits=3800,
+                             rep={'nightwatch': 18, 'kagawa': -12}),
+                      Choice('quiet', 'Do it your way instead',
+                             'You go in and you come out and there is no '
+                             'incident, because you do not know how to leave '
+                             'one, and what you bring him instead is the '
+                             'second floor\'s own filing.\n\n"That is not what '
+                             'I asked for," he says, reading it. He keeps '
+                             'reading it. "That is considerably worse for '
+                             'them. Get out of my station."',
+                             sets=('nobody_quiet',), credits=2400,
+                             rep={'nightwatch': 8, 'static': 10}),
+                      Choice('walk', 'Tell him the list is his problem',
+                             'You say no, in a police station, to a man '
+                             'holding a folder with your working life in it, '
+                             'and walk out past the desk and the queue and '
+                             'the door.\n\nNothing happens. Nothing keeps '
+                             'happening for a fortnight, and then the folder '
+                             'turns up in the Stacks with somebody else\'s '
+                             'name on the front, which is how you learn what '
+                             'the list was actually for.',
+                             sets=('nobody_walked',),
+                             rep={'nightwatch': -15, 'static': 6})),
+                  ),
+            Stage('after', 'A short list, still',
+                  'The desk in the Precinct has a new folder on it, thinner '
+                  'than the others. You do not get to see whether your name '
+                  'is still in it, and the not seeing is the point, and he '
+                  'knows it is the point.',
+                  any_of=('nobody_loud', 'nobody_quiet', 'nobody_walked'),
+                  sets=('nobody_closed',), where='precinct', after=5),
+        )),
+    Thread(
+        'order', 'Out of Order',
+        'The queue at the exchange is not a queue. It is a market in places.',
+        (
+            Stage('place', 'Somebody sells the third place',
+                  'The keeper of the queue has a clipboard, a folding stool '
+                  'and an authority nobody has ever formally given her. She '
+                  'watches you watch the queue for a while and then decides '
+                  'you are worth explaining it to.\n\n"Fourth from the front '
+                  'is worth six hundred on a Tuesday. Third is worth nine. '
+                  'Nobody has ever written that down and everybody knows it, '
+                  'and the Switchboard pretend the whole thing is weather."',
+                  requires=('met:keeper', 'skill:subterfuge:3'),
+                  sets=('order_place',), where='marrow'),
+            Stage('jump', 'A man who cannot be seen queueing',
+                  'A Switchboard man needs to be at the front at eleven and '
+                  'cannot be seen in a queue, because being seen in a queue '
+                  'is a statement about who he is.\n\nThe keeper puts it '
+                  'plainly. "He wants the front and he wants nobody to have '
+                  'been moved for him. Those are two different jobs and only '
+                  'one of them is possible, so somebody is getting moved and '
+                  'the question is who, and whether they know."',
+                  requires=('order_place',), where='marrow', after=2,
+                  choices=(
+                      Choice('talk', 'Move somebody who agrees to be moved',
+                             'You spend forty minutes finding the one person '
+                             'in that queue who would rather have six hundred '
+                             'than eleven o\'clock, and you find her, and the '
+                             'whole thing costs the Switchboard a fee and '
+                             'nobody a place.\n\nThe keeper watches the entire '
+                             'operation with her arms folded and afterwards '
+                             'says, "You could have just moved somebody," in '
+                             'the tone of a person filing that away.',
+                             sets=('order_talked',), credits=1400,
+                             rep={'fixers': 12}),
+                      Choice('bump', 'Move somebody who does not',
+                             'It takes four minutes and a story about a '
+                             'terminal fault, and the man is at the front at '
+                             'eleven, and a woman who was there at six is not.'
+                             '\n\nShe finds you afterwards. She is not angry, '
+                             'which is worse: she wants to know what she did '
+                             'wrong, because she has assumed for two hours '
+                             'that she must have done something wrong.',
+                             sets=('order_bumped',), credits=2200,
+                             rep={'fixers': 15}),
+                      Choice('expose', 'Tell the queue what it is worth',
+                             'You say the numbers out loud to eighty people '
+                             'standing in the rain, and the queue works out '
+                             'in about ninety seconds that it has been a '
+                             'market for years and that all of them were the '
+                             'stock.\n\nThe keeper folds her stool. "Eleven '
+                             'years I kept that fair," she says, and she is '
+                             'not wrong, and neither are you, and the queue '
+                             'behind you is already arguing about who was '
+                             'here first.',
+                             sets=('order_exposed',),
+                             rep={'fixers': -18, 'static': 12})),
+                  ),
+            Stage('after', 'What the queue is now',
+                  'The queue outside the exchange is longer and slower and '
+                  'nobody is keeping it. Whether that is better is being '
+                  'settled about four times a day by people standing in the '
+                  'rain, which is one definition of a fair system and not the '
+                  'one the keeper meant.',
+                  any_of=('order_talked', 'order_bumped', 'order_exposed'),
+                  sets=('order_closed',), where='marrow', after=4),
+        )),
+    Thread(
+        'gooddog', 'A Good Dog',
+        'Somebody left a daemon running on the cranes and it has opinions.',
+        (
+            Stage('found', 'It has been running for eleven months',
+                  'The crane driver has stopped taking the new crane out and '
+                  'she will not say why on the radio, so she says it to you, '
+                  'on the gantry, over the noise.\n\n"There is something in '
+                  'the load system. It is not a fault. It schedules. It has '
+                  'been scheduling for eleven months and it is better at it '
+                  'than the office, and last week it refused a lift and the '
+                  'lift would have killed somebody, and I do not know what to '
+                  'tell the rota."',
+                  requires=('met:crane', 'skill:daemonology:3'),
+                  sets=('dog_found',), where='freeport'),
+            Stage('what', 'What to do with a thing that works',
+                  'You read it on the gantry with the tide coming in. It is '
+                  'somebody\'s work, abandoned, still going: a scheduler with '
+                  'a safety clause bolted on by somebody who then left, and '
+                  'the safety clause is why nobody died last week.\n\n'
+                  'Freeport want to know if it is safe. The office want to '
+                  'know who owns it. Nobody has asked what it wants because '
+                  'it does not want anything, and the crane driver has '
+                  'started saying "she" about it.',
+                  requires=('dog_found',), where='freeport', after=3,
+                  choices=(
+                      Choice('keep', 'Document it and leave it running',
+                             'You write it up properly: what it does, what it '
+                             'refuses, and the one clause that makes it worth '
+                             'keeping. The rota votes. It stays.\n\nThe crane '
+                             'driver calls it by a name within a fortnight '
+                             'and the whole dock has picked it up within '
+                             'three, and none of that is in your write-up, '
+                             'and none of it is your problem, and you think '
+                             'about it anyway.',
+                             sets=('dog_kept',), credits=1800,
+                             rep={'freeport': 20}),
+                      Choice('sell', 'Sell it to somebody who wants a scheduler',
+                             'Kagawa pay well for eleven months of tested '
+                             'scheduling that nobody has to be credited for. '
+                             'They take the safety clause out in the first '
+                             'week, because the safety clause costs four per '
+                             'cent.\n\nThe cranes at Freeport go back to the '
+                             'office schedule. The driver does not speak to '
+                             'you again, and does not make anything of it, '
+                             'which is somehow the whole of it.',
+                             sets=('dog_sold',), credits=6200,
+                             rep={'kagawa': 12, 'freeport': -25}),
+                      Choice('kill', 'Take it out before it decides something else',
+                             'You end it, carefully, the way you would end '
+                             'anything that has been running unsupervised for '
+                             'eleven months near people.\n\nThe office '
+                             'schedule comes back. Six weeks later there is a '
+                             'lift that should not have been signed off, and '
+                             'nobody is hurt, and the crane driver looks at '
+                             'you across the yard and does not say the thing '
+                             'she is obviously thinking.',
+                             sets=('dog_killed',),
+                             rep={'freeport': -8, 'kagawa': 6})),
+                  ),
+            Stage('after', 'The rota, either way',
+                  'There is a line in the Freeport minutes about automated '
+                  'scheduling and a decision taken on a date, and your handle '
+                  'is not in it, and the decision is. That is how Freeport '
+                  'writes things down and it is the closest thing to a '
+                  'monument this city hands out.',
+                  any_of=('dog_kept', 'dog_sold', 'dog_killed'),
+                  sets=('dog_closed',), where='freeport', after=5),
+        )),
+    Thread(
+        'somebody', 'What Came Out of Somebody',
+        'The fence has a box of things that were in people, and a problem.',
+        (
+            Stage('box', 'A box with a schedule attached',
+                  'The fence in the Shambles has a box under the counter that '
+                  'he does not sell from, and he takes the lid off it for you '
+                  'because you have stood in a doorway for money and that is '
+                  'a reference of a kind.\n\n"Chrome out of people. Every '
+                  'piece logged, every piece paid for, all of it clean." He '
+                  'puts the lid back. "Somebody is running a construct that '
+                  'reads clinic manifests and it has started matching serial '
+                  'numbers to living people, and it will get to this box, and '
+                  'then it will get to the people I bought from."',
+                  requires=('met:fence', 'skill:warfare:3'),
+                  any_of=('job:protect', 'job:hurt', 'job:recover',
+                          'skill:violence:2'),
+                  sets=('somebody_box',), where='shambles'),
+            Stage('reader', 'The thing reading the manifests',
+                  'It is not a person. It is a construct on a Kagawa '
+                  'subnet that was built to find stolen chrome and has been '
+                  'quietly improved by somebody into a thing that finds the '
+                  'people wearing it.\n\n"Kill it and they build another one," '
+                  'the fence says. "Do not kill it and it gets to a list of '
+                  'four hundred names, and about eighty of those people are '
+                  'in this district tonight."',
+                  requires=('somebody_box',), where='shambles', after=2,
+                  choices=(
+                      Choice('sever', 'Take it apart in the net',
+                             'You go in and you kill it properly, which takes '
+                             'longer than killing it improperly and is the '
+                             'difference between a fortnight and a year.\n\n'
+                             'They build another one. It takes them eleven '
+                             'months, and eleven months is eleven months, and '
+                             'the fence says so in the flat way of a man who '
+                             'has done this arithmetic before and got a '
+                             'smaller number.',
+                             sets=('somebody_severed',), credits=2600,
+                             rep={'kagawa': -14, 'carrion': 12}),
+                      Choice('poison', 'Leave it running, and wrong',
+                             'You do not kill it. You teach it that four '
+                             'hundred serial numbers belong to a scrap '
+                             'consignment that went into the water in a year '
+                             'nobody can check.\n\nIt keeps running. It keeps '
+                             'reporting. Everything it says about those four '
+                             'hundred people is confidently, permanently '
+                             'wrong, and it will go on saying it long after '
+                             'anybody who could correct it has stopped '
+                             'caring.',
+                             sets=('somebody_poisoned',), credits=3400,
+                             rep={'kagawa': -6, 'carrion': 18}),
+                      Choice('sell', 'Sell the box list instead',
+                             'There is a buyer for four hundred names '
+                             'attached to four hundred pieces of chrome, and '
+                             'the buyer is not the Nightwatch and is not '
+                             'Kagawa, and you do not ask past that.\n\nThe '
+                             'fence closes the counter for nine days. When it '
+                             'opens the box is gone and so is the schedule, '
+                             'and he serves you, and does not look up.',
+                             sets=('somebody_sold',), credits=7000,
+                             rep={'carrion': -30, 'meridian': 10})),
+                  ),
+            Stage('after', 'The counter, nine days on',
+                  'The box is not under the counter. The fence has a new one, '
+                  'or the same one somewhere else, or neither, and he is '
+                  'exactly as pleasant to you as he was before, which tells '
+                  'you nothing and is meant to.',
+                  any_of=('somebody_severed', 'somebody_poisoned',
+                          'somebody_sold'),
+                  sets=('somebody_closed',), where='shambles', after=4),
+        )),
+
+    Thread(
+        'demonstration', 'The Demonstration',
+        'Sendai would like somebody frightening to fail to hurt a volunteer.',
+        (
+            Stage('card', 'They have read about you, from a card',
+                  'The demonstrator in the Glasshouse market is reading from '
+                  'a card about impact-rated dermal work, to nobody, for the '
+                  'fourth time this hour. Then she stops, checks a different '
+                  'card, and reads a short description of a person who has '
+                  'recently been in a fight and won it.\n\n'
+                  'The description is of you. She looks up. "Oh," she says. '
+                  '"You are the one they want."',
+                  requires=('met:demonstrator',),
+                  any_of=('fought:sixes', 'fought:carrion', 'fought:kagawa',
+                          'fought:nightwatch', 'mark:blooded',
+                          'trait:known', 'trait:showoff'),
+                  sets=('demo_card',), where='glasshouse'),
+            Stage('stage', 'A live demonstration, with a volunteer',
+                  'Sendai Precision would like to demonstrate subdermal '
+                  'plating to an audience of buyers, and a demonstration '
+                  'needs somebody hitting somebody. They have a volunteer in '
+                  'the plating. They would like you to be the other half.\n\n'
+                  '"It is rated," the demonstrator says, reading. "It is '
+                  'genuinely rated, I have seen the tests, I am not being '
+                  'careful with you." Then, not from the card: "They want it '
+                  'to look like it nearly did not hold."',
+                  requires=('demo_card',), where='glasshouse', after=2,
+                  choices=(
+                      Choice('honest', 'Hit the plating properly',
+                             'You hit it the way you would hit anything, and '
+                             'it holds, because it is rated and the tests '
+                             'were real. The volunteer is fine and slightly '
+                             'disappointed, and the buyers are unmoved, '
+                             'because nothing that works is interesting to '
+                             'watch.\n\nSendai pay the agreed fee exactly and '
+                             'do not book you again. The demonstrator finds '
+                             'you afterwards to say the tests were real, '
+                             'twice, as though somebody needed telling.',
+                             sets=('demo_honest',), credits=2200,
+                             rep={'sendai': 10}),
+                      Choice('show', 'Make it look like it nearly did not hold',
+                             'You sell it. The volunteer goes down and stays '
+                             'down a beat too long and comes up grinning, and '
+                             'the room makes the noise the room was booked to '
+                             'make, and four buyers ask about volume.\n\n'
+                             'It is the easiest money you have ever taken and '
+                             'the plating is still rated and nothing you did '
+                             'was a lie, exactly, and you notice yourself '
+                             'assembling that sentence on the way out.',
+                             sets=('demo_showed',), credits=4600,
+                             rep={'sendai': 20, 'static': -8}),
+                      Choice('tell', 'Tell the room what was asked for',
+                             'You say it into the room before the first '
+                             'swing: that the plating is rated, that the '
+                             'tests are real, and that you have been asked to '
+                             'make it look close.\n\nThe demonstrator does not '
+                             'contradict you, which is the bravest thing '
+                             'anybody does that afternoon. Sendai sell four '
+                             'units on the strength of it and never speak to '
+                             'either of you again.',
+                             sets=('demo_told',), credits=800,
+                             rep={'sendai': -12, 'static': 15})),
+                  ),
+            Stage('after', 'The card, revised',
+                  'The demonstrator is reading from a new card. It is about '
+                  'the same plating and it is a paragraph shorter, and the '
+                  'part that has gone is the part about what it is like to '
+                  'be hit.\n\nShe gets to the end, looks up, sees you, and '
+                  'does the smallest possible thing with her face.',
+                  any_of=('demo_honest', 'demo_showed', 'demo_told'),
+                  sets=('demo_closed',), where='glasshouse', after=4),
+        )),
+
 )
 
 BY_KEY: dict[str, Thread] = {t.key: t for t in THREADS}

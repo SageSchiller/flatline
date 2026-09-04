@@ -12685,6 +12685,109 @@ def test_the_story_knows_the_street() -> None:
     T.ok(len(thread_content.THREADS) >= 38, 'thirty-eight storylines')
 
 
+def test_a_thread_for_every_way_of_working() -> None:
+    """D141: a coverage audit found six gates with no content behind them
+    and four factions with almost none. Five threads that each close a
+    playstyle gap and deepen a thin faction."""
+    T.section('a thread for every way of working')
+    import collections
+    from flatline.content import threads as thread_content, factions, legacy
+    from flatline.commands.people import _check_story
+
+    def fresh(where, phase='morning', seed=7):
+        char = Character.from_origin('gutter', 't')
+        game = Game.new(char, seed=seed)
+        game.city.where = where
+        while game.city.phase != phase:
+            game.city.shift += 1
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    def story(sess, con):
+        con.start_capture()
+        _check_story(sess)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    # Every way of playing has something written for it.
+    gates = collections.Counter()
+    skills = collections.Counter()
+    for t in thread_content.THREADS:
+        for st in t.stages:
+            for r in list(st.requires) + list(st.any_of):
+                kind = r.split(':')[0] if ':' in r else ''
+                if kind:
+                    gates[kind] += 1
+                if kind == 'skill':
+                    skills[r.split(':')[1]] += 1
+    for kind in ('skill', 'pit', 'habit', 'carrying', 'mark', 'fought', 'job',
+                 'trait', 'street', 'rep', 'heat', 'diss', 'debt', 'credits',
+                 'arranged', 'bond', 'origin', 'runs'):
+        T.ok(gates[kind] > 0, f'something is written for {kind}')
+    for skill in ('stealth', 'subterfuge', 'daemonology', 'warfare', 'violence'):
+        T.ok(skills[skill] > 0, f'a thread wants somebody good at {skill}')
+
+    # No faction is left without decisions that move standing with them.
+    rep = collections.Counter()
+    for t in thread_content.THREADS:
+        for st in t.stages:
+            for ch in st.choices:
+                for f in ch.rep:
+                    rep[f] += 1
+    for f in factions.FACTION_KEYS:
+        if f == 'deepwater':
+            continue        # a construct, not a party you have standing with
+        T.ok(rep[f] >= 3,
+             f'{factions.BY_KEY[f].short} has decisions that move them ({rep[f]})')
+
+    # Each new thread opens on its own gate, and on nothing else.
+    cases = (
+        ('nobody', 'precinct', 'desk', lambda g: (
+            g.char.base_skills.__setitem__('stealth', 3), setattr(g.char, 'runs', 5))),
+        ('order', 'marrow', 'keeper', lambda g:
+            g.char.base_skills.__setitem__('subterfuge', 3)),
+        ('gooddog', 'freeport', 'crane', lambda g:
+            g.char.base_skills.__setitem__('daemonology', 3)),
+        ('somebody', 'shambles', 'fence', lambda g: (
+            g.char.base_skills.__setitem__('warfare', 3),
+            g.story.flags.add('job:protect'))),
+        ('demonstration', 'glasshouse', 'demonstrator', lambda g:
+            g.story.flags.add('fought:sixes')),
+    )
+    for key, where, who, arm in cases:
+        sess, con, game = fresh(where)
+        game.story.meet(who)
+        T.ok(key not in game.story.reached,
+             f'{key} stays shut for somebody who has only met {who}')
+        arm(game)
+        story(sess, con)
+        T.ok(key in game.story.reached, f'{key} opens on its own gate')
+
+    # The demonstration takes a trait as well as a fight.
+    sess, con, game = fresh('glasshouse')
+    game.story.meet('demonstrator')
+    game.char.traits.append('showoff')
+    story(sess, con)
+    T.ok('demonstration' in game.story.reached,
+         'and a reputation opens it as surely as a win does')
+
+    # Nothing any of them offers is forgotten at the end.
+    epi = {flag for flag, _ in legacy.EPILOGUE}
+    for key, *_ in cases:
+        for st in thread_content.BY_KEY[key].stages:
+            for ch in st.choices:
+                for flag in ch.sets:
+                    T.ok(flag in epi, f'{key}: {flag} has an epilogue line')
+
+    # People who had no story now have one.
+    told = {r.split(':')[1] for t in thread_content.THREADS for st in t.stages
+            for r in list(st.requires) + list(st.any_of) if r.startswith('met:')}
+    for who in ('keeper', 'crane', 'fence', 'demonstrator'):
+        T.ok(who in told, f'{who} is somebody a story needs')
+    T.ok(len(thread_content.THREADS) >= 43, 'forty-three storylines')
+
+
 
 def manual_body(key: str) -> str:
     from flatline.content import manual
@@ -13977,6 +14080,7 @@ SUITES = (
     test_the_deck_under_pressure,
     test_the_fight_under_pressure,
     test_the_story_knows_the_street,
+    test_a_thread_for_every_way_of_working,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

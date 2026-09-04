@@ -628,6 +628,56 @@ EPILOGUE: tuple[tuple[str, str], ...] = (
      'eleven days the Row had to say out loud what it was buying, and Vig '
      'sent you the exact percentage it cost him.'),
 
+    # Four ways of working (D141)
+    ('nobody_loud',
+     'A Nightwatch sergeant asked you to make an incident on purpose, and '
+     'you spent a whole run doing the opposite of everything you know, well.'),
+    ('nobody_quiet',
+     'A Nightwatch sergeant asked you for an incident and you brought him '
+     'the second floor\'s own filing instead, which was worse for them.'),
+    ('nobody_walked',
+     'You said no to a man holding a folder with your working life in it, '
+     'and walked out past the queue, and the folder turned up in the Stacks '
+     'with somebody else on the front.'),
+    ('order_talked',
+     'You found the one person in that queue who would rather have the money '
+     'than the hour, and the whole thing cost nobody their place.'),
+    ('order_bumped',
+     'You moved a woman out of a queue with a story about a terminal fault, '
+     'and she spent two hours assuming she had done something wrong.'),
+    ('order_exposed',
+     'You told eighty people standing in the rain what their places in the '
+     'queue had been worth, and nobody has kept that queue since.'),
+    ('dog_kept',
+     'You wrote up the thing on the Freeport cranes properly, and the rota '
+     'voted, and it is still scheduling, and the dock gave it a name.'),
+    ('dog_sold',
+     'You sold eleven months of somebody else\'s scheduling to Kagawa, and '
+     'they took the safety clause out in the first week.'),
+    ('dog_killed',
+     'You ended the thing on the cranes because it had been running '
+     'unsupervised near people, and six weeks later there was a lift that '
+     'should not have been signed off.'),
+    ('somebody_severed',
+     'You killed the construct that was matching chrome serials to living '
+     'people, properly, and it bought four hundred of them eleven months.'),
+    ('somebody_poisoned',
+     'You left the manifest reader running and taught it that four hundred '
+     'people went into the water, and it is still confidently saying so.'),
+    ('somebody_sold',
+     'You sold the fence\'s list of four hundred names and the chrome that '
+     'was in them, and did not ask who was buying.'),
+
+    ('demo_honest',
+     'You hit Sendai\'s plating properly in front of buyers and it held, '
+     'which was true and boring, and they paid the fee exactly.'),
+    ('demo_showed',
+     'You made Sendai\'s plating look like it nearly did not hold, in front '
+     'of buyers, for the easiest money you ever took.'),
+    ('demo_told',
+     'You told a room full of buyers that you had been asked to make the '
+     'demonstration look close, and the demonstrator did not contradict you.'),
+
 )
 
 EPILOGUE_BY_FLAG: dict[str, str] = {flag: line for flag, line in EPILOGUE}
