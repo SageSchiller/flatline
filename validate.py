@@ -13,6 +13,7 @@ deliberate, so they are reported and do not fail.
 
 from __future__ import annotations
 
+import pathlib
 import sys
 
 from flatline import commands  # noqa: F401  (registers the command table)
@@ -3920,6 +3921,37 @@ def check_conditions(rep: Report) -> None:
 # --------------------------------------------------------------------------
 
 
+def check_feed(rep: Report) -> None:
+    """The deck in the city (D135): ads held to their predicates and the
+    tone vocabulary, and a reply for every opinion a runner can hold."""
+    from flatline.content import feed
+    from flatline.content import rivals as rival_content
+    rep.check(len(feed.ADS) >= 12, 'feed', 'fewer than twelve ads')
+    rep.check(sum(1 for a in feed.ADS if a.when == 'any') >= 3, 'feed',
+              'fewer than three ads for everybody')
+    seen = set()
+    for a in feed.ADS:
+        where = f'feed/ad/{a.key}'
+        rep.check(a.key not in seen, where, 'duplicate key')
+        seen.add(a.key)
+        rep.check(a.when in feed.WHEN, where, f'unknown predicate {a.when!r}')
+        rep.check(a.tone in events.TONES, where, f'tone {a.tone!r}')
+        rep.check(bool(a.sponsor) and a.text.rstrip().endswith('.'), where,
+                  'has no sponsor or does not end')
+    absurd = sum(1 for a in feed.ADS if a.tone == 'absurd') / len(feed.ADS)
+    rep.check(absurd <= 0.75, 'feed', f'{absurd:.0%} of the ads are absurd: too many')
+    bands = {name for _, name in rival_content.DISPOSITION_BANDS} | {'partner', 'nemesis'}
+    for band in bands:
+        rep.check(bool(feed.REPLIES.get(band)), 'feed', f'no reply for {band!r}')
+    for name in ('PARTNER_MAIL', 'NEMESIS_MAIL', 'FIXER_MAIL', 'WORK_MAIL',
+                 'LENDER_MAIL', 'PIT_MAIL', 'BOUNTY_MAIL'):
+        rep.check(bool(getattr(feed, name)), 'feed', f'{name} is empty')
+    # Every predicate declared is evaluated by the world layer.
+    source = pathlib.Path('flatline/world/deck.py').read_text(encoding='utf-8')
+    for key in feed.WHEN:
+        rep.check(f"'{key}'" in source, 'feed', f'predicate {key!r} is read nowhere')
+
+
 def check_pit(rep: Report) -> None:
     """The pit (D134): a ladder that is a ladder, in a place that exists,
     with a blade at the top that is never sold."""
@@ -4219,7 +4251,7 @@ CHECKS = (
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_palette_separation, check_markup, check_balance,
     check_heat, check_guile, check_roster, check_reads, check_relics, check_street,
-    check_weapons, check_pit,
+    check_weapons, check_pit, check_feed,
 )
 
 

@@ -12067,6 +12067,101 @@ def test_the_pit() -> None:
     T.ok('The pit' in manual_body('street') and 'muscle' in manual_body('people'),
          'the help knows the pit and the fixer\'s work')
 
+def test_the_deck_in_the_city() -> None:
+    """D135: mail, search, watch, message, ads. Each with a hook."""
+    T.section('the deck, in the city')
+    from flatline.content import feed, districts
+    from flatline.world import deck as deck_world
+    from flatline.world import market as market_mod
+    from flatline.world.city import City
+
+    def fresh(seed=3):
+        char = Character.from_origin('gutter', 't')
+        game = Game.new(char, seed=seed)
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    def do(sess, con, cmd):
+        con.start_capture()
+        sess.execute(cmd)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    sess, con, game = fresh()
+    fence = next(d for d in districts.DISTRICTS if 'fence' in d.services)
+    # Mail: composed from the state, new once, read after.
+    partner = game.city.rivals[0]
+    partner.bond = 'partner'
+    partner.disposition = 70
+    nemesis = game.city.rivals[1]
+    nemesis.bond = 'nemesis'
+    nemesis.disposition = -80
+    game.char.hurt = 8
+    out = do(sess, con, 'mail')
+    T.ok(partner.name in out and nemesis.name in out and 'sponsored' in out,
+         'a partner, a nemesis and an ad have written')
+    T.ok('new' in out and not deck_world.unread(game), 'new once, then read')
+    T.ok('nothing new' in do(sess, con, 'mail'), 'and the deck says so')
+    T.ok(City.from_dict(game.city.to_dict()).mail_read == game.city.mail_read,
+         'and what was read saves')
+
+    # Search: every shelf, cheapest first; a gun is a record; a relic is found.
+    game.city.stock[fence.key] = [market_mod.Listing(kind='weapon', key='katana', price=5200),
+                                  market_mod.Listing(kind='weapon', key='pistol', price=2800)]
+    out = do(sess, con, 'search katana')
+    T.ok(fence.name in out and '5,200c' in out, 'search says which shelf and for how much')
+    law0 = game.alias.raw_heat('nightwatch')
+    do(sess, con, 'search pistol')
+    T.ok(game.alias.raw_heat('nightwatch') == law0 + 1, 'and a search for a gun is a record')
+    T.ok('does not sell that' in do(sess, con, 'search eightfold'),
+         'a one-of-a-kind thing is not sold, and the net says so')
+    T.ok('does not know' in do(sess, con, 'search plating'), 'and nothing means nothing')
+
+    # Watch: it says when it lands, once a cycle.
+    do(sess, con, 'watch smartgun')
+    T.ok('smartgun' in game.city.watches, 'a watch is kept')
+    game.city.stock[fence.key].append(market_mod.Listing(kind='weapon', key='smartgun', price=6500))
+    pings = deck_world.pings(game)
+    T.ok(any('Smartgun' in p and fence.name in p for p in pings), 'and it pings when the thing lands')
+    T.ok(not deck_world.pings(game), 'once a cycle')
+    do(sess, con, 'watch drop smartgun')
+    T.ok('smartgun' not in game.city.watches, 'and can be dropped')
+
+    # Message: what comes back is what they think of you.
+    out = do(sess, con, f'message {partner.key} here')
+    T.ok('Here' in out or 'ours' in out, 'a partner answers like a partner')
+    d0 = nemesis.disposition
+    out = do(sess, con, f'message {nemesis.key}')
+    T.ok('read' in out or 'wondering' in out, 'a nemesis lets you watch it show as read')
+    stranger = game.city.rivals[2]
+    stranger.bond = ''
+    stranger.disposition = 0
+    do(sess, con, f'message {stranger.key}')
+    T.ok('not answered' in do(sess, con, f'message {stranger.key}'), 'once a shift each')
+    hostile = game.city.rivals[3]
+    hostile.bond = ''
+    hostile.disposition = -40
+    d0 = hostile.disposition
+    game.city.shift += 1
+    do(sess, con, f'message {hostile.key}')
+    T.ok(hostile.disposition < d0, 'a hostile answer cools them further')
+
+    # Ads: they have read you.
+    game.char.hurt = 8
+    T.ok(deck_world.ad_for(game).when != 'any', 'the ad that shows has read you')
+    ad = deck_world.ad_for(game)
+    T.ok(deck_world.when(game, ad.when), 'and what it read is true')
+    game.char.hurt = 0
+    game.char.weapon = ''
+    game.city.news.clear()
+    T.ok(all(a.when == 'any' or not deck_world.when(game, a.when)
+             for a in feed.ADS if a.when in ('hurt', 'loud', 'shot_at')),
+         'and it stops saying it when it stops being true')
+    out = do(sess, con, 'ads')
+    T.ok(out.count(':') >= 3, 'three ads, none of them wrong about you')
+
+
 
 def manual_body(key: str) -> str:
     from flatline.content import manual
@@ -13354,7 +13449,7 @@ SUITES = (
     test_planting_a_way_in, test_the_changing_world, test_swagger_and_legend,
     test_the_lifepath, test_tactic_tools, test_the_fight,
     test_the_rough_street, test_a_fighters_living, test_help_is_current,
-    test_the_match, test_the_pit,
+    test_the_match, test_the_pit, test_the_deck_in_the_city,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

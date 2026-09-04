@@ -4400,6 +4400,10 @@ def _advance(sess, shifts: int, story: bool = True) -> None:
         lender=game.debt.lender if game.debt.owed else '')
     for line in told:
         sess.console.say(line)
+    # The deck, in the city (D135): a watched thing landing on a shelf.
+    from ..world import deck as deck_world
+    for line in deck_world.pings(game):
+        sess.console.say(line)
     # Scenery goes last and gets its own air. It is the one thing printed here
     # that is not about the player, and it only reads that way with a gap in
     # front of it.

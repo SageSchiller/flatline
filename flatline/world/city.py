@@ -221,6 +221,11 @@ class City:
     #: The pit's ledger (D134): rank, the night last fought, the names
     #: beaten, whether the wall is yours.
     pit: dict = field(default_factory=dict)
+    #: The deck in the city (D135): mail read, things watched, and what
+    #: has been said this cycle (watch pings, messages sent).
+    mail_read: list = field(default_factory=list)
+    watches: list = field(default_factory=list)
+    messaged: dict = field(default_factory=dict)
     #: Errands already taken this window, as 'district:window:index' (D101):
     #: a collection at the same door paid nine times in one shift.
     errands_taken: set = field(default_factory=set)
@@ -1237,6 +1242,9 @@ class City:
             'grip': {k: round(v, 1) for k, v in self.grip.items()},
             'tonight': self.tonight,
             'pit': dict(self.pit),
+            'mail_read': list(self.mail_read),
+            'watches': list(self.watches),
+            'messaged': dict(self.messaged),
             'errands_taken': sorted(self.errands_taken),
             'next_cid': self.next_cid,
             'stock': {k: [l.to_dict() for l in v] for k, v in self.stock.items()},
@@ -1279,6 +1287,9 @@ class City:
             grip={str(k): float(v) for k, v in (d.get('grip') or {}).items()},
             tonight=str(d.get('tonight') or ''),
             pit=dict(d.get('pit') or {}),
+            mail_read=list(d.get('mail_read') or []),
+            watches=list(d.get('watches') or []),
+            messaged={str(k): int(v) for k, v in (d.get('messaged') or {}).items()},
             errands_taken={str(k) for k in (d.get('errands_taken') or [])},
             done_titles=[str(t) for t in (d.get('done_titles') or [])],
             next_cid=int(d.get('next_cid', 1)),
