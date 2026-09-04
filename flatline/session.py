@@ -326,7 +326,26 @@ class Session:
         best_rep = max((game.alias.reputation(k) for k in factions.FACTION_KEYS),
                        default=0)
         threads = sum(1 for stages in game.story.reached.values() if stages)
+        story = game.story
+        flags = story.flags
         save_mod.high_water(
+            # The record (D142): where you have been, who knows you, what
+            # you have decided, and what you have put down.
+            places_stood=sum(1 for f in flags if f.startswith('visited:')),
+            relics_found=sum(1 for f in flags if f.startswith('found:')),
+            nights_seen=sum(1 for f in flags if f.startswith('night:')),
+            watch_hits=int(game.city.messaged.get('watch_hits', 0)),
+            people_met=len(story.met),
+            topics_asked=sum(1 for f in flags if f.startswith('asked:')),
+            bonds_formed=sum(1 for r in game.city.rivals if getattr(r, 'bond', '')),
+            decisions_made=sum(1 for f in flags if f.startswith('chose:')),
+            fights_won=int(getattr(game.city, 'fights_won', 0)),
+            pit_rank=int(game.city.pit.get('rank', 0)),
+            pit_champion=1 if 'pit:champion' in flags else 0,
+            factions_fought=sum(1 for f in flags if f.startswith('fought:')),
+            doorways_held=sum(1 for f in flags if f.startswith('job:'))
+                          + int(getattr(game.city, 'doorways', 0)),
+            kills_done=1 if 'killer' in flags else 0,
             best_credits=game.char.credits,
             deepest_drift=game.char.dissonance,
             districts_seen=len(game.city.visited),
@@ -337,6 +356,39 @@ class Session:
             best_standing=best_rep,
         )
         self.announce_unlocks()
+        self.announce_record()
+
+    def announce_record(self) -> None:
+        """Say a line of the record once, when it lands (D142)."""
+        from .content import record as record_content
+        from .world import record as record_world
+        meta = save_mod.read_meta()
+        counts = record_world.counts(self.game, meta)
+        fresh = record_world.newly_earned(counts, meta.get('recorded'))
+        if not fresh:
+            return
+        said = list(meta.get('recorded') or [])
+        c = self.console
+        for entry in fresh:
+            said.append(entry.key)
+            c.blank()
+            c.rule('the record', role='accent2')
+            c.say(f'[accent]{entry.name}.[/] {entry.earned}')
+            if entry.title:
+                c.say(f'[dim]They have started saying it: [accent2]'
+                      f'{entry.title}[/][dim].[/]')
+        meta['recorded'] = said
+        save_mod.write_meta(meta)
+        for key in record_world.sections_done(counts):
+            flag = f'section:{key}'
+            if flag in said:
+                continue
+            said.append(flag)
+            c.blank()
+            c.say(f'[accent2]Every line of {record_content.BY_SECTION[key][0].section}. '
+                  f'{record_content.SECTION_TITLE[key].capitalize()}.[/]')
+            meta['recorded'] = said
+            save_mod.write_meta(meta)
 
     def announce_unlocks(self) -> None:
         """Tell the player about anything they have just earned, once."""

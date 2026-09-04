@@ -1226,13 +1226,51 @@ TOPICS: tuple[Topic, ...] = (
         'search is a record. A message is a record. The runner who uses the '
         'deck in the city is easier to find than the one who does not, and '
         'the ads are the proof, and the trade is usually worth it.',
-        see=('street', 'rivals', 'money', 'people', 'city'),
+        see=('street', 'rivals', 'money', 'people', 'city', 'record'),
         commands=('mail', 'search', 'watch', 'message', 'ads', 'sweep',
                   'route', 'tune', 'deck'),
         covers=('feed',),
         terms=('inbox', 'messages', 'locate', 'alert', 'alerts', 'advert',
                'advertising', 'sponsored', 'runners', 'ping', 'antenna',
                'static', 'scanner', 'navigation', 'rumour', 'rumor'),
+        group='city'),
+    Topic(
+        'record', 'The record',
+        'What the city can say about you, and what is left.',
+        'A city with twelve districts, seventy-two quarters, sixty places '
+        'worth standing in and twenty-five things there is one of owes you '
+        'an answer to [ul]what is left[/]. [fg]record[/] is that answer.\n\n'
+        '[warn]Four sections, because there are four reasons to play.[/] '
+        '[accent]The work[/]: runs finished, runs that left nothing behind, '
+        'black ICE survived, the best night, storylines carried, street work '
+        'done. [accent]The city[/]: districts walked, places stood in, things '
+        'found that there is one of, how far into the drift you went, nights '
+        'the street had weather of its own, things the deck found for you. '
+        '[accent]The people[/]: who you have met, what you have asked them, '
+        'which runners have decided about you, your best standing, decisions '
+        'taken in a story, and whether anybody has put a number on your '
+        'name. [accent]The floor[/]: fights won, rungs of the wall taken, '
+        'whether you hold it, how many outfits have sent people and got them '
+        'back, doorways held for somebody, and the top of the street\'s '
+        'ladder survived.\n\n'
+        '[warn]It is not a badge.[/] Crossing a line earns a [ul]name[/]: '
+        'something the city starts calling you, which shows on `char` and '
+        'changes as you pass better ones. Finish a whole section and it has '
+        'a name for that too.\n\n'
+        '[warn]It survives you.[/] The counts live in the profile beside the '
+        'terminal you have been earning, not in the save, because they are '
+        '"has this player ever" questions. A flatline takes the character, '
+        'the money, the chrome and the name. It does not take the record.\n\n'
+        '[warn]The decision:[/] none of it is required and none of it is on '
+        'the way to anything. The main line is twelve scenes long and the '
+        'other hundred and fifteen are there because you went and looked, '
+        'and the record is the only thing in the game that will tell you how '
+        'much of it you have actually seen.',
+        see=('city', 'reading', 'shell', 'legacy', 'thedeck'),
+        commands=('record', 'char', 'journal', 'visit'),
+        covers=('record',),
+        terms=('achievement', 'achievements', 'completion', 'progress',
+               'trophies', 'titles', 'called', 'what is left'),
         group='city'),
     Topic(
         'relics', 'Things there is one of',

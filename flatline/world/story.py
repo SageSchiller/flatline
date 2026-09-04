@@ -320,6 +320,9 @@ class Story:
     def resolve(self, thread_key: str, stage_key: str,
                 choice: thread_content.Choice) -> None:
         self.flags.update(choice.sets)
+        # Every decision leaves one countable mark (D142), so the record
+        # can say how many times somebody put it to you and you answered.
+        self.flags.add(f'chose:{thread_key}.{stage_key}')
         tag = f'{thread_key}.{stage_key}'
         if tag in self.pending:
             self.pending.remove(tag)

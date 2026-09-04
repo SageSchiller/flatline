@@ -332,6 +332,7 @@ def cmd_char(sess, args) -> None:
         ('credits', f'[credit]{char.credits:,}c[/]'),
         ('integrity', f'{char.integrity}/{char.integrity_max}'
                       + _warned_line(game)),
+        ('called', _title_line(sess)),
         ('carrying', _carrying_line(char)),
         ('wearing', _wearing_line(char)),
         ('dissonance', f'{char.dissonance} [dim]({char.dissonance_band[1]})[/]'),
@@ -1218,6 +1219,14 @@ def cmd_sell(sess, args) -> None:
         raise CommandError('to sell somebody out: `betray <runner>`. `who` '
                            'lists them and what they would fetch.')
     raise CommandError(f'you do not have anything called {query!r} in storage')
+
+
+def _title_line(sess) -> str:
+    """What the city calls you, off the record (D142)."""
+    from ..world import record as record_world
+    from .. import save as save_mod
+    title = record_world.title_of(record_world.counts(sess.game, save_mod.read_meta()))
+    return f'[accent2]{title}[/]' if title else '[dim]nothing yet. `record`[/]'
 
 
 def _carrying_line(char) -> str:

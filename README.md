@@ -182,7 +182,7 @@ verb nobody else can use and its own starting face · 10 icons · 58 implants ·
 holds it · 12 factions · 7 rival runners who decide about you, and one you can keep · 32 named characters who keep hours, hand out work, keep private stock and do favours on a tab · 43 storylines across 127 scenes and 143 decisions, every one of them read back by the world and every scene played where it is set, with a spine through the middle that has four endings and one of them is a door ·
 102 appearance features · 12 districts, drawn, each with what it is built of, what it works at, its named quarters and what is past its edge, 72 quarters in all, a scene for every hour, 151 things to see in the street, 20 written crossings between them, and 60 places to go and stand · 199 ambient city events, 80 of them consequences of something you decided and 12 of them rumours that stop when the thing is found · 43 manual topics · networks in six shapes · the street in four tiers and 24 ways it stops you, six of them written for one street only ·
 12 drugs · 3 lenders · 2 games of chance in 5 rooms ·
-150 commands · 72 pieces of terminal across 7 axes.
+151 commands · 72 pieces of terminal across 7 axes.
 
 Every number on every one of those is read by the engine, and `validate.py`
 holds it to that: every modifier key and every rider string in the content
@@ -206,6 +206,11 @@ them, a fighter's living in muscle work and a fixer's street jobs, and a
 pit under the fence in the Shambles with a wall of names and a blade at the
 top you can only get by taking it. Combat is a way to survive the street. It
 is never a way to do a job.
+
+`record` is the screen that answers what is left: four sections for four
+reasons to play (the work, the city, the people, the floor), counts that
+survive the character the way the terminal does, and a name the city starts
+calling you rather than a badge.
 
 The deck is not only for runs. In the city it has mail from the people who
 would actually message you, a search that knows where every shelf in the

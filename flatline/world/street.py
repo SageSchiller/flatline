@@ -936,6 +936,7 @@ def muscle(sess, job: dict) -> None:
             g.char.credits += pay
             g.earned += pay
             g.city.errands_done += 1
+            g.city.doorways += 1
             g.char.xp += ERRAND_XP
             c.blank()
             c.ok((f'They pay. [credit]{pay:,}c[/] for standing there.'
@@ -1034,6 +1035,7 @@ def _job_then(sess, job: dict, f, result: str) -> None:
         game.char.credits += pay
         game.earned += pay
         game.city.errands_done += 1
+        game.city.doorways += 1
         game.char.xp += ERRAND_XP
         if job['job'] == 'recover' and job.get('item') and result == 'won':
             game.char.library.append(job['item'])

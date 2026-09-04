@@ -226,6 +226,9 @@ class City:
     mail_read: list = field(default_factory=list)
     watches: list = field(default_factory=list)
     messaged: dict = field(default_factory=dict)
+    #: The record (D142): fights won and doorways held for somebody.
+    fights_won: int = 0
+    doorways: int = 0
     #: Errands already taken this window, as 'district:window:index' (D101):
     #: a collection at the same door paid nine times in one shift.
     errands_taken: set = field(default_factory=set)
@@ -302,6 +305,8 @@ class City:
                 night = cond_content.pick_night(rng('nights'))
                 if night is not None:
                     self.tonight = night.key
+                    if flags is not None:
+                        flags.add(f'night:{night.key}')
                     told.append(f'[warn]{night.name}.[/] {night.blurb}')
             elif self.phase != 'night' and self.tonight:
                 self.tonight = ''
@@ -1245,6 +1250,8 @@ class City:
             'mail_read': list(self.mail_read),
             'watches': list(self.watches),
             'messaged': dict(self.messaged),
+            'fights_won': int(self.fights_won),
+            'doorways': int(self.doorways),
             'errands_taken': sorted(self.errands_taken),
             'next_cid': self.next_cid,
             'stock': {k: [l.to_dict() for l in v] for k, v in self.stock.items()},
@@ -1290,6 +1297,8 @@ class City:
             mail_read=list(d.get('mail_read') or []),
             watches=list(d.get('watches') or []),
             messaged={str(k): int(v) for k, v in (d.get('messaged') or {}).items()},
+            fights_won=int(d.get('fights_won', 0)),
+            doorways=int(d.get('doorways', 0)),
             errands_taken={str(k) for k in (d.get('errands_taken') or [])},
             done_titles=[str(t) for t in (d.get('done_titles') or [])],
             next_cid=int(d.get('next_cid', 1)),

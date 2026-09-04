@@ -12788,6 +12788,101 @@ def test_a_thread_for_every_way_of_working() -> None:
     T.ok(len(thread_content.THREADS) >= 43, 'forty-three storylines')
 
 
+def test_the_record() -> None:
+    """D142: the screen that answers what is left. Four sections for four
+    reasons to play, counts that survive the character, and a name the city
+    starts using."""
+    T.section('the record')
+    import os, json
+    from flatline.content import record as record_content
+    from flatline.world import record as record_world
+    from flatline import save as save_mod
+
+    # Four sections, one per reason to play, all of them written.
+    T.ok(len(record_content.SECTIONS) == 4 and len(record_content.ENTRIES) >= 24,
+         'four sections and at least twenty-four lines')
+    for key in record_content.SECTION_KEYS:
+        T.ok(len(record_content.BY_SECTION[key]) >= 6,
+             f'{key} has six lines of its own')
+    for e in record_content.ENTRIES:
+        T.ok(e.counter in save_mod.META_DEFAULT,
+             f'{e.key} counts something the profile keeps')
+
+    char = Character.from_origin('gutter', 't')
+    game = Game.new(char, seed=3)
+    con = quiet_console()
+    sess = Session(console=con, slot='t')
+    sess.game = game
+
+    # Nothing done, nothing claimed.
+    empty = record_world.counts(game, {})
+    T.ok(record_world.earned(empty) == [], 'a new runner has crossed no line')
+    T.ok(record_world.title_of(empty) == '', 'and the city calls them nothing')
+
+    # The live game is read, not just the profile.
+    game.story.flags.update({f'visited:{n}' for n in range(30)})
+    counts = record_world.counts(game, {})
+    T.ok(counts['places_stood'] == 30, 'places stood in are counted off the game')
+    got = {e.key for e in record_world.earned(counts)}
+    T.ok('stood' in got, 'and thirty of them crosses the line')
+    T.ok(record_world.title_of(counts) != '', 'which earns a name')
+
+    # Each section can be finished, and finishing it has its own name.
+    full = {e.counter: e.target for e in record_content.ENTRIES}
+    T.ok(len(record_world.earned(full)) == len(record_content.ENTRIES),
+         'every line can be crossed')
+    T.ok(set(record_world.sections_done(full)) == set(record_content.SECTION_KEYS),
+         'and every section finished')
+    T.ok(record_world.title_of(full) == record_content.COMPLETE,
+         'and the last name is for doing the lot')
+
+    # The four axes read four different things: no line is a duplicate of
+    # another, and each section counts something the others do not.
+    counters = [e.counter for e in record_content.ENTRIES]
+    T.ok(len(counters) == len(set(counters)), 'no two lines count the same thing')
+    for key in record_content.SECTION_KEYS:
+        mine = {e.counter for e in record_content.BY_SECTION[key]}
+        others = {e.counter for e in record_content.ENTRIES if e.section != key}
+        T.ok(not (mine & others), f'{key} counts nothing another section does')
+
+    # The engine writes the ones about the half with the deck in the bag.
+    game.city.fights_won = 10
+    game.city.pit['rank'] = 3
+    game.city.doorways = 5
+    game.story.flags.update({'fought:sixes', 'fought:carrion', 'fought:kagawa',
+                             'pit:champion', 'killer'})
+    counts = record_world.counts(game, {})
+    floor = {e.key for e in record_world.earned(counts)
+             if record_content.BY_KEY[e.key].section == 'floor'}
+    T.ok(floor == {e.key for e in record_content.BY_SECTION['floor']},
+         'a fighter can finish the floor')
+
+    # It is said once.
+    fresh = record_world.newly_earned(counts, [])
+    T.ok(fresh, 'a line that has landed is fresh')
+    T.ok(not record_world.newly_earned(counts, [e.key for e in fresh]),
+         'and is not fresh twice')
+
+    # The command renders, and says what is left.
+    con.start_capture()
+    sess.execute('record')
+    out = ' '.join(strip_ansi(con.end_capture()).split())
+    for _, name, _ in record_content.SECTIONS:
+        T.ok(name.lower() in out.lower(), f'the record shows {name}')
+    T.ok('to go' in out or 'the lot' in out, 'and says how much is left')
+    con.start_capture()
+    sess.execute('record floor')
+    out = ' '.join(strip_ansi(con.end_capture()).split())
+    low = out.lower()
+    T.ok('the floor' in low and 'the work' not in low,
+         'and one section alone')
+
+    # And `char` says what the city calls you.
+    con.start_capture()
+    sess.execute('char')
+    T.ok('called' in strip_ansi(con.end_capture()), 'the sheet says what you are called')
+
+
 
 def manual_body(key: str) -> str:
     from flatline.content import manual
@@ -14081,6 +14176,7 @@ SUITES = (
     test_the_fight_under_pressure,
     test_the_story_knows_the_street,
     test_a_thread_for_every_way_of_working,
+    test_the_record,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

@@ -560,6 +560,7 @@ def _end(sess, f: Fight, result: str) -> None:
     tier = f.foe.tier
     c.blank()
     if result == 'won':
+        game.city.fights_won += 1
         c.rule('you won it', role='ok')
         c.say(f'[ok]{street_content.FIGHT_WON[tier].format(**f.foe.fill)}[/]')
     elif result == 'lost':

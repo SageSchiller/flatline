@@ -118,8 +118,10 @@ def _engine_source() -> str:
         import pathlib
         paths = sorted(pathlib.Path('flatline/run').glob('*.py'))
         paths += sorted(pathlib.Path('flatline/commands').glob('*.py'))
-        # The street and the fight (D65, D128) read riders too.
+        # The street and the fight (D65, D128) read riders too, and the
+        # session writes the record's counters (D142).
         paths += sorted(pathlib.Path('flatline/world').glob('*.py'))
+        paths.append(pathlib.Path('flatline/session.py'))
         _ENGINE_SOURCE = '\n'.join(p.read_text(encoding='utf-8')
                                    for p in paths)
     return _ENGINE_SOURCE
@@ -3921,6 +3923,39 @@ def check_conditions(rep: Report) -> None:
 # --------------------------------------------------------------------------
 
 
+def check_record(rep: Report) -> None:
+    """The record (D142): four sections, and no line counting something
+    the engine never writes."""
+    from flatline.content import record as record_content
+    from flatline import save as save_mod
+    rep.check(len(record_content.SECTIONS) == 4, 'record',
+              'the record is four sections, one per reason to play')
+    seen = set()
+    for e in record_content.ENTRIES:
+        where = f'record/{e.key}'
+        rep.check(e.key not in seen, where, 'duplicate key')
+        seen.add(e.key)
+        rep.check(e.section in record_content.SECTION_KEYS, where,
+                  f'unknown section {e.section!r}')
+        rep.check(e.target >= 1, where, 'a target of nothing')
+        rep.check(bool(e.name and e.earned), where, 'has no line to say')
+        rep.check(e.earned.rstrip().endswith('.'), where, 'the line does not end')
+        # The counter has to be a real profile counter, and something
+        # outside content has to move it, or it is a line nobody can cross.
+        rep.check(e.counter in save_mod.META_DEFAULT, where,
+                  f'counts {e.counter!r}, which the profile does not keep')
+        rep.check(f"'{e.counter}'" in _engine_source()
+                  or f'{e.counter}=' in _engine_source(), where,
+                  f'counts {e.counter!r}, which nothing ever writes')
+    for key in record_content.SECTION_KEYS:
+        n = len(record_content.BY_SECTION[key])
+        rep.check(n >= 4, f'record/{key}', f'only {n} lines in the section')
+        rep.check(key in record_content.SECTION_TITLE, f'record/{key}',
+                  'a section with no name for finishing it')
+    titled = sum(1 for e in record_content.ENTRIES if e.title)
+    rep.check(titled >= 8, 'record', f'only {titled} lines earn a name')
+
+
 def check_feed(rep: Report) -> None:
     """The deck in the city (D135): ads held to their predicates and the
     tone vocabulary, and a reply for every opinion a runner can hold."""
@@ -4251,7 +4286,7 @@ CHECKS = (
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_palette_separation, check_markup, check_balance,
     check_heat, check_guile, check_roster, check_reads, check_relics, check_street,
-    check_weapons, check_pit, check_feed,
+    check_weapons, check_pit, check_feed, check_record,
 )
 
 

@@ -345,6 +345,7 @@ def pings(game) -> list[str]:
         if was and price >= was:
             continue
         said[mark] = price
+        said['watch_hits'] = int(said.get('watch_hits', 0)) + 1
         out.append(f'[dim]Your deck:[/] {_name(key)} '
                    + ('is on a shelf in' if not was else 'is cheaper in')
                    + f' {district}, [credit]{price:,}c[/].')

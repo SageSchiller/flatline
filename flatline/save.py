@@ -394,6 +394,25 @@ META_DEFAULT = {
     'threads_closed': 0,
     'best_standing': 0,
     'errands_done': 0,
+    # The record (D142). High-water marks like the rest: "has this player
+    # ever", not "how many this life", so the answer survives a flatline
+    # the way the terminal does.
+    'places_stood': 0,
+    'relics_found': 0,
+    'nights_seen': 0,
+    'watch_hits': 0,
+    'people_met': 0,
+    'topics_asked': 0,
+    'bonds_formed': 0,
+    'decisions_made': 0,
+    'fights_won': 0,
+    'pit_rank': 0,
+    'pit_champion': 0,
+    'factions_fought': 0,
+    'doorways_held': 0,
+    'kills_done': 0,
+    #: Record lines earned, so each is said once and stays said.
+    'recorded': [],
     #: `kind:key` for everything earned, so a new unlock can be announced once.
     'unlocked': [],
     #: What the shell currently looks like. See `content/rice.py`.

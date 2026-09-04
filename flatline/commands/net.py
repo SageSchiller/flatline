@@ -308,3 +308,57 @@ def cmd_tune(sess, args) -> None:
     c.header('Listening', districts.BY_KEY[key].name)
     for line in deck_world.listen(game, key):
         c.say(line)
+
+
+@command('record', 'What the city can say about you: the work, the city, the people, the floor.',
+         group='info', contexts=('any',), usage='record [work|city|people|floor]',
+         aliases=('records',),
+         detail=(
+                'The record (D142). Four sections, because there are four '
+                'reasons to play: what you have done with a deck, where you '
+                'have been and what you found there, who knows you and how, '
+                'and what you have done without a deck. Each line is a count '
+                'against a target, and crossing one earns a name the city '
+                'starts using, kept in the profile so it survives the '
+                'character the way the terminal does. It is the screen that '
+                'answers what is left.'))
+def cmd_record(sess, args) -> None:
+    from ..content import record as record_content
+    from ..world import record as record_world
+    from .. import save as save_mod
+    c = sess.console
+    game = sess.game
+    meta = save_mod.read_meta()
+    counts = record_world.counts(game, meta)
+    done = {e.key for e in record_world.earned(counts)}
+    want = (args.get(0) or '').lower()
+    shown = [k for k in record_content.SECTION_KEYS
+             if not want or k.startswith(want)]
+    if not shown:
+        raise CommandError('the sections are: '
+                           + ', '.join(record_content.SECTION_KEYS))
+    title = record_world.title_of(counts)
+    c.header('The record', f'{len(done)} of {len(record_content.ENTRIES)}'
+                           + (f'  {title}' if title else ''))
+    for key, name, blurb in record_content.SECTIONS:
+        if key not in shown:
+            continue
+        c.blank()
+        c.rule(name.lower())
+        c.say(f'[dim]{blurb}[/]')
+        for e in record_content.BY_SECTION[key]:
+            have = counts.get(e.counter, 0)
+            got = e.key in done
+            bar = c.bar(min(1.0, have / e.target), 'ok' if got else 'accent',
+                        cells=8)
+            num = (f'{have:,}/{e.target:,}' if e.target > 1
+                   else ('yes' if have else 'not yet'))
+            line = f'  {bar} [{"ok" if got else "fg"}]{e.name:<32}[/] [dim]{num}[/]'
+            c.raw(line + (f'  [accent2]{e.title}[/]' if got and e.title else ''))
+    c.blank()
+    left = len(record_content.ENTRIES) - len(done)
+    if left:
+        c.say(f'[dim]{left} line{"s" if left != 1 else ""} to go. It keeps '
+              f'counting across characters, like the terminal does.[/]')
+    else:
+        c.say(f'[accent2]{record_content.COMPLETE_LINE}[/]')
