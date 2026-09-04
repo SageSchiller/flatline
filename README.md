@@ -39,8 +39,8 @@ with a line of the verbs that district makes possible.
 
 At the prompt, `tutorial` walks you through a first run one instruction at a
 time. `help` is one screen: what to read first, the verbs that answer "what
-now", and where the rest lives. `help commands` is all 131 verbs, `help
-topics` is all 43 explanations, and `help <anything>` finds a verb, a system,
+now", and where the rest lives. `help commands` is all 151 verbs, `help
+topics` is all 46 explanations, and `help <anything>` finds a verb, a system,
 or searches both, including every proper noun in the game.
 
 Two verbs are worth knowing before anything else. **`job`** says what you are
@@ -176,13 +176,13 @@ The three ideas everything else hangs off:
 
 ## What is in it
 
-15 skills with 30 techniques, 6 of them for the street · 29 traits · 12 origins, each with a signature
-verb nobody else can use and its own starting face · 10 icons · 58 implants · 13 weapons and 3 things to wear · 68 programs
-· 34 deck components · 24 of all of those one of a kind, never sold, found at a place at an hour or handed over by a decision, each with a history · 28 countermeasures · 9 pieces of bench work · 12 districts, each with a mark for the faction that
+15 skills with 30 techniques, 6 of them for the street · 33 traits · 12 origins, each with a signature
+verb nobody else can use and its own starting face · 14 icons · 58 implants · 13 weapons and 3 things to wear · 70 programs
+· 34 deck components · 25 of all of those one of a kind, never sold, found at a place at an hour or handed over by a decision, each with a history · 28 countermeasures · 9 pieces of bench work · 12 districts, each with a mark for the faction that
 holds it · 12 factions · 7 rival runners who decide about you, and one you can keep · 32 named characters who keep hours, hand out work, keep private stock and do favours on a tab · 44 storylines across 132 scenes and 143 decisions, every one of them read back by the world and every scene played where it is set, with a spine through the middle that has four endings and one of them is a door ·
-102 appearance features · 12 districts, drawn, each with what it is built of, what it works at, its named quarters and what is past its edge, 72 quarters in all, a scene for every hour, 151 things to see in the street, 20 written crossings between them, and 60 places to go and stand · 199 ambient city events, 80 of them consequences of something you decided and 12 of them rumours that stop when the thing is found · 43 manual topics · networks in six shapes · the street in four tiers and 24 ways it stops you, six of them written for one street only ·
-12 drugs · 3 lenders · 2 games of chance in 5 rooms ·
-151 commands · 72 pieces of terminal across 7 axes.
+102 appearance features · 12 districts, drawn, each with what it is built of, what it works at, its named quarters and what is past its edge, 72 quarters in all, a scene for every hour, 151 things to see in the street, 20 written crossings between them, and 60 places to go and stand · 204 ambient city events, 91 of them consequences of something you decided and 15 of them rumours that stop when the thing is found · 46 manual topics · networks in six shapes · the street in four tiers and 24 ways it stops you, six of them written for one street only ·
+14 drugs · 3 lenders · 2 games of chance in 5 rooms · a pit with 5 names on the wall · 8 conditions a network can be under tonight, and 6 the street can · a record of 25 lines in 4 sections, and 7 ambitions on the way to it ·
+151 commands · 91 pieces of terminal across 9 axes.
 
 Every number on every one of those is read by the engine, and `validate.py`
 holds it to that: every modifier key and every rider string in the content
