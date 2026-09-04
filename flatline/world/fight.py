@@ -33,6 +33,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from ..content import armour as armour_content
+from ..content import drugs as drug_content
 from ..content import programs as program_content
 from ..content import street as street_content
 from ..content import weapons as weapon_content
@@ -179,6 +180,13 @@ def jack_damage(char) -> int:
     return JACK_BASE + best + (1 if best else 0)
 
 
+def coming_down(char) -> bool:
+    """Any comedown in progress (D133). The crash already lowers what it
+    lowers through the attributes; this is the part a fight adds on top,
+    printed so the player sees the chem in the sum."""
+    return any(drug_content.is_down(char.chem, k) for k in drug_content.BY_KEY)
+
+
 def strike_check(game, f: Fight) -> Check:
     char = game.char
     check = Check(name='strike', resistance=_resist(f))
@@ -193,7 +201,10 @@ def strike_check(game, f: Fight) -> Check:
     if w is not None and w.rider == 'concealed' and f.round == 1:
         check.add('they did not see it', 2)
     if char.bonus('strike_bonus'):
-        check.add('targeting', char.bonus('strike_bonus'))
+        check.add('targeting' if 'targeting' in char.installed else 'aim',
+                  char.bonus('strike_bonus'))
+    if coming_down(char):
+        check.add('coming down', -2)
     if (char.integrity <= char.integrity_max // 3
             and 'pain_editor' not in char.riders()):
         check.add('you are hurt', -2)
@@ -207,7 +218,10 @@ def guard_check(game, f: Fight) -> Check:
     check.add('fieldcraft', char.skill('fieldcraft') * 2)
     check.add('violence', char.skill('violence'))
     if char.bonus('guard_bonus'):
-        check.add('reflex booster', char.bonus('guard_bonus'))
+        check.add('reflex booster' if char.bonus('guard_bonus') > 0
+                  else 'you do not cover up', char.bonus('guard_bonus'))
+    if coming_down(char):
+        check.add('coming down', -2)
     return check
 
 
@@ -247,6 +261,8 @@ def break_check(game, f: Fight) -> Check:
     check.add('reflex', char.attr('reflex'))
     check.add('fieldcraft', char.skill('fieldcraft') * 2)
     check.add('streetcraft', char.skill('streetcraft'))
+    if coming_down(char):
+        check.add('coming down', -2)
     if (char.integrity <= char.integrity_max // 3
             and 'pain_editor' not in char.riders()):
         check.add('you are hurt', -2)
@@ -270,7 +286,8 @@ def moves(game, f: Fight) -> list[tuple[str, str, Check | None, str]]:
             and f.pool <= f.pool_max * FINISH_AT):
         out.append(('finish', 'End it', finish_check(game, f),
                     'all of it, or wide open'))
-    if char.has_technique('face') and not f.talk_burned:
+    if (char.has_technique('face') and not f.talk_burned
+            and 'no_talkdown' not in char.riders()):
         out.append(('talk', 'Talk them down', talk_check(game, f),
                     'ends it, clean, if it takes'))
     out.append(('break', 'Get out of it', break_check(game, f), ''))
@@ -547,10 +564,15 @@ def _end(sess, f: Fight, result: str) -> None:
     else:
         c.rule('out of it', role='warn')
     if f.drawn:
-        game.alias.add_heat(LAW, LOUD_HEAT)
+        from ..content import conditions as cond_content
+        tonight = cond_content.NIGHT_BY_KEY.get(getattr(game.city, 'tonight', ''))
+        heat = int(LOUD_HEAT * (tonight.loud if tonight is not None else 1.0))
+        game.alias.add_heat(LAW, heat)
         district = f.foe.fill.get('district', 'the district')
         c.say(f'[heat]{street_content.FIGHT_LOUD.format(district=district)}[/] '
-              f'[dim]Nightwatch heat +{LOUD_HEAT}.[/]')
+              f'[dim]Nightwatch heat +{heat}'
+              + (f', {tonight.name.lower()}' if tonight is not None and tonight.loud != 1.0 else '')
+              + '.[/]')
         game.city.news.append(f'[heat]Shots in {district}.[/]')
     if result == 'won' and FIGHT_XP.get(tier, 0):
         char.xp += FIGHT_XP[tier]

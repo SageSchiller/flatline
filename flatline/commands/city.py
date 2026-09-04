@@ -5137,7 +5137,7 @@ def cmd_sell_out(sess, args) -> None:
 
 
 @command('clinic', 'What a clinic will do to you, and for you.',
-         contexts=('city',), group='character', usage='clinic',
+         contexts=('city',), group='character', usage='clinic [patch]',
          detail='Clinics fit chrome, take it out again, and past a certain '
                 'point sell you things the front desk does not list. They are '
                 'also the only place that will try to walk your Dissonance '
@@ -5150,6 +5150,30 @@ def cmd_clinic(sess, args) -> None:
         where = ', '.join(d.name for d in districts.with_service('clinic'))
         raise CommandError(f'no clinic here. Try: {where}')
     word = (args.get(0) or '').lower()
+    if word in ('patch', 'heal', 'stitch'):
+        # A fighter's clinic (D133): Integrity back, for money, no shift.
+        hurt = char.hurt
+        if hurt <= 0:
+            raise CommandError('there is nothing to patch. You are whole.')
+        cost = hurt * street_world.PATCH_PER_POINT
+        if char.credits < cost:
+            points = char.credits // street_world.PATCH_PER_POINT
+            if points <= 0:
+                raise CommandError(f'a point is {street_world.PATCH_PER_POINT}c '
+                                   f'and you have {char.credits:,}c.')
+            cost = points * street_world.PATCH_PER_POINT
+            char.credits -= cost
+            char.hurt -= points
+            c.ok(f'They patch what {cost:,}c buys: [ok]Integrity +{points}[/] '
+                 f'[dim]({char.integrity}/{char.integrity_max}). The rest '
+                 f'heals the slow way.[/]')
+            return
+        char.credits -= cost
+        char.hurt = 0
+        c.ok(f'Stitched, glued and told to sit still, which you do not. '
+             f'[credit]{cost:,}c[/]. [ok]Integrity {char.integrity}/'
+             f'{char.integrity_max}.[/]')
+        return
     if word in ('ground', 'grounding', 'detox', 'habit'):
         # `clinic ground` reprinted the menu and said nothing (D96).
         raise CommandError('those are their own verbs here: `ground` walks '
@@ -5165,6 +5189,10 @@ def cmd_clinic(sess, args) -> None:
     c.header(f'{game.city.district.name} clinic',
              f'Dissonance {char.dissonance}, {band[1]}')
     c.say(f'[dim]{band[2]}[/]')
+    if char.hurt:
+        c.say(f'[dim]`clinic patch`: Integrity back at '
+              f'{street_world.PATCH_PER_POINT}c a point, no shift. You are '
+              f'{char.hurt} down.[/]')
 
     listings = game.city.listings('ware', deep=False)
     if listings:

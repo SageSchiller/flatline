@@ -49,6 +49,16 @@ ROUGH_PRESS_AT = 50
 ROUGH_TAKING_AT = 80
 
 
+#: A clinic patch (D133): Integrity back, per point, no shift.
+PATCH_PER_POINT = 45
+
+
+def night(game):
+    """Tonight, outside (D133): the street's own condition, or None."""
+    from ..content import conditions as cond_content
+    return cond_content.NIGHT_BY_KEY.get(getattr(game.city, 'tonight', ''))
+
+
 #: Roughness, as a word, for the arrival line and `look` (D131).
 ROUGH_WORDS = ((75, 'bad'), (50, 'rough'), (25, 'watchful'), (0, 'quiet'))
 
@@ -65,7 +75,11 @@ def roughness_line(game) -> str:
             'rough': 'somebody will want a word',
             'watchful': 'you will be looked at',
             'quiet': 'nobody is interested'}[word]
-    return f'The street here, {hour}: [warn]{word}[/]. [dim]{tail}.[/]'
+    line = f'The street here, {hour}: [warn]{word}[/]. [dim]{tail}.[/]'
+    tonight = night(game)
+    if tonight is not None:
+        line += f' [warn]{tonight.name}:[/] [dim]{tonight.summary}.[/]'
+    return line
 
 
 def rough(game, district_key: str = '') -> int:
@@ -79,7 +93,11 @@ def rough(game, district_key: str = '') -> int:
     if district is None:
         return 0
     base = 100 - district.security
-    return max(0, min(100, int(base * ROUGH_BY_PHASE.get(game.city.phase, 1.0))))
+    mult = ROUGH_BY_PHASE.get(game.city.phase, 1.0)
+    tonight = night(game)
+    if tonight is not None:
+        mult *= tonight.rough
+    return max(0, min(100, int(base * mult)))
 
 #: Errands: courier pay per hop, and a watch's base.
 COURIER_PER_HOP = 180
@@ -184,6 +202,9 @@ def menace_check(game, enc, faction: str, danger: int) -> Check:
     check = check_for(game, enc, _pseudo('menace', 'fight'), faction, danger)
     check.name = f'menace ({enc.name.lower()})'
     check.resistance += 1
+    if 'cold' in game.char.traits:
+        # Whatever makes hands shake, you were not issued one (D133).
+        check.add('cold', 2)
     return check
 
 
@@ -270,7 +291,9 @@ def _fight_then(sess, enc, faction: str, danger: int, f, result: str) -> None:
             told.append(f'[credit]+{take:,}c[/] [dim]for what they had on '
                         f'them.[/]')
         loot = street_content.LOOT.get(enc.key, '')
-        if loot and rng.chance(LOOT_CHANCE):
+        tonight = night(game)
+        loot_chance = LOOT_CHANCE * (tonight.loot if tonight is not None else 1.0)
+        if loot and rng.chance(min(0.95, loot_chance)):
             # What they had in their hand is in the bag now (D131).
             from ..content import weapons as weapon_content
             game.char.library.append(loot)
@@ -759,6 +782,9 @@ def texture(sess, danger: int) -> bool:
         tier = 3
     elif here >= ROUGH_PRESS_AT and rng.chance(0.5):
         tier = 2
+    tonight = night(game)
+    if tonight is not None and tonight.tier:
+        tier = max(1, min(4, tier + tonight.tier))
     enc = choose(rng, game, 'street', tier)
     if enc is None:
         return False
@@ -825,8 +851,10 @@ def errands_here(game) -> list[dict]:
     local = stream.weighted(weights)
     if local == 'muscle':
         tier = 3 if rough(game) >= ROUGH_TAKING_AT else 2
+        tonight = night(game)
         out.append({'kind': 'muscle', 'at': where, 'tier': tier,
-                    'pay': int(MUSCLE_BASE + rough(game) * 5 + (tier - 2) * 600),
+                    'pay': int((MUSCLE_BASE + rough(game) * 5 + (tier - 2) * 600)
+                               * (tonight.muscle if tonight is not None else 1.0)),
                     'chromed': stream.chance(0.5), 'from': city.where,
                     'who': stream.pick(MUSCLE_JOBS)})
     elif local == 'escort' and far:

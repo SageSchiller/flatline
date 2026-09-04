@@ -525,7 +525,8 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] traits are permanent and there are never '
         'enough slots, so take the two that make the character a person '
         'rather than the two that look strongest. The optimisation is not '
-        'where the value is.',
+        'where the value is.'
+        '\n\n[warn]The street\'s.[/] Raised Fighting (a rank of Violence and harder strikes; you have never talked your way out of anything), Glass Jaw (hard to hit, and it goes all the way in when they do), Thick-skinned (a point of armour; slow to move), Bloody-minded (a point on the strike and some composure; you do not cover up). Cold, which was always here, makes a menace easier.',
         see=('skills', 'chrome', 'attributes', 'origins'),
         commands=('trait',),
         covers=('traits',),
@@ -1152,7 +1153,8 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] the city remembers, and the street is where '
         'it collects. `rep` and the map\'s x marks say where your name is '
         'worth money. Going anyway is a choice; so is `rest`, and so is '
-        '`burn`, and so is paying.',
+        '`burn`, and so is paying.'
+        '\n\n[warn]Tonight, outside.[/] The run has its conditions (`help conditions`); the street has its own, drawn when the night comes in and gone by morning, said on the arrival line: a Nightwatch sweep (quieter, and a gun is heard twice), fight night (rougher, a rung worse, muscle pays half again), a curfew (nearly empty, and what is out is bad), a wake, the lights out (rougher, and what they carried is easier to walk off with), and payday (money on the street). And a clinic will patch you: [fg]clinic patch[/] puts Integrity back for money and no shift, which is how a fighter is back on the street the same night.',
         see=('death', 'heat', 'skills', 'city'),
         commands=('errands', 'arrange', 'travel', 'rest', 'rep', 'carry',
                   'wear'),
@@ -1233,7 +1235,8 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] a dose before a hard run is often correct, '
         'because the crash lands on a shift you were going to spend resting '
         'anyway. A dose to get through a crash is the moment the system starts '
-        'happening to you rather than the other way round.',
+        'happening to you rather than the other way round.'
+        '\n\n[warn]The street\'s.[/] Redline is a fighter\'s stimulant (a fence sells it): harder strikes and a point on the swing while it is in you, and a crash that takes your aim, your reflexes and three Integrity with it. Numb is a clinic painkiller in a street dose: a point of armour and Integrity to spend, and while it is in you being hurt does not slow you, the way a pain editor works; the bill comes due all at once. And a fight reads your chem: any comedown in progress is a printed [fg]coming down[/] term on every strike, guard and break.',
         see=('vices', 'chrome', 'death', 'clock'),
         commands=('chem', 'dose', 'detox', 'clinic'),
         covers=('drugs',),
@@ -1580,7 +1583,8 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] the condition is fixed the moment you jack in '
         'and does not change under you. Read it. A maintenance window rewards '
         'a fast loud run; an audit rewards a clean one; a skeleton crew '
-        'rewards going deep; a storm rewards going straight there.',
+        'rewards going deep; a storm rewards going straight there.'
+        '\n\nThe street has its own weather, drawn once a night the same way: `help street`, under "tonight, outside".',
         see=('incidents', 'triangle', 'ice', 'clock', 'checks'),
         commands=('jack in', 'status', 'odds'),
         covers=('conditions',),

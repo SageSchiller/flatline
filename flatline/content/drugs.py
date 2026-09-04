@@ -265,6 +265,40 @@ DRUGS: tuple[Drug, ...] = (
         turn='The feeling of having been slightly better about the evening '
              'wears off. Ozymandias would like you to know this is normal and '
              'that a second can is available.'),
+    # -- the street's (D133) ----------------------------------------------
+    Drug(
+        'redline', 'Redline',
+        'A fighter\'s stimulant, sold at the back of fences to people who '
+        'are about to need it. It does not make you brave. It makes the '
+        'question of bravery arrive too late to matter.',
+        tier=2, price=420,
+        high={'strike_damage': 2, 'strike_bonus': 1, 'grit': 1},
+        crash={'strike_bonus': -2, 'reflex': -2, 'integrity': -3,
+               'tick_mult': 1.1},
+        withdrawal={'grit': -1, 'strike_bonus': -1},
+        up=2, down=4, hook=2,
+        sold=('fence',),
+        onset='Something in the chest opens like a valve and the street '
+              'goes bright and simple, and your hands are already closed '
+              'and you do not remember closing them.',
+        turn='The valve shuts. Everything you hit with is heavy now, and '
+             'somewhere under the heaviness is the bill for the last two '
+             'shifts, itemised.'),
+    Drug(
+        'numb', 'Numb',
+        'A clinic painkiller, in a street dose, which is to say three of '
+        'them. You are not harder to hurt. You just stop being told.',
+        tier=1, price=260,
+        high={'armour': 1, 'integrity': 4},
+        crash={'integrity': -5, 'composure': -2, 'reflex': -1},
+        withdrawal={'integrity': -2},
+        up=2, down=3, hook=3,
+        sold=('fence', 'clinic'),
+        rider='pain_editor',
+        onset='The edges of you go soft and far away, and whatever was '
+              'hurting is still hurting, in another room, to somebody else.',
+        turn='It all comes back at once, with interest, and it has brought '
+             'the things you did while it was gone.'),
 )
 
 

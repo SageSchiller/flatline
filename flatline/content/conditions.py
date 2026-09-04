@@ -157,3 +157,91 @@ def pick(rng) -> Condition | None:
     if not rng.chance(CHANCE):
         return None
     return BY_KEY[rng.weighted({c.key: c.weight for c in CONDITIONS})]
+
+
+# --------------------------------------------------------------------------
+# tonight, outside (D133)
+# --------------------------------------------------------------------------
+#: The street's own weather, drawn once a night the way a run's condition is
+#: drawn once a run, and cleared at morning. The run had this and the street
+#: did not, which was the clearest way the fight (D128) had been bolted on:
+#: the net had a nightly texture and the half of the game with the deck in
+#: the bag had none. Read by `world/street.py` (roughness, the tier the
+#: street offers, muscle pay, loot) and `world/fight.py` (what the law
+#: hears).
+
+NIGHT_CHANCE = 0.5
+
+
+@dataclass(frozen=True, slots=True)
+class Night:
+    key: str
+    name: str
+    #: Announced when the night comes in. Second person, present tense.
+    blurb: str
+    #: One clause for the arrival line and the manual.
+    summary: str
+    #: Multiplier on the street's own roughness.
+    rough: float = 1.0
+    #: Added to the tier the street offers where it is rough.
+    tier: int = 0
+    #: Multiplier on what muscle work pays.
+    muscle: float = 1.0
+    #: Multiplier on the Nightwatch heat a loud weapon draws.
+    loud: float = 1.0
+    #: Multiplier on the chance the people you beat had something on them.
+    loot: float = 1.0
+    #: How likely, relative to the others.
+    weight: float = 1.0
+
+    @property
+    def neutral(self) -> bool:
+        return (self.rough == 1.0 and self.tier == 0 and self.muscle == 1.0
+                and self.loud == 1.0 and self.loot == 1.0)
+
+
+NIGHTS: tuple[Night, ...] = (
+    Night('sweep', 'A Nightwatch sweep',
+          'There are vans at the ends of streets tonight and people being '
+          'asked for things they do not have, and the ones who would '
+          'usually be out are in, waiting for it to pass.',
+          'the law is out: quieter streets, and a gun is heard twice',
+          rough=0.7, loud=2.0, weight=1.0),
+    Night('fightnight', 'Fight night',
+          'Somebody, somewhere in the district, is putting people in a room '
+          'to hit each other for money, and the people who did not get in '
+          'are outside, wanting the same thing for free.',
+          'rougher, a rung worse, and muscle pays half again',
+          rough=1.3, tier=1, muscle=1.5, weight=1.0),
+    Night('curfew', 'A curfew',
+          'A curfew nobody voted for. The shutters are down early and the '
+          'street belongs to whoever is prepared to be on it, which is not '
+          'many, and none of them nice.',
+          'nearly empty, and what is out is bad',
+          rough=0.6, tier=1, loud=1.5, weight=0.8),
+    Night('wake', 'A wake',
+          'Somebody died, and the district is drinking about it, and by '
+          'the third hour the drinking has stopped being about them.',
+          'rougher, and the doorways want standing in',
+          rough=1.2, muscle=1.2, weight=1.0),
+    Night('blackout', 'The lights are out',
+          'The grid has dropped a district and the district has noticed '
+          'what it can do in the dark.',
+          'much rougher, and what they carried is easier to walk off with',
+          rough=1.4, loot=1.4, weight=0.8),
+    Night('payday', 'Payday',
+          'The rota paid out this afternoon and every fence, pit and bar is '
+          'open late to collect it. There is money on the street tonight, '
+          'in pockets that have not thought about that.',
+          'money on the street: muscle pays, and so does winning',
+          rough=1.1, muscle=1.4, loot=1.5, weight=1.0),
+)
+
+NIGHT_BY_KEY: dict[str, Night] = {n.key: n for n in NIGHTS}
+
+
+def pick_night(rng) -> Night | None:
+    """Tonight, outside, or None for an ordinary night."""
+    if not rng.chance(NIGHT_CHANCE):
+        return None
+    return NIGHT_BY_KEY[rng.weighted({n.key: n.weight for n in NIGHTS})]

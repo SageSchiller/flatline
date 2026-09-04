@@ -216,6 +216,8 @@ class City:
     #: baseline as it is robbed and preyed on and as it recovers. The power
     #: map that a campaign actually moves; `world` reads it.
     grip: dict = field(default_factory=dict)
+    #: Tonight, outside (D133): a `conditions.Night` key while it is night.
+    tonight: str = ''
     #: Errands already taken this window, as 'district:window:index' (D101):
     #: a collection at the same door paid nine times in one shift.
     errands_taken: set = field(default_factory=set)
@@ -285,6 +287,16 @@ class City:
         for _ in range(max(1, shifts)):
             self.shift += 1
             riders = char.riders() if char is not None else ()
+            # Tonight, outside (D133): drawn when the night comes in,
+            # cleared when it goes.
+            if self.phase == 'night' and not self.tonight:
+                from ..content import conditions as cond_content
+                night = cond_content.pick_night(rng('nights'))
+                if night is not None:
+                    self.tonight = night.key
+                    told.append(f'[warn]{night.name}.[/] {night.blurb}')
+            elif self.phase != 'night' and self.tonight:
+                self.tonight = ''
             alias.decay_heat(
                 1.4 if 'no_history' in riders
                 else 1.5 if 'vouched_for' in riders
@@ -1220,6 +1232,7 @@ class City:
             'grudges': dict(self.grudges),
             'backdoors': dict(self.backdoors),
             'grip': {k: round(v, 1) for k, v in self.grip.items()},
+            'tonight': self.tonight,
             'errands_taken': sorted(self.errands_taken),
             'next_cid': self.next_cid,
             'stock': {k: [l.to_dict() for l in v] for k, v in self.stock.items()},
@@ -1260,6 +1273,7 @@ class City:
             grudges={str(k): str(v) for k, v in (d.get('grudges') or {}).items()},
             backdoors={str(k): int(v) for k, v in (d.get('backdoors') or {}).items()},
             grip={str(k): float(v) for k, v in (d.get('grip') or {}).items()},
+            tonight=str(d.get('tonight') or ''),
             errands_taken={str(k) for k in (d.get('errands_taken') or [])},
             done_titles=[str(t) for t in (d.get('done_titles') or [])],
             next_cid=int(d.get('next_cid', 1)),

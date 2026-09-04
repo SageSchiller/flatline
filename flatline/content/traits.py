@@ -331,6 +331,40 @@ TRAITS: tuple[Trait, ...] = (
                    'who are being ignored find a way to be noticed.',
           penalty={'pretext_bonus': -2}),
 
+    # -- the street (D133) ------------------------------------------------
+    Trait('brawler', 'Raised Fighting',
+          'Somebody taught you early, by hitting you, and it took. You do '
+          'not decide to fight; you notice you already are.',
+          'history',
+          effects={'skill_violence': 1, 'strike_damage': 1},
+          drawback='You have never once talked your way out of anything, '
+                   'and a fight that could have been ended with a sentence '
+                   'is ended the other way.',
+          rider='no_talkdown'),
+    Trait('glassjaw', 'Glass Jaw',
+          'You go down easy, and you know it, and knowing it is why you '
+          'are so very hard to hit.',
+          'body',
+          effects={'guard_bonus': 2},
+          drawback='When something does reach you, it reaches all the way.',
+          penalty={'armour': -1},
+          excludes=('bloodyminded',)),
+    Trait('thickskinned', 'Thick-skinned',
+          'Things bounce. Not everything, and not always, but enough that '
+          'you stopped flinching a long time ago.',
+          'body',
+          effects={'armour': 1},
+          drawback='You are slow to move, because nothing has ever made '
+                   'you move fast.',
+          penalty={'reflex': -1}),
+    Trait('bloodyminded', 'Bloody-minded',
+          'When it starts you go forward, and you keep going forward, and '
+          'that is the whole of your plan and it is not a bad one.',
+          'temperament',
+          effects={'strike_bonus': 1, 'composure': 2},
+          drawback='You do not cover up. It has not occurred to you to.',
+          penalty={'guard_bonus': -2},
+          excludes=('glassjaw',)),
 )
 
 BY_KEY: dict[str, Trait] = {t.key: t for t in TRAITS}
@@ -339,6 +373,7 @@ TRAIT_KEYS: tuple[str, ...] = tuple(BY_KEY)
 #: Riders the engine implements. A trait naming anything else is a
 #: validation error, per the same rule that governs chrome and origins.
 RIDERS: frozenset[str] = frozenset({
+    'no_talkdown',
     'cannot_leave', 'slow_start', 'rot', 'owes_a_favour', 'slow_healing',
     'findable', 'poor_rest', 'no_chrome',
 })

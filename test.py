@@ -1464,7 +1464,7 @@ def test_traits_and_spread() -> None:
     T.raises(lambda: spent.take_trait('fast'), 'and taking it raises')
 
     # Riders reach the character and are read by the engine.
-    engine = _source_of('flatline/run', 'flatline/commands')
+    engine = _source_of('flatline/run', 'flatline/commands', 'flatline/world')
     for rider in trait_mod.RIDERS:
         T.ok(rider in engine, f'trait rider {rider!r} is read by the engine')
     rider_char = Character.from_origin('gutter', 'x')
@@ -1681,7 +1681,7 @@ def test_regressions() -> None:
     from flatline.content import ice as ice_mod
     from flatline.content import skills as skill_mod
 
-    engine = _source_of('flatline/run', 'flatline/commands')
+    engine = _source_of('flatline/run', 'flatline/commands', 'flatline/world')
     for rider in ice_mod.ICE_RIDERS:
         T.ok(rider in engine, f'ICE rider {rider!r} is read by the engine')
     for tech in skill_mod.TECHNIQUES.values():
@@ -11805,6 +11805,141 @@ def test_help_is_current() -> None:
          'and at nothing between them and the hit')
 
 
+def test_the_match() -> None:
+    """D133: the rest of the game meets the fight. Chem the street sells and
+    the fight reads, traits for fighters, the street's own nights, and a
+    clinic that patches."""
+    T.section('the match')
+    from flatline.content import street as street_content, drugs, traits
+    from flatline.content import conditions as cond_content, districts, manual
+    from flatline.world import street as street_world
+    from flatline.world import fight as fight_mod
+    from flatline.world.city import City
+
+    def fresh(seed=3, **kw):
+        char = Character.from_origin('gutter', 't')
+        for k, v in kw.items():
+            setattr(char, k, v)
+        game = Game.new(char, seed=seed)
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    def do(sess, con, cmd):
+        con.start_capture()
+        sess.execute(cmd)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    def street(sess, con, key, faction='sixes', danger=50):
+        con.start_capture()
+        street_world.begin(sess, street_content.BY_KEY[key], faction, danger)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    # Two drugs the street sells, and the fight reads them.
+    T.ok({'redline', 'numb'} <= set(drugs.BY_KEY)
+         and 'fence' in drugs.BY_KEY['redline'].sold,
+         'a fighter\'s stimulant and a painkiller, at the fence')
+    sess, con, game = fresh()
+    game.char.chem = drugs.dose(game.char.chem, 'redline')
+    T.ok(fight_mod.strike_damage(game.char) > 2, 'Redline hits harder')
+    street(sess, con, 'lean')
+    do(sess, con, 'fight')
+    T.ok('aim' in do(sess, con, 'strike'), 'and shows in the sum')
+    sess.pending = None
+    game.char.chem, _ = drugs.advance(game.char.chem, 3)
+    T.ok(drugs.is_down(game.char.chem, 'redline'), 'then it turns')
+    street(sess, con, 'lean')
+    do(sess, con, 'fight')
+    T.ok('coming down' in do(sess, con, 'strike'),
+         'and a fight on a comedown says so, and costs')
+    sess.pending = None
+    sess, con, game = fresh()
+    game.char.chem = drugs.dose(game.char.chem, 'numb')
+    T.ok(fight_mod.armour_of(game.char) >= 1 and 'pain_editor' in game.char.riders(),
+         'Numb is armour and a pain editor for a shift')
+
+    # Traits for fighters, and one that was always here.
+    T.ok({'brawler', 'glassjaw', 'thickskinned', 'bloodyminded'} <= set(traits.BY_KEY),
+         'four street traits')
+    sess, con, game = fresh(traits=['brawler'])
+    game.char.base_skills['streetcraft'] = 4
+    street(sess, con, 'lean')
+    out = do(sess, con, 'fight')
+    T.ok('talk' not in out.split('break')[0],
+         'raised fighting has never talked its way out of anything')
+    sess.pending = None
+    sess, con, game = fresh(traits=['glassjaw'])
+    T.ok(fight_mod.armour_of(game.char) < 0, 'a glass jaw goes all the way in')
+    sess, con, game = fresh(traits=['cold'])
+    game.char.base_skills['violence'] = 4
+    street(sess, con, 'toll', danger=0)
+    T.ok('cold' in do(sess, con, 'menace'), 'Cold reads in a menace')
+    sess.pending = None
+
+    # Tonight, outside: drawn at night, read by the street, cleared by day.
+    T.ok(len(cond_content.NIGHTS) >= 6 and all(not n.neutral for n in cond_content.NIGHTS),
+         'six nights, none of them weather with a name')
+    drawn = None
+    for seed in range(40):
+        sess, con, game = fresh(seed=seed)
+        for _ in range(6):
+            do(sess, con, 'rest')
+            while sess.pending is not None:
+                do(sess, con, '')
+            if game.city.tonight:
+                drawn = game.city.tonight
+                break
+        if drawn:
+            break
+    T.ok(drawn is not None, f'a night is drawn ({drawn})')
+    if drawn:
+        n = cond_content.NIGHT_BY_KEY[drawn]
+        T.ok(n.name in do(sess, con, 'look'), 'and the arrival line says so')
+        plain = int((100 - districts.BY_KEY[game.city.where].security)
+                    * street_world.ROUGH_BY_PHASE['night'])
+        T.ok(street_world.rough(game) == max(0, min(100, int(plain * n.rough))) or n.rough == 1.0,
+             'and the street\'s roughness reads it')
+        T.ok(City.from_dict(game.city.to_dict()).tonight == drawn, 'and it saves')
+        game.city.shift += 1
+        game.city.advance(game.rng, game.alias, 0, char=game.char) if False else None
+    sess, con, game = fresh(seed=1)
+    game.city.tonight = 'sweep'
+    game.city.shift = 0  # morning
+    game.city.advance(game.rng, game.alias, 1, char=game.char)
+    T.ok(game.city.tonight == '', 'a night is gone by morning')
+
+    # A loud weapon on a sweep is heard twice.
+    sess, con, game = fresh(seed=2)
+    game.city.tonight = 'sweep'
+    game.char.weapon = 'pistol'
+    law0 = game.alias.raw_heat('nightwatch')
+    street(sess, con, 'finish', danger=80)
+    do(sess, con, 'fight')
+    for _ in range(10):
+        if sess.pending is None:
+            break
+        do(sess, con, 'strike')
+    T.ok(game.alias.raw_heat('nightwatch') - law0 >= fight_mod.LOUD_HEAT * 2,
+         'a gun on a sweep is heard twice')
+
+    # The clinic patches, for money, without a shift.
+    sess, con, game = fresh(seed=2)
+    game.city.where = next(d.key for d in districts.DISTRICTS if 'clinic' in d.services)
+    game.char.hurt = 6
+    game.char.credits = 1000
+    shift = game.city.shift
+    do(sess, con, 'clinic patch')
+    T.ok(game.char.hurt == 0
+         and game.char.credits == 1000 - 6 * street_world.PATCH_PER_POINT
+         and game.city.shift == shift,
+         'a patch is Integrity back at a price and no shift')
+    T.ok('Tonight, outside' in manual.BY_KEY['street'].body
+         and 'coming down' in manual.BY_KEY['chemistry'].body
+         and 'Raised Fighting' in manual.BY_KEY['traits'].body,
+         'and the help says all of it')
+
+
 
 def test_the_lifepath() -> None:
     """D126: your origin's complication comes to find you after the first run,
@@ -13086,6 +13221,7 @@ SUITES = (
     test_planting_a_way_in, test_the_changing_world, test_swagger_and_legend,
     test_the_lifepath, test_tactic_tools, test_the_fight,
     test_the_rough_street, test_a_fighters_living, test_help_is_current,
+    test_the_match,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

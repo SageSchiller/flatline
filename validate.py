@@ -117,6 +117,8 @@ def _engine_source() -> str:
         import pathlib
         paths = sorted(pathlib.Path('flatline/run').glob('*.py'))
         paths += sorted(pathlib.Path('flatline/commands').glob('*.py'))
+        # The street and the fight (D65, D128) read riders too.
+        paths += sorted(pathlib.Path('flatline/world').glob('*.py'))
         _ENGINE_SOURCE = '\n'.join(p.read_text(encoding='utf-8')
                                    for p in paths)
     return _ENGINE_SOURCE
@@ -3855,6 +3857,21 @@ def check_conditions(rep: Report) -> None:
     from flatline.commands.run import COST
     from flatline.rng import Rng
 
+    # Tonight, outside (D133): the street's own weather, held to the same
+    # standard as the run's.
+    rep.check(len(cond_content.NIGHTS) >= 4, 'nights', 'fewer than four nights')
+    rep.check(0.2 <= cond_content.NIGHT_CHANCE <= 0.7, 'nights',
+              f'NIGHT_CHANCE {cond_content.NIGHT_CHANCE} out of band')
+    for n in cond_content.NIGHTS:
+        where = f'nights/{n.key}'
+        rep.check(bool(n.name) and bool(n.blurb) and bool(n.summary), where,
+                  'missing name, blurb or summary')
+        rep.check(n.blurb.rstrip().endswith('.'), where, 'blurb does not end')
+        rep.check(not n.neutral, where, 'changes nothing: weather with a name')
+        rep.check(0.4 <= n.rough <= 2.0 and 0 <= n.tier <= 1
+                  and 0.5 <= n.muscle <= 2.0 and 0.5 <= n.loud <= 3.0
+                  and 0.5 <= n.loot <= 2.0, where, 'a number out of band')
+        rep.check(n.weight > 0, where, 'can never be drawn')
     rep.check(len(cond_content.CONDITIONS) >= 6, 'conditions',
               f'only {len(cond_content.CONDITIONS)} conditions; the weather '
               f'repeats')

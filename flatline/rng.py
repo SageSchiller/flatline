@@ -163,6 +163,10 @@ class Rng:
         # Street work on offer (D65). Forked on district and shift so the
         # two errands in a district are the same two every time you look.
         'errands',
+        # Tonight, outside (D133). Its own stream for the same reason as the
+        # run's condition: a night drawn from `events` would move every
+        # seeded consequence in the city by one draw.
+        'nights',
     )
 
     def __init__(self, seed: int) -> None:
