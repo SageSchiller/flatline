@@ -1703,8 +1703,12 @@ def cmd_pull(sess, args) -> None:
             return
     if state.contract and state.contract.get('objective') == 'exfiltrate':
         if state.net.objective_asset in state.haul:
+            # The payoff beat (D116). The reason for the whole run, and it
+            # used to be one grey line among the pulls; now it is a moment.
             c.blank()
-            c.say('[ok][bold]That is what you came for. Get out.[/][/]')
+            c.box(['[ok][bold]That is what you came for.[/][/]',
+                   '[dim]It is in the deck and it is loud. The way out is '
+                   'the whole job now.[/]'], title='secured', role='ok')
 
 
 @command('push', 'Leave something behind: an implant or an edit.',

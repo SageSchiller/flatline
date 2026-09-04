@@ -590,6 +590,12 @@ class RunState:
         self.char.deck.alert = self.alert
         self.since_filed = 0
         self._response()
+        # The room turning red is the tensest beat in a run, so the screen
+        # takes it (D116). Only on the crossing into red, so a run that is
+        # already red does not stutter on every further step.
+        if (self.alert in ('red', 'lockdown')
+                and levels[i] not in ('red', 'lockdown')):
+            self._disrupt(frames=5, height=4)
         self.console.blank()
         self.console.raw(f'[err][bold]ALERT: {self.alert.upper()}[/][/]  '
                          f'[dim]{ice_content.ALERT_BLURB[self.alert]}[/]')

@@ -3851,6 +3851,23 @@ everything else, ascii-clean where it must be. The splash leads with it,
 `new` and `tutorial` behind it. `test_the_cold_open` holds the rails, the
 handover, and that it never gets stuck.
 
+### D116: Two beats a run was missing
+
+The run had grown visually rich over D102 to D111: a picture of the
+faction on connect, the ICE drawn at its tell, the network as a drawn
+schematic, a glyph per host, a static burst at the lethal moments. What it
+still lacked were the two emotional tentpoles of a heist, the spike and
+the payoff, and both were a line of text among other lines.
+
+So the room turning red takes the screen now. `escalate` fires the static
+burst (D110) on the crossing into red or lockdown, and only on the
+crossing, so a run already red does not stutter on every further step. It
+is the tensest moment in a run and it now feels like the terminal being
+interfered with rather than another paragraph. And the objective coming
+loose is a moment: pulling the thing the whole run was for prints a framed
+`secured` beat rather than one grey line among the pulls. Small, rare, and
+exactly where the run wanted a breath of punctuation.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
