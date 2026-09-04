@@ -677,6 +677,22 @@ EPILOGUE: tuple[tuple[str, str], ...] = (
     ('demo_told',
      'You told a room full of buyers that you had been asked to make the '
      'demonstration look close, and the demonstrator did not contradict you.'),
+    # The explorer (D147)
+    ('edges_added',
+     'You gave the other one your edges, and between the two of you the '
+     'map of where the city stops was finished, and then folded, and put '
+     'away.'),
+    ('edges_kept',
+     'You kept your own count of where the city stops, and somewhere out '
+     'there so did somebody else, and neither of you ever showed the '
+     'other the whole of it.'),
+    ('kept_asked',
+     'You went looking for who leaves the city\'s things out for the '
+     'people who look, and found that it is not a person, it is the habit '
+     'of the place.'),
+    ('kept_left',
+     'You decided not to find out who leaves the city\'s things out for '
+     'you, in case the knowing stopped it, and it never did stop.'),
 
 )
 

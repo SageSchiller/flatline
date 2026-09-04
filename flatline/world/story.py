@@ -115,6 +115,19 @@ class Story:
             # actually do the thing it is about to ask for.
             key, _, rank = value.partition(':')
             return game.char.skill(key) >= int(rank or 1)
+        if kind == 'places':
+            # How many places you have stood in (D147), so the explorer,
+            # who had material and no story, has a gate that reads the
+            # walking. A count, not a named place: `visited:<key>` is the
+            # flag, `places:<n>` is how many of them there are.
+            return sum(1 for f in self.flags
+                       if f.startswith('visited:')) >= int(value)
+        if kind == 'finds':
+            # How many one-of-a-kind things you have found (D147). The
+            # finds were kept back for somebody; this is the gate on
+            # having been that somebody more than once.
+            return sum(1 for f in self.flags
+                       if f.startswith('found:')) >= int(value)
         if kind == 'pit':
             # A name on the wall (D134): `pit:champion` is the flag the
             # house sets, and `pit:<n>` is the rung.

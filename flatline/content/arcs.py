@@ -1271,6 +1271,134 @@ MORE_THREADS: tuple[Thread, ...] = (
                              sets=('collector_kept',)),
                   )),
         )),
+
+    # -- The explorer: the walking, answered (D147) ---------------------------
+    Thread(
+        'edges', 'The Edges',
+        'You keep ending up in places that are not on the way to anywhere. So '
+        'does somebody else, and they are keeping count.',
+        crosses=(),
+        stages=(
+            Stage('noticed', 'Somebody who stands about too',
+                  'You are in one of the places that is not on the way to '
+                  'anywhere, the kind you have started to have opinions about, '
+                  'and tonight there is somebody already in it, doing the '
+                  'thing you do, which is standing where standing has no '
+                  'reason.\n\n'
+                  'They do not introduce themselves. They say, "You are the '
+                  'other one. I wondered who was leaving the marks I keep '
+                  'finding," and they mean the fact of you having been there, '
+                  'which apparently leaves a mark to somebody who is counting.',
+                  requires=('places:12',),
+                  sets=('edges_seen',)),
+            Stage('map', 'What they are making',
+                  'They show you, eventually, and it is not a map of the city. '
+                  'It is a map of where the city stops: the line the water '
+                  'took and did not give back, the wards that are boarded at '
+                  'both ends, the reservoir works behind the fence on the '
+                  'hill, the half mile of quay nobody dredges. Every edge, and '
+                  'nothing in the middle, because the middle is where everyone '
+                  'already looks.\n\n'
+                  '"I am nearly done," they say. "I have been nearly done for '
+                  'six years. There are a few I have not stood at yet. You '
+                  'have stood at more of the city than anybody I have met. I '
+                  'would like your count, or I would like you to keep your '
+                  'own. Both are answers."',
+                  requires=('edges_seen', 'places:24'),
+                  sets=('edges_asked',),
+                  choices=(
+                      Choice('add', 'Give them what you have stood at',
+                             'You tell them the edges you have stood at that '
+                             'they have not, and they write each one down in a '
+                             'hand that has done this a long time, and when '
+                             'you are finished the map is finished, and they '
+                             'look at it for a while and then fold it once and '
+                             'do not say anything, because there is nothing to '
+                             'say to a thing you have spent six years finishing '
+                             'and now have finished.',
+                             sets=('edges_added',)),
+                      Choice('keep', 'Keep your own count',
+                             'You say you would rather keep your own, and they '
+                             'nod as though that was the more likely answer '
+                             'and not a worse one. "Then there are two of us '
+                             'who know where it stops," they say, "which is '
+                             'one more than there was." They go back to the '
+                             'map, and you go back to the city, and you both '
+                             'know the other is out there counting.',
+                             sets=('edges_kept',)),
+                  )),
+            Stage('shape', 'The shape of the whole thing',
+                  'You have stood at enough of it now that the city has a '
+                  'shape in your head, and the shape is not the one on the '
+                  'transit map. It is the one the water drew, and the boards, '
+                  'and the fences, and the places a person can be that nobody '
+                  'built. You do not know what to do with knowing it. That '
+                  'turns out to be all right. Knowing it is the thing.',
+                  requires=('places:36',),
+                  any_of=('edges_added', 'edges_kept'),
+                  sets=('edges_known',)),
+        )),
+
+    Thread(
+        'kept', 'Kept Back',
+        'The things you find were left for somebody. You are starting to '
+        'suspect who.',
+        crosses=(),
+        stages=(
+            Stage('once', 'A thing that was left out',
+                  'The one-of-a-kind thing in your bag was not lost and not '
+                  'dropped. Somebody kept it back and left it where only '
+                  'somebody who went and looked would find it, and the rumour '
+                  'about it always ends the same way, that it is there for '
+                  'somebody, and this time the somebody was you.\n\n'
+                  'You had put that down to luck. You are less sure now.',
+                  requires=('finds:1',),
+                  sets=('kept_once',)),
+            Stage('pattern', 'More than once is a habit',
+                  'It has happened enough times now to stop being luck. Every '
+                  'one of them was kept back, by somebody, for somebody, and '
+                  'the somebody keeps turning out to be whoever went and '
+                  'stood where the thing was, which keeps turning out to be '
+                  'you.\n\n'
+                  'The Archivist, when you say this out loud in the back room, '
+                  'does not look up. "The city gives things to the people who '
+                  'go and look. It always has. You have started looking like '
+                  'one of the people it gives things to." A pause. "I keep the '
+                  'ones nobody came for. You are the other kind of record."',
+                  requires=('kept_once', 'finds:3'),
+                  sets=('kept_seen',),
+                  choices=(
+                      Choice('ask', 'Ask who has been leaving them',
+                             'You ask, around the places, whether anybody '
+                             'knows who leaves the things. Nobody does, and '
+                             'the not-knowing is consistent in a way that is '
+                             'its own answer: it is not one person. It is the '
+                             'habit of a city that keeps things back for '
+                             'whoever is still looking, and has been doing it '
+                             'longer than anybody who could be asked.',
+                             sets=('kept_asked',)),
+                      Choice('leave', 'Leave it be, and keep looking',
+                             'You decide you would rather not know, the way '
+                             'you would rather not know how a good thing '
+                             'works in case the knowing stops it. You keep '
+                             'going and standing where nothing is, and the '
+                             'things keep being there, and you stop being '
+                             'surprised, which is not the same as stopping '
+                             'being glad.',
+                             sets=('kept_left',)),
+                  )),
+            Stage('one_of', 'One of the people it gives things to',
+                  'You have found enough of them now to have stopped '
+                  'counting it as luck. The city keeps things back for the '
+                  'people who go and look, and you are one of the people it '
+                  'gives things to, and that is a quieter thing to be than '
+                  'the ones with the money and the names, and it lasts '
+                  'longer, because it is not a thing anybody can take off '
+                  'you: it is just where you have been.',
+                  requires=('finds:5',),
+                  any_of=('kept_asked', 'kept_left'),
+                  sets=('kept_known',)),
+        )),
 )
 
 

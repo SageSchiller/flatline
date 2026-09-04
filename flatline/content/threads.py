@@ -38,6 +38,9 @@ CONDITIONS = ('runs', 'diss', 'shift', 'credits', 'heat', 'met', 'rep',
               # you can do, what you carry, what you are hooked on, what
               # the wall says, and what a fight left on you.
               'skill', 'pit', 'habit', 'carrying', 'mark', 'fought', 'job',
+              # How much of the city you have stood in and found (D147),
+              # as counts, so the explorer has threads that read it.
+              'places', 'finds',
               # `asked:<npc>:<topic>`: set by `ask`, so a scene that is
               # written as a question can wait for the question (D86).
               'asked',

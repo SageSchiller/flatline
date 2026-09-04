@@ -12723,7 +12723,9 @@ def test_a_thread_for_every_way_of_working() -> None:
                     skills[r.split(':')[1]] += 1
     for kind in ('skill', 'pit', 'habit', 'carrying', 'mark', 'fought', 'job',
                  'trait', 'street', 'rep', 'heat', 'diss', 'debt', 'credits',
-                 'arranged', 'bond', 'origin', 'runs'):
+                 'arranged', 'bond', 'origin', 'runs',
+                 # The explorer, who had material and no story (D147).
+                 'places', 'finds'):
         T.ok(gates[kind] > 0, f'something is written for {kind}')
     for skill in ('stealth', 'subterfuge', 'daemonology', 'warfare', 'violence'):
         T.ok(skills[skill] > 0, f'a thread wants somebody good at {skill}')
@@ -13356,6 +13358,82 @@ def do_capture(sess, con, fn):
     con.start_capture()
     fn()
     return ' '.join(strip_ansi(con.end_capture()).split())
+
+
+def test_the_walking_answered() -> None:
+    """D147: the explorer had material and no story. Two threads now read the
+    walking and the finding, gated on counts of places stood in and things
+    found, and the engine has the count rules to make that possible."""
+    T.section('the walking answered')
+    from flatline.content import threads as thread_content
+    from flatline.commands.people import _check_story
+    from flatline.world.story import Story
+
+    def fresh(seed=7):
+        char = Character.from_origin('gutter', 't')
+        char.runs = 3
+        game = Game.new(char, seed=seed)
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    def story(sess, con):
+        con.start_capture()
+        _check_story(sess)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    # The count rules exist and count the right flags.
+    sess, con, game = fresh()
+    st = game.story
+    st.flags.update({f'visited:p{i}' for i in range(12)})
+    T.ok(st.satisfied('places:12', game) and not st.satisfied('places:13', game),
+         'places:N counts the places stood in')
+    st.flags.update({f'found:x{i}' for i in range(3)})
+    T.ok(st.satisfied('finds:3', game) and not st.satisfied('finds:4', game),
+         'finds:N counts the one-of-a-kind things found')
+    T.ok(st.satisfied('not:finds:4', game), 'and not: works over the counts')
+
+    # The Edges opens on having stood in a dozen places, not before.
+    sess, con, game = fresh()
+    game.story.flags.update({f'visited:a{i}' for i in range(11)})
+    T.ok('edges' not in game.story.reached, 'eleven places is not enough')
+    game.story.flags.add('visited:a11')
+    story(sess, con)
+    T.ok('noticed' in game.story.reached.get('edges', []),
+         'a dozen places opens the edges')
+    # and it carries through to its shape, which reads the choice.
+    game.story.flags.update({f'visited:b{i}' for i in range(24)})
+    story(sess, con)
+    game.story.flags.add('edges_added')
+    game.story.flags.update({f'visited:c{i}' for i in range(36)})
+    out = story(sess, con)
+    T.ok('shape' in game.story.reached.get('edges', []),
+         'and standing at enough of it closes the thread')
+
+    # Kept Back opens on the first find and pays off on the fifth.
+    sess, con, game = fresh()
+    game.story.flags.add('found:thing1')
+    story(sess, con)
+    T.ok('once' in game.story.reached.get('kept', []),
+         'the first one-of-a-kind thing opens Kept Back')
+    game.story.flags.update({f'found:thing{i}' for i in range(2, 4)})
+    story(sess, con)
+    T.ok('pattern' in game.story.reached.get('kept', []),
+         'three of them makes it a habit')
+    game.story.flags.add('kept_left')
+    game.story.flags.update({f'found:thing{i}' for i in range(4, 6)})
+    story(sess, con)
+    T.ok('one_of' in game.story.reached.get('kept', []),
+         'five of them, and the city has an opinion about you')
+
+    # Both threads survive a save, counts and all.
+    game.save('walk')
+    back = Game.load('walk')
+    T.eq(back.story.reached.get('kept'), game.story.reached.get('kept'),
+         'the walking survives a save')
+    from flatline import save as save_mod
+    save_mod.delete('walk')
 
 
 def manual_body(key: str) -> str:
@@ -14655,6 +14733,7 @@ SUITES = (
     test_what_the_players_said,
     test_the_third_round,
     test_the_signposts_and_the_counts,
+    test_the_walking_answered,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,
