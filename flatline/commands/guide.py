@@ -204,6 +204,10 @@ def _now_city(sess):
                                    f'reads the one above'))
         also = ['look', 'journal', 'world', 'errands', 'market', 'map', 'char',
                 'help']
+        if save_mod.read_meta().get('recorded'):
+            # Once a line has landed, the screen that answers what is left
+            # is worth a word here (D144): nothing but `char` pointed at it.
+            also.insert(-1, 'record')
     else:
         all_steps = city_cmds.city_steps(game)
         steps.extend(all_steps[:2])

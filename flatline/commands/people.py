@@ -1054,10 +1054,11 @@ def cmd_journal(sess, args) -> None:
     active = story.active_threads()
     c.header('Journal', f'{len(active)} of {len(thread_content.THREADS)}')
     if not active:
-        c.say('[dim]Nothing yet. The city\'s stories open as you run jobs and '
-              'cross the people who matter, and most of them are not in this '
-              'district. Take a couple of contracts, `travel`, and `look` '
-              'around, then check back here.[/]')
+        c.say('[dim]Nothing yet. The city\'s stories open as you run jobs, '
+              'fight, work the street and cross the people who matter, and '
+              'most of them are not in this district. Take a couple of '
+              'contracts or a couple of fights, `travel`, and `look` around, '
+              'then check back here.[/]')
         return
     # What is waiting first, because it is the one thing in here that does
     # not move without you.
@@ -1164,6 +1165,12 @@ def cmd_choose(sess, args) -> None:
     for para in choice.text.split('\n\n'):
         c.say(para)
         c.blank()
+    if set(choice.sets) & thread_content.SPINE_ENDINGS:
+        # The main line has ended (D144): the posting with your name on it
+        # comes down with it, whichever way you answered.
+        taken = game.city.withdraw_story('deepwater.posting')
+        if taken:
+            c.say(taken)
 
     if choice.credits:
         game.char.credits = max(0, game.char.credits + choice.credits)

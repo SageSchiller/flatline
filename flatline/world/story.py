@@ -257,6 +257,19 @@ class Story:
             met = next((r[4:] for r in stage.requires if r.startswith('met:')),
                        None)
             base = self.when.get(f'met:{met}') if met else None
+            if base is None:
+                # A first stage that waits on nobody, only on something
+                # another thread decided (D144): "Afterwards" opens a few
+                # shifts after the offer, and it opened in the same breath,
+                # because the only stamp this looked for was a meeting. The
+                # stamp of the thread that set the flag is the one to
+                # measure from.
+                owners = _flag_owners()
+                stamps = [self.when.get(f'thread:{owners[r][0]}')
+                          for r in stage.requires + stage.any_of
+                          if r in owners]
+                stamps = [s for s in stamps if s is not None]
+                base = max(stamps) if stamps else None
         if base is None:
             return True
         return game.city.shift - int(base) >= stage.after

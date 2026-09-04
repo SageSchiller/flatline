@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 from . import save as save_mod
+from .content import threads as thread_content
 from . import theme
 from .content import factions, rice
 from .config import APP_TITLE, TAGLINE_PARTS, history_path
@@ -94,6 +95,10 @@ class Session:
     #: because "have they looked at their own character sheet" is a real
     #: teaching goal and is not otherwise visible in game state.
     seen: set = field(default_factory=set)
+    #: Whether a command handler is running, and what it earned that is
+    #: said once it has finished (D144).
+    _in_command: bool = False
+    _announce_queue: list = field(default_factory=list)
     #: Index of the current tutorial step, or -1 when it is not running.
     tutorial_step: int = -1
     #: How many times the blank-prompt lifeline has been shown (D118). It
@@ -347,9 +352,7 @@ class Session:
                           + int(getattr(game.city, 'doorways', 0)),
             kills_done=1 if 'killer' in flags else 0,
             # The main line, carried to one of its ends (D143).
-            spine_finished=1 if flags & {'dw_employed', 'dw_published',
-                                         'dw_refused', 'dw_under',
-                                         'dw_stayed'} else 0,
+            spine_finished=1 if flags & thread_content.SPINE_ENDINGS else 0,
             best_credits=game.char.credits,
             deepest_drift=game.char.dissonance,
             districts_seen=len(game.city.visited),
@@ -362,6 +365,18 @@ class Session:
         self.announce_unlocks()
         self.announce_record()
 
+    def announce(self, fn) -> None:
+        """Print now, or at the bottom of the current command's block."""
+        if self._in_command:
+            self._announce_queue.append(fn)
+        else:
+            fn()
+
+    def flush_announcements(self) -> None:
+        queue, self._announce_queue = self._announce_queue, []
+        for fn in queue:
+            fn()
+
     def announce_record(self) -> None:
         """Say a line of the record once, when it lands (D142)."""
         from .content import record as record_content
@@ -372,27 +387,34 @@ class Session:
         if not fresh:
             return
         said = list(meta.get('recorded') or [])
-        c = self.console
         for entry in fresh:
             said.append(entry.key)
-            c.blank()
-            c.rule('the record', role='accent2')
-            c.say(f'[accent]{entry.name}.[/] {entry.earned}')
-            if entry.title:
-                c.say(f'[dim]They have started saying it: [accent2]'
-                      f'{entry.title}[/][dim].[/]')
         meta['recorded'] = said
         save_mod.write_meta(meta)
+        sections = []
         for key in record_world.sections_done(counts):
             flag = f'section:{key}'
             if flag in said:
                 continue
             said.append(flag)
-            c.blank()
-            c.say(f'[accent2]Every line of {record_content.BY_SECTION[key][0].section}. '
-                  f'{record_content.SECTION_TITLE[key].capitalize()}.[/]')
+            sections.append(key)
             meta['recorded'] = said
             save_mod.write_meta(meta)
+
+        def say(c=self.console, fresh=fresh, sections=sections):
+            for entry in fresh:
+                c.blank()
+                c.rule('the record', role='accent2')
+                c.say(f'[accent]{entry.name}.[/] {entry.earned}')
+                if entry.title:
+                    c.say(f'[dim]They have started saying it: [accent2]'
+                          f'{entry.title}[/][dim].[/]')
+            for key in sections:
+                c.blank()
+                c.say(f'[accent2]Every line of '
+                      f'{record_content.BY_SECTION[key][0].section}. '
+                      f'{record_content.SECTION_TITLE[key].capitalize()}.[/]')
+        self.announce(say)
 
     def announce_unlocks(self) -> None:
         """Tell the player about anything they have just earned, once."""
@@ -412,15 +434,17 @@ class Session:
         fresh = [item for item in fresh if item.needs[0] != 'always']
         if not fresh:
             return
-        c = self.console
-        c.blank()
-        c.rule('unlocked', role='accent2')
-        for item in fresh:
-            c.raw(f'  [accent]{item.name}[/] [dim]{item.kind}[/]')
-            c.say(f'[dim]{item.blurb}[/]', indent='  ', subsequent='  ')
-        c.blank()
-        c.say(f'[dim]`rice` to put {"them" if len(fresh) > 1 else "it"} on. '
-              f'It stays yours whatever happens to this character.[/]')
+
+        def say(c=self.console, fresh=fresh):
+            c.blank()
+            c.rule('unlocked', role='accent2')
+            for item in fresh:
+                c.raw(f'  [accent]{item.name}[/] [dim]{item.kind}[/]')
+                c.say(f'[dim]{item.blurb}[/]', indent='  ', subsequent='  ')
+            c.blank()
+            c.say(f'[dim]`rice` to put {"them" if len(fresh) > 1 else "it"} on. '
+                  f'It stays yours whatever happens to this character.[/]')
+        self.announce(say)
 
     @property
     def shell(self) -> dict:
@@ -570,6 +594,7 @@ class Session:
                 and inv.command.name not in AFTER_THE_END):
             self.console.err(self.after_the_end())
             return
+        self._in_command = True
         try:
             inv.command.handler(self, inv.args)
             self.seen.add(inv.command.name)
@@ -581,6 +606,12 @@ class Session:
             self.running = False
             self.exit_code = q.code
             return
+        finally:
+            self._in_command = False
+        # What the shift earned is said after what the shift did (D144):
+        # a line of the record landed between "1 shift pass" and "you did
+        # not sleep well", and a palette between the walk and the street.
+        self.flush_announcements()
         # Asides go at the bottom of the block that raised them, the way they
         # do on a page. Flushing here rather than in each command means any
         # content anywhere can write one without knowing this exists, and an

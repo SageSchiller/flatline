@@ -1225,7 +1225,9 @@ def _title_line(sess) -> str:
     """What the city calls you, off the record (D142)."""
     from ..world import record as record_world
     from .. import save as save_mod
-    title = record_world.title_of(record_world.counts(sess.game, save_mod.read_meta()))
+    meta = save_mod.read_meta()
+    title = record_world.title_of(record_world.counts(sess.game, meta),
+                                  meta.get('recorded'))
     return f'[accent2]{title}[/]' if title else '[dim]nothing yet. `record`[/]'
 
 
@@ -1518,6 +1520,14 @@ def cmd_pit(sess, args) -> None:
             ledger['rank'] = max(int(ledger['rank']), fighter.rung)
             if fighter.key not in ledger['beaten']:
                 ledger['beaten'].append(fighter.key)
+            if (int(ledger['rank']) >= 2
+                    and g.story.meet('hollis', g.city.shift)):
+                # The wall has an owner (D144): a fighter who never `look`ed
+                # for her had forty shifts on it and no story.
+                c.say('[dim]Hollis, who keeps the ledger under the fence, '
+                      'comes to the tape and writes your name in it herself. '
+                      '`talk hollis` when you want to know what that '
+                      'costs.[/]')
             g.story.flags.add(f'pit:{fighter.key}')
             g.alias.adjust_rep(pit_content.HOUSE, 2)
             c.say(f'[ok]{fighter.beaten}[/]')
@@ -2433,6 +2443,25 @@ def city_steps(game) -> list[tuple[str, str]]:
                           f'{game.char.xp} experience unspent, and nothing '
                           f'the origin\'s shape suggests: `train` lists what '
                           f'a rank costs'))
+    # A fighter's experience (D144). Forty shifts on the wall at Violence 1
+    # with twenty-two experience in hand, and every `now` said `spend`,
+    # which proposes the origin's shape. Fights behind you are a shape too.
+    fights = (int(getattr(game.city, 'fights_won', 0))
+              + int(game.city.pit.get('rank', 0)))
+    if fights >= 3:
+        rank = game.char.skill('violence')
+        cost = skill_content.RANK_COST.get(rank + 1)
+        if cost is not None and game.char.xp >= cost:
+            what = ('Finisher: `finish` ends a fight in one once they are '
+                    'hurt' if rank < 2 else
+                    'menace: on the street they see what it would cost, '
+                    'and leave' if rank == 3 else
+                    'a point on every strike')
+            steps.insert(0, ('train violence',
+                             f'{fights} fights behind you and Violence is '
+                             f'{rank}. Rank {rank + 1} costs {cost} '
+                             f'experience and you have {game.char.xp}: '
+                             f'{what}'))
     # The rank that holds the breaker (D87). A protege ships with a
     # rating-three Sable and Intrusion 0, so every door for eight runs
     # printed "held to 2 by Intrusion 0", and the advice named five other
@@ -4024,7 +4053,11 @@ def cmd_world(sess, args) -> None:
     # Where the tension is.
     c.rule('the tension', role='muted')
     flags = game.story.flags
-    dw = ('[dim]You have been inside one, and you cannot make it sit still.[/]'
+    from ..content import threads as thread_content
+    dw = ('[dim]Settled, one way or another. The city has stopped talking '
+          'around it, which is not the same as having forgotten.[/]'
+          if flags & thread_content.SPINE_ENDINGS
+          else '[dim]You have been inside one, and you cannot make it sit still.[/]'
           if 'dw_inside' in flags or 'dw_name' in flags
           else '[dim]A name people say and then stop saying.[/]'
           if 'dw_heard' in flags

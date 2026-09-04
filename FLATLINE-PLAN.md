@@ -12,7 +12,7 @@ updated: 2026-09-04
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-09-04, end of the session.** D133 to D143 landed today on top of the combat layer, all from the author's briefs and three rounds of play-testing, and the plan is current through all of them. First, the rest of the game met the fight (D133 to D136): street conditions, chem and traits that read a fighter, a clinic that patches a cut, the pit at Carrion's with a wall of names and a fixer's muscle work, and then the deck as a thing you live with in the city (mail, search, watch, message, ads) and a thing with a body (condition, reach, sweep, route, tune). Then the same method as D86 to D89 turned on all of it (D137 to D139): three play-tests of everything since D128 (a brawler, a netrunner who never throws a punch, a first-timer who does what `now` says), then three aimed at the deck and four at the fight and the pit, no crashes anywhere, nineteen fixes, and a balance simulation across the fighting routes with the measured take per shift written into `test_the_fight_under_pressure`. Then the story caught up with the street (D140, D141): rules that can read a skill, a rank in the pit, a habit, what you carry and what you have fought, eight new threads and three new people so that every gate in the game has fiction behind it, and `test_a_thread_for_every_way_of_working`, which fails the build if a system ships without a story. Last, against the Bartle axes, the two kinds of player the game had nothing for (D142, D143): `record`, twenty-four lines across the work, the city, the people and the floor that count things the engine actually writes, each crossing earning a name shown on `char`; and the main line paying off, the Deepwater palette gated behind finishing it, the city settling the water once and differently per ending, and *Afterwards*, the thread that hands the city back. `validate.py` clean, `test.py` green at **18,941 checks**, HEAD `71ca427` pushed. Counts: 15 skills, 44 threads / 131 scenes / 143 decisions, 32 named people, 151 commands, 12 districts / 72 quarters. **The next thing worth doing is unchanged:** play it three ways with fresh briefs and fix what the players say; the record and the afterwards have not been played by anyone yet, and neither has a campaign that starts as a fighter and ends on the main line.
+> **State as of 2026-09-04, end of the session.** D133 to D143 landed today on top of the combat layer, all from the author's briefs and three rounds of play-testing, and the plan is current through all of them. First, the rest of the game met the fight (D133 to D136): street conditions, chem and traits that read a fighter, a clinic that patches a cut, the pit at Carrion's with a wall of names and a fixer's muscle work, and then the deck as a thing you live with in the city (mail, search, watch, message, ads) and a thing with a body (condition, reach, sweep, route, tune). Then the same method as D86 to D89 turned on all of it (D137 to D139): three play-tests of everything since D128 (a brawler, a netrunner who never throws a punch, a first-timer who does what `now` says), then three aimed at the deck and four at the fight and the pit, no crashes anywhere, nineteen fixes, and a balance simulation across the fighting routes with the measured take per shift written into `test_the_fight_under_pressure`. Then the story caught up with the street (D140, D141): rules that can read a skill, a rank in the pit, a habit, what you carry and what you have fought, eight new threads and three new people so that every gate in the game has fiction behind it, and `test_a_thread_for_every_way_of_working`, which fails the build if a system ships without a story. Last, against the Bartle axes, the two kinds of player the game had nothing for (D142, D143): `record`, twenty-four lines across the work, the city, the people and the floor that count things the engine actually writes, each crossing earning a name shown on `char`; and the main line paying off, the Deepwater palette gated behind finishing it, the city settling the water once and differently per ending, and *Afterwards*, the thread that hands the city back. Then the same method again (D144): an achiever playing for the record, the ending played three ways, and a fighter who ends on the main line; five campaigns, no crashes, every ending reached by play, and seven fixes, the largest being the posting that outlived its own ending and an afterwards that opened in the same breath as the offer. `validate.py` clean, `test.py` green at **18,991 checks**. Counts: 15 skills, 44 threads / 132 scenes / 143 decisions, 32 named people, 151 commands, 12 districts / 72 quarters. **The next thing worth doing is unchanged:** play it three ways with fresh briefs and fix what the players say. Nobody has yet played the under ending (read the log, consent to the archive, keep Lark alive), a chem habit through *Ninety*, or a campaign that lives on the deck's search and watches; and every play-test harness from here must set `XDG_DATA_HOME`.
 >
 > **State as of 2026-09-01.** D86 to D89 landed in one session, from three play-tests run in parallel with three different briefs (a first-timer who does what `now` says, an explorer who ignores it, and a run specialist who types every verb by hand). What they found, in order of size: the story layer was gated on meeting people and nothing ever said to meet anyone, and forty-two scenes declared a district that nothing read; the advice could recommend the same severed run five nights running and never once name Intrusion; a credential warden was an unanswerable wall for the Chromed origin and the board could not see it; and D6's severed-connection cooldown had never been implemented. All fixed, with `test_people_are_the_story`, `test_night_before`, `test_wall_and_clock` and `test_remembered_inside` holding them. Two things were added rather than fixed: the construct that cut you loose is on the route next time, awake and named, and the other runners can turn up inside a network with consequences that read their opinion of you. `validate.py` clean, `test.py` green at **18,941 checks** (D90 to D114 followed on 2026-09-02 and 2026-09-03: the visual layer, from pictures and the drawn instrument through the schematic map, player icons, more palettes and prompts, the portrait, reveal styles, seen ICE with screen disruption, a glyph per host type across the scan, the map, and the node header, a full-colour city that the boot now comes up on, and the player icons redrawn as a bestiary of creatures and characters with four more to buy, and a story/quest play-test that fixed the first-runs signposting, and a cold-open first job, sharper run beats, an ambitions ladder, a blank-prompt lifeline for newcomers, a nemesis reckoning that gives the rival arc a payoff, the nemesis as a felt in-run obstacle racing you for the objective, and its mirror the partner who helps in the run offers to crew for good, and three ways into every job that make a build matter for the run itself, and a plantable backdoor that turns an in-run choice into an easier run later, and a faction-power layer with a `world` dashboard so a campaign visibly reshapes the city, and a swagger/legend layer that lets the player be good at it, and origin lifepath openings so who you started as reaches into your story, and two tactic tools, Shroud and Sledge, that each buy a verb the deck could not do before, and, unlocking the founding no-combat rule at the author's call, a street that can be fought (D128 to D132, 2026-09-03 and 2026-09-04): a fifteenth skill, an exchange in rounds with a netrunner's route through their chrome, a play-test that found the overworld safe by construction and gave districts danger of their own, twelve weapons in four styles, armour worn and fitted, chrome that fights, loot, a fighter's living in muscle work and fights that teach, a balance simulation across eight builds, and every help topic brought up to date with all of it). The next thing worth doing is another round of the same method: play it three ways and fix what the players say, because every one of the fourteen decisions since D75 came out of somebody playing rather than somebody guessing.
 >
@@ -4887,6 +4887,111 @@ it is not a decision.
 ending settling the city differently and only once, an opening per ending,
 and that the close names what is left and asks for nothing.
 
+### D144: What the players said, again
+
+The method from D86 and D137, turned on the two things the author had been
+building toward: stories for the ways of playing the deck, the chem and the
+fight had opened, and a record that reaches every corner of the Bartle
+square. Three personas, scripted and driven through the real dispatcher
+with the whole transcript kept, each in its own data directory so the real
+profile was never touched: an achiever who read `record` first and then
+chased it (every district, every person, every topic, every place, errands,
+watches, fifteen runs in thirty-three shifts); the ending, played three
+ways by three characters (read the log and take the job, archive it and
+publish, burn it and hand it back); and a fighter who spent forty-two
+shifts on muscle work and the wall at Carrion's, rung four, thirteen wins,
+and then turned to the net and carried the main line to its end. Five
+campaigns, about seventeen hundred turns, no crashes. All four offer
+endings were reached by play, each settled the city once, the palette came
+on the first shift after, the record announced every line exactly once,
+and a second character on the same terminal saw it carried over. A fighter
+build finished five of five runs at Intrusion 1 to 2, so the pivot is
+viable. What they found, in order of size, and what was done about it.
+
+**The posting outlived its own ending.** The offer takes `dw_pattern` *or*
+`dw_carried`, so the three facts alone brought the offer while *Four
+Hundred and Eight* sat on the board, held and non-expiring. After the
+ending it stayed there, and if it had been taken it stayed the current job:
+a character who refused the offer on shift seventeen was still being told
+"On the job: Four Hundred and Eight, `jack in`" on day twelve, and the
+fighter, who refused and then finished the posting later, got "You read
+it, or you do not" as a stray scene after the ending. `City.withdraw_story`
+takes a scene's contract off the board for good and clears it if it was the
+job in hand; `choose` calls it when a choice sets one of the endings, and
+the settle calls it too, for a save that answered before this existed. The
+endings themselves now live in one place, `threads.SPINE_ENDINGS`, read by
+the record, the settle, the ambition and the board. The carried and under
+stages are foreclosed on that path, which is coherent: the offer came, you
+answered, the record with your name goes away.
+
+**Afterwards opened in the same breath as the ending.** D143 said it opens
+a few shifts later, and `after=3` was on all three openers, and "On the
+inside of it" printed directly under "9,000c in." in every campaign.
+`Story._old_enough` measured a thread's first stage from a `met:` rule and
+nothing else; the openers have none, so the wait was a no-op. A first stage
+with no meeting to measure from now measures from the stamp of the thread
+that set the flag it waits on, which `_flag_owners()` already knew. A save
+with no stamp is not held back.
+
+**The name the city called you was catalogue order.** `title_of` took the
+last earned title in `ENTRIES` order, so the achiever was "who asks" on
+`char` through six later names, and the fighter stayed "on the wall" after
+earning "who went and looked". The announcement said one name and `char`
+said another. The profile already keeps `recorded` in the order the lines
+landed; the titles read it now, newest last, and a line earned but not yet
+announced is newer than any that has been.
+
+**The ambition "What Deepwater is" was done on hearing the name.** Its
+predicate was `dw_heard`. Finding out is the three facts, or having gone
+all the way, and the line it prints says so.
+
+**A fighter's experience was advised as `spend`.** Forty-four shifts on the
+wall at Violence 1 with twenty-two experience in hand, and every `now` said
+`spend`, which proposes the origin's shape (Warfare and Forensics for an
+ex-enforcement), and `travel ninth` for a payload. Fights behind you are a
+shape too: with three or more (wins and rungs together) and the next rank
+of Violence affordable, `city_steps` puts `train violence` first, with what
+it buys (Finisher at two, menace at four, a point on every strike between).
+
+**A fighter who never talked had no story, and the journal blamed the
+deck.** Zero threads in forty-two shifts in the Shambles, and the empty
+state read "the city's stories open as you run jobs". All eight of the
+D140 and D141 threads gate on meeting somebody, which is right, and the
+pit never introduced its own house: *The Weight* needs `met:hollis` and
+rung two. The empty state names the street now, and at rung two Hollis
+comes to the tape and writes your name in the ledger herself, so the pit's
+own story opens without a `look` for its owner.
+
+**Polish.** The `world` tension line reads the ending instead of the middle.
+`now` lists `record` under *also* once a line has landed. What a shift
+earned is said after what the shift did: a line of the record used to land
+between "1 shift pass" and "you did not sleep well", and the unlocked box
+between the walk and the street, because `record_progress` printed from
+inside the tick; `Session.announce` queues those while a command is running
+and `invoke` flushes them at the bottom of the block, the way footnotes
+already worked. And the close of *Afterwards* knows the wall: a rung-four
+fighter was told about "a wall in the Shambles with names on it" as if they
+had never seen it, so there are two closes now, `rest` and `rest_wall`,
+gated on `pit:deacon` and its `not:`, and `validate` learned that a stage
+may use the world layer's one combinator.
+
+Kept as observations rather than fixed: the posting is a posture-72
+network at runs five, and two of three who took it came out with nothing
+the first time (the pattern path got them the ending anyway); Dissonance
+stayed at seven across thirty-three chrome-free shifts, so "Deepest drift"
+and "Runners who decided about you" were the only lines the achiever could
+not move; and the previous round's harness did not set `XDG_DATA_HOME`, so
+its personas wrote into the real profile. This round's does, and the next
+round's must.
+
+`test_what_the_players_said` holds all of it: the posting down for each
+answer and for the settle, the afterwards waiting three shifts and not
+held back without a stamp, the two closes and never both, the newest name
+on `char` and the record's header, the ambition, the training step and
+its reasons, the journal's empty state, Hollis at the tape at rung two and
+not before with the pit's story opening after, the tension line, `record`
+under *also*, and a line of the record said after the rest it landed in.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -6581,3 +6686,11 @@ handing the city back. `test_after_the_water`.
 No code. This document brought current: the START HERE block carried from
 D132 to D143, this log backfilled from D111, and the escaped apostrophes
 that a shell heredoc left in the D133 to D143 entries cleaned.
+
+### 2026-09-04 (o): what the players said, again
+
+D144. Three play-tests on the record, the ending three ways, and a fighter
+who ends on the main line: five campaigns, no crashes, every ending reached
+by play. Seven fixes, the largest being the posting that outlived its own
+ending and an afterwards that opened in the same breath.
+`test_what_the_players_said`.

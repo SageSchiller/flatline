@@ -57,6 +57,11 @@ def _best_skill(char) -> int:
     return max((char.skill(k) for k in skills.SKILL_KEYS), default=0)
 
 
+
+def _endings() -> frozenset:
+    from . import threads as thread_content
+    return thread_content.SPINE_ENDINGS
+
 AMBITIONS: tuple[Ambition, ...] = (
     Ambition('feet', 'On your feet',
              'Finish a job. One clean pull and you are a runner, not a '
@@ -91,9 +96,15 @@ AMBITIONS: tuple[Ambition, ...] = (
     Ambition('deepwater', 'What Deepwater is',
              'Nine years of contracts and nobody ever met anybody. Chase the '
              'thing the whole city talks around.',
-             'It finds you as you run. Follow it in the `journal`.',
-             lambda g: 'dw_heard' in g.story.flags,
-             line='You have the thread now. Do not expect it to let go.'),
+             'It finds you as you run. Follow it in the `journal`, and ask '
+             'the people it names.',
+             # Hearing the name was enough for this once (D144). Finding
+             # out is the three facts, or having gone all the way.
+             lambda g: ('dw_pattern' in g.story.flags
+                        or bool(g.story.flags & _endings())),
+             line='Three facts and the shape they make. You know what it is '
+                  'now, which is more than the people who placed the '
+                  'contracts ever did.'),
     Ambition('stash', 'A stake worth keeping',
              'Sit on ten thousand credits at once. Enough to walk away from a '
              'bad night, which is the only real freedom in here.',

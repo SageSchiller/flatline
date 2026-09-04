@@ -870,6 +870,26 @@ class City:
         self.board.append(contract)
         return contract
 
+    def withdraw_story(self, tag: str) -> str:
+        """Take a scene's contract off the board for good (D144).
+
+        A held posting does not expire, which was the point, and it went on
+        not expiring after the story it belonged to had ended: the offer
+        came, was answered, and `now` still said `jack in` on a log nobody
+        needed any more. Returns a line for the wire, or '' if there was
+        nothing to take down.
+        """
+        gone = next((c for c in self.board if c.story == tag), None)
+        if gone is None:
+            return ''
+        self.board = [c for c in self.board if c.cid != gone.cid]
+        if self.accepted == gone.cid:
+            self.accepted = ''
+        line = (f'[dim]{gone.title} is off the board. Nobody says who took '
+                f'it down, and it does not come back.[/]')
+        self.news.append(line)
+        return line
+
     def contract(self, cid: str) -> Contract | None:
         return next((c for c in self.board if c.cid == cid), None)
 
@@ -1097,6 +1117,11 @@ class City:
                 continue
             flags.add('dw_settled')
             told = [line]
+            # The posting with your name on it comes down with the ending
+            # (D144), for a save that answered the offer before this did.
+            taken = self.withdraw_story('deepwater.posting')
+            if taken:
+                told.append(taken)
             for key, delta in (gain, loss):
                 news = self.bump_grip(key, delta)
                 if news:

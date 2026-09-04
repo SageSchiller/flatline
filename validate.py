@@ -2454,6 +2454,10 @@ def check_threads(rep: Report) -> None:
             rep.check(not st.where or st.where in districts.BY_KEY, sw,
                       f'happens in {st.where!r}, which is not a district')
             for rule in tuple(st.requires) + tuple(st.any_of):
+                # `not:` is the world layer's one combinator (D51), and
+                # a stage may use it too (D144): the close that knows
+                # the wall, and the one for everybody else.
+                rule = rule[4:] if rule.startswith('not:') else rule
                 if ':' in rule:
                     kind = rule.split(':')[0]
                     rep.check(kind in thread_content.CONDITIONS, sw,

@@ -138,6 +138,11 @@ class Thread:
     crosses: tuple[str, ...] = ()
 
 
+#: The flags the main line ends on (D143). The record, the settle, the
+#: ambition and the board all read them (D144), so the list lives here.
+SPINE_ENDINGS: frozenset = frozenset(
+    ('dw_employed', 'dw_published', 'dw_refused', 'dw_under', 'dw_stayed'))
+
 THREADS: tuple[Thread, ...] = (
     # ------------------------------------------------------------------
     Thread(
@@ -1339,7 +1344,28 @@ THREADS: tuple[Thread, ...] = (
                   'and a box under a counter that somebody is worried '
                   'about.\n\nNone of it is the main thing. There is no main '
                   'thing any more. That was the reward.',
-                  requires=('after_settled',), sets=('after_rest',), after=4),
+                  requires=('after_settled', 'not:pit:deacon'),
+                  sets=('after_rest',), after=4),
+            # The same close for somebody whose name is on that wall
+            # (D144): a rung-four fighter was told about "a wall in the
+            # Shambles with names on it" as if they had never seen it.
+            Stage('rest_wall', 'The rest of it',
+                  'Somebody asks what you are working on and you find you do '
+                  'not have an answer, and that the not having one is not '
+                  'the same as having nothing to do.\n\n'
+                  'There are seventy-two quarters in this city and you have '
+                  'stood in some of them. There are people in it who have '
+                  'never asked you for anything and would answer if you '
+                  'asked. There is a wall in the Shambles with your name on '
+                  'it above other people\'s, and the people whose names are '
+                  'under yours have not stopped coming in; there is a queue '
+                  'outside the exchange that is not a queue, a thing running '
+                  'on the Freeport cranes that nobody has explained, and a '
+                  'box under a counter that somebody is worried about.\n\n'
+                  'None of it is the main thing. There is no main thing any '
+                  'more. That was the reward.',
+                  requires=('after_settled', 'pit:deacon'),
+                  sets=('after_rest',), after=4),
         )),
 
 )

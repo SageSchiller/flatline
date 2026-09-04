@@ -12943,8 +12943,8 @@ def test_after_the_water() -> None:
     ends = {'employed': 'dw_employed', 'published': 'dw_published',
             'walked': 'dw_refused'}
     after = thread_content.BY_KEY['afterwards']
-    T.ok({st.key for st in after.stages} == set(ends) | {'rest'},
-         'an opening for each way it ended, and one close')
+    T.ok({st.key for st in after.stages} == set(ends) | {'rest', 'rest_wall'},
+         'an opening for each way it ended, and a close (two, since D144)')
     for stage_key, flag in ends.items():
         sess, con, game = fresh('dw_heard', flag)
         game.city.shift += 10
@@ -12958,12 +12958,230 @@ def test_after_the_water() -> None:
 
     # The close is the point: it names what is left and says there is no
     # main thing any more.
-    rest = next(st for st in after.stages if st.key == 'rest')
-    T.ok('seventy-two quarters' in rest.text and 'no main thing' in rest.text,
-         'and it hands the city back rather than stopping')
+    for rest in (st for st in after.stages if st.key.startswith('rest')):
+        T.ok('seventy-two quarters' in rest.text and 'no main thing' in rest.text,
+             f'and {rest.key} hands the city back rather than stopping')
     T.ok(not any(ch for st in after.stages for ch in st.choices),
          'with nothing left to decide, because it is not a decision')
 
+
+def test_what_the_players_said() -> None:
+    """D144: what the second round of play-tests found. The posting comes
+    down with the ending, the afterwards waits its few shifts, the name is
+    the newest one, the ambition means finding out, a fighter is told to
+    train, the wall has an owner, and what a shift earned is said after
+    what it did."""
+    T.section('what the players said')
+    from flatline.content import threads as thread_content, ambitions
+    from flatline.content import record as record_content
+    from flatline.world import record as record_world
+    from flatline.commands.people import _check_story
+    from flatline.commands.city import city_steps
+    from flatline import save as save_mod
+
+    def fresh(*flags, runs=6, seed=7, where=''):
+        char = Character.from_origin('gutter', 't')
+        char.runs = runs
+        game = Game.new(char, seed=seed)
+        game.story.flags.update(flags)
+        if where:
+            game.city.where = where
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    def do(sess, con, cmd):
+        con.start_capture()
+        sess.execute(cmd)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    def story(sess, con):
+        con.start_capture()
+        _check_story(sess)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    save_mod.write_meta(dict(save_mod.META_DEFAULT))
+
+    # 1. The posting comes down with the ending, whichever way it went.
+    posting = thread_content.ALL_STAGES['deepwater.posting'].posts
+    offer = next(st for st in thread_content.BY_KEY['deepwater'].stages
+                 if st.key == 'offer')
+    for answer in ('refuse', 'take', 'publish'):
+        sess, con, game = fresh('dw_heard', 'dw_logs', 'dw_name', 'dw_inside',
+                                'dw_pattern', 'dw_posting')
+        contract = game.city.post_story(game.rng, game.alias, posting,
+                                        'deepwater.posting')
+        game.city.accepted = contract.cid
+        game.story.reach('deepwater', offer, game.city.shift)
+        out = do(sess, con, f'choose {answer}')
+        T.ok('off the board' in out, f'{answer}: the posting comes down')
+        T.ok(game.city.contract(contract.cid) is None,
+             f'{answer}: and it is gone from the board')
+        T.ok(game.city.accepted == '',
+             f'{answer}: and it is no longer the job you are on')
+        T.ok(not any(cmd == 'jack in' for cmd, _ in city_steps(game)),
+             f'{answer}: so `now` stops saying jack in')
+    # A save that answered before this existed: the settle takes it down.
+    sess, con, game = fresh('dw_heard', 'dw_employed')
+    contract = game.city.post_story(game.rng, game.alias, posting,
+                                    'deepwater.posting')
+    told = game.city.advance(game.rng, game.alias, 1, char=game.char,
+                             flags=game.story.flags)
+    T.ok(game.city.contract(contract.cid) is None
+         and any('off the board' in strip_ansi(t) for t in told),
+         'the settle takes it down too, for a save that answered earlier')
+    T.ok(game.city.withdraw_story('deepwater.posting') == '',
+         'and there is nothing to take down twice')
+
+    # 2. Afterwards waits its few shifts: measured from the offer's stamp.
+    sess, con, game = fresh('dw_heard', 'dw_employed')
+    game.story.when['thread:deepwater'] = game.city.shift
+    story(sess, con)
+    T.ok('afterwards' not in game.story.reached,
+         'the afterwards does not open in the same breath as the offer')
+    game.city.shift += 2
+    story(sess, con)
+    T.ok('afterwards' not in game.story.reached, 'nor two shifts on')
+    game.city.shift += 1
+    story(sess, con)
+    T.ok('employed' in game.story.reached.get('afterwards', []),
+         'it opens three shifts later')
+    sess, con, game = fresh('dw_heard', 'dw_published')
+    story(sess, con)
+    T.ok('published' in game.story.reached.get('afterwards', []),
+         'and a save with no stamp to measure from is not held back')
+
+    # The close knows the wall.
+    sess, con, game = fresh('after_settled', 'pit:deacon')
+    story(sess, con)
+    story(sess, con)
+    reached = game.story.reached.get('afterwards', [])
+    T.ok('rest_wall' in reached and 'rest' not in reached,
+         'a fighter on the wall gets the close that knows it')
+    T.ok('your name on it' in thread_content.ALL_STAGES['afterwards.rest_wall'].text,
+         'and it says so')
+    sess, con, game = fresh('after_settled')
+    story(sess, con)
+    story(sess, con)
+    reached = game.story.reached.get('afterwards', [])
+    T.ok('rest' in reached and 'rest_wall' not in reached,
+         'everybody else gets the other one, and never both')
+
+    # 3. The newest name is the one the city uses.
+    counts = {e.counter: e.target for e in record_content.ENTRIES
+              if e.key in ('asked', 'runner')}
+    asked = record_content.BY_KEY['asked'].title
+    runner = record_content.BY_KEY['runner'].title
+    T.eq(record_world.title_of(counts, ['asked', 'runner']), runner,
+         'the name is the last one that landed')
+    T.eq(record_world.title_of(counts, ['runner', 'asked']), asked,
+         'whichever order that was')
+    T.eq(record_world.title_of(counts, ['runner']), asked,
+         'and a line earned but not yet said is newer than any that has been')
+    T.eq(record_world.title_of(counts), asked,
+         'with no order known, the catalogue order stands')
+    full = {e.counter: e.target for e in record_content.ENTRIES}
+    T.eq(record_world.title_of(full, [e.key for e in record_content.ENTRIES]),
+         record_content.COMPLETE, 'doing the lot is still the last word')
+    meta = dict(save_mod.META_DEFAULT)
+    meta.update(counts)
+    meta['recorded'] = ['asked', 'runner']
+    save_mod.write_meta(meta)
+    sess, con, game = fresh(runs=0)
+    T.ok(runner in do(sess, con, 'char'), '`char` calls you the newest name')
+    T.ok(runner in do(sess, con, 'record').split('the work')[0],
+         'and so does the record\'s header')
+    T.ok('record' in do(sess, con, 'now').split('also')[-1],
+         'and once a line has landed, `now` lists the record')
+    save_mod.write_meta(dict(save_mod.META_DEFAULT))
+    sess, con, game = fresh(runs=0)
+    T.ok('record' not in do(sess, con, 'now').split('also')[-1],
+         'and not before')
+
+    # 4. The ambition means finding out.
+    amb = next(a for a in ambitions.AMBITIONS if a.key == 'deepwater')
+    sess, con, game = fresh('dw_heard')
+    T.ok(not amb.done(game), 'hearing the name is not finding out')
+    game.story.flags.add('dw_pattern')
+    T.ok(amb.done(game), 'the three facts are')
+    sess, con, game = fresh('dw_heard', 'dw_refused')
+    T.ok(amb.done(game), 'and so is having gone all the way')
+
+    # 5. A fighter with fights behind them is told to train, and why.
+    sess, con, game = fresh(runs=0)
+    game.city.fights_won = 5
+    game.char.xp = 8
+    game.char.base_skills['violence'] = 1
+    steps = city_steps(game)
+    T.ok(steps and steps[0][0] == 'train violence' and 'Finisher' in steps[0][1],
+         'five fights and eight experience: train violence, and what it buys')
+    T.ok('train violence' in do(sess, con, 'now'), 'and `now` says so first')
+    game.char.base_skills['violence'] = 3
+    game.char.xp = 11
+    T.ok('menace' in city_steps(game)[0][1], 'at three, what four buys')
+    game.char.xp = 1
+    T.ok(not any(cmd == 'train violence' for cmd, _ in city_steps(game)),
+         'not when it cannot be afforded')
+    game.char.xp = 8
+    game.city.fights_won = 0
+    T.ok(not any(cmd == 'train violence' for cmd, _ in city_steps(game)),
+         'and not to somebody who has never fought')
+
+    # 6. The journal knows the other half opens stories, and the wall has
+    # an owner who meets you at the tape.
+    T.ok('fight' in do(sess, con, 'journal'),
+         'the journal\'s empty state names the street too')
+    from flatline.content import pit as pit_content
+    char = Character.from_origin('gutter', 't')
+    char.base_skills['violence'] = 5
+    char.base_attrs['grit'] = 9
+    char.weapon = 'katana'
+    char.armour = 'carrier'
+    char.credits = 3000
+    game = Game.new(char, seed=3)
+    game.city.where = pit_content.WHERE
+    con = quiet_console()
+    sess = Session(console=con, slot='t')
+    sess.game = game
+    met_at = None
+    for name in ('bottle', 'hinge'):
+        while game.city.phase != 'night':
+            game.city.shift += 1
+        out = do(sess, con, f'pit {name} 0')
+        for _ in range(16):
+            if sess.pending is None:
+                break
+            ch = sess.pending.choices
+            out += do(sess, con, 'finish' if 'finish' in ch else 'strike')
+        if 'hollis' in game.story.met and met_at is None:
+            met_at = (name, out)
+        game.city.shift += 1
+    T.ok(int(game.city.pit.get('rank', 0)) >= 2, 'two rungs taken')
+    T.ok(met_at is not None and met_at[0] == 'hinge' and 'Hollis' in met_at[1],
+         'and the house came to the tape at rung two, not before')
+    story(sess, con)
+    T.ok('noticed' in game.story.reached.get('weight', []),
+         'so the pit\'s own story opens without a `look` for its owner')
+
+    # 7. The tension reads the ending, and what a shift earned is said
+    # after what the shift did.
+    sess, con, game = fresh('dw_heard', 'dw_refused')
+    T.ok('Settled' in do(sess, con, 'world'), 'the tension reads the ending')
+    sess, con, game = fresh('dw_heard', 'dw_inside')
+    T.ok('sit still' in do(sess, con, 'world'), 'and the middle as before')
+    save_mod.write_meta(dict(save_mod.META_DEFAULT))
+    sess, con, game = fresh(runs=0, where='glasshouse')
+    game.story.flags.update({f'visited:{n}' for n in range(30)})
+    out = do(sess, con, 'rest')
+    T.ok('did not sleep well' in out and 'the record' in out,
+         'a line of the record lands during a rest somewhere rough')
+    T.ok(out.index('did not sleep well') < out.index('the record'),
+         'and is said after the rest, not in the middle of it')
+    T.ok('the record' in do(sess, con, 'record').lower()
+         and 'who stands about' in do(sess, con, 'char'),
+         'and it was recorded')
+    save_mod.write_meta(dict(save_mod.META_DEFAULT))
 
 
 def manual_body(key: str) -> str:
@@ -14260,6 +14478,7 @@ SUITES = (
     test_a_thread_for_every_way_of_working,
     test_the_record,
     test_after_the_water,
+    test_what_the_players_said,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

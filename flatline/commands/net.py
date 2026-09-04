@@ -337,7 +337,7 @@ def cmd_record(sess, args) -> None:
     if not shown:
         raise CommandError('the sections are: '
                            + ', '.join(record_content.SECTION_KEYS))
-    title = record_world.title_of(counts)
+    title = record_world.title_of(counts, meta.get('recorded'))
     c.header('The record', f'{len(done)} of {len(record_content.ENTRIES)}'
                            + (f'  {title}' if title else ''))
     for key, name, blurb in record_content.SECTIONS:

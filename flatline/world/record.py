@@ -65,9 +65,20 @@ def sections_done(counts_now: dict) -> list[str]:
             if all(e.key in got for e in record_content.BY_SECTION[k])]
 
 
-def titles(counts_now: dict) -> list[str]:
-    """What the city calls you, best last."""
-    out = [e.title for e in earned(counts_now) if e.title]
+def titles(counts_now: dict, recorded=None) -> list[str]:
+    """What the city calls you, newest last.
+
+    `recorded` is the profile's list of lines in the order they landed
+    (D144). It used to be catalogue order, so the name on `char` was
+    whichever earned line sat latest in the list: "who asks" through six
+    later names, and "on the wall" after "who went and looked". A line
+    earned but not yet announced is newer than any that has been.
+    """
+    got = earned(counts_now)
+    if recorded:
+        order = {k: i for i, k in enumerate(recorded)}
+        got.sort(key=lambda e: order.get(e.key, len(order)))
+    out = [e.title for e in got if e.title]
     for k in sections_done(counts_now):
         out.append(record_content.SECTION_TITLE[k])
     if len(earned(counts_now)) == len(record_content.ENTRIES):
@@ -75,6 +86,6 @@ def titles(counts_now: dict) -> list[str]:
     return out
 
 
-def title_of(counts_now: dict) -> str:
-    got = titles(counts_now)
+def title_of(counts_now: dict, recorded=None) -> str:
+    got = titles(counts_now, recorded)
     return got[-1] if got else ''
