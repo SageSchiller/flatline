@@ -78,6 +78,12 @@ TRACE_HISTORY = 60
 NOISE_TO_TRACE = 0.30
 #: Local noise removed from every node each tick.
 NOISE_DECAY = 2
+#: The nemesis race (D120): a nemesis in the run is after the same thing you
+#: are. How many of your ticks before they warn you they are ahead, before
+#: they reach it first, and how much of the haul they take if they do.
+RIVAL_RACE_WARN = 4
+RIVAL_RACE_STEAL = 9
+RIVAL_SKIM = 0.6
 #: Node noise at which dormant ICE there wakes up.
 NOISE_WAKE = 8
 #: Node noise at which the whole network escalates one alert level.
@@ -198,6 +204,12 @@ class RunState:
     #: of them turns out to be in here too (D89).
     rivals: list = field(default_factory=list)
     company: dict = field(default_factory=dict)
+    #: A nemesis racing you for the objective in this run (D120): the dict
+    #: from `rivals`, or empty. `rival_lead` is how far ahead they have got,
+    #: and `rival_won` records who reached it first once it is settled.
+    rival_race: dict = field(default_factory=dict)
+    rival_lead: int = 0
+    rival_won: str = ''
     #: How the run draws its pictures (D105/D110), copied off the session so
     #: the engine can draw a construct at the tell without reaching for the
     #: shell. 'none' turns off both the pictures and the screen effects.
@@ -717,6 +729,7 @@ class RunState:
             self._ice_tick()
             self._incident_tick()
             self._response_tick()
+            self._rival_race_tick()
             self._surveil_tick()
             self._root_tick()
             self._decay_noise()
@@ -1241,11 +1254,27 @@ class RunState:
         their noise is your cover; cold and they tip the room; anything
         else and you read each other's scans and say nothing.
         """
-        who = dict(self.rng.pick(self.rivals))
+        # A nemesis in here is not a coincidence: if one of the runners has
+        # decided you are their problem (D120), it is them, and they came for
+        # this. Anybody else is the old roll of the dice.
+        nem = next((r for r in self.rivals if r.get('bond') == 'nemesis'), None)
+        who = dict(nem or self.rng.pick(self.rivals))
         name = who['name']
         disposition = int(who.get('disposition', 0))
         self.console.blank()
-        if disposition >= 30:
+        if who.get('bond') == 'nemesis' or disposition <= -70:
+            # In the one place it can actually cost you, and after the same
+            # thing. Now it is a race, and the clock is the other half of it.
+            who['kind'] = 'rival'
+            self.console.rule('company', role='err')
+            self.console.say(f'[ice]{name}. In here, on this, the same night '
+                             f'you are, and not by accident. They are after '
+                             f'what you are after, and they did not come '
+                             f'second on purpose.[/]')
+            self.escalate(1, f'{name} is working the room too')
+            self.rival_race = who
+            self.rival_lead = 0
+        elif disposition >= 30:
             who['kind'] = 'cover'
             self.console.say(f'[ok]{name}. Their traffic is louder than '
                              f'yours, and it is on purpose.[/]')
@@ -1264,6 +1293,60 @@ class RunState:
             self._incident_reveal('hosts')
         self.company = who
         self.log(f'company: {name}')
+
+    def _rival_race_tick(self) -> None:
+        """A nemesis racing you gets closer to the objective every tick you
+        spend not securing it (D120). Beat them to it and it is a win they
+        will remember; be too slow and they take the part that mattered and
+        leave the alarm behind them. Either way it is settled, and the run
+        stops being a solo problem the moment they are in it.
+        """
+        race = self.rival_race
+        if not race or self.rival_won:
+            return
+        if self.objective_met():
+            self._rival_beaten(race)
+            return
+        self.rival_lead += 1
+        if self.rival_lead == RIVAL_RACE_WARN:
+            self.console.blank()
+            self.console.say(f'[warn]{race["name"]} is moving fast in here. '
+                             f'Whatever it is, they are closer to it than you '
+                             f'are.[/]')
+        elif self.rival_lead >= RIVAL_RACE_STEAL:
+            self._rival_snatch(race)
+
+    def _rival_beaten(self, race: dict) -> None:
+        self.rival_race = {}
+        self.rival_won = 'you'
+        self.company['race'] = 'you'
+        self.console.blank()
+        self.console.rule('first', role='ok')
+        self.console.say(f'[ok]You took it out from under {race["name"]}. They '
+                         f'were fast. You were faster, tonight, and they '
+                         f'watched you do it. They will not forget that you '
+                         f'can.[/]')
+
+    def _rival_snatch(self, race: dict) -> None:
+        self.rival_race = {}
+        self.rival_won = 'them'
+        self.company['race'] = 'them'
+        name = race['name']
+        self.console.blank()
+        self.console.rule('second', role='err')
+        found = self.net.find_asset(self.net.objective_asset)
+        asset = found[1] if found else None
+        if asset is not None and not asset.taken:
+            gone = int(asset.value * RIVAL_SKIM)
+            asset.value = max(1, asset.value - gone)
+            self.console.say(f'[ice]{name} got to it first. It is still there, '
+                             f'and it is worth {RIVAL_SKIM:.0%} less, because '
+                             f'they already took the part that was worth '
+                             f'coming for.[/]')
+        else:
+            self.console.say(f'[ice]{name} got what they came for and is out. '
+                             f'You are standing in what they left.[/]')
+        self.escalate(1, f'{name} tripped it on the way past')
 
     def _apply_incident(self, it) -> None:
         """Print it and do it, with every number on the line that does it."""

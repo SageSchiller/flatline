@@ -11008,6 +11008,67 @@ def test_the_reckoning() -> None:
          'not on top of a waiting question')
 
 
+def test_the_nemesis_run() -> None:
+    """D120: a nemesis is a felt obstacle inside a run, racing you for it."""
+    T.section('the nemesis in the run')
+    from flatline.run import network as net_mod
+    from flatline.run import session as run_mod
+    from flatline.run.session import RunState
+    from flatline.rng import Rng
+
+    def a_run(bond='nemesis', disp=-85, key='hound', obj='exfiltrate'):
+        char = Character.from_origin('gutter', 't')
+        Game.new(char, seed=5)
+        net = net_mod.generate(Rng(5).fork('network', 't'), 'sixes', 40, obj, 1.0)
+        con = quiet_console()
+        st = RunState.begin(net, char, Rng(5)('combat'), con,
+                            contract={'objective': obj, 'title': 'T'})
+        st.render_mode = 'none'
+        st.rivals = [{'key': key, 'name': 'Hound', 'disposition': disp,
+                      'style': 'loud', 'bond': bond}]
+        return st, con
+
+    # A nemesis in the pool is the one who turns up, and it is a race.
+    st, con = a_run()
+    con.start_capture()
+    st._company()
+    out = strip_ansi(con.end_capture())
+    T.ok(st.rival_race and st.company.get('kind') == 'rival',
+         'a nemesis in the run starts a race')
+    T.ok('after what you are after' in out, 'and says what it is')
+
+    # Too slow, and they take the part that mattered.
+    found = st.net.find_asset(st.net.objective_asset)
+    before = found[1].value if found else 0
+    warned = stole = False
+    for _ in range(run_mod.RIVAL_RACE_STEAL + 1):
+        con.start_capture()
+        st._rival_race_tick()
+        line = strip_ansi(con.end_capture())
+        warned = warned or 'closer to it than you' in line
+        stole = stole or 'second' in line
+    T.ok(warned, 'they warn you they are ahead')
+    T.ok(stole and st.rival_won == 'them', 'and reach it first if you dawdle')
+    after = st.net.find_asset(st.net.objective_asset)
+    T.ok(after and after[1].value < before, 'skimming the objective on the way')
+
+    # Beat them to it, and it is a win they will remember (a sharper grudge).
+    st, con = a_run()
+    st._company()
+    st.haul.append(st.net.objective_asset)
+    con.start_capture()
+    st._rival_race_tick()
+    T.ok('first' in strip_ansi(con.end_capture()) and st.rival_won == 'you',
+         'securing it first beats them')
+    T.eq(st.company.get('race'), 'you', 'and the run remembers who won')
+
+    # An ordinary rival is the old roll, not a race.
+    st, con = a_run(bond=None, disp=10)
+    con.start_capture()
+    st._company()
+    T.ok(not st.rival_race, 'a rival who is not your nemesis does not race you')
+
+
 def test_the_lifeline() -> None:
     """D118: the fading blank-prompt reminder for a brand-new runner."""
     T.section('the lifeline')
@@ -12015,6 +12076,7 @@ SUITES = (
     test_the_way_in, test_more_to_say, test_the_door, test_corporate_night,
     test_named_shelf, test_and_in_nights, test_the_fourth_wave,
     test_the_cold_open, test_ambitions, test_the_lifeline, test_the_reckoning,
+    test_the_nemesis_run,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

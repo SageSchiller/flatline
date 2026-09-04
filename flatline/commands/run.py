@@ -262,7 +262,8 @@ def cmd_jack_in(sess, args) -> None:
     busy = {game.city.hired, (game.city.crew or {}).get('key', '')}
     state.render_mode = sess.render_mode
     state.rivals = [{'key': r.key, 'name': r.name,
-                     'disposition': r.disposition, 'style': r.data.style}
+                     'disposition': r.disposition, 'style': r.data.style,
+                     'bond': r.bond}
                     for r in game.city.rivals
                     if r.alive and r.key not in busy]
     sess.run = state
@@ -537,9 +538,17 @@ def _resolve(sess) -> None:
         rival = game.city.rival(company.get('key', ''))
         short = fac_content.BY_KEY[summary['faction']].short
         line = f'{company["name"]} was in {short} the same night you were.'
+        race = company.get('race')
+        if race == 'you':
+            # You beat your nemesis to it in their own back yard (D120). That
+            # is the kind of thing that makes an enemy worse, not better.
+            line = f'{company["name"]} was in {short} too, and came second.'
+        elif race == 'them':
+            line = f'{company["name"]} got there first in {short}. You were the one who came second.'
         if rival is not None:
-            rival.adjust_disposition({'cover': 3, 'tip': -3}.get(
-                company.get('kind', ''), 1))
+            rival.adjust_disposition(
+                {'cover': 3, 'tip': -3}.get(company.get('kind', ''), 1)
+                if race is None else (-8 if race == 'you' else -2))
             rival.last = line
         game.city.news.append(f'[dim]{line}[/]')
     if summary['outcome'] == 'severed':
