@@ -346,6 +346,10 @@ class Session:
             doorways_held=sum(1 for f in flags if f.startswith('job:'))
                           + int(getattr(game.city, 'doorways', 0)),
             kills_done=1 if 'killer' in flags else 0,
+            # The main line, carried to one of its ends (D143).
+            spine_finished=1 if flags & {'dw_employed', 'dw_published',
+                                         'dw_refused', 'dw_under',
+                                         'dw_stayed'} else 0,
             best_credits=game.char.credits,
             deepest_drift=game.char.dissonance,
             districts_seen=len(game.city.visited),

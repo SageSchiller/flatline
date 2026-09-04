@@ -1288,6 +1288,60 @@ THREADS: tuple[Thread, ...] = (
                   sets=('demo_closed',), where='glasshouse', after=4),
         )),
 
+    # -- what the city is, afterwards (D143) --------------------------------
+    Thread(
+        'afterwards', 'Afterwards',
+        'The thing about the water is finished. The city is not.',
+        (
+            Stage('employed', 'On the inside of it',
+                  'You work for it now, in whatever sense that word survives '
+                  'this. The money is real and arrives, and the work is a '
+                  'kind you can do, and nobody has asked you to do anything '
+                  'you would describe as wrong, yet, out loud.\n\n'
+                  'What is strange is the city afterwards. It is exactly the '
+                  'same size and you can see all of it, and none of it is '
+                  'about the water any more, and there turns out to be a '
+                  'great deal of it.',
+                  requires=('runs:5', 'dw_employed'),
+                  sets=('after_settled',), after=3),
+            Stage('published', 'Nine logs, in print',
+                  'The Stacks ran it. Nine logs, in order, with the dates, '
+                  'and the part that got people was not the water, it was '
+                  'the ordinariness of the memos.\n\nFor eleven days it is '
+                  'the only thing anybody says to you. On the twelfth '
+                  'somebody in a queue asks whether you did the thing with '
+                  'the printers, which was somebody else, and you say no, '
+                  'and the conversation moves on, and the city closes over '
+                  'it the way it closes over everything.',
+                  requires=('runs:5', 'dw_published'),
+                  sets=('after_settled',), after=3),
+            Stage('walked', 'You let it alone',
+                  'You know what it is and you did not take the money and '
+                  'you did not put it in print, and both of those were '
+                  'decisions and neither of them was nothing.\n\nThe noodle '
+                  'bar has four landlines. One of them has never rung in '
+                  'anybody\'s hearing. You go past it about as often as you '
+                  'used to and you notice it every single time, and the rest '
+                  'of the district goes on being a district.',
+                  requires=('runs:5',),
+                  any_of=('dw_refused', 'dw_stayed'),
+                  sets=('after_settled',), after=3),
+            Stage('rest', 'The rest of it',
+                  'Somebody asks what you are working on and you find you do '
+                  'not have an answer, and that the not having one is not '
+                  'the same as having nothing to do.\n\n'
+                  'There are seventy-two quarters in this city and you have '
+                  'stood in some of them. There are people in it who have '
+                  'never asked you for anything and would answer if you '
+                  'asked. There is a wall in the Shambles with names on it, '
+                  'a queue outside the exchange that is not a queue, a thing '
+                  'running on the Freeport cranes that nobody has explained, '
+                  'and a box under a counter that somebody is worried '
+                  'about.\n\nNone of it is the main thing. There is no main '
+                  'thing any more. That was the reward.',
+                  requires=('after_settled',), sets=('after_rest',), after=4),
+        )),
+
 )
 
 BY_KEY: dict[str, Thread] = {t.key: t for t in THREADS}

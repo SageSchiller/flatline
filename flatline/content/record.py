@@ -66,6 +66,12 @@ ENTRIES: tuple[Entry, ...] = (
           title='in the middle of things',
           earned='Ten stories with you in them. The city has started using '
                  'your name to explain other things that happened.'),
+    Entry('spine', 'work', 'The main line, carried to an end',
+          'spine_finished', 1,
+          title='who went and looked',
+          earned='You took the thing about the water all the way to one of '
+                 'its ends. Most people who hear the name never find out '
+                 'what it is.'),
     Entry('errands', 'work', 'Street work done', 'errands_done', 15,
           earned='Fifteen jobs that needed no deck. Somebody always needs '
                  'something carried, and now they ask for you.'),

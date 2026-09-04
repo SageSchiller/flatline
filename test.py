@@ -12883,6 +12883,88 @@ def test_the_record() -> None:
     T.ok('called' in strip_ansi(con.end_capture()), 'the sheet says what you are called')
 
 
+def test_after_the_water() -> None:
+    """D143: finishing the main line pays, changes the city once, and hands
+    it back rather than stopping."""
+    T.section('after the water')
+    from flatline.content import threads as thread_content, rice, record as record_content
+    from flatline.world import record as record_world
+    from flatline.commands.people import _check_story
+    from flatline import save as save_mod
+
+    def fresh(*flags, runs=6, seed=7):
+        char = Character.from_origin('gutter', 't')
+        char.runs = runs
+        game = Game.new(char, seed=seed)
+        game.story.flags.update(flags)
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    def story(sess, con):
+        con.start_capture()
+        _check_story(sess)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    # The reward: a terminal nobody gets any other way, and a line on the
+    # record with a name attached.
+    deep = next(c for c in rice.COSMETICS
+                if c.kind == 'palette' and c.key == 'deepwater')
+    T.ok(deep.needs[0] == 'spine',
+         'the Deepwater palette is behind the main line, not behind drift')
+    T.ok(rice.COUNTERS['spine'] == 'spine_finished'
+         and 'spine_finished' in save_mod.META_DEFAULT,
+         'and the profile keeps whether it was finished')
+    entry = record_content.BY_KEY['spine']
+    T.ok(entry.target == 1 and entry.title, 'the record has a line for it, with a name')
+    got = record_world.earned({'spine_finished': 1})
+    T.ok(any(e.key == 'spine' for e in got), 'which lands on finishing it')
+
+    # The city settles, once, and differently by ending.
+    seen = {}
+    for ending in ('dw_employed', 'dw_published', 'dw_refused', 'dw_stayed'):
+        sess, con, game = fresh('dw_heard', ending)
+        before = dict(game.city.grip)
+        told = game.city.advance(game.rng, game.alias, 1, char=game.char,
+                                 flags=game.story.flags)
+        line = ' '.join(strip_ansi(' '.join(told)).split())
+        seen[ending] = line
+        T.ok('dw_settled' in game.story.flags, f'{ending}: the city settles it')
+        T.ok(game.city.grip != before, f'{ending}: and somebody gains or loses by it')
+        again = game.city.advance(game.rng, game.alias, 1, char=game.char,
+                                  flags=game.story.flags)
+        T.ok(not any('water' in strip_ansi(t) and 'budget' in strip_ansi(t)
+                     for t in again), f'{ending}: and only says it once')
+    T.ok(seen['dw_employed'] != seen['dw_published'] != seen['dw_refused'],
+         'each ending is a different thing happening to the city')
+
+    # And the thread that hands the city back, one opening per ending.
+    ends = {'employed': 'dw_employed', 'published': 'dw_published',
+            'walked': 'dw_refused'}
+    after = thread_content.BY_KEY['afterwards']
+    T.ok({st.key for st in after.stages} == set(ends) | {'rest'},
+         'an opening for each way it ended, and one close')
+    for stage_key, flag in ends.items():
+        sess, con, game = fresh('dw_heard', flag)
+        game.city.shift += 10
+        story(sess, con)
+        story(sess, con)
+        game.city.shift += 20
+        story(sess, con)
+        reached = game.story.reached.get('afterwards', [])
+        T.ok(stage_key in reached or 'rest' in reached,
+             f'{flag} opens the afterwards')
+
+    # The close is the point: it names what is left and says there is no
+    # main thing any more.
+    rest = next(st for st in after.stages if st.key == 'rest')
+    T.ok('seventy-two quarters' in rest.text and 'no main thing' in rest.text,
+         'and it hands the city back rather than stopping')
+    T.ok(not any(ch for st in after.stages for ch in st.choices),
+         'with nothing left to decide, because it is not a decision')
+
+
 
 def manual_body(key: str) -> str:
     from flatline.content import manual
@@ -14177,6 +14259,7 @@ SUITES = (
     test_the_story_knows_the_street,
     test_a_thread_for_every_way_of_working,
     test_the_record,
+    test_after_the_water,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

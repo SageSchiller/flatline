@@ -310,6 +310,9 @@ class City:
                     told.append(f'[warn]{night.name}.[/] {night.blurb}')
             elif self.phase != 'night' and self.tonight:
                 self.tonight = ''
+            # The water, settled (D143). Once, and the city keeps going.
+            if flags is not None and 'dw_settled' not in flags:
+                told.extend(self._settle_deepwater(flags))
             alias.decay_heat(
                 1.4 if 'no_history' in riders
                 else 1.5 if 'vouched_for' in riders
@@ -1066,6 +1069,41 @@ class City:
             stream = _Rng(0)('events')
         return fallout_mod.arrival_risk(stream, alias, self, target,
                                         flags or (), riders=riders or ())
+
+    def _settle_deepwater(self, flags) -> list[str]:
+        """What the city does about the main line having ended (D143).
+
+        The endings used to move a contract weight and nothing else, so a
+        campaign\'s last decision changed the board and not the world. This
+        is the world: who gained, who lost, and the city saying so once.
+        """
+        endings = {
+            'dw_employed': (('deepwater', 10), ('kagawa', 6),
+                            '[warn]Something in the water has been given a '
+                            'budget line.[/] Nobody will say whose.'),
+            'dw_published': (('static', 14), ('kagawa', -12),
+                             '[warn]The Stacks ran the nine logs.[/] For '
+                             'eleven days it is the only thing anybody says '
+                             'to anybody.'),
+            'dw_refused': (('deepwater', -4), ('kagawa', -2),
+                           '[dim]Nothing happens about the water. That is '
+                           'not the same as nothing having happened.[/]'),
+            'dw_stayed': (('deepwater', -4), ('kagawa', -2),
+                          '[dim]Nothing happens about the water. That is '
+                          'not the same as nothing having happened.[/]'),
+        }
+        for flag, (gain, loss, line) in endings.items():
+            if flag not in flags:
+                continue
+            flags.add('dw_settled')
+            told = [line]
+            for key, delta in (gain, loss):
+                news = self.bump_grip(key, delta)
+                if news:
+                    told.append(news)
+            self.news.append(line)
+            return told
+        return []
 
     # -- consequences --------------------------------------------------
 

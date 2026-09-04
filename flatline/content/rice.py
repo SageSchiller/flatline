@@ -91,6 +91,7 @@ COUNTERS: dict[str, str] = {
     'standing': 'best_standing',
     'characters': 'characters_created',
     'errands': 'errands_done',
+    'spine': 'spine_finished',
 }
 
 
@@ -142,9 +143,11 @@ COSMETICS: tuple[Cosmetic, ...] = (
                   'where that is true.'),
     Cosmetic('deepwater', 'palette', 'Deepwater',
              'Nobody has established what Deepwater is. This is what the '
-             'inside of not knowing looks like.',
-             needs=('drift', 50),
-             hint='Reach Submerged. You will know when.'),
+             'inside of not knowing looks like, and it is the one thing on '
+             'this list you cannot reach by going further in: you have to '
+             'have gone and found out (D143).',
+             needs=('spine', 1),
+             hint='Carry the thing about the water to one of its ends.'),
     Cosmetic('static', 'palette', 'Static',
              'Pirate broadcast, and the harshest thing on this list by a '
              'distance.',

@@ -411,6 +411,8 @@ META_DEFAULT = {
     'factions_fought': 0,
     'doorways_held': 0,
     'kills_done': 0,
+    #: The main line, carried to one of its ends (D143).
+    'spine_finished': 0,
     #: Record lines earned, so each is said once and stays said.
     'recorded': [],
     #: `kind:key` for everything earned, so a new unlock can be announced once.
