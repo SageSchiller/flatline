@@ -467,6 +467,74 @@ ORIGINS: tuple[Origin, ...] = (
 ORIGIN_KEYS: tuple[str, ...] = tuple(o.key for o in ORIGINS)
 BY_KEY: dict[str, Origin] = {o.key: o for o in ORIGINS}
 
+#: The lifepath opening (D126): the first beat where the complication you
+#: started under stops being a line on the sheet and starts being a thing that
+#: is happening. It fires once, after your first run, because a first job is
+#: what puts you back on the radar of whatever you came from.
+ORIGIN_OPENING: dict[str, str] = {
+    'defector':
+        'A message reaches you through a channel you were sure you had '
+        'closed. It is not a threat. It is worse than a threat: it is polite, '
+        'it uses your first name, and it says the Vertical hopes you are '
+        'keeping the laptop somewhere dry.',
+    'gutter':
+        'Somebody from the Sixes buys you a drink you did not order, in a bar '
+        'you told nobody you would be in. They do not sit down. They just '
+        'wanted you to see that they could have.',
+    'protege':
+        'Mara sends nothing after your first job. No note, no congratulation, '
+        'no correction. From anybody else that would mean nothing. From her '
+        'it means she is waiting to see what you do with the second one.',
+    'academic':
+        'The loan on the deck posts its first real interest, and the number '
+        'is worse than the maths you did, because you did the maths as though '
+        'the lender were a bank. The statement arrives by hand, which banks '
+        'do not do.',
+    'expolice':
+        'Somebody runs your face on your way out. You feel it the way you '
+        'were trained to, from the other side of it. The bounty on you is not '
+        'theoretical any more. It has a shift and a place attached to it now, '
+        'and the place is here.',
+    'chromed':
+        'The ocular suite does a thing it has not done before. It holds, for '
+        'exactly one second, on a maintenance node you had no reason to look '
+        'at, and then lets go as if nothing happened. Something in you is '
+        'filing reports, and it is not you.',
+    'bonded':
+        'Kagawa\'s number ticks over, the way it does every shift, and this '
+        'time a note comes with it. Not a demand. A reminder that they know '
+        'you are working now, and that working is good, because working is '
+        'how the number comes down, eventually, in theory.',
+    'burnout':
+        'Your deck drops a frame mid-thought, the way it has since you got '
+        'it, and for a second you are back in the room where it happened. '
+        'Somebody at Sendai still has that room on file. Your first job just '
+        'put a fresh timestamp next to your working name.',
+    'ghost':
+        'For the first time since you died, one person in this city thinks '
+        'your face belongs to somebody. It is not much. They are not even '
+        'sure. But a ghost seen once is a person who can be seen twice, and '
+        'somewhere the name you used to have is still walking around on '
+        'somebody else.',
+    'courier':
+        'The package you never delivered is exactly where you left it, and '
+        'after your first real job it feels heavier, though nothing about it '
+        'has changed. The person who gave it to you has been dead two years. '
+        'You are the only one who remembers there is a package at all. You '
+        'think.',
+    'printer':
+        'Your name is in the header of forty thousand pages, and after your '
+        'first job one of them turns up, left where you will find it, folded '
+        'to the edition Kagawa asked the Watch to stop. There is no note. The '
+        'fold is the note.',
+    'chorister':
+        'The Hall does not contact you. The Chorus never do. But a hymn you '
+        'have not heard since you left plays, once, from a doorway you pass, '
+        'and stops when you turn to look. It is not a message. It is a '
+        'reminder that the debt with no number is still open, and still '
+        'theirs.',
+}
+
 #: Every origin starts here before its `attrs` delta is applied.
 BASE_ATTR = 3
 

@@ -11141,6 +11141,44 @@ def test_the_ways_in() -> None:
          'a sold-out inside job is a trap you walk into')
 
 
+def test_the_lifepath() -> None:
+    """D126: your origin's complication comes to find you after the first run,
+    once, and it is a different beat for every origin."""
+    T.section('the lifepath')
+    from flatline.content import origins
+    from flatline.commands.people import _check_origin_past
+
+    # Every origin has an opening, and none is shared.
+    T.eq(set(origins.ORIGIN_OPENING), set(origins.ORIGIN_KEYS),
+         'every origin has a lifepath opening, and only origins do')
+    T.eq(len(set(origins.ORIGIN_OPENING.values())), len(origins.ORIGIN_KEYS),
+         'and each one is its own')
+
+    def fire(origin):
+        game = Game.new(Character.from_origin(origin, 'x'), seed=1)
+        con = quiet_console()
+        sess = Session(console=con, slot='life')
+        sess.game = game
+
+        def check():
+            con.start_capture()
+            _check_origin_past(sess)
+            return strip_ansi(con.end_capture())
+
+        before = check()
+        game.char.runs = 1
+        first = check()
+        again = check()
+        return before, first, again
+
+    for origin in ('gutter', 'defector', 'ghost', 'courier', 'chorister'):
+        before, first, again = fire(origin)
+        T.ok(not before.strip(), f'{origin}: quiet before the first run')
+        T.ok('where you came from' in first,
+             f'{origin}: the past arrives after it')
+        T.ok(not again.strip(), f'{origin}: and only the once')
+
+
 def test_swagger_and_legend() -> None:
     """D125: the game lets you be good at this, and the city tells stories."""
     T.section('swagger and legend')
@@ -12381,6 +12419,7 @@ SUITES = (
     test_the_cold_open, test_ambitions, test_the_lifeline, test_the_reckoning,
     test_the_nemesis_run, test_the_partner, test_the_ways_in,
     test_planting_a_way_in, test_the_changing_world, test_swagger_and_legend,
+    test_the_lifepath,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

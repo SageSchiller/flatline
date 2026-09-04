@@ -1248,10 +1248,35 @@ def _check_story(sess) -> None:
         c.say(f'[dim]There is more happening here than one street can hold: '
               f'{len(held)} more scene{"s" if len(held) != 1 else ""}, on '
               f'the next thing you do.[/]')
+    _check_origin_past(sess)
     _check_ambitions(sess)
     _check_reckoning(sess)
     _check_partner_offer(sess)
     sess.autosave()
+
+
+def _check_origin_past(sess) -> None:
+    """The lifepath opening (D126): once you have a first job behind you, the
+    complication you started under stops being a line on the sheet and comes
+    to find you. Once, ever, per character."""
+    game = sess.game
+    if game is None or sess.run is not None:
+        return
+    if getattr(game.char, 'runs', 0) < 1:
+        return
+    flag = f'origin_past:{game.char.origin}'
+    if flag in game.story.flags:
+        return
+    from ..content import origins
+    text = origins.ORIGIN_OPENING.get(game.char.origin)
+    if not text:
+        return
+    game.story.flags.add(flag)
+    c = sess.console
+    c.blank()
+    c.rule('where you came from', role='accent2')
+    c.say(f'[dim]{text}[/]')
+    c.blank()
 
 
 def _check_partner_offer(sess) -> None:
