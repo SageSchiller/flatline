@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 
 from ..content import attributes, cyberware, dissonance, districts, drugs, factions
 from ..content import weapons
+from ..content import armour as armour_content
 from ..content import hardware, programs
 from ..content import shifts
 from ..rng import Stream
@@ -60,10 +61,10 @@ SHELF_TIER = 2
 
 #: What each service sells.
 STOCK_KINDS = {
-    'market': ('program', 'component', 'drug'),
+    'market': ('program', 'component', 'drug', 'armour'),
     'clinic': ('ware', 'drug'),
     'workshop': ('component',),
-    'fence': ('program', 'ware', 'drug', 'weapon'),
+    'fence': ('program', 'ware', 'drug', 'weapon', 'armour'),
     'fixer': ('drug',),
 }
 
@@ -102,6 +103,9 @@ def _catalogue(kind: str, service: str = ''):
         # Off the back of a fence and nowhere else (D128). A fitted weapon
         # (wolvers) is chrome and never on the shelf (D130).
         return [(w.key, w.tier, w.price) for w in weapons.carriable()]
+    if kind == 'armour':
+        # Worn, not fitted (D131): a market or a fence.
+        return [(a.key, a.tier, a.price) for a in armour_content.ARMOUR]
     if kind == 'drug':
         # Filtered by who is selling. A clinic and a fence both deal, and
         # they deal in different things: the difference between the two
@@ -284,7 +288,8 @@ def sale_value(kind: str, key: str) -> int:
     """What a fence gives you for something. Deliberately punishing: gear is
     for using, not for arbitrage."""
     table = {'program': programs.BY_KEY, 'ware': cyberware.BY_KEY,
-             'component': hardware.BY_KEY, 'weapon': weapons.BY_KEY}
+             'component': hardware.BY_KEY, 'weapon': weapons.BY_KEY,
+             'armour': armour_content.BY_KEY}
     item = table[kind].get(key)
     return int(getattr(item, 'price', 0) * 0.35) if item else 0
 

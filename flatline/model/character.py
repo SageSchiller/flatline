@@ -85,6 +85,8 @@ class Character:
     runs: int = 0
     #: What is in your hand on the street (D128): a weapon key, or ''.
     weapon: str = ''
+    #: What you wear over the skin (D131): an armour key, or ''.
+    armour: str = ''
 
     # ------------------------------------------------------------------
     # creation
@@ -557,6 +559,7 @@ class Character:
             'hurt': self.hurt,
             'runs': self.runs,
             'weapon': self.weapon,
+            'armour': self.armour,
         }
 
     @classmethod
@@ -588,4 +591,5 @@ class Character:
             hurt=int(d.get('hurt', 0)),
             runs=int(d.get('runs', 0)),
             weapon=str(d.get('weapon') or ''),
+            armour=str(d.get('armour') or ''),
         )

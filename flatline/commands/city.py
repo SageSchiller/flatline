@@ -18,6 +18,7 @@ from ..content import shifts
 from ..content import skills as skill_content
 from ..content import traits as trait_content
 from ..content import weapons as weapon_content
+from ..content import armour as armour_content
 from ..game import Game
 from ..model.character import Character
 from ..model import identity
@@ -332,6 +333,7 @@ def cmd_char(sess, args) -> None:
         ('integrity', f'{char.integrity}/{char.integrity_max}'
                       + _warned_line(game)),
         ('carrying', _carrying_line(char)),
+        ('wearing', _wearing_line(char)),
         ('dissonance', f'{char.dissonance} [dim]({char.dissonance_band[1]})[/]'),
         ('looks', f'[dim]{appearance.summary(char.look)}[/]'),
         ('read as', f'{char.memorable_band[0]} '
@@ -958,7 +960,8 @@ def cmd_market(sess, args) -> None:
     kind = {'program': 'program', 'ware': 'ware', 'cyberware': 'ware',
             'component': 'component', 'part': 'component',
             'drug': 'drug', 'chem': 'drug', 'weapon': 'weapon',
-            'gun': 'weapon', 'knife': 'weapon'}.get(want)
+            'gun': 'weapon', 'knife': 'weapon', 'armour': 'armour',
+            'armor': 'armour', 'jacket': 'armour', 'vest': 'armour'}.get(want)
 
     qualifies = game.char.dissonance >= drift.DEEP_CLINIC_BAND
     listings = game.city.listings(kind, deep=None if qualifies else False)
@@ -1053,6 +1056,15 @@ def cmd_buy(sess, args) -> None:
         game.char.stash[listing.key] = game.char.stash.get(listing.key, 0) + 1
         c.info(f'In the bag. `dose {listing.key}` when you want it, '
                f'`chem` for what it will do to you.')
+    elif listing.kind == 'armour':
+        old = game.char.armour
+        game.char.armour = listing.key
+        if old:
+            game.char.library.append(old)
+            c.info(f'{armour_content.BY_KEY[old].name} went in the bag. '
+                   f'`wear` swaps.')
+        c.info('On, for the street. `wear` shows what it is doing with the '
+               'chrome; `wear nothing` to take it off.')
     elif listing.kind == 'weapon':
         old = game.char.weapon
         game.char.weapon = listing.key
@@ -1138,12 +1150,14 @@ def cmd_sell(sess, args) -> None:
         for key in game.char.library:
             item = (programs.BY_KEY.get(key) or cyberware.BY_KEY.get(key)
                     or hardware.BY_KEY.get(key)
-                    or weapon_content.BY_KEY.get(key))
+                    or weapon_content.BY_KEY.get(key)
+                    or armour_content.BY_KEY.get(key))
             if item is None:
                 continue
             kind = ('program' if key in programs.BY_KEY
                     else 'ware' if key in cyberware.BY_KEY
                     else 'weapon' if key in weapon_content.BY_KEY
+                    else 'armour' if key in armour_content.BY_KEY
                     else 'component')
             rows.append((item.name, kind,
                          f'[credit]{market_mod.sale_value(kind, key):,}c[/]'))
@@ -1161,12 +1175,14 @@ def cmd_sell(sess, args) -> None:
 
     for key in list(game.char.library):
         item = (programs.BY_KEY.get(key) or cyberware.BY_KEY.get(key)
-                or hardware.BY_KEY.get(key) or weapon_content.BY_KEY.get(key))
+                or hardware.BY_KEY.get(key) or weapon_content.BY_KEY.get(key)
+                or armour_content.BY_KEY.get(key))
         if not item or query not in item.name.lower():
             continue
         kind = ('program' if key in programs.BY_KEY
                 else 'ware' if key in cyberware.BY_KEY
                 else 'weapon' if key in weapon_content.BY_KEY
+                else 'armour' if key in armour_content.BY_KEY
                 else 'component')
         value = market_mod.sale_value(kind, key)
         if kind == 'program' and game.char.library.count(key) <= \
@@ -1186,11 +1202,23 @@ def cmd_sell(sess, args) -> None:
 def _carrying_line(char) -> str:
     w = weapon_content.BY_KEY.get(char.weapon) or weapon_content.granted(char.installed)
     if w is None:
-        base = '[dim]nothing[/]'
-    else:
-        base = w.name + (' [dim](loud)[/]' if w.loud else '')
-    armour = char.bonus('armour')
-    return base + (f' [dim]armour {armour}[/]' if armour else '')
+        return '[dim]nothing[/]'
+    return w.name + (' [dim](loud)[/]' if w.loud else '')
+
+
+def _wearing_line(char) -> str:
+    from ..world import fight as fight_mod
+    a = armour_content.BY_KEY.get(char.armour)
+    total = fight_mod.armour_of(char)
+    base = a.name if a else '[dim]nothing[/]'
+    if total:
+        chrome = char.bonus('armour')
+        base += (f' [dim]armour {total}'
+                 + (f' ({a.armour if a else 0} worn, {chrome} chrome'
+                    + (f', capped at {armour_content.CAP}' if (a.armour if a else 0) + chrome > armour_content.CAP else '')
+                    + ')' if a and chrome else '')
+                 + '[/]')
+    return base
 
 
 @command('carry', 'What is in your hand on the street, and swap it.',
@@ -1248,6 +1276,59 @@ def cmd_carry(sess, args) -> None:
                  + (f', {held.name} in the bag.' if held else '.'))
             return
     raise CommandError(f'nothing in the bag called {query!r}. `carry` lists '
+                       f'what there is.')
+
+
+@command('wear', 'What you wear on the street, and swap it.',
+         contexts=('city',), group='character', usage='wear [<armour>|nothing]',
+         detail=(
+                'Worn armour (D131) takes its number off every hit that '
+                'reaches you in a fight, and adds to the chrome kind (dermal '
+                'weave, plating, bone lacing, trauma plate), to a cap. `wear` '
+                'alone shows what is on and what it is doing; `wear <name>` '
+                'swaps from the bag; `wear nothing` takes it off, for a room '
+                'where a vest is the wrong thing to walk into.'))
+def cmd_wear(sess, args) -> None:
+    from ..world import fight as fight_mod
+    game, c = sess.require_game(), sess.console
+    char = game.char
+    worn = armour_content.BY_KEY.get(char.armour)
+    bagged = [k for k in char.library if k in armour_content.BY_KEY]
+    if not len(args):
+        c.header('Worn', worn.name if worn else 'nothing')
+        chrome = char.bonus('armour')
+        total = fight_mod.armour_of(char)
+        if worn or chrome:
+            c.say(f'[dim]Armour {total}: that much off every hit that reaches '
+                  f'you. {worn.armour if worn else 0} worn, {chrome} chrome, '
+                  f'{armour_content.CAP} the most a body can carry.[/]')
+        if bagged:
+            c.say('[dim]In the bag: '
+                  + ', '.join(armour_content.BY_KEY[k].name for k in bagged)
+                  + '.[/]')
+        elif not worn:
+            c.say('[dim]Nothing in the bag either. A market or a fence '
+                  'sells it.[/]')
+        return
+    query = args.rest().lower()
+    if query in ('nothing', 'none', 'off', 'no'):
+        if not worn:
+            raise CommandError('you are not wearing anything you could take off.')
+        char.library.append(char.armour)
+        char.armour = ''
+        c.ok(f'{worn.name} comes off and goes in the bag.')
+        return
+    for key in bagged:
+        item = armour_content.BY_KEY[key]
+        if query == key or query in item.name.lower():
+            char.library.remove(key)
+            if worn:
+                char.library.append(char.armour)
+            char.armour = key
+            c.ok(f'{item.name} on'
+                 + (f', {worn.name} in the bag.' if worn else '.'))
+            return
+    raise CommandError(f'nothing in the bag called {query!r}. `wear` lists '
                        f'what there is.')
 
 
@@ -3126,6 +3207,11 @@ SERVICE_VERBS = (
 )
 
 
+def street_content_tier_word(tier: int) -> str:
+    from ..content import street as street_content
+    return street_content.TIER_NAMES.get(tier, 'a fight')
+
+
 def here_you_can(sess, district, looking: bool = False) -> None:
     """One line naming the verbs this district makes possible.
 
@@ -3147,6 +3233,9 @@ def here_you_can(sess, district, looking: bool = False) -> None:
     c.say('[dim]Here:[/] ' + f' [dim]{bullet}[/] '.join(parts)
           + f' [dim]{bullet}[/] [fg]travel[/] [dim](to move on)[/]',
           subsequent='  ')
+    # The street, read before it reads you (D131).
+    if sess.game is not None:
+        c.say(street_world.roughness_line(sess.game))
 
 
 def people_here(sess) -> None:
@@ -3477,6 +3566,13 @@ def cmd_errands(sess, args) -> None:
             game.city.news.append(f'Carrying {job["what"]} to {to.name}.')
             sess.autosave()
             return
+        if job['kind'] == 'muscle':
+            game.city.errands_taken.add(job.get('key', ''))
+            street_world.muscle(sess, job)
+            if sess.game is not None and sess.pending is None:
+                _advance(sess, 1)
+            sess.autosave()
+            return
         if job['kind'] == 'collect':
             game.city.errands_taken.add(job.get('key', ''))
             street_world.collect(sess, job)
@@ -3523,6 +3619,11 @@ def cmd_errands(sess, args) -> None:
         elif job['kind'] == 'collect':
             rows.append((str(n), 'collect',
                          f'{job["owed"]:,}c from {job["who"]}, your cut',
+                         f'{job["pay"]:,}c'))
+        elif job['kind'] == 'muscle':
+            rows.append((str(n), 'muscle',
+                         f'stand at {job["at"]} for {job["who"].split(" who")[0]}'
+                         f' [warn]({street_content_tier_word(job["tier"])})[/]',
                          f'{job["pay"]:,}c'))
         else:
             rows.append((str(n), 'watch', f'a shift at {job["at"]}',
@@ -4211,7 +4312,7 @@ def _drift(sess) -> None:
 def _item(listing):
     table = {'program': programs.BY_KEY, 'ware': cyberware.BY_KEY,
              'component': hardware.BY_KEY, 'drug': drug_content.BY_KEY,
-             'weapon': weapon_content.BY_KEY}
+             'weapon': weapon_content.BY_KEY, 'armour': armour_content.BY_KEY}
     return table[listing.kind].get(listing.key)
 
 
@@ -4226,6 +4327,8 @@ def _listing_detail(listing, item) -> str:
                 + ('no hook' if not item.hook else f'hook {item.hook}'))
     if listing.kind == 'weapon':
         return f'+{item.damage} a hit, {"loud" if item.loud else "quiet"}'
+    if listing.kind == 'armour':
+        return f'armour {item.armour}, worn'
     first = next(iter(item.effects.items()), None)
     return (f'{item.slot}: {SHORT_KEY.get(first[0], first[0])} '
             f'{_brief_value(*first)}' if first else f'{item.slot}')
@@ -4272,7 +4375,8 @@ def find_item(query: str):
         return None
     tables = (('program', programs.BY_KEY), ('ware', cyberware.BY_KEY),
               ('component', hardware.BY_KEY), ('drug', drug_content.BY_KEY),
-              ('weapon', weapon_content.BY_KEY))
+              ('weapon', weapon_content.BY_KEY),
+              ('armour', armour_content.BY_KEY))
     for kind, table in tables:
         if q in table:
             return kind, table[q]
@@ -4345,6 +4449,15 @@ def describe_item(sess, kind: str, item) -> None:
             rows.append(('a hit', 'halves their next one'))
         if item.rider == 'smartlink':
             rows.append(('needs', 'neural chrome fitted, or it hits for 2 less'))
+        if item.rider == 'stagger':
+            rows.append(('a hit', 'takes their next one down'))
+        if item.rider == 'edge':
+            rows.append(('the edge', 'a point on the swing, and it crits sooner'))
+        if item.rider == 'concealed':
+            rows.append(('concealed', 'the first strike of a fight goes in easier'))
+    elif kind == 'armour':
+        rows.append(('every hit that reaches you', f'-{item.armour}'))
+        rows.append(('worn with chrome', f'the two add, to {armour_content.CAP} at most'))
     if getattr(item, 'unique', False):
         rows.append(('one of a kind', '[accent2]not sold anywhere[/]'))
     c.kv(rows)

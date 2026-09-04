@@ -57,6 +57,29 @@ WEAPONS: tuple[Weapon, ...] = (
            'Nightwatch.',
            'Loud. Every fight it is drawn in is a Nightwatch matter, whichever '
            'way it went.'),
+    Weapon('switchblade', 'Switchblade', 1, False, 160, 1,
+           'A blade that is not there until it is. It does not print, it '
+           'does not show on a lobby scan that is not looking for it, and '
+           'the first they know of it is the first thing it does.',
+           'It is a very small knife. After the first surprise it is a very '
+           'small knife in a fight that has noticed you have one.',
+           rider='concealed'),
+    Weapon('bat', 'Bat', 2, False, 320, 1,
+           'Ash, taped at the grip, older than you, and it has never once '
+           'been used for the game it was made for. A blunt thing swung '
+           'properly does not cut, it takes the floor out from under '
+           'somebody, and it does that to whoever it reaches.',
+           'You cannot carry a bat anywhere without carrying a bat, and the '
+           'street has a word for people who do.',
+           rider='stagger'),
+    Weapon('katana', 'Katana', 4, False, 5200, 3,
+           'Not an antique. A working blade in the old shape, folded by '
+           'somebody who still does that, with an edge that makes a mistake '
+           'expensive for whoever made it. It rewards the one thing the '
+           'street never has time for, which is precision.',
+           'It is a sword. There is no version of being seen with a sword '
+           'that reads as anything but a statement, and statements carry.',
+           rider='edge'),
     Weapon('cleaver', 'Cleaver', 3, False, 900, 1,
            'It came off a meat bench and it has not forgotten. Quiet, cheap, '
            'and entirely without pretension: it does one thing, close up, and '
@@ -126,4 +149,8 @@ def granted(installed) -> Weapon | None:
 #: next hit. `smartlink`: needs neural chrome or it hits for less. `spread`:
 #: a hit reaches more than one while they are still bunched. `reach`: a
 #: landed strike keeps them off, and they do not hit back that round.
-RIDERS: frozenset[str] = frozenset({'stun', 'smartlink', 'spread', 'reach'})
+#: `stagger`: a landed blunt hit takes their next one down. `edge`: a
+#: sharper crit, and a point on the swing. `concealed`: they did not see it
+#: coming, so the first strike of a fight goes in easier.
+RIDERS: frozenset[str] = frozenset({'stun', 'smartlink', 'spread', 'reach',
+                                    'stagger', 'edge', 'concealed'})

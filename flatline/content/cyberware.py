@@ -104,6 +104,17 @@ WARE: tuple[Ware, ...] = (
          penalty={'ice_dr': 1.4}),
 
     # -- ocular ------------------------------------------------------------
+    Ware('targeting', 'Targeting Suite', 'Militech, grey-market', 'ocular', 2, 6,
+         3800, 2,
+         'A reticle you did not ask for on everything you look at, and a '
+         'small honest number beside it that is the distance. Made for '
+         'soldiers. On the street it makes the pistol yours in a way it was '
+         'not, and it makes a punch land where you meant.',
+         effects={'strike_bonus': 2},
+         drawback='Everything is a target now, including the people you '
+                  'love. The suite does not have an off. The number is '
+                  'always there.',
+         penalty={'composure': -1}),
     Ware('threat_overlay', 'Nightwatch Threat Overlay', 'Nightwatch surplus',
          'ocular', 2, 7, 4100, 2,
          'Issue optics from the intrusion response desk. Paints countermeasures '
@@ -125,6 +136,18 @@ WARE: tuple[Ware, ...] = (
          penalty={'heat_mult': 1.2}),
 
     # -- cortex ------------------------------------------------------------
+    Ware('pain_editor', 'Pain Editor', 'Kohler-Reyes', 'cortex', 2, 8,
+         4600, 2,
+         'It does not stop the damage. It stops the report. You are hit '
+         'and you know it the way you know the weather, as information, '
+         'and you keep doing what you were doing, which in a fight is '
+         'the whole of the difference.',
+         effects={},
+         drawback='You do not notice you are dying. The clinic gets a lot '
+                  'of people with pain editors, and they all arrive '
+                  'surprised.',
+         penalty={'integrity': -2},
+         rider='pain_editor'),
     Ware('cortex_annex', 'Cortex Annex', 'Freeport Collective',
          'cortex', 2, 9, 5200, 2,
          'Additional working memory that is not on the deck and therefore not '
@@ -154,6 +177,16 @@ WARE: tuple[Ware, ...] = (
          rider='dual_thread'),
 
     # -- spinal ------------------------------------------------------------
+    Ware('reflex_boost', 'Reflex Booster', 'Sendai Precision', 'spinal', 3, 9,
+         5400, 2,
+         'A second signal path down the spine, faster than the one you '
+         'were born with, that fires before you have decided. Your arm '
+         'is up before the swing. The swing was the slow part.',
+         effects={'guard_bonus': 2, 'reflex': 1},
+         drawback='It fires before you have decided about other things '
+                  'too. You flinch at doors. You drop cups. In the net it '
+                  'is noise on the line.',
+         penalty={'composure': -1}),
     Ware('spinal_bus', 'Spinal Trunk Bus', 'Sendai Interface',
          'spinal', 4, 15, 11500, 3,
          'The big one. Replaces the spinal interface wholesale with a trunk '
@@ -172,6 +205,26 @@ WARE: tuple[Ware, ...] = (
          penalty={'tick_mult': 1.15}),
 
     # -- limb --------------------------------------------------------------
+    Ware('muscle_graft', 'Muscle Grafts', 'Freeport, rebuilt', 'limb', 2, 6,
+         3200, 2,
+         'Vat fibre laid alongside the fibre you have, in the arms and '
+         'across the back. You do not look different. Things you lift '
+         'come up faster, and things you hit stay hit.',
+         effects={'strike_damage': 2},
+         drawback='It eats. You are hungry all the time, and the grafts '
+                  'take what they need from the rest of you when you do '
+                  'not feed them.',
+         penalty={'integrity': -1}),
+    Ware('gorilla', 'Hydraulic Arms', 'Militech, grey-market', 'limb', 3, 14,
+         8400, 3,
+         'Both arms, from the shoulder, replaced with something that was '
+         'designed to open doors that did not want opening. A punch is '
+         'not a punch any more. It is an event that happens to a person.',
+         effects={'strike_damage': 3, 'grit': 1},
+         drawback='You are careful with everything now, because '
+                  'everything breaks. Deck keys, door handles, hands you '
+                  'shake. And the arms are not quiet in the net.',
+         penalty={'tick_mult': 1.08, 'composure': -1}),
     Ware('wolvers', 'Wolvers', 'Militech, grey-market', 'limb', 3, 12,
          7200, 3,
          'Four ceramic blades per arm, sprung into the ulna, out in a '
@@ -210,6 +263,18 @@ WARE: tuple[Ware, ...] = (
          penalty={'ice_damage': -2}),
 
     # -- subdermal ---------------------------------------------------------
+    Ware('adrenal', 'Adrenal Pump', 'Freeport, rebuilt', 'subdermal', 1, 4,
+         1900, 1,
+         'A reservoir under the collarbone and a trigger that reads the '
+         'body\'s own alarm. The first second of a fight, you have already '
+         'had it: the arm is up and the weight is right and the world is '
+         'slow and very clear.',
+         effects={},
+         drawback='The second after the fight you pay for the first. Every '
+                  'time. The clinics call it the crash and they are not '
+                  'being poetic.',
+         penalty={'composure': -1},
+         rider='adrenal'),
     Ware('dermal_weave', 'Dermal Weave', 'Freeport, rebuilt', 'subdermal', 2, 5,
          2600, 1,
          'A mesh grown into the skin of the chest and forearms, dock chrome '
@@ -620,6 +685,7 @@ WARE_KEYS: tuple[str, ...] = tuple(BY_KEY)
 #: Riders the engine implements. A rider on a piece that is not in this set is
 #: a validation error, which is what stops a drawback existing only in prose.
 RIDERS: frozenset[str] = frozenset({
+    'pain_editor', 'adrenal',
     'misfire', 'nightwatch_serial', 'dual_thread', 'deadman', 'thermal_load',
     'blind_trace', 'creeping_dissonance', 'slow_exit', 'choir_noise',
 })

@@ -49,6 +49,25 @@ ROUGH_PRESS_AT = 50
 ROUGH_TAKING_AT = 80
 
 
+#: Roughness, as a word, for the arrival line and `look` (D131).
+ROUGH_WORDS = ((75, 'bad'), (50, 'rough'), (25, 'watchful'), (0, 'quiet'))
+
+
+def roughness_line(game) -> str:
+    """One line about the street here, now, before it has its say. It is
+    the scouting a runner does with their eyes: the same number the street
+    rolls against, said out loud."""
+    here = rough(game)
+    word = next(w for floor, w in ROUGH_WORDS if here >= floor)
+    hour = {'night': 'at this hour', 'afternoon': 'this afternoon',
+            'morning': 'this morning'}.get(game.city.phase, 'now')
+    tail = {'bad': 'people are out who are not out for anything good',
+            'rough': 'somebody will want a word',
+            'watchful': 'you will be looked at',
+            'quiet': 'nobody is interested'}[word]
+    return f'The street here, {hour}: [warn]{word}[/]. [dim]{tail}.[/]'
+
+
 def rough(game, district_key: str = '') -> int:
     """How dangerous a district is on its own account, to anybody, with
     nobody looking for you in particular (D129). The heat-keyed danger in
@@ -150,6 +169,8 @@ def can_bolt(game, enc) -> bool:
 
 #: Runs before a front has anything behind it.
 FRONT_AFTER = 3
+#: How often the people you beat had something worth taking (D131).
+LOOT_CHANCE = 0.5
 
 
 def _pseudo(key: str, kind: str):
@@ -212,10 +233,13 @@ def _start_fight(sess, enc, faction: str, danger: int,
                         faction=faction, fill=_fill(game, enc, faction),
                         danger=danger,
                         them=f"{fac.short}'s people" if fac else 'them')
+    from . import rivals as rival_world
+    partner = rival_world.active_partner(game.city.rivals)
     fight_mod.begin(sess, foe,
                     lambda s, f, result: _fight_then(s, enc, faction, danger,
                                                      f, result),
-                    first_hit=first_hit)
+                    first_hit=first_hit,
+                    ally=partner.name if partner is not None else '')
 
 
 def _fight_then(sess, enc, faction: str, danger: int, f, result: str) -> None:
@@ -245,6 +269,13 @@ def _fight_then(sess, enc, faction: str, danger: int, f, result: str) -> None:
             game.char.credits += take
             told.append(f'[credit]+{take:,}c[/] [dim]for what they had on '
                         f'them.[/]')
+        loot = street_content.LOOT.get(enc.key, '')
+        if loot and rng.chance(LOOT_CHANCE):
+            # What they had in their hand is in the bag now (D131).
+            from ..content import weapons as weapon_content
+            game.char.library.append(loot)
+            told.append(f'[ok]You take the {weapon_content.BY_KEY[loot].name.lower()} '
+                        f'off them.[/] [dim]In the bag: `carry` or `sell`.[/]')
         game.city.news.append(f'[warn]{enc.name}[/] in '
                               f'{game.city.district.name}: you won it.')
     elif result == 'talked':
@@ -786,8 +817,19 @@ def errands_here(game) -> list[dict]:
     # who needs walking somewhere, by the shift.
     places = spots.in_district(city.where)
     where = stream.pick(places).name if places else here.name
-    local = stream.weighted({'watch': 2.0, 'collect': 1.2, 'escort': 1.0})
-    if local == 'escort' and far:
+    weights = {'watch': 2.0, 'collect': 1.2, 'escort': 1.0}
+    if rough(game) >= MUSCLE_AT:
+        # Somewhere rough enough that somebody wants standing in front of
+        # (D131). A fighter's living.
+        weights['muscle'] = 1.6
+    local = stream.weighted(weights)
+    if local == 'muscle':
+        tier = 3 if rough(game) >= ROUGH_TAKING_AT else 2
+        out.append({'kind': 'muscle', 'at': where, 'tier': tier,
+                    'pay': int(MUSCLE_BASE + rough(game) * 5 + (tier - 2) * 600),
+                    'chromed': stream.chance(0.5), 'from': city.where,
+                    'who': stream.pick(MUSCLE_JOBS)})
+    elif local == 'escort' and far:
         target = stream.pick(far)
         hops = city.shifts_to(target.key)
         danger, _ = city.danger(game.alias, target.key, flags=game.story.flags, riders=game.char.riders())
@@ -826,6 +868,64 @@ ESCORTEES = (
     'somebody the Hall fed for a month, walking for the first time in it',
     'a courier who has lost the case and not the habit of carrying it',
 )
+
+#: Muscle (D131): somebody who needs somebody stood in front of them.
+MUSCLE_AT = 35
+MUSCLE_BASE = 480
+MUSCLE_JOBS = (
+    'a stallholder who has been told what tomorrow costs and would like '
+    'somebody to be there when it is collected',
+    'a printer whose shop has been visited twice, and who has decided '
+    'there will not be a third without a witness',
+    'a woman who owes nobody anything and has been told otherwise by '
+    'people coming this evening',
+    'a clinic that would like a particular patient to be able to leave',
+    'a man who has sold something he should not have to people who have '
+    'come back for the rest',
+)
+
+
+def muscle(sess, job: dict) -> None:
+    """Stand in a doorway for somebody (D131). It is a fight, at the tier
+    the street here deserves, and you are paid if you are the one standing
+    at the end of it. Talking it down pays too, half: they wanted it not to
+    happen, and it did not."""
+    game, c = sess.game, sess.console
+    c.say(f'You find {job["who"]}. You stand where they show you. It is '
+          f'not long before the people they meant arrive, and they are not '
+          f'pleased to find the doorway occupied.')
+    foe = fight_mod.Foe(tier=job['tier'], chromed=bool(job.get('chromed')),
+                        faction='',
+                        fill={'fac': 'nobody\'s', 'district': game.city.district.name},
+                        danger=rough(game), them='them')
+
+    def then(s, f, result):
+        g = s.game
+        pay = int(job['pay'])
+        if result == 'won' or result == 'talked':
+            if result == 'talked':
+                pay //= 2
+            g.char.credits += pay
+            g.earned += pay
+            g.city.errands_done += 1
+            g.char.xp += ERRAND_XP
+            c.blank()
+            c.ok((f'They pay. [credit]{pay:,}c[/] for standing there.'
+                  if result == 'won' else
+                  f'It did not happen, which is what they were paying for. '
+                  f'[credit]{pay:,}c[/], half, and no blood on the step.')
+                 + f' [dim]{ERRAND_XP} experience.[/]')
+            s.record_progress()
+        else:
+            c.blank()
+            c.say('[dim]Nobody pays for a doorway that did not hold.[/]')
+        s.autosave()
+
+    from . import rivals as rival_world
+    partner = rival_world.active_partner(game.city.rivals)
+    fight_mod.begin(sess, foe, then,
+                    ally=partner.name if partner is not None else '')
+
 
 DEBTORS = (
     'a man behind a shutter who owes the Sixes and knows your face from '

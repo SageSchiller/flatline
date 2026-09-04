@@ -1079,12 +1079,44 @@ TOPICS: tuple[Topic, ...] = (
         'adds [accent]finish[/], one hard check that ends it once they are '
         'hurt; at rank 4, [accent]menace[/] on the street lets them see what '
         'it would cost and they leave, or they go first.\n\n'
-        '[warn]What you carry.[/] A fence sells five things, and the axis that '
-        'matters is quiet or loud. Knuckledusters, a blade and a shock baton '
-        'are quiet. A pistol and a smartgun are loud: every fight one is '
-        'drawn in is a Nightwatch matter, won or lost. `carry` shows and '
-        'swaps; `carry nothing` walks without it. Dermal weave and plating '
-        'are chrome that takes a point or two off every hit.\n\n'
+        '[warn]What you carry.[/] A fence sells what you fight with, and the '
+        'axis that matters is quiet or loud. Quiet: a switchblade, '
+        'knuckledusters, a bat, a blade, a cleaver, a shock baton, a katana, '
+        'a monowire. Loud: a pistol, a scattergun, a smartgun, and every fight '
+        'a loud one is drawn in is a Nightwatch matter, won or lost. Untrained, '
+        'a weapon does half. `carry` shows and swaps; `carry nothing` walks '
+        'without it; `inspect <name>` says what each one does. What you beat '
+        'people with can be taken off them: half the time the weapon they '
+        'had is in your bag afterwards.\n\n'
+        '[warn]Four ways to be dangerous.[/] The shelf and the clinic sort '
+        'into styles, and a build that picks one is better than a build that '
+        'buys everything. [accent]Blunt[/]: a bat or hydraulic arms; a hit '
+        'takes their next one down (stagger). [accent]Blade[/]: a switchblade '
+        'nobody saw, a katana that crits sooner, a monowire that keeps them '
+        'off, with a reflex booster to cover up. [accent]Gun[/]: loud and '
+        'certain, a targeting suite to land it, a smartlink for the smartgun. '
+        '[accent]Tank[/]: armour worn and fitted, bone lacing, a pain editor '
+        'so being hurt does not slow you. And the netrunner\'s: [accent]jack[/], '
+        'Warfare and a weapon program, against anyone with chrome to reach.\n\n'
+        '[warn]What you wear.[/] Armour is two kinds. Worn: a ballistic jacket, '
+        'a riot vest, a plate carrier, from a market or a fence, on and off '
+        'with `wear`. Fitted: dermal weave, plating, bone lacing, trauma '
+        'plate, chrome from a clinic. The two add, to four at most: past that '
+        'you are not wearing armour, you are wearing a room. Every point '
+        'comes off every hit that reaches you.\n\n'
+        '[warn]The chrome that fights.[/] A targeting suite lands strikes, '
+        'muscle grafts and hydraulic arms make them count, a reflex booster '
+        'covers up, an adrenal pump gives you the first second of every '
+        'fight, a pain editor keeps you moving when hurt, and wolvers are a '
+        'blade you cannot put down. Each costs what chrome costs: bandwidth, '
+        'dissonance, and something the drawback names.\n\n'
+        '[warn]A fighter\'s living.[/] A won fight teaches (a press one '
+        'experience, a taking two, the kind that kills three; a lean, '
+        'nothing), and in a rough district `errands` offers [fg]muscle[/]: '
+        'stand in a doorway for somebody, at the tier the street deserves, '
+        'and be paid if you are the one still standing. Talking it down pays '
+        'half. The line under the district name says how rough the street '
+        'is at this hour, before it has its say: read it before you walk.\n\n'
         '[warn]What winning costs.[/] Beat a faction\'s people and they '
         'remember: heat, standing, and the next of theirs you meet is a tier '
         'worse, all the way up the ladder to the kind that kills. Win at the '
@@ -1115,11 +1147,13 @@ TOPICS: tuple[Topic, ...] = (
         'worth money. Going anyway is a choice; so is `rest`, and so is '
         '`burn`, and so is paying.',
         see=('death', 'heat', 'skills', 'city'),
-        commands=('errands', 'arrange', 'travel', 'rest', 'rep', 'carry'),
-        covers=('street', 'weapons'),
+        commands=('errands', 'arrange', 'travel', 'rest', 'rep', 'carry',
+                  'wear'),
+        covers=('street', 'weapons', 'armour'),
         terms=('mugging', 'ambush', 'encounter', 'beating', 'physical',
                'courier', 'odd jobs', 'fight', 'combat', 'weapon', 'gun',
-               'armour', 'armor'),
+               'armour', 'armor', 'katana', 'bat', 'muscle', 'style',
+               'loot'),
         group='city'),
     Topic(
         'relics', 'Things there is one of',

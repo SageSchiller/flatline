@@ -11565,6 +11565,180 @@ def test_the_rough_street() -> None:
          'when somebody is paid to find you it is people, not a ladder')
 
 
+def test_a_fighters_living() -> None:
+    """D131: styles, worn armour, the chrome that fights, what you take off
+    people, what a fight teaches, and muscle work. Combat as a route."""
+    T.section("a fighter's living")
+    from flatline.content import street as street_content, weapons, armour
+    from flatline.content import cyberware, districts, manual
+    from flatline.world import street as street_world
+    from flatline.world import fight as fight_mod
+    from flatline.world import rivals as rival_world
+    from flatline.world import market as market_mod
+    from flatline.world import city as city_mod
+
+    def fresh(seed=5, attrs=None, installed=(), weapon='', worn='', **ranks):
+        char = Character.from_origin('gutter', 't')
+        for k, r in ranks.items():
+            char.base_skills[k] = r
+        for k, val in (attrs or {}).items():
+            char.base_attrs[k] = val
+        char.installed = list(installed)
+        char.weapon = weapon
+        char.armour = worn
+        game = Game.new(char, seed=seed)
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    def do(sess, con, cmd):
+        con.start_capture()
+        sess.execute(cmd)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    def street(sess, con, key, faction='sixes', danger=50):
+        con.start_capture()
+        street_world.begin(sess, street_content.BY_KEY[key], faction, danger)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    def rounds(sess, con, n=8):
+        out = ''
+        for _ in range(n):
+            if sess.pending is None:
+                break
+            out += do(sess, con, 'strike')
+        return out
+
+    # The shelf: the three styled weapons, and their riders read.
+    for key, rider in (('bat', 'stagger'), ('katana', 'edge'),
+                       ('switchblade', 'concealed')):
+        T.ok(weapons.BY_KEY[key].rider == rider and rider in weapons.RIDERS,
+             f'{key} carries {rider}')
+    T.ok(len(armour.ARMOUR) == 3 and armour.CAP == 4,
+         'three things to wear, and a cap on the sum')
+    T.ok({'targeting', 'pain_editor', 'reflex_boost', 'muscle_graft',
+          'gorilla', 'adrenal'} <= set(cyberware.BY_KEY),
+         'six pieces of chrome that fight')
+    fence = next(d for d in districts.DISTRICTS if 'fence' in d.services)
+    kinds = {l.kind for l in market_mod.restock(Rng(7)('market'), fence.key, 1)}
+    T.ok('armour' in kinds or 'weapon' in kinds,
+         'a fence stocks what you fight with and what you wear')
+
+    # Styles show in the exchange.
+    seen = {}
+    for wpn, mark in (('bat', 'still on the floor'), ('katana', 'an edge'),
+                      ('switchblade', 'they did not see it')):
+        sess, con, game = fresh(attrs={'grit': 5}, weapon=wpn, violence=3)
+        street(sess, con, 'lean')
+        out = do(sess, con, 'fight') + rounds(sess, con, 3)
+        seen[wpn] = mark in out
+        sess.pending = None
+    T.ok(seen['katana'] and seen['switchblade'],
+         'the edge and the concealed blade read in the sum')
+    T.ok(seen['bat'], 'and a blunt hit takes their next one down')
+
+    # Armour: worn adds to fitted, and the sum is capped.
+    sess, con, game = fresh(installed=['milplate'], worn='vest')
+    T.ok(fight_mod.armour_of(game.char) == armour.CAP,
+         'plating and a vest together cap at four')
+    game.city.where = fence.key
+    game.city.stock[fence.key] = [market_mod.Listing(kind='armour', key='jacket', price=600)]
+    game.char.credits = 5000
+    do(sess, con, 'buy jacket')
+    T.ok(game.char.armour == 'jacket' and 'vest' in game.char.library,
+         'buying armour wears it and bags the old one')
+    do(sess, con, 'wear vest')
+    T.ok(game.char.armour == 'vest' and 'jacket' in game.char.library,
+         'wear swaps from the bag')
+    do(sess, con, 'wear nothing')
+    T.ok(game.char.armour == '' and Character.from_dict(game.char.to_dict()).armour == '',
+         'wear nothing takes it off, and it saves')
+    T.ok('armour' in do(sess, con, 'char'), 'the sheet says what you wear')
+
+    # The chrome that fights.
+    sess, con, game = fresh(installed=['targeting', 'adrenal', 'pain_editor'])
+    game.char.hurt = game.char.integrity_max - 4
+    street(sess, con, 'lean')
+    out = do(sess, con, 'fight')
+    T.ok('pump fires' in out, 'an adrenal pump gives you the first second')
+    out2 = do(sess, con, 'strike')
+    T.ok('targeting' in out2, 'a targeting suite lands it')
+    T.ok('you are hurt' not in out2, 'and a pain editor does not slow you')
+    sess.pending = None
+    sess, con, game = fresh(installed=['muscle_graft'])
+    T.ok(fight_mod.strike_damage(game.char) == 2 + 2, 'grafts add to a strike')
+
+    # A won fight teaches, by tier, and what they had can be taken.
+    sess, con, game = fresh(attrs={'grit': 6, 'nerve': 5}, weapon='katana', violence=5)
+    xp0 = game.char.xp
+    street(sess, con, 'press')
+    out = do(sess, con, 'fight') + rounds(sess, con)
+    T.ok('you won it' in out and game.char.xp - xp0 == fight_mod.FIGHT_XP[3],
+         'a won taking teaches two')
+    looted = 0
+    for seed in range(20):
+        sess, con, game = fresh(seed=seed, attrs={'grit': 6, 'nerve': 5},
+                                weapon='katana', violence=5)
+        street(sess, con, 'lean')
+        do(sess, con, 'fight')
+        rounds(sess, con)
+        looted += 'knuckles' in game.char.library
+        sess.pending = None
+    T.ok(0 < looted < 20, f'what they had is in the bag about half the time ({looted}/20)')
+    T.ok(street_content.LOOT['callout'] == 'katana',
+         'and somebody who heard carried a katana: a found one')
+
+    # A partner stands with you.
+    sess, con, game = fresh(attrs={'grit': 4}, weapon='blade', violence=2)
+    rv = rival_world.Rival(key='moth', disposition=70)
+    rv.bond = 'partner'
+    game.city.rivals.append(rv)
+    street(sess, con, 'press')
+    out = do(sess, con, 'fight') + rounds(sess, con)
+    T.ok('is beside you' in out, 'a partner is beside you on the street')
+    sess.pending = None
+
+    # Muscle work: a fighter's living, and where it is offered.
+    sess, con, game = fresh(attrs={'grit': 5}, weapon='bat', violence=3)
+    game.city.where = 'shambles'
+    job = {'kind': 'muscle', 'at': 'the laundry', 'tier': 2, 'pay': 700,
+           'chromed': False, 'who': street_world.MUSCLE_JOBS[0], 'key': 'x'}
+    c0, x0 = game.char.credits, game.char.xp
+    con.start_capture()
+    street_world.muscle(sess, job)
+    con.end_capture()
+    rounds(sess, con)
+    T.ok(sess.pending is None and game.char.credits == c0 + 700,
+         'stand in a doorway, win, and be paid')
+    T.ok(game.char.xp > x0, 'and it teaches')
+    offered = set()
+    for seed in range(24):
+        s_, c_, g_ = fresh(seed=seed)
+        g_.city.where = 'shambles'
+        g_.city.shift = 2 + 3 * (seed % 4)
+        offered |= {j['kind'] for j in street_world.errands_here(g_)}
+    T.ok('muscle' in offered, 'somewhere rough, errands offers muscle')
+    quiet = set()
+    for seed in range(24):
+        s_, c_, g_ = fresh(seed=seed)
+        g_.city.where = 'precinct'
+        g_.city.shift = 3 * (seed % 4)
+        quiet |= {j['kind'] for j in street_world.errands_here(g_)}
+    T.ok('muscle' not in quiet, 'and not in the Precinct by day')
+
+    # Read the street before it reads you.
+    sess, con, game = fresh()
+    T.ok('street here' in do(sess, con, 'look'), 'look says how rough it is')
+
+    # The kind that kills wears something too, and a crit is not a double.
+    T.ok(fight_mod.FOE_ARMOUR.get(4, 0) > 0 and fight_mod.CRIT_MULT < 2,
+         'tier four takes something off every strike, and crits are half again')
+    T.ok('Four ways to be dangerous' in manual.BY_KEY['street'].body
+         and 'muscle' in manual.BY_KEY['street'].body,
+         'the manual names the styles and the living')
+
+
 
 def test_the_lifepath() -> None:
     """D126: your origin's complication comes to find you after the first run,
@@ -12845,7 +13019,7 @@ SUITES = (
     test_the_nemesis_run, test_the_partner, test_the_ways_in,
     test_planting_a_way_in, test_the_changing_world, test_swagger_and_legend,
     test_the_lifepath, test_tactic_tools, test_the_fight,
-    test_the_rough_street,
+    test_the_rough_street, test_a_fighters_living,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

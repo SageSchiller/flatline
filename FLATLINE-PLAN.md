@@ -12,7 +12,7 @@ updated: 2026-09-03
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-09-01.** D86 to D89 landed in one session, from three play-tests run in parallel with three different briefs (a first-timer who does what `now` says, an explorer who ignores it, and a run specialist who types every verb by hand). What they found, in order of size: the story layer was gated on meeting people and nothing ever said to meet anyone, and forty-two scenes declared a district that nothing read; the advice could recommend the same severed run five nights running and never once name Intrusion; a credential warden was an unanswerable wall for the Chromed origin and the board could not see it; and D6's severed-connection cooldown had never been implemented. All fixed, with `test_people_are_the_story`, `test_night_before`, `test_wall_and_clock` and `test_remembered_inside` holding them. Two things were added rather than fixed: the construct that cut you loose is on the route next time, awake and named, and the other runners can turn up inside a network with consequences that read their opinion of you. `validate.py` clean, `test.py` green at **18,370 checks** (D90 to D114 followed on 2026-09-02 and 2026-09-03: the visual layer, from pictures and the drawn instrument through the schematic map, player icons, more palettes and prompts, the portrait, reveal styles, seen ICE with screen disruption, a glyph per host type across the scan, the map, and the node header, a full-colour city that the boot now comes up on, and the player icons redrawn as a bestiary of creatures and characters with four more to buy, and a story/quest play-test that fixed the first-runs signposting, and a cold-open first job, sharper run beats, an ambitions ladder, a blank-prompt lifeline for newcomers, a nemesis reckoning that gives the rival arc a payoff, the nemesis as a felt in-run obstacle racing you for the objective, and its mirror the partner who helps in the run offers to crew for good, and three ways into every job that make a build matter for the run itself, and a plantable backdoor that turns an in-run choice into an easier run later, and a faction-power layer with a `world` dashboard so a campaign visibly reshapes the city, and a swagger/legend layer that lets the player be good at it, and origin lifepath openings so who you started as reaches into your story, and two tactic tools, Shroud and Sledge, that each buy a verb the deck could not do before, and, unlocking the founding no-combat rule at the author's call, a street that can be fought: a fifteenth skill, a weapon shelf, armour, an exchange in rounds with a netrunner's route through their chrome, and consequences that make it a route rather than a cheat). The next thing worth doing is another round of the same method: play it three ways and fix what the players say, because every one of the fourteen decisions since D75 came out of somebody playing rather than somebody guessing.
+> **State as of 2026-09-01.** D86 to D89 landed in one session, from three play-tests run in parallel with three different briefs (a first-timer who does what `now` says, an explorer who ignores it, and a run specialist who types every verb by hand). What they found, in order of size: the story layer was gated on meeting people and nothing ever said to meet anyone, and forty-two scenes declared a district that nothing read; the advice could recommend the same severed run five nights running and never once name Intrusion; a credential warden was an unanswerable wall for the Chromed origin and the board could not see it; and D6's severed-connection cooldown had never been implemented. All fixed, with `test_people_are_the_story`, `test_night_before`, `test_wall_and_clock` and `test_remembered_inside` holding them. Two things were added rather than fixed: the construct that cut you loose is on the route next time, awake and named, and the other runners can turn up inside a network with consequences that read their opinion of you. `validate.py` clean, `test.py` green at **18,403 checks** (D90 to D114 followed on 2026-09-02 and 2026-09-03: the visual layer, from pictures and the drawn instrument through the schematic map, player icons, more palettes and prompts, the portrait, reveal styles, seen ICE with screen disruption, a glyph per host type across the scan, the map, and the node header, a full-colour city that the boot now comes up on, and the player icons redrawn as a bestiary of creatures and characters with four more to buy, and a story/quest play-test that fixed the first-runs signposting, and a cold-open first job, sharper run beats, an ambitions ladder, a blank-prompt lifeline for newcomers, a nemesis reckoning that gives the rival arc a payoff, the nemesis as a felt in-run obstacle racing you for the objective, and its mirror the partner who helps in the run offers to crew for good, and three ways into every job that make a build matter for the run itself, and a plantable backdoor that turns an in-run choice into an easier run later, and a faction-power layer with a `world` dashboard so a campaign visibly reshapes the city, and a swagger/legend layer that lets the player be good at it, and origin lifepath openings so who you started as reaches into your story, and two tactic tools, Shroud and Sledge, that each buy a verb the deck could not do before, and, unlocking the founding no-combat rule at the author's call, a street that can be fought: a fifteenth skill, a weapon shelf, armour, an exchange in rounds with a netrunner's route through their chrome, and consequences that make it a route rather than a cheat). The next thing worth doing is another round of the same method: play it three ways and fix what the players say, because every one of the fourteen decisions since D75 came out of somebody playing rather than somebody guessing.
 >
 > **State as of 2026-08-21, end of the long session.** **Phases 0 through 5 are done, D17's finish line is passed, Phase 7 is closed, and D63 to D65 are the deep work.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **15,311 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone. **D63, the mechanics deep dive** in six parts: every declared number and rider has a reader (`check_reads`); the intrusion layer's holes closed (`mask` decays, sealed records, armour wears, faction style knobs, soft wardens); the catalogue readable (`inspect`, a bare `load`, `fit`, passives once per kind, program riders, six mid-tier parts); the vices capped (Threes, collections, hook-4 warnings); twenty-four relics with histories; and programs held to skill rank plus two. **D64, the play test**: networks in six shapes by doctrine with the brief reading the sums; the city grown to twelve districts (the Stacks, Meridian Row, the Hall) with people, places, threads, events and relics; and the advice made into a chain that ends in a run, with seven dead ends closed and `test_advice` to keep them closed. **D65, the street is real**: encounters in four tiers answered by run, talk, pay or stand with printed checks; warning-then-lethal under the black-ICE contract; two street skills; `errands` (courier, watch, collect, escort); `arrange` to pay a faction for their streets; and the whole of it hooked into travel, rest and the close-call band. Before those, on the same day: D50 to D62, the onboarding layer, decisions that are read, the Deepwater spine, the city deeper, voices and hours, district arcs, the rival bond, the drawn map, the HUD, the tutorial's second half, run conditions, and the rest of the Phase 7 list.
 >
@@ -4305,6 +4305,66 @@ techniques" the two-per-line rule allows.
 `check_weapons` holds the shelf (a loud and a quiet option, every rider
 read, a fitted weapon that never reaches the fence); `test_the_fight`
 grew the reach, spread, fitted-weapon, and talk-down cases.
+
+### D131: A fighter's living
+
+The direction after D130: more armour, more weapons (a bat, a katana, a
+switchblade were named), combat chrome, *style*, everything buyable or
+findable, and then a balance check, because a route the game offers has
+to be worth the points or it is a trap with a shelf.
+
+**Styles.** Three weapons that each carry a way of fighting: the bat
+(`stagger`: a landed blunt hit takes their next one down), the katana
+(`edge`: a point on the swing and it crits sooner), the switchblade
+(`concealed`: the first strike of a fight goes in easier, because there
+was nothing to see). With the earlier riders (stun, spread, reach,
+smartlink) and six pieces of chrome that fight (a targeting suite that
+lands strikes, muscle grafts and hydraulic arms that make them count, a
+reflex booster that covers up, an adrenal pump for the first second, a
+pain editor that keeps you moving when hurt) the shelf and the clinic
+sort into four styles, named in the manual: blunt, blade, gun, tank, and
+the netrunner's `jack` beside them. Three new modifier keys
+(`strike_bonus`, `strike_damage`, `guard_bonus`) and two riders
+(`pain_editor`, `adrenal`), all read.
+
+**Worn armour** (`content/armour.py`): a ballistic jacket, a riot vest, a
+plate carrier, from a market or a fence, on and off with `wear`, and it
+adds to the fitted kind to a cap of four, past which you are wearing a
+room. `armour_of` is the one sum the engine and the sheet read.
+
+**Found, not only bought.** Half the time, what the people you beat had in
+their hand is in your bag afterwards (`street_content.LOOT`, by
+encounter): a switchblade off the kids, a bat off the walkway, a pistol
+off the hired, and somebody who heard carried a katana. A fence buys it
+back, or you carry it.
+
+**A living.** A won fight teaches (`FIGHT_XP`: a lean nothing, a press
+one, a taking two, the kind that kills three, against a run's four to
+seven), and in a district rough enough, `errands` offers *muscle*: stand
+in a doorway for somebody, a fight at the tier the street deserves, paid
+if you are the one still standing and half if you talked it down. A
+partner (D121) stands beside you in a street fight and puts one down
+some rounds. And the line under the district name says how rough the
+street is at this hour before it has its say, which is the scouting a
+runner does with their eyes.
+
+**The balance check.** A simulation of eight builds against the ladder
+(`stylesim.py`): at Violence 3 with a style's kit, every style ends a
+press in a round, wins a taking at 94 to 98 percent, and loses to the
+kind that kills, which is the endgame's rung; a runner with no points and
+a katana wins a press but a taking at 9 percent, so the points are what
+the third rung costs; the netrunner's route at Warfare 4 matches the
+muscle styles at Violence 3; and the full kit (Violence 5, hydraulic
+arms, trauma plate, a carrier, forty experience and twenty-seven thousand
+credits) owns the top of the ladder at two rounds and a little blood,
+after two nudges: crits are half again rather than double, and the kind
+that kills wears something too (`FOE_ARMOUR`). Muscle pays 680 to 1,500 a
+shift against a run's 1,400 to 9,000 every two or three; the street is a
+living, and the net is still the money, which is the right relationship
+for a netrunning game with a street you can fight.
+`test_a_fighters_living` holds the shelf, the styles in the sum, the
+armour cap, the chrome, the loot rate, the lesson, the partner, muscle
+work and where it is offered, and the roughness line.
 
 ### D17: The finish line
 

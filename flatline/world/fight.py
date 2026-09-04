@@ -32,16 +32,22 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
+from ..content import armour as armour_content
 from ..content import programs as program_content
 from ..content import street as street_content
 from ..content import weapons as weapon_content
-from ..run.checks import Check
+from ..run.checks import Check, CRIT
 
 #: What there is to get through, by tier, and what each of their hits is
 #: worth before armour. A lean is a couple of people who did not expect
 #: it; the kind that kills is people who did.
-FOE_POOL = {1: 4, 2: 8, 3: 12, 4: 16}
-FOE_HIT = {1: (1, 2), 2: (2, 3), 3: (3, 5), 4: (5, 8)}
+FOE_POOL = {1: 4, 2: 8, 3: 12, 4: 20}
+FOE_HIT = {1: (1, 2), 2: (2, 3), 3: (3, 5), 4: (6, 10)}
+#: The kind that kills wears something too: what they take off every
+#: strike that lands on them (D131). Nobody else does.
+FOE_ARMOUR = {4: 2}
+#: A crit is half again, not double: a fight should take a second round.
+CRIT_MULT = 1.5
 #: Who hears a gun, and what it costs them to have heard it.
 LAW = 'nightwatch'
 LOUD_HEAT = 6
@@ -55,6 +61,13 @@ PATIENCE = 3
 FINISH_AT = 0.5
 #: What `jack` does when nothing offensive is loaded.
 JACK_BASE = 1
+#: What a won fight teaches, by tier (D131). A lean teaches nothing; the
+#: kind that kills teaches most of what a run does.
+FIGHT_XP = {1: 0, 2: 1, 3: 2, 4: 3}
+#: A partner beside you: the chance a round that they put one down, and
+#: what that takes off them.
+ALLY_CHANCE = 0.6
+ALLY_HIT = 2
 
 ASIDES = ('help', '?', 'look', 'status', 'now', 'odds', 'what', 'again',
           'repeat', 'char', 'rep')
@@ -98,6 +111,10 @@ class Fight:
     kept_off: bool = False
     #: A talk-down that did not take: it does not work twice.
     talk_burned: bool = False
+    #: A blunt hit put one on the floor: their next hit lands lighter.
+    staggered: bool = False
+    #: Somebody standing with you, by name, or ''.
+    ally: str = ''
     shrugged: bool = False
     tries: int = 0
 
@@ -120,6 +137,13 @@ def _resist(f: Fight) -> int:
     return base + (f.foe.danger // 20 if f.foe.faction else 0)
 
 
+def armour_of(char) -> int:
+    """Worn and fitted together, capped (D131)."""
+    worn = armour_content.BY_KEY.get(char.armour)
+    return min(armour_content.CAP,
+               char.bonus('armour') + (worn.armour if worn else 0))
+
+
 def weapon_of(char):
     return (weapon_content.BY_KEY.get(char.weapon)
             or weapon_content.granted(char.installed))
@@ -136,7 +160,8 @@ def strike_damage(char, crit: bool = False) -> int:
                 k for k in char.installed
                 if k in _neural_keys()):
             dmg -= 2
-    return max(1, dmg * (2 if crit else 1))
+    dmg += char.bonus('strike_damage')
+    return max(1, int(dmg * CRIT_MULT) if crit else dmg)
 
 
 def _neural_keys() -> set[str]:
@@ -162,7 +187,15 @@ def strike_check(game, f: Fight) -> Check:
     check.add('nerve', char.attr('nerve'))
     if f.set_up:
         check.add('set up', 2)
-    if char.integrity <= char.integrity_max // 3:
+    w = weapon_of(char)
+    if w is not None and w.rider == 'edge':
+        check.add('an edge', 1)
+    if w is not None and w.rider == 'concealed' and f.round == 1:
+        check.add('they did not see it', 2)
+    if char.bonus('strike_bonus'):
+        check.add('targeting', char.bonus('strike_bonus'))
+    if (char.integrity <= char.integrity_max // 3
+            and 'pain_editor' not in char.riders()):
         check.add('you are hurt', -2)
     return check
 
@@ -173,6 +206,8 @@ def guard_check(game, f: Fight) -> Check:
     check.add('reflex', char.attr('reflex'))
     check.add('fieldcraft', char.skill('fieldcraft') * 2)
     check.add('violence', char.skill('violence'))
+    if char.bonus('guard_bonus'):
+        check.add('reflex booster', char.bonus('guard_bonus'))
     return check
 
 
@@ -212,7 +247,8 @@ def break_check(game, f: Fight) -> Check:
     check.add('reflex', char.attr('reflex'))
     check.add('fieldcraft', char.skill('fieldcraft') * 2)
     check.add('streetcraft', char.skill('streetcraft'))
-    if char.integrity <= char.integrity_max // 3:
+    if (char.integrity <= char.integrity_max // 3
+            and 'pain_editor' not in char.riders()):
         check.add('you are hurt', -2)
     return check
 
@@ -246,17 +282,26 @@ def moves(game, f: Fight) -> list[tuple[str, str, Check | None, str]]:
 # --------------------------------------------------------------------------
 
 
-def begin(sess, foe: Foe, then: Callable, first_hit: bool = False) -> None:
+def begin(sess, foe: Foe, then: Callable, first_hit: bool = False,
+          ally: str = '') -> None:
     """Start it. `first_hit` is a fight you did not start well: they go
-    first (a `menace` that did not take)."""
+    first (a `menace` that did not take). `ally` is somebody standing with
+    you, by name, or ''."""
     game, c = sess.game, sess.console
+    char = game.char
     pool = FOE_POOL[foe.tier]
-    f = Fight(foe=foe, pool=pool, pool_max=pool, then=then)
+    f = Fight(foe=foe, pool=pool, pool_max=pool, then=then, ally=ally)
     c.blank()
     c.rule('a fight', role='err')
     c.say(f'[warn]{street_content.FIGHT_OPEN[foe.tier].format(**foe.fill)}[/]')
     if not foe.chromed:
         c.say(f'[dim]{street_content.JACK_NOTHING}[/]')
+    if ally:
+        c.say(f'[dim]{ally} is beside you.[/]')
+    if 'adrenal' in char.riders():
+        # The pump fires: the first second of it, you have already had.
+        f.set_up = True
+        c.say('[dim]The pump fires. The arm is up and the world is slow.[/]')
     if first_hit:
         _foe_hits(sess, f)
         if _lost(sess, f):
@@ -269,7 +314,7 @@ def _menu(sess, f: Fight) -> None:
     game, c = sess.game, sess.console
     char = game.char
     c.blank()
-    armour = char.bonus('armour')
+    armour = armour_of(char)
     c.say(f'[dim]{f.foe.them}: {f.state}. You: Integrity '
           f'{char.integrity}/{char.integrity_max}'
           + (f', armour {armour}' if armour else '') + '.[/]')
@@ -328,7 +373,10 @@ def _answer(sess, f: Fight, text: str) -> None:
         if w is not None and w.loud:
             f.drawn = True
         if check.success:
-            dmg = strike_damage(char, crit=check.critical)
+            crit = check.critical or (w is not None and w.rider == 'edge'
+                                      and check.margin >= CRIT - 2)
+            dmg = max(1, strike_damage(char, crit=crit)
+                      - FOE_ARMOUR.get(f.foe.tier, 0))
             spread = 0
             if w is not None and w.rider == 'spread' and f.round <= 2:
                 # It does not ask which of them you meant, while they are
@@ -336,7 +384,7 @@ def _answer(sess, f: Fight, text: str) -> None:
                 spread = 1 + f.foe.tier // 2
                 dmg += spread
             f.pool -= dmg
-            line = (rng.pick(street_content.STRIKE_CRIT) if check.critical
+            line = (rng.pick(street_content.STRIKE_CRIT) if crit
                     else rng.pick(street_content.STRIKE_WIN))
             note = f'-{dmg}'
             if spread:
@@ -344,6 +392,8 @@ def _answer(sess, f: Fight, text: str) -> None:
             c.say(f'[ok]{line}[/] [dim]({note})[/]')
             if w is not None and w.rider == 'stun':
                 f.stunned = True
+            if w is not None and w.rider == 'stagger':
+                f.staggered = True
             if w is not None and w.rider == 'reach':
                 # You kept them at the far end of the metre.
                 f.kept_off = True
@@ -401,6 +451,10 @@ def _answer(sess, f: Fight, text: str) -> None:
             _end(sess, f, 'broke')
             return
         c.say(f'[err]{rng.pick(street_content.BREAK_LOSE)}[/]')
+    if f.ally and f.pool > 0 and rng.chance(ALLY_CHANCE):
+        f.pool -= ALLY_HIT
+        c.say(f'[ok]{rng.pick(street_content.ALLY_HIT).format(ally=f.ally)}[/] '
+              f'[dim](-{ALLY_HIT})[/]')
     if f.pool <= 0:
         _end(sess, f, 'won')
         return
@@ -440,8 +494,12 @@ def _foe_hits(sess, f: Fight, scale: float = 1.0, bonus: int = 0) -> None:
         raw //= 2
         f.stunned = False
         told.append(f'[dim]{street_content.FOE_STUNNED}[/]')
+    if f.staggered:
+        raw -= 2
+        f.staggered = False
+        told.append(f'[dim]{street_content.FOE_STAGGERED}[/]')
     raw = int(raw * scale)
-    armour = char.bonus('armour')
+    armour = armour_of(char)
     if armour and raw > 0:
         soaked = min(armour, raw)
         raw -= soaked
@@ -494,6 +552,9 @@ def _end(sess, f: Fight, result: str) -> None:
         c.say(f'[heat]{street_content.FIGHT_LOUD.format(district=district)}[/] '
               f'[dim]Nightwatch heat +{LOUD_HEAT}.[/]')
         game.city.news.append(f'[heat]Shots in {district}.[/]')
+    if result == 'won' and FIGHT_XP.get(tier, 0):
+        char.xp += FIGHT_XP[tier]
+        c.say(f'[dim]{FIGHT_XP[tier]} experience.[/]')
     if result == 'won' and (tier == 4 or (tier == 3 and f.drawn)):
         got = char.mark('blooded')
         game.alias.add_heat(LAW, KILL_HEAT)

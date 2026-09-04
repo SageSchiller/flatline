@@ -174,6 +174,24 @@ TALKDOWN_LOSE = (
 FOE_MISS = 'They come in and there is nothing there.'
 FOE_GLANCE = 'Most of it goes into the arm, which is what the arm was for.'
 FOE_REACHED = 'They come for you and the metre is in the way, and the metre wins.'
+FOE_STAGGERED = 'The one you put on the floor is still on the floor.'
+STRIKE_FIRST = 'They did not see it coming, because there was nothing to see.'
+ALLY_HIT = (
+    '{ally} puts one down while you are busy with another.',
+    '{ally} is beside you, and the doorway is narrower for it.',
+    '{ally} does something quick and ugly and somebody stops.',
+)
+
+#: What you take off the people you beat (D131): the weapon they had, by
+#: encounter, half the time. It goes in the bag. A fence buys it back, or
+#: you carry it.
+LOOT: dict[str, str] = {
+    'knives': 'switchblade', 'walkway': 'bat', 'toll': 'bat',
+    'lean': 'knuckles', 'press': 'baton', 'finish': 'pistol',
+    'collectors': 'pistol', 'hounds_people': 'blade', 'backqueue': 'cleaver',
+    'callout': 'katana', 'crossed': 'blade', 'wet_press': 'baton',
+    'checkpoint': 'baton', 'frame': '', 'tail': 'switchblade',
+}
 
 #: The end of it, by tier. `{fac}` fills.
 FIGHT_WON = {
