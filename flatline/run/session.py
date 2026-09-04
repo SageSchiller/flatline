@@ -1254,11 +1254,12 @@ class RunState:
         their noise is your cover; cold and they tip the room; anything
         else and you read each other's scans and say nothing.
         """
-        # A nemesis in here is not a coincidence: if one of the runners has
-        # decided you are their problem (D120), it is them, and they came for
-        # this. Anybody else is the old roll of the dice.
+        # Whoever has decided the most about you is who turns up: a nemesis
+        # came for you (D120), a partner came for you too, the other way
+        # (D121), and anybody else is the old roll of the dice.
         nem = next((r for r in self.rivals if r.get('bond') == 'nemesis'), None)
-        who = dict(nem or self.rng.pick(self.rivals))
+        par = next((r for r in self.rivals if r.get('bond') == 'partner'), None)
+        who = dict(nem or par or self.rng.pick(self.rivals))
         name = who['name']
         disposition = int(who.get('disposition', 0))
         self.console.blank()
@@ -1274,6 +1275,11 @@ class RunState:
             self.escalate(1, f'{name} is working the room too')
             self.rival_race = who
             self.rival_lead = 0
+        elif who.get('bond') == 'partner' or disposition >= 50:
+            # The mirror of the race: they came to help, and they hand you
+            # what the state you are in most needs.
+            who['kind'] = 'boon'
+            self._partner_boon(who)
         elif disposition >= 30:
             who['kind'] = 'cover'
             self.console.say(f'[ok]{name}. Their traffic is louder than '
@@ -1293,6 +1299,40 @@ class RunState:
             self._incident_reveal('hosts')
         self.company = who
         self.log(f'company: {name}')
+
+    def _partner_boon(self, who: dict) -> None:
+        """A partner turning up uninvited is the mirror of the nemesis race
+        (D121): they came to help, and they hand you the thing the state you
+        are actually in needs most. High trace, they pull the room's eye onto
+        their own noise; a room already turning, they walk it the wrong way;
+        otherwise they leave you what they found. A partner you have not signed
+        is one `crew` away from being in every run, not the ones they wander
+        into.
+        """
+        name = who['name']
+        self.console.blank()
+        self.console.rule('company', role='ok')
+        if self.trace_pct >= 0.4:
+            relief = min(self.trace, 14.0)
+            self.trace = max(0.0, self.trace - relief)
+            self.console.say(f'[ok]{name}. They make themselves the loudest '
+                             f'thing in here on purpose, and the room turns to '
+                             f'look at them instead of you.[/] '
+                             f'[dim]trace -{relief:.0f}[/]')
+        elif self.alert != ice_content.ALERT_LEVELS[0]:
+            self.console.say(f'[ok]{name}. They walk something loud the wrong '
+                             f'way down the hall, and whatever was deciding '
+                             f'about you loses the thread.[/]')
+            self.cool()
+        else:
+            self.console.say(f'[ok]{name}. They have been through here '
+                             f'already, and they leave you what they found.'
+                             f'[/]')
+            self._incident_reveal('hosts')
+        if who.get('bond') == 'partner':
+            self.console.say(f'[dim]{name} would run every night with you, '
+                             f'not just the ones they walk into. `crew` them, '
+                             f'in the city.[/]')
 
     def _rival_race_tick(self) -> None:
         """A nemesis racing you gets closer to the objective every tick you

@@ -457,6 +457,58 @@ RECKON_WALKED = (
 
 
 # --------------------------------------------------------------------------
+# the offer (D121)
+# --------------------------------------------------------------------------
+#
+# The partner's culmination, and the mirror of the reckoning. A nemesis deep
+# enough comes to settle; a partner deep enough comes to stay. Crewing has
+# always been a thing you go and do to somebody willing (`crew take`); this is
+# the other direction, the one that reads as a relationship rather than a
+# hire: they come to you, and they waive the retainer, because past a certain
+# point the money was never the thing.
+
+#: Deeper than PARTNER_AT, because signing on for good is more than deciding
+#: you are worth a job.
+PARTNER_OFFER_AT = 85
+
+#: Them coming to you, per style. Once, if you have nobody on a retainer yet.
+PARTNER_OFFER = {
+    'loud': '{name} finds you before you find the work, and says it the way '
+            'they say everything, which is out loud and in front of people: '
+            'they are done running alone, and they would rather run with you '
+            'than anybody, and they are not charging you the usual to do it.',
+    'quiet': '{name} is there when you turn around, which they are not, '
+             'usually, and they say it once and plainly: they would run every '
+             'night with you, from here, and there is no retainer in it. It '
+             'is the most they have ever said at once.',
+    'social': '{name} sits down across from you without being asked, which '
+              'from them is a contract in itself, and lays it out warmly and '
+              'exactly: a standing arrangement, no retainer, their cut and '
+              'their skill and their word, because they have run the numbers '
+              'on you enough times to stop running them.',
+    'careful': '{name} has clearly decided this well before saying it: they '
+               'will run with you, on a standing basis, and they are waiving '
+               'the retainer, which from somebody who prices everything is '
+               'the loudest thing they could possibly do.',
+    'chrome': '{name} tells you, with the evenness they tell you everything, '
+              'that whatever runs them has concluded you are worth being '
+              'beside, permanently, and that the arrangement comes without a '
+              'retainer, which is not a discount. It is a decision.',
+}
+
+PARTNER_OFFER_YES = (
+    '{name} is your crew from tonight. No retainer, their word, and somebody '
+    'standing next to you on the thirtieth run who is there because they '
+    'chose to be and not because you paid for it. That is a different kind of '
+    'thing to lose, later, and you both know it.')
+PARTNER_OFFER_NO = (
+    'You leave it where it is. {name} takes it the way they take everything, '
+    'which is without a word about it, and the offer does not come again, '
+    'though the door it came through does not close: `crew take {handle}` is '
+    'still there, on the usual terms, whenever you are.')
+
+
+# --------------------------------------------------------------------------
 # a crew
 # --------------------------------------------------------------------------
 #

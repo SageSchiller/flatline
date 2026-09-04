@@ -597,3 +597,62 @@ def _reckoning_answer(sess, rival: Rival, line: str) -> None:
         c.rule('it cost you', role='err')
         c.say(f'[warn]{rival_content.RECKON_FACE_LOSE.format(name=rival.name)}'
               f'[/]')
+
+
+# --------------------------------------------------------------------------
+# the offer (D121)
+# --------------------------------------------------------------------------
+
+
+def active_partner(pool: list[Rival]) -> Rival | None:
+    return next((r for r in pool if r.alive and r.bond == 'partner'), None)
+
+
+def offer_due(pool: list[Rival], flags=(), has_crew: bool = False) -> Rival | None:
+    """A partner deep enough to come and stay, or None. Not while you already
+    have somebody on a retainer, and once per partner ever."""
+    if has_crew:
+        return None
+    rival = active_partner(pool)
+    if rival is None or f'offered:{rival.key}' in flags:
+        return None
+    if rival.disposition < rival_content.PARTNER_OFFER_AT:
+        return None
+    return rival
+
+
+def offer_begin(sess, rival: Rival) -> None:
+    """They come to you, and offer to run for good. Waits on the next line."""
+    game, c = sess.game, sess.console
+    setup = (rival_content.PARTNER_OFFER.get(rival.data.style)
+             or next(iter(rival_content.PARTNER_OFFER.values())))
+    c.blank()
+    c.rule('an offer', role='ok')
+    c.say(f'[ok]{setup.format(name=rival.name)}[/]')
+    c.blank()
+    c.raw(f'  [accent]{"yes":<6}[/] Run with them, for good.  '
+          f'[dim]no retainer, {int(rival_content.CREW_CUT * 100)}% cut[/]')
+    c.raw(f'  [accent]{"no":<6}[/] Leave it as it is.  '
+          f'[dim]still `crew take` later, on the usual terms[/]')
+    c.blank()
+    c.say('[dim]Type one.[/]')
+    sess.ask('they are waiting > ',
+             lambda s, line: _offer_answer(s, rival, line),
+             must_answer=True, choices=('yes', 'no'))
+
+
+def _offer_answer(sess, rival: Rival, line: str) -> None:
+    game, c = sess.game, sess.console
+    word = line.strip().lower().split()[0] if line.strip() else ''
+    game.story.flags.add(f'offered:{rival.key}')
+    if word in ('no', 'not', 'later', 'decline', 'leave'):
+        c.blank()
+        c.say(f'[dim]{rival_content.PARTNER_OFFER_NO.format(name=rival.name, handle=rival.data.handle.lower())}[/]')
+        return
+    # Anything else takes them on: yes is the default, because somebody who
+    # did not say no to this is saying yes.
+    game.city.crew = {'key': rival.key, 'runs': 0}
+    game.city.hired = ''
+    c.blank()
+    c.rule(rival.name, role='accent2')
+    c.say(f'[ok]{rival_content.PARTNER_OFFER_YES.format(name=rival.name)}[/]')

@@ -11069,6 +11069,87 @@ def test_the_nemesis_run() -> None:
     T.ok(not st.rival_race, 'a rival who is not your nemesis does not race you')
 
 
+def test_the_partner() -> None:
+    """D121: the mirror of the nemesis. A partner helps in the run, and deep
+    enough, comes to run with you for good."""
+    T.section('the partner')
+    from flatline.run import network as net_mod
+    from flatline.run.session import RunState
+    from flatline.rng import Rng
+    from flatline.world import rivals as rival_mod
+
+    # In the run: an uninvited partner is a felt help, not passive cover.
+    def a_run(disp=90, bond='partner'):
+        char = Character.from_origin('gutter', 't')
+        Game.new(char, seed=5)
+        net = net_mod.generate(Rng(5).fork('network', 't'), 'sixes', 40,
+                               'exfiltrate', 1.0)
+        con = quiet_console()
+        st = RunState.begin(net, char, Rng(5)('combat'), con,
+                            contract={'objective': 'exfiltrate', 'title': 'T'})
+        st.render_mode = 'none'
+        st.rivals = [{'key': 'moth', 'name': 'Moth', 'disposition': disp,
+                      'style': 'loud', 'bond': bond}]
+        return st, con
+
+    st, con = a_run()
+    st.trace = 50.0
+    con.start_capture()
+    st._company()
+    out = strip_ansi(con.end_capture())
+    T.ok(st.company.get('kind') == 'boon', 'a partner turns up as a boon')
+    T.ok(st.trace < 50.0, 'and pulls the heat off you when it is high')
+    T.ok('crew' in out, 'and a partner is pointed at the crew that keeps them')
+
+    # A partner is the one who turns up, over a random stranger.
+    st, con = a_run()
+    st.rivals.append({'key': 'ledger', 'name': 'Ledger', 'disposition': 0,
+                      'style': 'careful', 'bond': None})
+    con.start_capture()
+    st._company()
+    T.eq(st.company.get('key'), 'moth', 'the partner is who comes, not a stranger')
+
+    # The offer: due only for a deep partner, with nobody on a retainer, once.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+    T.eq(rival_mod.offer_due(game.city.rivals, game.story.flags, False), None,
+         'no offer without a partner')
+    p = next(r for r in game.city.rivals if r.key == 'moth')
+    p.bond = 'partner'
+    p.disposition = 70
+    T.eq(rival_mod.offer_due(game.city.rivals, game.story.flags, False), None,
+         'a shallow partner does not offer')
+    p.disposition = 90
+    T.eq(rival_mod.offer_due(game.city.rivals, game.story.flags, False).key,
+         'moth', 'a deep partner offers to stay')
+    T.eq(rival_mod.offer_due(game.city.rivals, game.story.flags, True), None,
+         'not while somebody is already on a retainer')
+
+    def play_offer(choice):
+        g = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+        for r in g.city.rivals:
+            if r.key == 'moth':
+                r.bond = 'partner'
+                r.disposition = 90
+        con = quiet_console()
+        sess = Session(console=con, slot='par')
+        sess.game = g
+        con.start_capture()
+        sess.execute('look')
+        fired = 'an offer' in strip_ansi(con.end_capture())
+        con.start_capture()
+        sess.execute(choice)
+        return fired, g
+
+    fired, g = play_offer('yes')
+    T.ok(fired, 'the offer fires in the city')
+    T.eq(g.city.crew.get('key'), 'moth', 'yes crews them, retainer waived')
+    T.ok('offered:moth' in g.story.flags, 'and it is remembered')
+
+    _, g = play_offer('no')
+    T.ok(not g.city.crew and 'offered:moth' in g.story.flags,
+         'no leaves it, and does not ask again')
+
+
 def test_the_lifeline() -> None:
     """D118: the fading blank-prompt reminder for a brand-new runner."""
     T.section('the lifeline')
@@ -12076,7 +12157,7 @@ SUITES = (
     test_the_way_in, test_more_to_say, test_the_door, test_corporate_night,
     test_named_shelf, test_and_in_nights, test_the_fourth_wave,
     test_the_cold_open, test_ambitions, test_the_lifeline, test_the_reckoning,
-    test_the_nemesis_run,
+    test_the_nemesis_run, test_the_partner,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

@@ -539,15 +539,20 @@ def _resolve(sess) -> None:
         short = fac_content.BY_KEY[summary['faction']].short
         line = f'{company["name"]} was in {short} the same night you were.'
         race = company.get('race')
+        kind = company.get('kind', '')
         if race == 'you':
             # You beat your nemesis to it in their own back yard (D120). That
             # is the kind of thing that makes an enemy worse, not better.
             line = f'{company["name"]} was in {short} too, and came second.'
         elif race == 'them':
             line = f'{company["name"]} got there first in {short}. You were the one who came second.'
+        elif kind == 'boon':
+            # A partner who put themselves out for you in there (D121). That is
+            # the kind of thing a partnership is made of.
+            line = f'{company["name"]} was in {short} too, and made it easier, which they will remember doing.'
         if rival is not None:
             rival.adjust_disposition(
-                {'cover': 3, 'tip': -3}.get(company.get('kind', ''), 1)
+                {'cover': 3, 'tip': -3, 'boon': 5}.get(kind, 1)
                 if race is None else (-8 if race == 'you' else -2))
             rival.last = line
         game.city.news.append(f'[dim]{line}[/]')

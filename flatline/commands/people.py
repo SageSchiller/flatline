@@ -1250,7 +1250,22 @@ def _check_story(sess) -> None:
               f'the next thing you do.[/]')
     _check_ambitions(sess)
     _check_reckoning(sess)
+    _check_partner_offer(sess)
     sess.autosave()
+
+
+def _check_partner_offer(sess) -> None:
+    """A partner deep enough comes to run with you for good (D121), the mirror
+    of the reckoning. Only when nothing else is waiting, and never on top of a
+    reckoning that the same breath may have raised."""
+    game = sess.game
+    if game is None or sess.run is not None or sess.pending is not None:
+        return
+    from ..world import rivals as rival_mod
+    rival = rival_mod.offer_due(game.city.rivals, game.story.flags,
+                                bool(game.city.crew))
+    if rival is not None:
+        rival_mod.offer_begin(sess, rival)
 
 
 def _check_reckoning(sess) -> None:
