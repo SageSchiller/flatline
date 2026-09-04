@@ -137,11 +137,39 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The mistake everybody makes first:[/] staying too long. Every '
         'command costs time, time advances the trace, and there is no prize '
         'for the last asset you grabbed if the trace lands on you carrying it.',
-        see=('triangle', 'checks', 'objectives'),
+        see=('triangle', 'checks', 'objectives', 'ambitions'),
         commands=('job', 'scan', 'probe', 'odds', 'crack', 'connect',
                   'jack out'),
         covers=('tutorial',),
         terms=('how to play', 'getting started', 'walkthrough',),
+        group='start'),
+
+    Topic(
+        'ambitions', 'Ambitions, and what to want',
+        'The ladder between one job and the whole story.',
+        'A run is a night and the story is the years, and between them the '
+        'game holds a handful of things a runner would actually want: to get '
+        '[fg]on your feet[/] with a job behind you, to be [fg]properly '
+        'equipped[/] with a payload of your own, to make a [fg]name[/] one '
+        'faction remembers, to become [fg]somebody in particular[/] with a '
+        'skill three ranks deep, to find out [fg]what Deepwater is[/], to sit '
+        'on a [fg]stake worth keeping[/], and to be [fg]still breathing[/] on '
+        'the seventh night.\n\n'
+        'Nothing here is a quest you accept. Each is just met by playing, and '
+        'the game says so when it happens, with a small recognition bounty '
+        'where money is the wrong reward. `ambitions` lists them and how far '
+        'along you are; `now` points at the next one still open, because a '
+        'runner who has learned the loop should always have a next thing '
+        'worth wanting.\n\n'
+        '[warn]The decision:[/] the ladder is not the story, and chasing the '
+        'next rung is not the same as chasing what Deepwater is. A run every '
+        'night ticks the ambitions and never once opens a scene. The good '
+        'careers spend some nights on the ladder and some on the people, and '
+        'the difference is which one you reach for when the board is dull.',
+        see=('objectives', 'factions'),
+        commands=('ambitions', 'now'),
+        covers=('ambitions',),
+        terms=('goals', 'aims', 'progression', 'milestones'),
         group='start'),
 
     Topic(
@@ -1407,7 +1435,7 @@ TOPICS: tuple[Topic, ...] = (
         'size decides how long you will be in there, and shape decides '
         'whether there is a second way round. Legwork buys all three before '
         'you commit, and it is cheaper than finding out.',
-        see=('objectives', 'contracts', 'triangle', 'factions'),
+        see=('objectives', 'contracts', 'triangle', 'factions', 'ambitions'),
         commands=('map', 'legwork', 'board', 'scan'),
         terms=('shape', 'sprawl', 'zones', 'topology', 'layout',
                'how big', 'signature', 'network', 'networks'),

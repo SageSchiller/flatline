@@ -10931,6 +10931,74 @@ def test_the_cold_open() -> None:
     T.ok(text.isascii(), 'the cold open is ascii-clean on an ascii terminal')
 
 
+def test_ambitions() -> None:
+    """D117: the ladder between a job and the story, met by playing."""
+    T.section('ambitions')
+    from flatline.content import ambitions
+    from flatline.commands.people import _check_ambitions
+
+    char = Character.from_origin('gutter', 'x')
+    game = Game.new(char, seed=1)
+
+    # A fresh runner has met none, and the next rung is getting on your feet.
+    T.eq([a.key for a, met in ambitions.status(game) if met], [],
+         'a new runner has met no ambitions')
+    T.eq(ambitions.next_open(game).key, 'feet', 'the first rung is a job done')
+    # Every predicate is total on a bare game: it runs after every command.
+    for a in ambitions.AMBITIONS:
+        a.done(game)
+    T.ok(True, 'no ambition predicate crashes on a fresh game')
+
+    # Finishing a job meets the first rung. The hook fires a beat, pays the
+    # recognition bounty, and remembers it.
+    char.runs = 1
+    T.eq([a.key for a in ambitions.newly_met(game)], ['feet'],
+         'a job done meets exactly the first rung')
+    con = quiet_console()
+    sess = Session(console=con, slot='amb')
+    sess.game = game
+    before = char.credits
+    con.start_capture()
+    _check_ambitions(sess)
+    out = strip_ansi(con.end_capture())
+    T.ok('On your feet' in out, 'the ambition prints a beat')
+    T.eq(char.credits, before + 250, 'and pays its recognition bounty')
+    T.ok('won:feet' in game.story.flags, 'and is remembered in the flag set')
+    T.eq(ambitions.next_open(game).key, 'kit', 'the ladder advances')
+
+    # It never fires twice, and only one lands per breath.
+    con.start_capture()
+    _check_ambitions(sess)
+    T.ok('On your feet' not in strip_ansi(con.end_capture()),
+         'a met ambition is not claimed again')
+    char.credits = 10000
+    char.library.append('siphon')  # a payload
+    T.ok(len(ambitions.newly_met(game)) >= 2,
+         'two are true at once')
+    con.start_capture()
+    _check_ambitions(sess)
+    out3 = strip_ansi(con.end_capture())
+    T.ok('Properly equipped' in out3,
+         'the earlier rung on the ladder lands first')
+    T.ok('A stake worth keeping' not in out3,
+         'and only one lands in one breath')
+
+    # The command lists the whole ladder with a count.
+    con2 = quiet_console()
+    sess2 = Session(console=con2, slot='amb2')
+    sess2.game = game
+    con2.start_capture()
+    sess2.execute('ambitions')
+    text = strip_ansi(con2.end_capture())
+    T.ok(f'of {len(ambitions.AMBITIONS)}' in text, 'the command counts them')
+    T.ok('On your feet' in text and 'What Deepwater is' in text,
+         'and lists the rungs')
+    # `aims` and `goals` reach the same command.
+    con2.start_capture()
+    sess2.execute('aims')
+    T.ok('Ambitions' in strip_ansi(con2.end_capture()), 'aims is an alias')
+
+
 def test_the_job_itself() -> None:
     """D101: the objective verb is priced, the errand pays once, the escort
     is waited for, and the fifth wave's other findings."""
@@ -11828,7 +11896,7 @@ SUITES = (
     test_remembered_inside, test_second_look, test_second_wave,
     test_the_way_in, test_more_to_say, test_the_door, test_corporate_night,
     test_named_shelf, test_and_in_nights, test_the_fourth_wave,
-    test_the_cold_open,
+    test_the_cold_open, test_ambitions,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

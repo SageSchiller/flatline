@@ -1248,4 +1248,28 @@ def _check_story(sess) -> None:
         c.say(f'[dim]There is more happening here than one street can hold: '
               f'{len(held)} more scene{"s" if len(held) != 1 else ""}, on '
               f'the next thing you do.[/]')
+    _check_ambitions(sess)
     sess.autosave()
+
+
+def _check_ambitions(sess) -> None:
+    """Mark any ambition (D117) the player has just met: a beat, a small
+    recognition bounty, and it is remembered. One per breath, so a veteran's
+    first load drips its back-catalogue rather than dumping it."""
+    game = sess.game
+    if game is None or sess.run is not None:
+        return
+    from ..content import ambitions
+    met = ambitions.newly_met(game)
+    if not met:
+        return
+    won = met[0]
+    ambitions.claim(game, won)
+    c = sess.console
+    c.blank()
+    c.rule(won.title, role='ok')
+    c.say(f'[ok]{won.line}[/]')
+    if won.reward:
+        game.char.credits += won.reward
+        c.say(f'[dim]The street rounds up. [/][credit]+{won.reward:,}c[/][dim]'
+              f', for being somebody worth paying attention to.[/]')

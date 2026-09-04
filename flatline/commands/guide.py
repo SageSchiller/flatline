@@ -59,6 +59,35 @@ def cmd_now(sess, args) -> None:
             f'[fg]{a}[/]' for a in also), indent='  ', subsequent='        ')
 
 
+@command('ambitions', 'The next things worth wanting.',
+         group='info', aliases=('aims', 'goals'), contexts=('city',),
+         usage='ambitions',
+         detail='The ladder between one job and the whole story (D117): a '
+                'handful of goals a runner would actually hold, from getting '
+                'on your feet to finding out what Deepwater is. Each is met '
+                'by playing, and the game says when. `now` points at the '
+                'next one still open.')
+def cmd_ambitions(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    from ..content import ambitions
+    rows = ambitions.status(game)
+    done = sum(1 for _, met in rows if met)
+    c.header('Ambitions', f'{done} of {len(rows)}')
+    for amb, met in rows:
+        mark = '[ok]done[/]' if met else '[dim]open[/]'
+        c.say(f'[{"ok" if met else "accent"}]{amb.title}[/]  {mark}',
+              indent='  ')
+        c.say(f'[dim]{amb.blurb}[/]', indent='    ', subsequent='    ')
+        if not met:
+            c.say(f'[dim]{c.caps.g("arrow")} {amb.hint}[/]', indent='    ',
+                  subsequent='    ')
+        c.blank()
+    nxt = ambitions.next_open(game)
+    if nxt is None:
+        c.say('[dim]All of them. The city is out of names for what you are.'
+              '[/]', indent='  ')
+
+
 def what_now(sess) -> tuple[str, list[tuple[str, str]], list[str]]:
     """(situation, [(command, why)], [other verbs]) for the current state.
 
@@ -227,6 +256,14 @@ def _now_city(sess):
         nudges = [n for n in nudges if not n[0].startswith('train ')]
     steps.extend(nudges)
     steps.extend(_story_nudge(sess))
+    # The next rung on the ladder (D117), once they are actually climbing:
+    # a runner with a job behind them always has a next thing worth wanting,
+    # and `now` is where they should be able to see it.
+    from ..content import ambitions
+    nxt = ambitions.next_open(game)
+    if nxt is not None and char.runs >= 1 and not any(
+            cmd == 'aims' for cmd, _ in steps):
+        steps.append(('aims', f'{nxt.title}: {nxt.hint}'))
     return line, steps, also
 
 
