@@ -160,8 +160,20 @@ FOE_HIT = (
 )
 FOE_HIT_ARMOUR = 'Most of it stops at the plating.'
 FOE_STUNNED = 'The one you hit is still finding out where their hands are.'
+TALKDOWN_WIN = (
+    'You find the sentence. It is not a clever sentence; it is the true one, '
+    'about how this ends for everybody standing here, and one of them was '
+    'waiting for a reason and you have handed it to them.',
+    'You give them the out. A way to stop that is not losing, and they take '
+    'it the way people take a thing they wanted and could not ask for.',
+)
+TALKDOWN_LOSE = (
+    'You find the sentence and it is the wrong one, and the wrong one in a '
+    'fight is a beat you spent not covering up.',
+)
 FOE_MISS = 'They come in and there is nothing there.'
 FOE_GLANCE = 'Most of it goes into the arm, which is what the arm was for.'
+FOE_REACHED = 'They come for you and the metre is in the way, and the metre wins.'
 
 #: The end of it, by tier. `{fac}` fills.
 FIGHT_WON = {

@@ -11227,9 +11227,9 @@ def test_the_fight() -> None:
          'Violence is a Grit line with techniques at 2 and 4')
     T.ok({t.key for t in v.techniques} == {'finisher', 'menace'},
          'and they are Finisher and Menace')
-    T.ok(len(weapons.WEAPONS) == 5 and any(w.loud for w in weapons.WEAPONS)
+    T.ok(any(w.loud for w in weapons.WEAPONS)
          and any(not w.loud for w in weapons.WEAPONS),
-         'five things to carry, on a quiet-or-loud axis')
+         'things to carry, on a quiet-or-loud axis')
     T.ok(all(w.name[:2] not in ('A ', 'An') for w in weapons.WEAPONS),
          'no weapon name carries an article: it is read after "with the"')
     T.ok(cyberware.BY_KEY['dermal_weave'].effects.get('armour') == 1
@@ -11301,7 +11301,7 @@ def test_the_fight() -> None:
     out = do(sess, con, 'fight')
     T.ok('a fight' in out and 'strike' in out and 'break' in out,
          'fight opens the exchange with strike and break on it')
-    T.ok('with the blade' in out, 'and names what is in your hand')
+    T.ok('with the blade' in ' '.join(out.split()), 'and names what is in your hand')
     out += until_done(sess, con, 'strike')
     T.ok(sess.pending is None and 'you won it' in out, 'and a fighter wins it')
     T.ok('fought:sixes' in game.story.flags
@@ -11439,6 +11439,60 @@ def test_the_fight() -> None:
     until_done(sess, con, 'strike')
     T.ok('reckoned:hound' in game.story.flags and rival.bond is None,
          'which settles it either way')
+
+    # D130: more of the shelf, more ways to fight.
+    T.ok(len(weapons.carriable()) >= 8, 'the fence shelf has grown')
+    T.ok(weapons.granted(['wolvers']) is not None
+         and weapons.BY_KEY['wolvers'] not in weapons.carriable(),
+         'a fitted weapon is chrome, never on the shelf')
+    T.ok(sorted(w.effects.get('armour', 0) for w in cyberware.WARE
+                if w.effects.get('armour')) == [1, 1, 2, 3],
+         'armour spans one to three')
+
+    # reach keeps them off; spread reaches the ones behind.
+    sess, con, game = fresh(attrs={'grit': 6, 'nerve': 5}, violence=2)
+    game.char.weapon = 'monowire'
+    street(sess, con, 'crossed', faction='')
+    out = do(sess, con, 'fight')
+    for _ in range(6):
+        if sess.pending is None:
+            break
+        out += do(sess, con, 'strike')
+    flat = ' '.join(out.split())
+    T.ok('the metre' in flat or 'you won it' in flat,
+         'a reach weapon keeps them off on a landed strike')
+    sess.pending = None
+    sess, con, game = fresh(attrs={'grit': 6, 'nerve': 5}, violence=3)
+    game.char.weapon = 'scattergun'
+    street(sess, con, 'press')
+    do(sess, con, 'fight')
+    out = do(sess, con, 'strike')
+    T.ok('into the ones' in ' '.join(out.split()) or sess.pending is None,
+         'spread reaches past the one in front while they are bunched')
+    sess.pending = None
+
+    # A fitted weapon fights with an empty hand.
+    sess, con, game = fresh(violence=3)
+    game.char.installed = ['wolvers']
+    T.ok('Wolvers' in do(sess, con, 'carry'), 'carry names the fitted weapon')
+    street(sess, con, 'lean')
+    out = do(sess, con, 'fight')
+    T.ok('with the wolvers' in ' '.join(out.split()), 'and the fight uses it with nothing carried')
+    sess.pending = None
+
+    # Talk it down, once, and clean: the Face technique in a fight.
+    sess, con, game = fresh(attrs={'guile': 6}, streetcraft=4)
+    heat0 = game.alias.raw_heat('sixes')
+    street(sess, con, 'lean')
+    out = do(sess, con, 'fight')
+    T.ok('talk' in out.split('break')[0], 'A Face puts talk on the fight')
+    out = do(sess, con, 'talk')
+    if 'talked down' in out:
+        T.ok(game.alias.raw_heat('sixes') == heat0,
+             'a talk-down is clean: no heat, no grudge')
+    else:
+        T.ok(sess.pending is not None, 'or it fails and the fight goes on')
+    sess.pending = None
 
     # The founding rule, amended and not deleted.
     T.ok('never a way to do a job' in manual.BY_KEY['street'].body,

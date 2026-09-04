@@ -172,6 +172,17 @@ WARE: tuple[Ware, ...] = (
          penalty={'tick_mult': 1.15}),
 
     # -- limb --------------------------------------------------------------
+    Ware('wolvers', 'Wolvers', 'Militech, grey-market', 'limb', 3, 12,
+         7200, 3,
+         'Four ceramic blades per arm, sprung into the ulna, out in a '
+         'quarter-second and back in a second nobody watches. Militech built '
+         'them for people who are the weapon; the grey market fits them to '
+         'anybody with the bandwidth and the nerve.',
+         effects={'skill_violence': 1},
+         drawback='They are always there. A scanner reads them from across a '
+                  'lobby, and the arm they are in is a little less an arm and '
+                  'a little more a sheath, forever.',
+         penalty={'heat_mult': 1.15}),
     Ware('interface_hands', 'Interface Hands', 'Kohler-Reyes',
          'limb', 2, 8, 4600, 2,
          'Fingertip contact ports and a haptic layer fast enough that physical '
@@ -220,6 +231,28 @@ WARE: tuple[Ware, ...] = (
                   'the chair. Everything you do at the deck takes '
                   'fractionally longer, forever.',
          penalty={'tick_mult': 1.06}),
+    Ware('bonelacing', 'Bone Lacing', 'Freeport, rebuilt', 'subdermal', 2, 7,
+         4100, 2,
+         'The long bones threaded with a lattice that does not break the way '
+         'bone breaks. You do not hit harder, you just stop being the thing '
+         'in the exchange that gives first, which changes the exchange more '
+         'than hitting harder would.',
+         effects={'armour': 1, 'integrity': 4},
+         drawback='It aches in the cold and the cold is most of the year '
+                  'here, and it sets off every scanner built to find people '
+                  'wearing exactly this.',
+         penalty={'heat_mult': 1.08}),
+    Ware('milplate', 'Milspec Trauma Plate', 'Militech, grey-market', 'subdermal', 3, 12,
+         9200, 3,
+         'What plating wants to be when it grows up: layered trauma plate off '
+         'a Militech line, fitted by somebody who should not have it, over '
+         'everything a round wants. A hit that would end most people is a '
+         'hit most people notice you shrugging.',
+         effects={'armour': 3, 'integrity': 3},
+         drawback='You are wearing a vehicle. It is heavy everywhere and '
+                  'heaviest in the chair, and the net was not built for '
+                  'somebody sitting in this.',
+         penalty={'tick_mult': 1.1, 'composure': -1}),
     Ware('coolant_mesh', 'Subdermal Coolant Mesh', 'Kohler-Reyes',
          'subdermal', 2, 5, 3400, 2,
          'A closed loop under the skin that takes heat off the deck through '

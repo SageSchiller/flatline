@@ -331,11 +331,7 @@ def cmd_char(sess, args) -> None:
         ('credits', f'[credit]{char.credits:,}c[/]'),
         ('integrity', f'{char.integrity}/{char.integrity_max}'
                       + _warned_line(game)),
-        ('carrying', (f'{weapon_content.BY_KEY[char.weapon].name}'
-                      + (' [dim](loud)[/]' if weapon_content.BY_KEY[char.weapon].loud else '')
-                      if char.weapon in weapon_content.BY_KEY else '[dim]nothing[/]')
-                     + (f' [dim]armour {char.bonus("armour")}[/]'
-                        if char.bonus('armour') else '')),
+        ('carrying', _carrying_line(char)),
         ('dissonance', f'{char.dissonance} [dim]({char.dissonance_band[1]})[/]'),
         ('looks', f'[dim]{appearance.summary(char.look)}[/]'),
         ('read as', f'{char.memorable_band[0]} '
@@ -1187,6 +1183,16 @@ def cmd_sell(sess, args) -> None:
     raise CommandError(f'you do not have anything called {query!r} in storage')
 
 
+def _carrying_line(char) -> str:
+    w = weapon_content.BY_KEY.get(char.weapon) or weapon_content.granted(char.installed)
+    if w is None:
+        base = '[dim]nothing[/]'
+    else:
+        base = w.name + (' [dim](loud)[/]' if w.loud else '')
+    armour = char.bonus('armour')
+    return base + (f' [dim]armour {armour}[/]' if armour else '')
+
+
 @command('carry', 'What is in your hand on the street, and swap it.',
          contexts=('city',), group='character', usage='carry [<weapon>|nothing]',
          detail=(
@@ -1199,13 +1205,19 @@ def cmd_carry(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     char = game.char
     held = weapon_content.BY_KEY.get(char.weapon)
+    fitted = weapon_content.granted(char.installed)
     bagged = [k for k in char.library if k in weapon_content.BY_KEY]
     if not len(args):
-        c.header('In hand', held.name if held else 'nothing')
+        c.header('In hand', held.name if held else (
+            f'{fitted.name} [dim](fitted)[/]' if fitted else 'nothing'))
         if held:
             c.say(f'[dim]+{held.damage} a landed strike, '
                   f'{"loud" if held.loud else "quiet"}. `inspect {held.key}` '
                   f'for the rest.[/]')
+        elif fitted:
+            c.say(f'[dim]+{fitted.damage} a landed strike, and it does not '
+                  f'come out of your hand because it is your arm. A carried '
+                  f'weapon goes in the same hand; this waits under it.[/]')
         if bagged:
             c.say('[dim]In the bag: '
                   + ', '.join(weapon_content.BY_KEY[k].name for k in bagged)

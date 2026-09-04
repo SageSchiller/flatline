@@ -247,6 +247,10 @@ def _fight_then(sess, enc, faction: str, danger: int, f, result: str) -> None:
                         f'them.[/]')
         game.city.news.append(f'[warn]{enc.name}[/] in '
                               f'{game.city.district.name}: you won it.')
+    elif result == 'talked':
+        # A fight you ended with a sentence rather than a beating: clean.
+        game.city.news.append(f'[warn]{enc.name}[/] in '
+                              f'{game.city.district.name}: you talked it down.')
     else:
         if fac is not None:
             game.alias.add_heat(faction, 1)

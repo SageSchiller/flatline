@@ -99,8 +99,9 @@ def _catalogue(kind: str, service: str = ''):
     if kind == 'ware':
         return [(w.key, w.tier, w.price) for w in cyberware.WARE if not w.unique]
     if kind == 'weapon':
-        # Off the back of a fence and nowhere else (D128).
-        return [(w.key, w.tier, w.price) for w in weapons.WEAPONS]
+        # Off the back of a fence and nowhere else (D128). A fitted weapon
+        # (wolvers) is chrome and never on the shelf (D130).
+        return [(w.key, w.tier, w.price) for w in weapons.carriable()]
     if kind == 'drug':
         # Filtered by who is selling. A clinic and a fence both deal, and
         # they deal in different things: the difference between the two

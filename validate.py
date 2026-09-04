@@ -3903,6 +3903,38 @@ def check_conditions(rep: Report) -> None:
 # --------------------------------------------------------------------------
 
 
+def check_weapons(rep: Report) -> None:
+    """The street's shelf (D128, D130). One axis that matters, and every
+    rider read by the engine."""
+    from flatline.content import weapons
+    seen_loud = seen_quiet = False
+    for w in weapons.WEAPONS:
+        where = f'weapons/{w.key}'
+        rep.check(w.damage > 0, where, 'does no damage')
+        rep.check(w.price >= 0, where, 'negative price')
+        rep.check(1 <= w.tier <= 3, where, f'tier {w.tier} out of range')
+        rep.check(bool(w.blurb and w.drawback), where,
+                  'has no blurb or no stated drawback (D11)')
+        rep.check(not w.name[:3] in ('A ', 'An ') and not w.name.startswith('A '),
+                  where, 'name carries an article: it reads after "with the"')
+        if w.rider:
+            rep.check(w.rider in weapons.RIDERS, where,
+                      f'unknown rider {w.rider!r}')
+        seen_loud = seen_loud or w.loud
+        seen_quiet = seen_quiet or not w.loud
+    rep.check(seen_loud and seen_quiet, 'weapons',
+              'the shelf needs both a loud and a quiet option')
+    # A fitted weapon (price 0) must be granted by chrome that exists, and
+    # must never reach the fence.
+    for ware_key, weapon_key in weapons.CHROME_WEAPONS.items():
+        rep.check(ware_key in cyberware.BY_KEY, 'weapons',
+                  f'{weapon_key} is granted by {ware_key}, which is not chrome')
+        rep.check(weapon_key in weapons.BY_KEY, 'weapons',
+                  f'chrome grants {weapon_key}, which is not a weapon')
+        rep.check(weapons.BY_KEY[weapon_key] not in weapons.carriable(),
+                  'weapons', f'{weapon_key} is fitted but on the fence shelf')
+
+
 def check_street(rep: Report) -> None:
     """D65: every encounter is answerable, every answer is a real check or a
     real price, only the top tier can kill and only after a warning, and
@@ -4115,6 +4147,8 @@ def check_reads(rep: Report) -> None:
     riders |= set(origins.RIDERS)
     riders |= {d.rider for d in drugs.DRUGS if d.rider}
     riders |= set(programs.RIDERS)
+    from flatline.content import weapons as _weapons
+    riders |= set(_weapons.RIDERS)
     for rider in sorted(riders):
         rep.check(f"'{rider}'" in source, 'reads',
                   f'rider {rider!r} is declared and nothing outside content '
@@ -4139,6 +4173,7 @@ CHECKS = (
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_palette_separation, check_markup, check_balance,
     check_heat, check_guile, check_roster, check_reads, check_relics, check_street,
+    check_weapons,
 )
 
 

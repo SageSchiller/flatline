@@ -57,6 +57,39 @@ WEAPONS: tuple[Weapon, ...] = (
            'Nightwatch.',
            'Loud. Every fight it is drawn in is a Nightwatch matter, whichever '
            'way it went.'),
+    Weapon('cleaver', 'Cleaver', 3, False, 900, 1,
+           'It came off a meat bench and it has not forgotten. Quiet, cheap, '
+           'and entirely without pretension: it does one thing, close up, and '
+           'the one thing is not in doubt.',
+           'There is no elegant way to carry a cleaver, and no way at all to '
+           'carry it that the people who see you carrying it will forget.'),
+    Weapon('scattergun', 'Scattergun', 4, True, 2400, 2,
+           'Short, ugly, and cut down further than the law that already '
+           'banned it. It does not ask which of the four of them you meant. '
+           'At a doorway\'s range, which is the only range the street has, '
+           'that is the whole point.',
+           'Loud, and it does not care who is behind them. Every fight it is '
+           'drawn in is a Nightwatch matter, and the fight after it is with '
+           'whoever was standing behind the people you meant.',
+           rider='spread'),
+    Weapon('monowire', 'Monowire', 3, False, 4800, 3,
+           'A metre of monofilament on a spool in your palm, invisible edge '
+           'on, and it keeps them at the far end of the metre, which on the '
+           'street is a wall nobody can cross. Quiet, in the sense that it '
+           'makes almost no sound; not quiet in any sense that matters to '
+           'the people who know what the sound is.',
+           'It is illegal in a way that a knife is not, and the spool leaves '
+           'a signature on your palm that a clinic can read. It also, '
+           'occasionally, takes a fingertip that was yours.',
+           rider='reach'),
+    Weapon('wolvers', 'Wolvers', 3, False, 0, 2,
+           'Not carried: fitted. Four ceramic blades that live in the back '
+           'of the forearm until they do not, and then live in whoever is '
+           'nearest. There is no drawing them and no dropping them and no '
+           'walking into a room without them.',
+           'They are always there, which is the point and the problem: you '
+           'cannot put them down, and a scanner sees them from across a '
+           'lobby.'),
     Weapon('smartgun', 'Smartgun', 5, True, 6500, 3,
            'A pistol that knows where you are looking, through a neural link '
            'that it will also remember. Without something in the neural slot '
@@ -70,4 +103,27 @@ BY_KEY: dict[str, Weapon] = {w.key: w for w in WEAPONS}
 
 #: Riders the engine special-cases. `stun`: a landed strike halves their
 #: next hit. `smartlink`: needs neural chrome fitted, or hits for less.
-RIDERS: frozenset[str] = frozenset({'stun', 'smartlink'})
+#: Weapon keys that are fitted, not carried: granted by chrome, never on a
+#: fence's shelf, never dropped. Maps the chrome that grants it -> the
+#: weapon key.
+CHROME_WEAPONS: dict[str, str] = {'wolvers': 'wolvers'}
+
+
+def carriable() -> list:
+    """What a fence can stock: everything with a price."""
+    return [w for w in WEAPONS if w.price > 0]
+
+
+def granted(installed) -> Weapon | None:
+    """A weapon fitted rather than carried, if any is installed."""
+    for ware_key, weapon_key in CHROME_WEAPONS.items():
+        if ware_key in installed:
+            return BY_KEY[weapon_key]
+    return None
+
+
+#: Riders the engine special-cases. `stun`: a landed strike halves their
+#: next hit. `smartlink`: needs neural chrome or it hits for less. `spread`:
+#: a hit reaches more than one while they are still bunched. `reach`: a
+#: landed strike keeps them off, and they do not hit back that round.
+RIDERS: frozenset[str] = frozenset({'stun', 'smartlink', 'spread', 'reach'})

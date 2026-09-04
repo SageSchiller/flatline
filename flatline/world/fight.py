@@ -94,6 +94,10 @@ class Fight:
     stunned: bool = False
     #: The loud thing came out.
     drawn: bool = False
+    #: A reach weapon kept them off: no return hit this round.
+    kept_off: bool = False
+    #: A talk-down that did not take: it does not work twice.
+    talk_burned: bool = False
     shrugged: bool = False
     tries: int = 0
 
@@ -117,7 +121,8 @@ def _resist(f: Fight) -> int:
 
 
 def weapon_of(char):
-    return weapon_content.BY_KEY.get(char.weapon)
+    return (weapon_content.BY_KEY.get(char.weapon)
+            or weapon_content.granted(char.installed))
 
 
 def strike_damage(char, crit: bool = False) -> int:
@@ -189,6 +194,18 @@ def finish_check(game, f: Fight) -> Check:
     return check
 
 
+def talk_check(game, f: Fight) -> Check:
+    char = game.char
+    check = Check(name='talk', resistance=_resist(f) + 1)
+    check.add('guile', char.attr('guile'))
+    check.add('streetcraft', char.skill('streetcraft') * 2)
+    check.add('a face', 2)
+    # Easier once they are hurting and can take the excuse to stop.
+    if f.pool <= f.pool_max * 0.5:
+        check.add('they would rather stop', 2)
+    return check
+
+
 def break_check(game, f: Fight) -> Check:
     char = game.char
     check = Check(name='break', resistance=_resist(f) + 2)
@@ -217,6 +234,9 @@ def moves(game, f: Fight) -> list[tuple[str, str, Check | None, str]]:
             and f.pool <= f.pool_max * FINISH_AT):
         out.append(('finish', 'End it', finish_check(game, f),
                     'all of it, or wide open'))
+    if char.has_technique('face') and not f.talk_burned:
+        out.append(('talk', 'Talk them down', talk_check(game, f),
+                    'ends it, clean, if it takes'))
     out.append(('break', 'Get out of it', break_check(game, f), ''))
     return out
 
@@ -309,12 +329,24 @@ def _answer(sess, f: Fight, text: str) -> None:
             f.drawn = True
         if check.success:
             dmg = strike_damage(char, crit=check.critical)
+            spread = 0
+            if w is not None and w.rider == 'spread' and f.round <= 2:
+                # It does not ask which of them you meant, while they are
+                # still bunched.
+                spread = 1 + f.foe.tier // 2
+                dmg += spread
             f.pool -= dmg
             line = (rng.pick(street_content.STRIKE_CRIT) if check.critical
                     else rng.pick(street_content.STRIKE_WIN))
-            c.say(f'[ok]{line}[/] [dim](-{dmg})[/]')
+            note = f'-{dmg}'
+            if spread:
+                note += ', into the ones behind'
+            c.say(f'[ok]{line}[/] [dim]({note})[/]')
             if w is not None and w.rider == 'stun':
                 f.stunned = True
+            if w is not None and w.rider == 'reach':
+                # You kept them at the far end of the metre.
+                f.kept_off = True
         else:
             c.say(f'[err]{rng.pick(street_content.STRIKE_LOSE)}[/]')
     elif move == 'guard':
@@ -350,6 +382,17 @@ def _answer(sess, f: Fight, text: str) -> None:
             c.say(f'[err]{rng.pick(street_content.FINISH_LOSE)}[/]')
             _foe_hits(sess, f, bonus=1)
             skip_hit = True
+    elif move == 'talk':
+        check = talk_check(game, f).resolve(rng)
+        c.say(f'[dim]{check.explain()}[/]')
+        if check.success:
+            c.say(f'[ok]{rng.pick(street_content.TALKDOWN_WIN)}[/]')
+            _end(sess, f, 'talked')
+            return
+        f.talk_burned = True
+        c.say(f'[err]{rng.pick(street_content.TALKDOWN_LOSE)}[/]')
+        _foe_hits(sess, f)
+        skip_hit = True
     elif move == 'break':
         check = break_check(game, f).resolve(rng)
         c.say(f'[dim]{check.explain()}[/]')
@@ -361,6 +404,10 @@ def _answer(sess, f: Fight, text: str) -> None:
     if f.pool <= 0:
         _end(sess, f, 'won')
         return
+    if f.kept_off:
+        f.kept_off = False
+        skip_hit = True
+        c.say(f'[dim]{street_content.FOE_REACHED}[/]')
     if not skip_hit:
         if guard is True:
             c.say(f'[dim]{street_content.FOE_MISS}[/]')
@@ -437,6 +484,8 @@ def _end(sess, f: Fight, result: str) -> None:
     elif result == 'lost':
         c.rule('you lost it', role='err')
         c.say(f'[err]{street_content.FIGHT_LOST[tier].format(**f.foe.fill)}[/]')
+    elif result == 'talked':
+        c.rule('talked down', role='ok')
     else:
         c.rule('out of it', role='warn')
     if f.drawn:
