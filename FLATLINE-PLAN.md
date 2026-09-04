@@ -4,7 +4,7 @@ tags:
   - project-plan
   - game
 created: 2026-08-12
-updated: 2026-09-03
+updated: 2026-09-04
 ---
 
 # flatline: Build Plan and Progress Log
@@ -12,6 +12,8 @@ updated: 2026-09-03
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
+> **State as of 2026-09-04, end of the session.** D133 to D143 landed today on top of the combat layer, all from the author's briefs and three rounds of play-testing, and the plan is current through all of them. First, the rest of the game met the fight (D133 to D136): street conditions, chem and traits that read a fighter, a clinic that patches a cut, the pit at Carrion's with a wall of names and a fixer's muscle work, and then the deck as a thing you live with in the city (mail, search, watch, message, ads) and a thing with a body (condition, reach, sweep, route, tune). Then the same method as D86 to D89 turned on all of it (D137 to D139): three play-tests of everything since D128 (a brawler, a netrunner who never throws a punch, a first-timer who does what `now` says), then three aimed at the deck and four at the fight and the pit, no crashes anywhere, nineteen fixes, and a balance simulation across the fighting routes with the measured take per shift written into `test_the_fight_under_pressure`. Then the story caught up with the street (D140, D141): rules that can read a skill, a rank in the pit, a habit, what you carry and what you have fought, eight new threads and three new people so that every gate in the game has fiction behind it, and `test_a_thread_for_every_way_of_working`, which fails the build if a system ships without a story. Last, against the Bartle axes, the two kinds of player the game had nothing for (D142, D143): `record`, twenty-four lines across the work, the city, the people and the floor that count things the engine actually writes, each crossing earning a name shown on `char`; and the main line paying off, the Deepwater palette gated behind finishing it, the city settling the water once and differently per ending, and *Afterwards*, the thread that hands the city back. `validate.py` clean, `test.py` green at **18,941 checks**, HEAD `71ca427` pushed. Counts: 15 skills, 44 threads / 131 scenes / 143 decisions, 32 named people, 151 commands, 12 districts / 72 quarters. **The next thing worth doing is unchanged:** play it three ways with fresh briefs and fix what the players say; the record and the afterwards have not been played by anyone yet, and neither has a campaign that starts as a fighter and ends on the main line.
+>
 > **State as of 2026-09-01.** D86 to D89 landed in one session, from three play-tests run in parallel with three different briefs (a first-timer who does what `now` says, an explorer who ignores it, and a run specialist who types every verb by hand). What they found, in order of size: the story layer was gated on meeting people and nothing ever said to meet anyone, and forty-two scenes declared a district that nothing read; the advice could recommend the same severed run five nights running and never once name Intrusion; a credential warden was an unanswerable wall for the Chromed origin and the board could not see it; and D6's severed-connection cooldown had never been implemented. All fixed, with `test_people_are_the_story`, `test_night_before`, `test_wall_and_clock` and `test_remembered_inside` holding them. Two things were added rather than fixed: the construct that cut you loose is on the route next time, awake and named, and the other runners can turn up inside a network with consequences that read their opinion of you. `validate.py` clean, `test.py` green at **18,941 checks** (D90 to D114 followed on 2026-09-02 and 2026-09-03: the visual layer, from pictures and the drawn instrument through the schematic map, player icons, more palettes and prompts, the portrait, reveal styles, seen ICE with screen disruption, a glyph per host type across the scan, the map, and the node header, a full-colour city that the boot now comes up on, and the player icons redrawn as a bestiary of creatures and characters with four more to buy, and a story/quest play-test that fixed the first-runs signposting, and a cold-open first job, sharper run beats, an ambitions ladder, a blank-prompt lifeline for newcomers, a nemesis reckoning that gives the rival arc a payoff, the nemesis as a felt in-run obstacle racing you for the objective, and its mirror the partner who helps in the run offers to crew for good, and three ways into every job that make a build matter for the run itself, and a plantable backdoor that turns an in-run choice into an easier run later, and a faction-power layer with a `world` dashboard so a campaign visibly reshapes the city, and a swagger/legend layer that lets the player be good at it, and origin lifepath openings so who you started as reaches into your story, and two tactic tools, Shroud and Sledge, that each buy a verb the deck could not do before, and, unlocking the founding no-combat rule at the author's call, a street that can be fought (D128 to D132, 2026-09-03 and 2026-09-04): a fifteenth skill, an exchange in rounds with a netrunner's route through their chrome, a play-test that found the overworld safe by construction and gave districts danger of their own, twelve weapons in four styles, armour worn and fitted, chrome that fights, loot, a fighter's living in muscle work and fights that teach, a balance simulation across eight builds, and every help topic brought up to date with all of it). The next thing worth doing is another round of the same method: play it three ways and fix what the players say, because every one of the fourteen decisions since D75 came out of somebody playing rather than somebody guessing.
 >
 > **State as of 2026-08-21, end of the long session.** **Phases 0 through 5 are done, D17's finish line is passed, Phase 7 is closed, and D63 to D65 are the deep work.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **15,311 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone. **D63, the mechanics deep dive** in six parts: every declared number and rider has a reader (`check_reads`); the intrusion layer's holes closed (`mask` decays, sealed records, armour wears, faction style knobs, soft wardens); the catalogue readable (`inspect`, a bare `load`, `fit`, passives once per kind, program riders, six mid-tier parts); the vices capped (Threes, collections, hook-4 warnings); twenty-four relics with histories; and programs held to skill rank plus two. **D64, the play test**: networks in six shapes by doctrine with the brief reading the sums; the city grown to twelve districts (the Stacks, Meridian Row, the Hall) with people, places, threads, events and relics; and the advice made into a chain that ends in a run, with seven dead ends closed and `test_advice` to keep them closed. **D65, the street is real**: encounters in four tiers answered by run, talk, pay or stand with printed checks; warning-then-lethal under the black-ICE contract; two street skills; `errands` (courier, watch, collect, escort); `arrange` to pay a faction for their streets; and the whole of it hooked into travel, rest and the close-call band. Before those, on the same day: D50 to D62, the onboarding layer, decisions that are read, the Deepwater spine, the city deeper, voices and hours, district arcs, the rival bond, the drawn map, the HUD, the tutorial's second half, run conditions, and the rest of the Phase 7 list.
@@ -4404,11 +4406,11 @@ that touched the street; character creation did not know fighters exist.
 And the clinic fitted chrome and took habits off you and would not patch a
 cut.
 
-**Chem.** Redline, a fighter\'s stimulant off the back of a fence: harder
+**Chem.** Redline, a fighter's stimulant off the back of a fence: harder
 strikes and a point on the swing, then a crash that takes aim, reflexes
 and three Integrity. Numb, a clinic painkiller in a street dose: a point
 of armour and Integrity to spend, and while it is in you being hurt does
-not slow you, which it does by carrying the pain editor\'s rider (the drug
+not slow you, which it does by carrying the pain editor's rider (the drug
 does what the chrome does, for a shift). Drug highs already reached the
 fight through the attributes; what was missing was the fight *saying* so,
 so any comedown in progress is a printed "coming down" term on every
@@ -4421,24 +4423,24 @@ point of armour, slow to move), Bloody-minded (a point on the strike; you
 do not cover up). And Cold, which was always here, makes a menace easier,
 which is what it was for.
 
-**Tonight, outside** (`conditions.NIGHTS`). The street\'s own weather,
-drawn once when the night comes in the way a run\'s is drawn once a run,
+**Tonight, outside** (`conditions.NIGHTS`). The street's own weather,
+drawn once when the night comes in the way a run's is drawn once a run,
 announced, said on the arrival line, gone by morning, and read
 everywhere the street rolls: a Nightwatch sweep (quieter, and a gun is
 heard twice), fight night (rougher, a rung worse, muscle pays half again),
 a curfew, a wake, the lights out (rougher, and what they carried is easier
-to walk off with), payday. Held to the run\'s standard by the validator:
+to walk off with), payday. Held to the run's standard by the validator:
 no night that changes nothing.
 
 **The clinic patches.** `clinic patch`: Integrity back at forty-five a
 point, no shift, which is how a fighter is back on the street the same
-night. And the validator\'s rider check now reads the world layer, where
+night. And the validator's rider check now reads the world layer, where
 the street and the fight have lived since D65; the two riders it could not
 find were being read the whole time. `test_the_match` holds the drugs in
 the sum, the traits, a night drawn, read, saved and cleared, a gun on a
 sweep, and the patch.
 
-### D134: The pit, and a fixer\'s street jobs
+### D134: The pit, and a fixer's street jobs
 
 The second of the three from the consult: places and work where combat is
 the expected outcome, and a room to be a fighter in, with its own rewards
@@ -4446,30 +4448,30 @@ for a player who wants the physical city as much as the net.
 
 **The pit** (`content/pit.py`, `pit`). Built the way the gambling rooms
 are built (a venue, a house, an arrival line, a pitch that states the
-odds): a loading bay under the fence in the Shambles, Carrion\'s, open at
+odds): a loading bay under the fence in the Shambles, Carrion's, open at
 night, sixty people on their feet around the tape and a wall with names.
 Five named regulars, each a rung and a style (Bottle, hands; Hinge, a bat;
 the Deacon, a blade and the book on you; Salt, a metre of wire and a
 smile; Mother, who has held the wall for nine years and holds the
 eightfold blade). You fight the next name up or reach past it, with a
-stake on yourself at the house\'s odds (even money, two to one, three to
+stake on yourself at the house's odds (even money, two to one, three to
 one; the house keeps a tenth). Win and your name goes above theirs and
 the purse is yours; the top hands over a one-of-a-kind blade you can only
-get by taking it. The pit\'s rules are its own: hands, blades and sticks
+get by taking it. The pit's rules are its own: hands, blades and sticks
 (the house holds the gun); nobody dies on the floor, whatever rung, so
-the fight engine\'s round cap is the whole of the contract there and no
+the fight engine's round cap is the whole of the contract there and no
 warning is ever needed; no Nightwatch, no grudge; one bout a night; and a
 rank that fades a rung per eighteen idle shifts, so the wall is not a
 trophy case. Named fighters carry `pool_bonus` and `hit_bonus` on the
 `Foe`, which is how a rung is a person rather than a tier. The purse
 reads the night (fight night pays half again).
 
-**A fixer\'s street jobs** (`deal <fixer> muscle`). The three fixers who
+**A fixer's street jobs** (`deal <fixer> muscle`). The three fixers who
 hand out runs hand out the other kind of work too: two a window, of three
 shapes (somebody needs hurting, something needs standing in front of,
 something needs getting back), each a fight where the job is, at the
 tier the fixer says, carried like an errand and met on arrival through
-the same `deliver` hook a courier\'s package uses. Real pay, and for a
+the same `deliver` hook a courier's package uses. Real pay, and for a
 recovery the thing itself. Held to the rule: none of it is a run.
 
 `check_pit` holds the ladder (rungs 1..n, tiers and purses that climb,
@@ -4477,7 +4479,7 @@ a house that is a faction, a place that exists, a blade that is unique
 and never on a shelf). `test_the_pit` holds the card, the closure by
 day, the gun refused, a bout won with purse and stake, one a night, the
 save, reaching three rungs up at three to one and taking the blade, the
-fade, the floor that never kills, and a fixer\'s job from list to pay.
+fade, the floor that never kills, and a fixer's job from list to pay.
 
 ### D135: The deck, in the city
 
@@ -4516,7 +4518,7 @@ show as read, and then as read again. Warm answers warm them a point;
 hostile ones cool. Once a shift each.
 
 **The ads** (`ads`, and one in every mail). The best joke available,
-because it is the game\'s thesis in another key: everything you do is
+because it is the game's thesis in another key: everything you do is
 loud and the city remembers, and so the ads know. Eighteen of them in the
 absurd and wry registers, targeted by predicates the world layer
 evaluates (shot at, hurt, drifting, a habit, a loud weapon in hand, a
@@ -4564,7 +4566,7 @@ there is looking. `walk` previewed, so the runner who would rather cross
 the Shambles in the morning can see that they will not.
 
 **Tune** (`tune [district]`). The district heard: the scene at this
-hour, the street\'s line, and any rumour going round it, which is how
+hour, the street's line, and any rumour going round it, which is how
 one-of-a-kind things are found, because the rumour is the only breadcrumb
 there is. It was going to be `listen`, and the registry refused it,
 correctly: `listen` is the Signal technique inside a run, and the shell
@@ -4616,7 +4618,7 @@ And four small ones the transcripts caught: the pit's own footer printed
 `pit next ` because `[stake]` is markup to the console (the same bug
 class as `[static]` in D136, and worth remembering: square brackets in a
 console string are a tag); the lender wrote to you as "sixes" rather than
-under a name; the sweep said "nobody\'s people never do"; a search for a
+under a name; the sweep said "nobody's people never do"; a search for a
 common thing printed eleven districts, so it prints the four cheapest and
 summarises; and `carry` said "a fence sells them" while you were standing
 at a fence with two weapons on the shelf, so it names the nearest one and
@@ -4824,7 +4826,7 @@ found for you. *The people*: met, asked, runners who decided about you,
 best standing, decisions taken in a story, and whether anybody has put a
 number on your name. *The floor*: fights won, rungs of the wall, whether
 you hold it, outfits who sent people and got them back, doorways held,
-and the top of the street\'s ladder survived.
+and the top of the street's ladder survived.
 
 Twenty-four lines, six a section, and no two counting the same thing,
 which `check_record` enforces along with the rule that matters: every line
@@ -4850,10 +4852,10 @@ have actually seen.
 
 ### D143: After the water
 
-The other half of the author\'s brief: finishing the main line should pay,
+The other half of the author's brief: finishing the main line should pay,
 and then the player should still have a city. It did neither. The four
 endings set a flag apiece, and the only thing in the engine that read them
-was a contract weight, so a campaign\'s last decision changed the board and
+was a contract weight, so a campaign's last decision changed the board and
 not the world, and nothing anywhere said "that was the end of that".
 
 **The reward is the one thing you cannot get another way.** The Deepwater
@@ -4881,7 +4883,7 @@ somebody is worried about. None of it is the main thing. There is no main
 thing any more, and that is the reward. The stage has no choices, because
 it is not a decision.
 
-`test_after_the_water` holds the palette\'s gate, the record line, each
+`test_after_the_water` holds the palette's gate, the record line, each
 ending settling the city differently and only once, an opening per ending,
 and that the close names what is left and asks for nothing.
 
@@ -6024,7 +6026,7 @@ layer to exactly one route each and never a price tag. With that the deep
 dive the author asked for is landed in five commits, and the thing worth
 writing down is that all four audits found the same bug in different
 clothes, numbers declared and never read, and the guard for it now lives
-in `validate.py` rather than in anybody\'s memory.
+in `validate.py` rather than in anybody's memory.
 
 `validate.py` clean, `test.py` green at **14,067 checks**.
 
@@ -6360,19 +6362,222 @@ after the faction's cyberspace and shown on the `icon` screen.
 D106. Six new palettes (Sendai, Meridian, Chorus, Freeport, Ember, Void),
 each earned differently, and `rice gallery` to see them all live.
 `test_more_palettes`.
+
 ### 2026-09-03 (c): more prompts
 
-D107. Angle, Tag and Rail prompt shapes, and rice gallery renders the
-prompt for the prompt axis. test_more_prompts.
+D107. Angle, Tag and Rail prompt shapes, and `rice gallery` renders the
+prompt for the prompt axis. `test_more_prompts`.
+
 ### 2026-09-03 (d): a portrait
 
-D108. A bust drawn from the appearance features, on the char and self
-screens. test_the_portrait.
+D108. A bust drawn from the appearance features, on the `char` and `self`
+screens. `test_the_portrait`.
+
 ### 2026-09-03 (e): the way it arrives
 
 D109. Five reveal styles for how a picture lands on connect (dissolve,
-scan, wipe, flash, instant), an earnable axis. test_reveal_styles.
+scan, wipe, flash, instant), an earnable axis. `test_reveal_styles`.
+
 ### 2026-09-03 (f): the ICE, seen, and the screen disrupted
 
 D110. A picture per ICE behaviour at the tell, and a static burst that
-disrupts the display on the lethal beats. test_ice_and_disruption.
+disrupts the display on the lethal beats. `test_ice_and_disruption`.
+
+### 2026-09-03 (g): a shape per host
+
+D111. A one-cell glyph per host type in front of its name on `scan`, so
+the segment reads as shapes before it reads as words; the auth-server
+lattice made legible against the boxes. `test_host_glyphs`.
+
+### 2026-09-03 (h): the boot draws a city
+
+D112. The boot comes up on a full-colour city, a synthwave sky over a
+skyline, before the wordmark and the trace. `test_the_skyline`.
+
+### 2026-09-03 (i): a bestiary
+
+D113. The player icons redrawn three times (people, sigils, then the fix:
+creatures and characters read by silhouette), and four more to buy.
+`test_player_icons`.
+
+### 2026-09-03 (j): the story, play-tested
+
+D114. Three testers on the story and quest layers only (a follower of
+`now`, a completionist, a lore-reader). Verdict: the writing is the
+strongest thing in the game and a new player can miss it. The first-runs
+signposting fixed, then a second pass: the story hook, board variety, one
+name per job.
+
+### 2026-09-03 (k): the cold open
+
+D115. `begin` opens on a job before there is a you: four beats as a dead
+runner, Switchboard in your ear, the real verbs taught by being used.
+`test_the_cold_open`.
+
+### 2026-09-03 (l): the spike and the payoff
+
+D116. The two beats a run was missing: the static burst fires on the
+crossing into red or lockdown, and only on the crossing, and the objective
+landing takes the screen.
+
+### 2026-09-03 (m): ambitions
+
+D117. Seven ambitions, a visible ladder between a job and the story, each
+a predicate over state the game already keeps. `test_ambitions`.
+
+### 2026-09-03 (n): the lifeline
+
+D118. A fading reminder under the prompt for a brand-new runner: press
+Enter, or type `now`. Shows a handful of times, never in a run, and stops
+for good once used. `test_the_lifeline`.
+
+### 2026-09-03 (o): the reckoning
+
+D119. The nemesis arc gets an ending past `RECKON_AT`: a scene, a choice,
+a resolution that is not a payment. `test_the_reckoning`.
+
+### 2026-09-03 (p): the nemesis in the run
+
+D120. A nemesis inside the network is a race for the objective, warning
+first and then taking it. `test_the_nemesis_run`.
+
+### 2026-09-03 (q): the partner
+
+D121. The mirror: an uninvited partner in the run hands you what your
+state most needs, and a partner who has run beside you enough offers to
+crew for good. `test_the_partner`.
+
+### 2026-09-03 (r): the ways in
+
+D122. `approach`: breach, talk your way in on Guile and Subterfuge, or buy
+in, so the build matters for the run itself. `test_the_ways_in`.
+
+### 2026-09-03 (s): the way back in
+
+D123. `plant`: two ticks and a lot of residue leave a backdoor onto that
+faction, and the next run comes up past the wall. `test_planting_a_way_in`.
+
+### 2026-09-03 (t): the changing world
+
+D124. Factions have a grip that a campaign actually moves, and `world`
+shows the power map. `test_the_changing_world`.
+
+### 2026-09-03 (u): swagger, and the legend
+
+D125. A clean run sometimes hands you a line to enjoy it by, and a career
+builds a legend the city repeats. `test_swagger_and_legend`.
+
+### 2026-09-03 (v): the lifepath
+
+D126. After the first job, once, the origin's complication comes to find
+you. `test_the_lifepath`.
+
+### 2026-09-03 (w): tactic tools
+
+D127. Shroud and Sledge, gear that grants a tactic rather than a number,
+the way payloads already worked, so D10 holds. `test_tactic_tools`.
+
+### 2026-09-03 (x): the street can be fought
+
+D128. The author's call, unlocking half of D2: a fifteenth skill, an
+exchange in rounds, `jack` as a netrunner's route through their chrome,
+and every encounter still offering the ways out that are not a fight.
+`test_the_fight`.
+
+### 2026-09-03 (y): the rough street
+
+D129. A fighter's play-test found the overworld safe by construction
+(danger keyed only on faction heat). Districts dangerous on their own
+account now, by tier and by hour. `test_the_rough_street`.
+
+### 2026-09-03 (z): more of the shelf
+
+D130. Three more weapons carried and one fitted, riders (spread, stun,
+reach, smartlink), and the existing techniques wired into the exchange.
+`test_the_fight`.
+
+### 2026-09-04 (a): a fighter's living
+
+D131. Styles (stagger, edge, concealed), twelve weapons in four styles,
+armour worn and fitted, six pieces of chrome that fight, loot, muscle work
+and fights that teach, and a balance simulation across eight builds.
+`test_a_fighters_living`.
+
+### 2026-09-04 (b): the help, current
+
+D132. Nine of forty-four manual topics brought up to the combat layer, and
+a clean-up. `test_help_is_current`.
+
+### 2026-09-04 (c): the match
+
+D133. The rest of the game meets the fight: street conditions, Redline
+and Numb, traits for a fighter at creation, the clinic patching a cut.
+`test_the_match`.
+
+### 2026-09-04 (d): the pit
+
+D134. Carrion's, a loading bay in the Shambles with five named regulars
+and a wall of names, and a fixer's street jobs. `test_the_pit`.
+
+### 2026-09-04 (e): the deck, in the city
+
+D135. Mail composed from the world, search that finds real stock, a watch
+that saves a shift, a message that moves a disposition, ads that read your
+state. `test_the_deck_in_the_city`.
+
+### 2026-09-04 (f): a real deck
+
+D136. The deck out here is the deck in there: condition, reach by
+antenna, `sweep`, `route`, `tune`, `repair`. `test_a_real_deck`.
+
+### 2026-09-04 (g): what the play-test found
+
+D137. Three play-tests of everything since D128 (a brawler, a netrunner
+who never throws a punch, a first-timer on `now`). No crashes; nine
+fixes, the first of them the physical half being invisible to a newcomer.
+`test_the_play_test_found`.
+
+### 2026-09-04 (h): the deck under pressure
+
+D138. Three play-tests aimed at the deck (bad input and broken hardware,
+sixty shifts, everything the mail can carry). Seven fixes; mail is news
+now, not a status board. `test_the_deck_under_pressure`.
+
+### 2026-09-04 (i): the fight under pressure
+
+D139. Every move under bad input, and three sixty-shift campaigns on the
+fighting routes with the take per shift measured. Three fixes, the first
+being a wall with one thing on it you could not beat.
+`test_the_fight_under_pressure`.
+
+### 2026-09-04 (j): the story knows the street
+
+D140. A story pressure test (no stranded stages), and the real gap it
+found: no thread read anything the fight, the pit, the deck or the chem
+sets. New condition kinds, three people, three threads.
+`test_the_story_knows_the_street`.
+
+### 2026-09-04 (k): a thread for every way of working
+
+D141. Six gates with nothing behind them and four near-storyless factions.
+Five threads on existing people close them, and the test enforces the
+coverage from here on. `test_a_thread_for_every_way_of_working`.
+
+### 2026-09-04 (l): the record
+
+D142. `record`: twenty-four lines across the work, the city, the people
+and the floor, each counting something the engine writes, a crossing
+earning a name shown on `char`. Five counters made real to hold it.
+`test_the_record`.
+
+### 2026-09-04 (m): after the water
+
+D143. The main line pays: the Deepwater palette behind finishing it, the
+city settling the water once and differently per ending, and *Afterwards*
+handing the city back. `test_after_the_water`.
+
+### 2026-09-04 (n): bookkeeping
+
+No code. This document brought current: the START HERE block carried from
+D132 to D143, this log backfilled from D111, and the escaped apostrophes
+that a shell heredoc left in the D133 to D143 entries cleaned.
