@@ -12455,6 +12455,135 @@ def test_the_deck_under_pressure() -> None:
     T.ok('in pieces' in do(sess, con, 'mail'), 'and nothing else does')
 
 
+def test_the_fight_under_pressure() -> None:
+    """D139: what hammering the fight and living in the pit found. Typos
+    forgiven, a wall you can fight down as well as up, and a card that says
+    what you are walking into."""
+    T.section('the fight under pressure')
+    from flatline.content import pit as pit_content, street as street_content
+    from flatline.content import weapons, drugs
+    from flatline.world import street as street_world
+    from flatline.world import fight as fight_mod
+
+    def fresh(seed=17, origin='expolice', where='shambles', night=True, **ranks):
+        char = Character.from_origin(origin, 't')
+        for k, r in ranks.items():
+            char.base_skills[k] = r
+        char.base_attrs['grit'] = 5
+        char.credits = 5000
+        game = Game.new(char, seed=seed)
+        game.city.where = where
+        if night:
+            while game.city.phase != 'night':
+                game.city.shift += 1
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    def do(sess, con, cmd):
+        con.start_capture()
+        sess.execute(cmd)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    def street(sess, con, key, faction='sixes', danger=50):
+        con.start_capture()
+        street_world.begin(sess, street_content.BY_KEY[key], faction, danger)
+        con.end_capture()
+
+    # A typo is forgiven once you have answered properly again.
+    sess, con, game = fresh(violence=3)
+    street(sess, con, 'press')
+    do(sess, con, 'fight')
+    for _ in range(2):
+        do(sess, con, 'zzz')
+    do(sess, con, 'guard')
+    T.ok('not waiting' not in do(sess, con, 'zzz'),
+         'answering properly buys back the patience a typo spent')
+    sess.pending = None
+
+    # Every weapon resolves a press, and none of them is the same fight.
+    hurt = {}
+    for w in weapons.WEAPONS:
+        sess, con, game = fresh(violence=3)
+        game.char.weapon = '' if w.price == 0 else w.key
+        if w.price == 0:
+            game.char.installed = ['wolvers']
+        street(sess, con, 'press')
+        do(sess, con, 'fight')
+        n = 0
+        while sess.pending is not None and n < 12:
+            n += 1
+            do(sess, con, 'strike')
+        hurt[w.key] = game.char.hurt
+        T.ok(n < 12, f'a press ends with a {w.key} in hand')
+        sess.pending = None
+    T.ok(len(set(hurt.values())) >= 3,
+         f'and the weapons are not one weapon ({sorted(set(hurt.values()))})')
+    T.ok(hurt['knuckles'] > hurt['katana'],
+         'a katana is a better night than a fistful of rings')
+
+    # A tier-four fight you only cover up in leaves you at one, not dead.
+    sess, con, game = fresh(violence=0)
+    game.char.base_attrs['grit'] = 3
+    street(sess, con, 'finish', danger=80)
+    do(sess, con, 'fight')
+    n = 0
+    while sess.pending is not None and n < 20:
+        n += 1
+        do(sess, con, 'guard')
+    T.ok(game.char.integrity == 1 and not game.over,
+         'guarding the kind that kills leaves you at one, and standing')
+
+    # The card says what you are walking into, and what you have.
+    sess, con, game = fresh(violence=3)
+    game.char.weapon = 'bat'
+    out = do(sess, con, 'pit')
+    T.ok('hits' in out and 'You hit for' in out,
+         'the card prints what each name takes and hits for, against yours')
+    for f in pit_content.FIGHTERS:
+        T.ok(f.epithet.split()[0] in out, f'{f.name} is on the card with their line')
+
+    # The wall can be fought down as well as up: a rank-four fighter who
+    # cannot take the top used to have one thing to do with their nights,
+    # and it was lose.
+    game.city.pit.update({'rank': 4, 'beaten': ['bottle', 'hinge', 'deacon', 'salt'],
+                          'last': -99})
+    out = do(sess, con, 'pit')
+    T.ok('rematch' in out, 'a beaten name is a rematch, at half')
+    credits = game.char.credits
+    out = do(sess, con, 'pit bottle')
+    T.ok('crowd has already seen' in out, 'and the house says what it pays for one')
+    n = 0
+    while sess.pending is not None and n < 12:
+        n += 1
+        do(sess, con, 'strike')
+    T.ok(game.char.credits > credits, 'a rematch pays')
+    T.ok(game.char.credits - credits <= int(pit_content.BY_RUNG[1].purse
+                                            * pit_content.REMATCH_CUT) + 1,
+         'and pays half')
+    T.ok(game.city.pit['rank'] == 4, 'and moves nobody on the wall')
+    T.ok('never fought them' in do(sess, con, 'pit mother')
+         or 'twice' in do(sess, con, 'pit mother'),
+         'one bout a night, whichever way you fight')
+
+    # A name below you that you have never fought is not a bout.
+    sess, con, game = fresh(violence=3)
+    game.city.pit.update({'rank': 3, 'beaten': [], 'last': -99})
+    T.ok('never fought them' in do(sess, con, 'pit bottle'),
+         'the house books the names you have beaten, and the ones above you')
+
+    # The routes earn in the right order: a run, then the pit, then a
+    # doorway, then wandering about.
+    T.ok(street_world.MUSCLE_BASE < pit_content.BY_RUNG[3].purse,
+         'a rung of the wall pays better than a doorway')
+    board = [c.pay for c in Game.new(Character.from_origin('gutter', 'x'), seed=3).city.board]
+    T.ok(pit_content.BY_RUNG[pit_content.TOP].purse < max(board),
+         'and the best run on the board still pays better than the best bout')
+    T.ok(pit_content.BY_RUNG[1].purse * 4 < sum(board) / len(board),
+         'while a night at the bottom of the wall is pocket money')
+
+
 
 def manual_body(key: str) -> str:
     from flatline.content import manual
@@ -13745,6 +13874,7 @@ SUITES = (
     test_the_match, test_the_pit, test_the_deck_in_the_city,
     test_a_real_deck, test_the_play_test_found,
     test_the_deck_under_pressure,
+    test_the_fight_under_pressure,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

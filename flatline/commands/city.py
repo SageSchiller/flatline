@@ -1402,18 +1402,38 @@ def cmd_pit(sess, args) -> None:
         c.blank()
         c.rule('the wall')
         rows = []
+        tonight = street_world.night(game)
         for f in sorted(pit_content.FIGHTERS, key=lambda f: -f.rung):
             above = f.rung - rank
             odds = (f'{pit_content.ODDS.get(min(above, 3), 3)}:1' if above >= 1
-                    else 'beaten' if f.key in ledger['beaten'] else '')
+                    else 'rematch, half' if f.key in ledger['beaten']
+                    else 'below you')
             purse = f.purse
-            tonight = street_world.night(game)
+            if above < 1:
+                purse = int(purse * pit_content.REMATCH_CUT)
             if tonight is not None:
                 purse = int(purse * tonight.muscle)
-            rows.append((str(f.rung), f.name, f.epithet, f.style,
-                         f'{purse:,}c', odds))
-        c.table(('rung', 'name', 'who', 'fights with', 'purse', 'pays'), rows,
-                roles=('dim', 'accent', 'dim', 'dim', 'credit', 'info'))
+            # What you are walking into, in the same numbers the fight
+            # will use (D139): the house is not embarrassed about the odds
+            # and should not be coy about the fighters either.
+            pool = fight_mod.FOE_POOL[f.tier] + f.pool_bonus
+            lo, hi = fight_mod.FOE_HIT[f.tier]
+            takes = f'{pool}, hits {lo + f.hit_bonus}-{hi + f.hit_bonus}'
+            rows.append((f, takes, purse, odds))
+        # A row and a line under it, the way the deck lists what is loaded:
+        # seven columns do not fit eighty characters (D139).
+        for f, takes, purse, odds in rows:
+            c.raw(f'  [dim]{f.rung}[/] [accent]{f.name:<11}[/] '
+                  f'[dim]{f.style:<20}[/] [warn]{takes:<18}[/] '
+                  f'[credit]{purse:>7,}c[/]  [info]{odds}[/]')
+            c.say(f'[dim]{f.epithet}[/]', indent='      ', subsequent='      ')
+        c.blank()
+        mine = fight_mod.strike_damage(char)
+        c.say(f'[dim]You hit for {mine}, and you have '
+              f'{char.integrity}/{char.integrity_max} to spend'
+              + (f', less {fight_mod.armour_of(char)} off every hit that '
+                 f'reaches you' if fight_mod.armour_of(char) else '')
+              + '.[/]')
         c.blank()
         if rank >= pit_content.TOP:
             c.say('[ok]Your name is at the top of the wall.[/]')
@@ -1444,21 +1464,26 @@ def cmd_pit(sess, args) -> None:
                         if f.key == word or f.name.lower().startswith(word)), None)
         if fighter is None:
             raise CommandError('nobody on the wall by that name. `pit` lists them.')
-        if fighter.rung <= rank:
-            raise CommandError(f'{fighter.name} is below you on the wall. The '
-                               f'house does not pay for going down it.')
+        if fighter.rung <= rank and fighter.key not in ledger['beaten']:
+            raise CommandError(f'{fighter.name} is below you on the wall and '
+                               f'you have never fought them. The house books '
+                               f'the names you have beaten, and the ones '
+                               f'above you.')
     stake = args.int_at(1, 0, 'a stake') if len(args) > 1 else 0
     if stake < 0 or stake > pit_content.MAX_STAKE:
         raise CommandError(f'a stake is between nothing and {pit_content.MAX_STAKE:,}c.')
     if stake > char.credits:
         raise CommandError(f'you have {char.credits:,}c.')
     above = fighter.rung - rank
-    odds = pit_content.ODDS.get(min(above, 3), 3)
+    rematch = above < 1
+    odds = pit_content.ODDS.get(min(above, 3), 3) if not rematch else 1
     ledger['last'] = game.city.shift // 3
     ledger['last_fought'] = game.city.shift
     char.credits -= stake
     c.blank()
     c.say(f'[warn]{fighter.intro.format(handle=char.handle)}[/]')
+    if rematch:
+        c.say(f'[dim]{pit_content.REMATCH}[/]')
     if stake:
         c.say(f'[dim]{stake:,}c on yourself at {odds}:1, the house\'s tenth '
               f'already gone.[/]')
@@ -1473,6 +1498,8 @@ def cmd_pit(sess, args) -> None:
         c.blank()
         if result == 'won':
             purse = fighter.purse
+            if rematch:
+                purse = int(purse * pit_content.REMATCH_CUT)
             tonight = street_world.night(g)
             if tonight is not None:
                 purse = int(purse * tonight.muscle)

@@ -52,6 +52,14 @@ MAX_STAKE = 2500
 HOUSE_CUT = 0.1
 #: What reaching pays, by rungs above yours.
 ODDS = {1: 1, 2: 2, 3: 3}
+#: What the house pays for a bout the crowd has already seen (D139). A
+#: fighter who has climbed to the rung below somebody they cannot beat
+#: used to have exactly one thing to do with their nights, and it was
+#: lose. The house will book a rematch. It will not pay full for one.
+REMATCH_CUT = 0.5
+REMATCH = ('The house books it, and says what it always says about a bout '
+           'the crowd has already seen, which is that the crowd has already '
+           'seen it, and pays accordingly.')
 
 
 @dataclass(frozen=True, slots=True)

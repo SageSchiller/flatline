@@ -382,6 +382,8 @@ def _answer(sess, f: Fight, text: str) -> None:
                       + '.')
                 _wait(sess, f)
                 return
+    # Answering properly buys back the patience a typo spent (D139).
+    f.tries = 0
     rng = game.rng('combat')
     skip_hit = False
     guard = None
