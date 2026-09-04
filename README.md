@@ -182,7 +182,7 @@ verb nobody else can use and its own starting face · 10 icons · 58 implants ·
 holds it · 12 factions · 7 rival runners who decide about you, and one you can keep · 29 named characters who keep hours, hand out work, keep private stock and do favours on a tab · 35 storylines across 103 scenes and 119 decisions, every one of them read back by the world and every scene played where it is set, with a spine through the middle that has four endings and one of them is a door ·
 102 appearance features · 12 districts, drawn, each with what it is built of, what it works at, its named quarters and what is past its edge, 72 quarters in all, a scene for every hour, 151 things to see in the street, 20 written crossings between them, and 60 places to go and stand · 199 ambient city events, 80 of them consequences of something you decided and 12 of them rumours that stop when the thing is found · 43 manual topics · networks in six shapes · the street in four tiers and 24 ways it stops you, six of them written for one street only ·
 12 drugs · 3 lenders · 2 games of chance in 5 rooms ·
-147 commands · 72 pieces of terminal across 7 axes.
+150 commands · 72 pieces of terminal across 7 axes.
 
 Every number on every one of those is read by the engine, and `validate.py`
 holds it to that: every modifier key and every rider string in the content

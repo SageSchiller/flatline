@@ -12162,6 +12162,73 @@ def test_the_deck_in_the_city() -> None:
     T.ok(out.count(':') >= 3, 'three ads, none of them wrong about you')
 
 
+def test_a_real_deck() -> None:
+    """D136: the deck is a thing. It hears as far as its antenna, watches
+    as much as its memory, reads the street, plans a walk, tunes into a
+    district, and when it is broken it is broken out here too."""
+    T.section('a real deck')
+    from flatline.content import districts, hardware
+    from flatline.world import deck as deck_world
+
+    def fresh(origin='gutter', seed=3):
+        char = Character.from_origin(origin, 't')
+        game = Game.new(char, seed=seed)
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    def do(sess, con, cmd):
+        con.start_capture()
+        sess.execute(cmd)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    # The hub: what the deck can do out here, under its components.
+    sess, con, game = fresh('expolice')
+    out = do(sess, con, 'deck')
+    T.ok('in the city' in out and 'hears' in out and 'watching' in out,
+         'the deck screen says what it does in the city')
+    T.ok('Nightwatch has it' in out, 'and that the Nightwatch has the serial')
+
+    # Sweep: the street off the air, here; and only as far as the antenna.
+    out = do(sess, con, 'sweep')
+    T.ok('the street is' in out and ('chrome' in out) and ('board' in out or 'Networks' in out),
+         'a sweep reads roughness, chrome and the board')
+    far = next(d.key for d in districts.DISTRICTS if game.city.shifts_to(d.key) == 2)
+    near = next(d.key for d in districts.DISTRICTS if game.city.shifts_to(d.key) == 1)
+    T.ok('reach' in do(sess, con, f'sweep {far}'), 'a hardline deck hears only here')
+    game.char.deck.fit('ant_long')
+    T.ok(deck_world.reach(game.char) == 1, 'a longwire hears a shift out')
+    T.ok(districts.BY_KEY[near].name in do(sess, con, f'sweep {near}'),
+         'and reads the next district over')
+    T.ok('reach' in do(sess, con, f'sweep {far}'), 'but not two')
+
+    # Route: the walk, planned.
+    out = do(sess, con, f'route {far}')
+    T.ok('arrive' in out and 'the street then' in out and f'walk {far}' in out,
+         'a route shows each hop, the hour, and the street then')
+    T.ok('you are there' in do(sess, con, f'route {game.city.where}'), 'and not to here')
+
+    # Tune: the district, heard.
+    out = do(sess, con, 'tune')
+    T.ok(len(out) > 80 and 'Listening' in out, 'tune hears the scene')
+
+    # A thing: memory decides the watch, the antenna the reach, damage shows.
+    T.ok(deck_world.watch_capacity(game.char) == max(2, game.char.deck.memory // 2),
+         'memory decides how many things it watches for')
+    game.char.deck.damage['cpu'] = 1
+    out = do(sess, con, 'mail all')
+    T.ok('<static>' in out and 'level of damage' in out,
+         'a damaged cpu puts static in the mail')
+    game.char.deck.damage['cpu'] = 3
+    T.ok('in pieces' in do(sess, con, 'mail') and 'in pieces' in do(sess, con, 'sweep')
+         and 'in pieces' in do(sess, con, 'search katana'),
+         'a destroyed cpu and the deck is in pieces out here too')
+    T.ok('in pieces' in do(sess, con, 'deck'), 'and the deck screen says so')
+    game.char.deck.damage['cpu'] = 0
+    T.ok('in pieces' not in do(sess, con, 'mail'), 'repaired, it answers again')
+
+
 
 def manual_body(key: str) -> str:
     from flatline.content import manual
@@ -13450,6 +13517,7 @@ SUITES = (
     test_the_lifepath, test_tactic_tools, test_the_fight,
     test_the_rough_street, test_a_fighters_living, test_help_is_current,
     test_the_match, test_the_pit, test_the_deck_in_the_city,
+    test_a_real_deck,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

@@ -1202,16 +1202,37 @@ TOPICS: tuple[Topic, ...] = (
         'a loud weapon, a debt, a name on the wall. They change nothing, '
         'which is the one thing on the deck that does not, and they are '
         'aware of it.\n\n'
+        '[warn]Sweep, route, listen.[/] [fg]sweep[/] reads the street off the '
+        'air: how rough at this hour and what tonight is, who here has your '
+        'name near the top of a list, whether their people carry chrome (so '
+        'whether [accent]jack[/] has anything to reach), whether the Nightwatch is '
+        'out, which postings are for networks here, and who keeps hours '
+        'here. [fg]route <district>[/] plans a walk: each hop, the hour you '
+        'reach it, the street then, and who is looking. [fg]tune[/] hears '
+        'a district: the scene, the street\'s line, and any rumour going '
+        'round it, which is how one-of-a-kind things are found. With an '
+        'antenna above the first tier, sweep and tune reach districts a '
+        'shift or two away.\n\n'
+        '[warn]It is a thing.[/] The deck out here is the deck in there. A '
+        'cpu or an io destroyed and it is in pieces: no mail, no search, '
+        'nothing to listen with, until `repair`. A cpu with a level of '
+        'damage and the mail comes through with static in it. Memory decides '
+        'how many things it will watch for. The antenna decides how far it '
+        'hears. A Nightwatch serial (some origins) is a Nightwatch serial. '
+        '`deck` shows all of it, under the components, and `deck name` is '
+        'what you call it.\n\n'
         '[warn]The decision:[/] the deck knows a great deal and says it '
         'freely, and everything it says it says because it is listening. A '
         'search is a record. A message is a record. The runner who uses the '
         'deck in the city is easier to find than the one who does not, and '
         'the ads are the proof, and the trade is usually worth it.',
         see=('street', 'rivals', 'money', 'people', 'city'),
-        commands=('mail', 'search', 'watch', 'message', 'ads'),
+        commands=('mail', 'search', 'watch', 'message', 'ads', 'sweep',
+                  'route', 'tune', 'deck'),
         covers=('feed',),
         terms=('inbox', 'messages', 'locate', 'alert', 'alerts', 'advert',
-               'advertising', 'sponsored', 'runners', 'ping'),
+               'advertising', 'sponsored', 'runners', 'ping', 'antenna',
+               'static', 'scanner', 'navigation', 'rumour', 'rumor'),
         group='city'),
     Topic(
         'relics', 'Things there is one of',

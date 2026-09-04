@@ -16,6 +16,8 @@ from ..content import districts, factions, npcs, offers, spots
 from ..content import cyberware, drugs, hardware, programs, weapons
 from ..content import armour as armour_content
 from ..content import pit as pit_content
+from ..content import events, hardware
+from ..content import street as street_content
 
 
 @dataclass
@@ -288,3 +290,156 @@ def reply(game, rival) -> tuple[str, int]:
     if delta:
         rival.adjust_disposition(delta)
     return line, delta
+
+
+# --------------------------------------------------------------------------
+# the deck as a thing (D136): condition, reach, and what it can hear
+# --------------------------------------------------------------------------
+
+#: Slots the city uses. A deck with either destroyed is in pieces out here
+#: too: no mail, no search, nothing to listen with.
+CITY_SLOTS = ('cpu', 'io')
+IN_PIECES = 'The deck is in pieces. `repair` at a workshop, then ask it things.'
+#: Not `[static]`: a bracketed word is markup to the console.
+STATIC = '[dim]<static>[/]'
+
+
+def working(char) -> bool:
+    return all(char.deck.working(slot) for slot in CITY_SLOTS)
+
+
+def damaged(char) -> bool:
+    """Working, but hurt: a cpu with a level of damage garbles a line."""
+    return working(char) and char.deck.damage.get('cpu', 0) > 0
+
+
+def reach(char) -> int:
+    """How far the deck hears, in shifts of walking: the antenna\'s tier
+    less one. A hardline-only deck hears the district it is in."""
+    comp = char.deck.component('antenna')
+    if comp is None or not char.deck.working('antenna'):
+        return 0
+    return max(0, comp.tier - 1)
+
+
+def watch_capacity(char) -> int:
+    """How many things the deck will watch for: memory, halved, two at least."""
+    return max(2, char.deck.memory // 2)
+
+
+def garble(game, text: str) -> str:
+    """A damaged cpu loses words. Deterministic in the shift, so reading
+    twice loses the same ones."""
+    words = text.split()
+    if len(words) < 6:
+        return text
+    stream = game.rng.fork('events', f'static:{game.city.shift}')
+    n = max(1, len(words) // 6)
+    for _ in range(n):
+        i = stream.int(0, len(words) - 1)
+        words[i] = STATIC
+    return ' '.join(words)
+
+
+def in_reach(game, district_key: str) -> bool:
+    if district_key == game.city.where:
+        return True
+    return game.city.shifts_to(district_key) <= reach(game.char)
+
+
+def sweep(game, district_key: str) -> list[str]:
+    """What the deck reads off a district\'s air: how rough, who is
+    watching, whether there is chrome to reach, and what is here to run."""
+    from . import street as street_world
+    city, alias, char = game.city, game.alias, game.char
+    district = districts.BY_KEY[district_key]
+    here = district_key == city.where
+    out = []
+    base = 100 - district.security
+    mult = street_world.ROUGH_BY_PHASE.get(city.phase, 1.0)
+    tonight = street_world.night(game)
+    if tonight is not None:
+        mult *= tonight.rough
+    rough = max(0, min(100, int(base * mult)))
+    word = next(w for floor, w in street_world.ROUGH_WORDS if rough >= floor)
+    out.append(f'[accent]{district.name}[/], {city.phase}: the street is '
+               f'[warn]{word}[/] [dim]({rough})[/]'
+               + (f', and tonight: {tonight.name.lower()}' if tonight else '') + '.')
+    controller = factions.BY_KEY.get(district.controller)
+    watchers = [k for k in (district.controller, *district.presence)
+                if k in factions.BY_KEY]
+    looking = [(factions.BY_KEY[k].short, alias.attention(k))
+               for k in watchers if alias.attention(k) >= 25]
+    if looking:
+        out.append('Looking for your name: '
+                   + ', '.join(f'{name} [heat]({att})[/]' for name, att in looking) + '.')
+    else:
+        out.append('[dim]Nobody here has your name at the top of a list.[/]')
+    kind = controller.kind if controller else ''
+    chromed = kind in ('corp', 'law', 'broker')
+    out.append(('Their people carry chrome: there is something for the deck '
+                'to reach in a fight.' if chromed else
+                f'{controller.short if controller else "The people here"} '
+                f'mostly do not carry chrome; nobody\'s people here do not. '
+                f'A fight is hands and steel.'))
+    if district.controller == 'nightwatch' or (tonight and tonight.key == 'sweep'):
+        out.append('[heat]The Nightwatch is on the street. A gun here is heard '
+                   'twice.[/]')
+    local = [x for x in city.board if x.district == district_key and not x.taken]
+    if local:
+        out.append('Networks here, on the board: '
+                   + ', '.join(f'[fg]{x.cid}[/] [dim]({factions.BY_KEY[x.target].short if x.target in factions.BY_KEY else x.target})[/]'
+                               for x in local[:4]) + '.')
+    else:
+        out.append('[dim]Nothing on the board is here.[/]')
+    people = [n.name for n in npcs.NPCS if n.where == district_key]
+    if people:
+        out.append('[dim]Keeps hours here: ' + ', '.join(people[:5]) + '.[/]')
+    if not here:
+        out.append(f'[dim]Read at {city.shifts_to(district_key)} shift'
+                   f'{"s" if city.shifts_to(district_key) != 1 else ""}\' remove, '
+                   f'on the antenna.[/]')
+    return out
+
+
+def route(game, target_key: str) -> list[tuple[str, str, str, str]]:
+    """The walk, planned: (district, phase on arrival, the street then, who
+    is looking). One row per hop."""
+    from . import street as street_world
+    from .city import SHIFT_NAMES, SHIFTS_PER_DAY
+    city, alias = game.city, game.alias
+    path = city.route(target_key)
+    rows = []
+    for i, key in enumerate(path, 1):
+        shift = city.shift + i
+        phase = SHIFT_NAMES[shift % SHIFTS_PER_DAY]
+        district = districts.BY_KEY[key]
+        base = 100 - district.security
+        mult = street_world.ROUGH_BY_PHASE.get(phase, 1.0)
+        rough = max(0, min(100, int(base * mult)))
+        word = next(w for floor, w in street_world.ROUGH_WORDS if rough >= floor)
+        danger, who = city.danger(alias, key, flags=game.story.flags, riders=game.char.riders())
+        looking = (f'{factions.BY_KEY[who].short} ({danger})' if who and danger >= 25 else '')
+        rows.append((district.name, phase, word, looking))
+    return rows
+
+
+def listen(game, district_key: str) -> list[str]:
+    """What the district is saying: the scene at this hour, the street\'s
+    line, and any rumour going round it (the relics\' breadcrumbs)."""
+    city = game.city
+    out = []
+    scene = districts.scene(district_key, city.phase)
+    if scene:
+        out.append(scene)
+    line = districts.street_line(district_key, city.shift)
+    if line:
+        out.append(f'[dim]{line}[/]')
+    sat = lambda rule: game.story.satisfied(rule, game)  # noqa: E731
+    rumours = [e for e in events.eligible(district_key, city.phase, sat)
+               if e.key.startswith('rumour_')]
+    for e in rumours[:2]:
+        out.append(f'[accent2]Going round:[/] {e.text}')
+    if not out:
+        out.append('[dim]Nothing but carrier.[/]')
+    return out

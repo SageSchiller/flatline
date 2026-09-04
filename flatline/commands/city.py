@@ -606,6 +606,27 @@ def cmd_deck(sess, args) -> None:
             label = f'[warn]{label} (damage {dmg}/3)[/]'
         rows.append((slot, label))
     c.kv(rows)
+    # The deck as a thing in the city (D136): what it can do out here.
+    from ..world import deck as deck_world
+    c.blank()
+    c.rule('in the city')
+    if not deck_world.working(game.char):
+        c.say(f'[err]{deck_world.IN_PIECES}[/]')
+    else:
+        reach = deck_world.reach(game.char)
+        unread = len(deck_world.unread(game))
+        cap = deck_world.watch_capacity(game.char)
+        c.kv([('hears', 'this district' if not reach else
+               f'{reach} shift{"s" if reach != 1 else ""} out, on the antenna'),
+              ('watching', f'{len(game.city.watches)} of {cap} [dim](memory)[/]'),
+              ('mail', f'{unread} new' if unread else '[dim]nothing new[/]'),
+              ('condition', ('[warn]a damaged cpu: mail comes through with '
+                             'static[/]' if deck_world.damaged(game.char)
+                             else '[ok]clean[/]'))]
+             + ([('serial', '[heat]Nightwatch has it[/]')]
+                if 'nightwatch_serial' in game.char.riders() else []))
+        c.say('[dim]`mail` `search` `watch` `message` `sweep` `route` `tune` '
+              '`ads`. `help thedeck`.[/]')
 
     c.blank()
     c.rule('loaded')

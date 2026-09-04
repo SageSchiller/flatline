@@ -14,6 +14,14 @@ from ..shell import CommandError, command
 from ..world import deck as deck_world
 
 
+def _needs_deck(sess):
+    """Every city verb on the deck reads its condition (D136)."""
+    game = sess.require_game()
+    if not deck_world.working(game.char):
+        raise CommandError(deck_world.IN_PIECES)
+    return game
+
+
 @command('mail', 'What the deck has for you: the people who would message you.',
          group='info', contexts=('city',), usage='mail [all]',
          aliases=('inbox',),
@@ -27,7 +35,7 @@ from ..world import deck as deck_world
                 'you. New ones are marked; `mail` marks them read. Each line '
                 'ends with the command that acts on it.'))
 def cmd_mail(sess, args) -> None:
-    game, c = sess.require_game(), sess.console
+    game, c = _needs_deck(sess), sess.console
     every = deck_world.messages(game)
     new = {m.id for m in deck_world.unread(game)}
     show = every if (args.get(0) or '').lower() == 'all' or not new else \
@@ -40,13 +48,18 @@ def cmd_mail(sess, args) -> None:
         c.say('[dim]Nothing new. `mail all` for everything the deck has.[/]')
         return
     bullet = c.caps.g('bullet')
+    static = deck_world.damaged(game.char)
     for m in show:
         tag = '[warn]new[/] ' if m.id in new else ''
+        if static:
+            m.text = deck_world.garble(game, m.text)
         role = {'ad': 'dim', 'nemesis': 'err', 'partner': 'ok', 'lender': 'heat',
                 'bounty': 'heat'}.get(m.kind, 'accent')
         c.say(f'[dim]{bullet}[/] {tag}[{role}]{m.sender}[/]: {m.text}'
               + (f' [dim]`{m.do}`[/]' if m.do else ''), subsequent='  ')
     deck_world.mark_read(game, [m.id for m in show])
+    if static:
+        c.say('[dim]The cpu has a level of damage and it shows. `repair`.[/]')
 
 
 @command('search', 'Ask the net where a thing is sold this cycle.',
@@ -62,7 +75,7 @@ def cmd_mail(sess, args) -> None:
                 'A search for a gun is a record: Nightwatch attention, a '
                 'point.'))
 def cmd_search(sess, args) -> None:
-    game, c = sess.require_game(), sess.console
+    game, c = _needs_deck(sess), sess.console
     if not len(args):
         raise CommandError('search for what? A name. `search katana`, '
                            '`search plating`.')
@@ -84,7 +97,7 @@ def cmd_search(sess, args) -> None:
                 'a smartgun to turn up does not walk to Freeport every day to '
                 'look.'))
 def cmd_watch(sess, args) -> None:
-    game, c = sess.require_game(), sess.console
+    game, c = _needs_deck(sess), sess.console
     watches = game.city.watches
     if not len(args):
         c.header('Watching', f'{len(watches)} thing{"s" if len(watches) != 1 else ""}')
@@ -111,9 +124,10 @@ def cmd_watch(sess, args) -> None:
     kind, item = hit
     if item.key in watches:
         raise CommandError(f'already watching for {item.name}.')
-    if len(watches) >= 6:
-        raise CommandError('six is as many as the deck will watch for. '
-                           '`watch drop <thing>` first.')
+    cap = deck_world.watch_capacity(game.char)
+    if len(watches) >= cap:
+        raise CommandError(f'{cap} is as many as this deck\'s memory will watch '
+                           f'for. `watch drop <thing>` first, or more memory.')
     watches.append(item.key)
     c.ok(f'The deck watches for {item.name}. It says when it lands, once a '
          f'cycle, and it is in `mail`.')
@@ -133,7 +147,7 @@ def cmd_watch(sess, args) -> None:
                 'as read. Warm answers warm them a little; hostile ones cool. '
                 'Once a shift each. `who` lists them.'))
 def cmd_message(sess, args) -> None:
-    game, c = sess.require_game(), sess.console
+    game, c = _needs_deck(sess), sess.console
     if not len(args):
         raise CommandError('message who? `who` lists the other runners.')
     name = (args.get(0) or '').lower()
@@ -176,3 +190,99 @@ def cmd_ads(sess, args) -> None:
         seen.add(ad.key)
         c.say(f'[dim]{ad.sponsor}:[/] {ad.text}')
         c.blank()
+
+
+@command('sweep', 'Read the street off the air: how rough, who is looking, what is here.',
+         group='info', contexts=('city',), usage='sweep [<district>]',
+         blocked='In here the network is the thing you are reading.',
+         detail=(
+                'The deck listens to the district (D136): how rough the street '
+                'is at this hour and what tonight is, which factions here have '
+                'your name near the top of a list, whether their people carry '
+                'chrome (whether `jack` has anything to reach in a fight), '
+                'whether the Nightwatch is on the street, which postings on '
+                'the board are for networks here, and who keeps hours here. '
+                'With an antenna above the first tier it reads districts a '
+                'shift or two away as well. Listening is not a record.'))
+def cmd_sweep(sess, args) -> None:
+    from ..content import districts
+    game, c = _needs_deck(sess), sess.console
+    key = game.city.where
+    if len(args):
+        key = districts.resolve(args.rest()) if hasattr(districts, 'resolve') else None
+        if key is None:
+            q = args.rest().lower()
+            key = next((d.key for d in districts.DISTRICTS
+                        if d.key.startswith(q) or d.name.lower().startswith(q)
+                        or q in d.name.lower()), None)
+        if key is None:
+            raise CommandError('no district by that name. `map` lists them.')
+        if not deck_world.in_reach(game, key):
+            r = deck_world.reach(game.char)
+            raise CommandError(f'{districts.BY_KEY[key].name} is past the antenna\'s '
+                               f'reach ({r} shift{"s" if r != 1 else ""}). A '
+                               f'longer antenna, or walk.')
+    c.header('Sweep', game.city.when)
+    for line in deck_world.sweep(game, key):
+        c.say(line)
+
+
+@command('route', 'Plan the walk: each hop, the hour you reach it, and the street then.',
+         group='info', contexts=('city',), usage='route <district>',
+         blocked='Later.',
+         detail=(
+                'The deck plans a walk (D136): the districts in order, the hour '
+                'you will arrive in each, how rough its street will be at that '
+                'hour, and who there is looking for your name. It is `walk` '
+                'previewed, so the runner who would rather cross the Shambles '
+                'in the morning can see that they will not.'))
+def cmd_route(sess, args) -> None:
+    from ..content import districts
+    game, c = _needs_deck(sess), sess.console
+    if not len(args):
+        raise CommandError('route where? `map` lists the districts.')
+    q = args.rest().lower()
+    key = next((d.key for d in districts.DISTRICTS
+                if d.key.startswith(q) or d.name.lower().startswith(q)
+                or q in d.name.lower()), None)
+    if key is None:
+        raise CommandError('no district by that name. `map` lists them.')
+    if key == game.city.where:
+        raise CommandError('you are there.')
+    rows = deck_world.route(game, key)
+    c.header('Route', f'{districts.BY_KEY[key].name}, {len(rows)} shift'
+                      f'{"s" if len(rows) != 1 else ""}')
+    c.table(('hop', 'arrive', 'the street then', 'looking for you'),
+            [(name, phase, word, who or '[dim]nobody[/]') for name, phase, word, who in rows],
+            roles=('accent', 'dim', 'warn', 'heat'))
+    c.blank()
+    c.say(f'[dim]`walk {key}` to go.[/]')
+
+
+@command('tune', 'Tune into a district: the scene at this hour, and what is going round.',
+         group='info', contexts=('city',), usage='tune [<district>]',
+         blocked='In here you are the thing being listened to.',
+         detail=(
+                'The deck tunes into a district (D136): the scene at this hour, '
+                'the street\'s line, and any rumour going round it, which is '
+                'how one-of-a-kind things are found, because the rumour is the '
+                'only breadcrumb there is. With an antenna above the first '
+                'tier it hears districts a shift or two away.'))
+def cmd_tune(sess, args) -> None:
+    from ..content import districts
+    game, c = _needs_deck(sess), sess.console
+    key = game.city.where
+    if len(args):
+        q = args.rest().lower()
+        key = next((d.key for d in districts.DISTRICTS
+                    if d.key.startswith(q) or d.name.lower().startswith(q)
+                    or q in d.name.lower()), None)
+        if key is None:
+            raise CommandError('no district by that name. `map` lists them.')
+        if not deck_world.in_reach(game, key):
+            r = deck_world.reach(game.char)
+            raise CommandError(f'{districts.BY_KEY[key].name} is past the antenna\'s '
+                               f'reach ({r} shift{"s" if r != 1 else ""}).')
+    c.header('Listening', districts.BY_KEY[key].name)
+    for line in deck_world.listen(game, key):
+        c.say(line)
