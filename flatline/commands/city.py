@@ -3545,6 +3545,84 @@ def cmd_burn(sess, args) -> None:
               f'paying to find somebody who does not exist any more.[/]')
 
 
+@command('world', 'The state of the city, and how your career has moved it.',
+         group='info', aliases=('state',), usage='world',
+         detail='The power map, and your mark on it. Each faction\'s grip on '
+                'the city rises and falls as they are robbed and preyed on '
+                'and as they recover, and a campaign moves it: rob the same '
+                'people enough and you can watch them lose their hold. It '
+                'also reads your footprint (the ways you have left open, the '
+                'grudges you hold) and where the story stands.')
+def cmd_world(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    from ..world.city import grip_baseline
+    city = game.city
+    c.header('The city', f'day {city.day}')
+    c.rule('the power map', role='muted')
+    ordered = sorted(factions.FACTION_KEYS, key=city.grip_of, reverse=True)
+    for key in ordered:
+        fac = factions.BY_KEY[key]
+        grip = city.grip_of(key)
+        delta = grip - grip_baseline(key)
+        rep = game.alias.reputation(key)
+        fill = max(0, min(20, int(round(grip / 5))))
+        bar_role = 'ok' if grip >= 60 else 'warn' if grip >= 45 else 'err'
+        bar = (c.caps.g('bar_full') * fill
+               + c.caps.g('bar_empty') * (20 - fill))
+        trend = (f'[ok]rising {delta:+.0f}[/]' if delta >= 2
+                 else f'[err]falling {delta:+.0f}[/]' if delta <= -2
+                 else '[dim]steady[/]')
+        rep_s = (f'[ok]+{rep}[/]' if rep >= 20 else f'[err]{rep}[/]' if rep <= -20
+                 else f'[dim]{rep:+d}[/]')
+        c.raw(f'  [{bar_role}]{bar}[/] [accent]{fac.short:<13}[/] {trend:<20} '
+              f'[dim]you[/] {rep_s}')
+    c.blank()
+    # Your footprint on it.
+    c.rule('your mark', role='muted')
+    hurt = min(factions.FACTION_KEYS,
+               key=lambda k: city.grip_of(k) - grip_baseline(k))
+    hurt_gap = city.grip_of(hurt) - grip_baseline(hurt)
+    rows = [('runs', str(game.alias.runs)),
+            ('ways left open', f'{len(city.backdoors)}'
+             + (f' ({", ".join(factions.BY_KEY[k].short for k in city.backdoors)})'
+                if city.backdoors else '')),
+            ('grudges against you', f'{len(city.grudges)}'
+             + (f' ({", ".join(factions.BY_KEY[k].short for k in city.grudges)})'
+                if city.grudges else ''))]
+    if hurt_gap <= -5:
+        rows.append(('costing the most',
+                     f'{factions.BY_KEY[hurt].short} ({hurt_gap:+.0f} off '
+                     f'their footing)'))
+    c.kv(rows)
+    c.blank()
+    # Where the tension is.
+    c.rule('the tension', role='muted')
+    flags = game.story.flags
+    dw = ('[dim]You have been inside one, and you cannot make it sit still.[/]'
+          if 'dw_inside' in flags or 'dw_name' in flags
+          else '[dim]A name people say and then stop saying.[/]'
+          if 'dw_heard' in flags
+          else '[dim]Something the city talks around, if you are listening.[/]')
+    c.say(f'[accent2]Deepwater.[/] {dw}')
+    nem = next((r for r in city.rivals if r.alive and r.bond == 'nemesis'), None)
+    par = next((r for r in city.rivals if r.alive and r.bond == 'partner'), None)
+    if nem:
+        c.say(f'[heat]{nem.name}[/] [dim]has it in for you, and is not quiet '
+              f'about it.[/]')
+    if par:
+        c.say(f'[ok]{par.name}[/] [dim]has your back, for as long as that '
+              f'lasts.[/]')
+    c.blank()
+    moved = sum(1 for k in factions.FACTION_KEYS
+                if abs(city.grip_of(k) - grip_baseline(k)) >= 3)
+    if moved >= 2:
+        c.say('[dim]The city is measurably a different shape for your being '
+              'in it. That cuts both ways.[/]')
+    else:
+        c.say('[dim]You have not left much of a mark on the shape of it yet. '
+              'That is either early days or a quiet life.[/]')
+
+
 @command('rep', 'How the city feels about you, in full.',
          group='info', aliases=('factions',), usage='rep',
          detail=(

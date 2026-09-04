@@ -11141,6 +11141,63 @@ def test_the_ways_in() -> None:
          'a sold-out inside job is a trap you walk into')
 
 
+def test_the_changing_world() -> None:
+    """D124: factions rise and fall over a campaign, and `world` shows it."""
+    T.section('the changing world')
+    from flatline.world import city as city_mod
+
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+    city = game.city
+
+    # Grip starts at a per-kind baseline: corps hold more than gangs.
+    corp = next(k for k in factions.FACTION_KEYS
+                if factions.BY_KEY[k].kind == 'corp')
+    gang = next(k for k in factions.FACTION_KEYS
+                if factions.BY_KEY[k].kind == 'gang')
+    T.ok(city.grip_of(corp) > city.grip_of(gang),
+         'a corp starts with more grip than a gang')
+    T.eq(city.grip_of(corp), city_mod.grip_baseline(corp),
+         'and grip defaults to the baseline before anything moves it')
+
+    # Robbing them costs them their hold, and enough of it makes the wire.
+    base = city.grip_of(corp)
+    line = ''
+    for _ in range(8):
+        line = city.bump_grip(corp, -6) or line
+        game.city.apply_run(game.alias, {'faction': corp, 'outcome': 'clean',
+                                         'objective': 'exfiltrate',
+                                         'haul_value': 4000, 'residue': 0},
+                            game.rng)
+    T.ok(city.grip_of(corp) < base - 20, 'a campaign against them moves it')
+    T.ok('losing its grip' in line, 'and crossing the line makes the wire')
+
+    # It drifts back toward baseline on its own, slowly.
+    low = city.grip_of(corp)
+    city._decay_posture()
+    T.ok(low < city.grip_of(corp) <= city_mod.grip_baseline(corp),
+         'grip recovers toward baseline, slowly')
+
+    # Round-trips through a save.
+    city.grip[gang] = 20.0
+    T.eq(city_mod.City.from_dict(city.to_dict()).grip.get(gang), 20.0,
+         'the power map is saved')
+
+    # The dashboard runs, ranks by grip, and reads the footprint.
+    con = quiet_console()
+    sess = Session(console=con, slot='world')
+    sess.game = game
+    game.city.backdoors[gang] = 1
+    con.start_capture()
+    sess.execute('world')
+    out = strip_ansi(con.end_capture())
+    T.ok('the power map' in out and 'your mark' in out,
+         'world shows the map and your mark')
+    T.ok(factions.BY_KEY[gang].short in out, 'and names the factions')
+    con.start_capture()
+    sess.execute('state')
+    T.ok('the power map' in strip_ansi(con.end_capture()), 'state is an alias')
+
+
 def test_planting_a_way_in() -> None:
     """D123: an in-run decision that pays off runs later. Leave a backdoor,
     come up past the wall next time, until they find it."""
@@ -12283,7 +12340,7 @@ SUITES = (
     test_named_shelf, test_and_in_nights, test_the_fourth_wave,
     test_the_cold_open, test_ambitions, test_the_lifeline, test_the_reckoning,
     test_the_nemesis_run, test_the_partner, test_the_ways_in,
-    test_planting_a_way_in,
+    test_planting_a_way_in, test_the_changing_world,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

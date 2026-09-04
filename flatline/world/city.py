@@ -64,6 +64,21 @@ ARRANGE_BROKEN_HEAT = 12
 #: occasionally, and a city that talks about nobody else would be a memorial.
 REMEMBERED_CHANCE = 0.06
 
+#: Where each kind of faction sits on the power map before a campaign moves it
+#: (D124). Corps and law are entrenched; gangs and cults hold less and lose it
+#: faster. The neutral middle is 50.
+GRIP_BASELINE = {'corp': 70, 'law': 64, 'construct': 56, 'broker': 54,
+                 'press': 50, 'collective': 48, 'cult': 45, 'gang': 42}
+#: How far grip has to move off its baseline before the wire says so, and how
+#: much of the gap the city closes each shift on its own.
+GRIP_NEWS_AT = 14
+GRIP_RECOVERY = 0.4
+
+
+def grip_baseline(faction: str) -> float:
+    fac = factions.BY_KEY.get(faction)
+    return float(GRIP_BASELINE.get(fac.kind if fac else '', 50))
+
 
 def _shifts(n: int) -> str:
     """A shift count, in the words the rest of the game uses for time."""
@@ -157,6 +172,10 @@ class City:
     #: faction -> the shift you left a way in on their network (D123). The
     #: next run on them starts past the wall, until they find it and it burns.
     backdoors: dict = field(default_factory=dict)
+    #: faction -> its grip on the city (D124), 0 to 100, drifting from a
+    #: baseline as it is robbed and preyed on and as it recovers. The power
+    #: map that a campaign actually moves; `world` reads it.
+    grip: dict = field(default_factory=dict)
     #: Errands already taken this window, as 'district:window:index' (D101):
     #: a collection at the same door paid nine times in one shift.
     errands_taken: set = field(default_factory=set)
@@ -401,6 +420,16 @@ class City:
             current = self.posture.get(key, fac.posture)
             if current > fac.posture:
                 self.posture[key] = max(fac.posture, current - 0.4)
+        # Grip drifts back toward baseline the same way (D124): a hold on the
+        # city that was lost is regained slowly, so a campaign leaves a mark
+        # that fades rather than one that snaps back the next shift.
+        for key in list(self.grip):
+            base = grip_baseline(key)
+            cur = self.grip[key]
+            if cur < base:
+                self.grip[key] = min(base, cur + GRIP_RECOVERY)
+            elif cur > base:
+                self.grip[key] = max(base, cur - GRIP_RECOVERY)
 
     def _apply_pending(self, alias: Alias) -> list[str]:
         told: list[str] = []
@@ -491,6 +520,13 @@ class City:
         if taken:
             gone = {c.cid for c in taken}
             self.board = [c for c in self.board if c.cid not in gone]
+            # The other runners move the power map too (D124): every job that
+            # gets run is a bite out of somebody, whoever ran it.
+            for contract in taken:
+                crossed = self.bump_grip(contract.target, -2)
+                if crossed:
+                    told.append(crossed)
+                    self.news.append(crossed)
         # Anybody who has just made up their mind about you says so, once.
         for rival, kind in rival_mod.check_bonds(self.rivals):
             told.append('')
@@ -959,6 +995,25 @@ class City:
 
     # -- consequences --------------------------------------------------
 
+    def grip_of(self, faction: str) -> float:
+        return self.grip.get(faction, grip_baseline(faction))
+
+    def bump_grip(self, faction: str, delta: float) -> str:
+        """Move a faction's hold on the city (D124), and say so when it
+        crosses a line off its baseline. Returns a wire line, or ''."""
+        base = grip_baseline(faction)
+        before = self.grip.get(faction, base)
+        after = max(0.0, min(100.0, before + delta))
+        self.grip[faction] = after
+        short = factions.BY_KEY[faction].short
+        if before > base - GRIP_NEWS_AT >= after:
+            return (f'[heat]{short} is losing its grip. The people who watched '
+                    f'it happen are already moving into the gap.[/]')
+        if before < base + GRIP_NEWS_AT <= after:
+            return (f'[dim]{short} is ascendant. Doors that were shut a month '
+                    f'ago are open, and the ones that were open cost more.[/]')
+        return ''
+
     def apply_run(self, alias: Alias, summary: dict, rng: Rng,
                   memorable: int = 0, heat_mult: float = 1.0) -> list[str]:
         """Turn a finished run into city state. The D5 payoff.
@@ -979,6 +1034,13 @@ class City:
             gain = 6 + summary.get('haul_value', 0) // 900
             learned_clean = fac.hardening
             told.append(f'[ok]Work recorded.[/] {gain} standing with your patron.')
+            # A job done is a bite out of their hold on the city (D124),
+            # bigger the bigger the haul. This is the campaign moving.
+            crossed = self.bump_grip(target,
+                                     -(4 + summary.get('haul_value', 0) // 1400))
+            if crossed:
+                told.append(crossed)
+                self.news.append(crossed)
 
         if residue:
             from ..run.session import RESIDUE_TO_HEAT
@@ -1105,6 +1167,7 @@ class City:
             'done_titles': list(self.done_titles),
             'grudges': dict(self.grudges),
             'backdoors': dict(self.backdoors),
+            'grip': {k: round(v, 1) for k, v in self.grip.items()},
             'errands_taken': sorted(self.errands_taken),
             'next_cid': self.next_cid,
             'stock': {k: [l.to_dict() for l in v] for k, v in self.stock.items()},
@@ -1144,6 +1207,7 @@ class City:
             grounded=int(d.get('grounded', -1)),
             grudges={str(k): str(v) for k, v in (d.get('grudges') or {}).items()},
             backdoors={str(k): int(v) for k, v in (d.get('backdoors') or {}).items()},
+            grip={str(k): float(v) for k, v in (d.get('grip') or {}).items()},
             errands_taken={str(k) for k in (d.get('errands_taken') or [])},
             done_titles=[str(t) for t in (d.get('done_titles') or [])],
             next_cid=int(d.get('next_cid', 1)),

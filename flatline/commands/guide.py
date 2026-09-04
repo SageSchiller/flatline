@@ -202,7 +202,7 @@ def _now_city(sess):
             cid = take[0].split()[1]
             steps.append(('board', f'or read the rest of it: `board {cid}` '
                                    f'reads the one above'))
-        also = ['look', 'journal', 'errands', 'market', 'map', 'char',
+        also = ['look', 'journal', 'world', 'errands', 'market', 'map', 'char',
                 'help']
     else:
         all_steps = city_cmds.city_steps(game)
