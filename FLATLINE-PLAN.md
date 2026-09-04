@@ -5060,6 +5060,54 @@ than a carry-less loop, the payload loading once the room is made, a bond
 formed from four jobs run together, and `market chrome` filtered to ware.
 `validate.py` clean, `test.py` green.
 
+### D146: The signposts, and the counts held
+
+The five additions the third round pointed at, one of them struck off before
+it was written because the round found it already done (the fourth ending is
+complete, D145). The four that remained.
+
+**A clean runner can reach the drift line now.** The record's "deepest drift"
+wants sixty, and the whole dissonance system is chrome you do not get back,
+so a runner who wore none could never cross it, whatever else they did. The
+one network in the game that is *about* the boundary going soft is Deepwater,
+and a run against it now costs a point of drift, said in its own words: you
+were somewhere with no edges, and a little less of you came back out than
+went in. Small, and only theirs, so the chrome economy is untouched and the
+explorer who keeps going back to the water has a slow way down that the
+sheet did not give them before.
+
+**The posting's brief names the way in that fits.** *Four Hundred and Eight*
+is a posture-seventy-two exfiltrate handed to a five-run character, and two
+of the three testers who took it came out with nothing the first time,
+because they breached it the way you breach anything. The story has been
+saying since the Archivist that there is nothing arranged around Deepwater,
+and the brief says it now too: no perimeter to break, `approach` it as an
+inside job or talk your way in and come up past the wall instead of through
+it. The run was always winnable that way; nothing pointed at it.
+
+**The fence and the demonstrator introduce themselves through the work**, the
+way the pit introduced Hollis at rung two (D144). Two of the fighter's
+new-systems threads gated on meeting people a fighter would never `look` for:
+*Somebody in the Cabinets* on the fence under the Shambles, and *The
+Demonstration* on Sendai's demonstrator at the Glasshouse. A fixer's street
+job now gets word to the fence, who fronts that kind of work, and points you
+down there; and the mark a killing blow leaves gets Sendai's attention, and
+a card in your pocket with the Glasshouse on it. Both are the meeting the
+thread needed, arrived at by doing the thing the thread is about.
+
+**The counts cannot drift silently again.** The README was ten numbers behind
+once because every one is typed by hand and read by nobody. `validate.py` has
+a `catalogue()` now that reads every derivable count off the modules, and
+`check_readme` holds the README's "What is in it" to it: a count that moves
+fails the build until the line is regenerated. `tools/counts.py` prints the
+current numbers for pasting. The one number not derivable in a line, "151
+things to see in the street", is deliberately left out.
+
+`test_the_signposts_and_the_counts` holds the drift branch, the perimeter
+line, the fence met through a fixer job and the demonstrator through the
+blooded mark (each once), and that the README states every count the
+modules produce. `validate.py` clean, `test.py` green.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -6785,3 +6833,12 @@ retirement, and a bond. No crashes. Three fixes (a loadout dead-end on a
 duplicate program, a partner bond that could not form, `market chrome`) and
 two confirmations (the under ending is complete; retirement is sound).
 `test_the_third_round`.
+
+### 2026-09-04 (s): the signposts, and the counts
+
+D146. Four additions from the third round: a Deepwater run costs a point of
+drift (a non-chrome path to the record's line); the posting's brief names the
+inside route that a network with no perimeter wants; the fence and the
+demonstrator introduce themselves through street work and the blooded mark;
+and `validate.catalogue()` + `check_readme` + `tools/counts.py` hold the
+README's counts to the modules. `test_the_signposts_and_the_counts`.

@@ -4280,6 +4280,75 @@ def check_reads(rep: Report) -> None:
         rep.check(n >= 2, 'reads', f'{attr} governs only {n} skill(s)')
 
 
+def catalogue() -> list[tuple[int, str]]:
+    """Every count the README states that is derivable from a module, as
+    (value, the exact fragment it must appear in). The single source of the
+    numbers: `tools/counts.py` prints them and `check_readme` holds the
+    README to them, so a count can never drift again without the build
+    saying so (D146). The one number not derivable in a line, "151 things to
+    see in the street", is deliberately not here.
+    """
+    from flatline.content import (skills as S, traits as TR, origins as OR,
+        icons as IC, cyberware as CW, weapons as WP, programs as PR,
+        hardware as HW, drugs as DR, ice as IS, factions as FA, rivals as RV,
+        events as EV, appearance as AP, manual as MA, record as RC,
+        ambitions as AM, pit as PT, districts as DI, threads as TH,
+        npcs as NP, rice as RI)
+    from flatline.session import REGISTRY
+    techniques = sum(len(getattr(s, 'techniques', ())) for s in S.SKILLS)
+    scenes = sum(len(t.stages) for t in TH.THREADS)
+    decisions = sum(len(st.choices) for t in TH.THREADS for st in t.stages)
+    quarters = sum(len(getattr(d, 'quarters', ())) for d in DI.DISTRICTS)
+    topics = sum(len(n.topics) for n in NP.NPCS)
+    uniq = (sum(1 for w in CW.WARE if getattr(w, 'unique', False))
+            + sum(1 for p in PR.PROGRAMS if getattr(p, 'unique', False))
+            + sum(1 for w in WP.WEAPONS if getattr(w, 'unique', False))
+            + sum(1 for c in HW.COMPONENTS if getattr(c, 'unique', False))
+            + sum(1 for d in DR.DRUGS if getattr(d, 'unique', False)))
+    axes = len({c.kind for c in RI.COSMETICS})
+    try:
+        commands = len({c.name for c in REGISTRY.all()})
+    except Exception:
+        commands = len(REGISTRY.commands)
+    return [
+        (len(S.SKILLS), 'skills with'),
+        (techniques, 'techniques'),
+        (len(TR.TRAITS), 'traits'),
+        (len(OR.ORIGINS), 'origins'),
+        (len(IC.ICONS), 'icons'),
+        (len(CW.WARE), 'implants'),
+        (len(WP.WEAPONS), 'weapons'),
+        (len(PR.PROGRAMS), 'programs'),
+        (len(HW.COMPONENTS), 'deck components'),
+        (uniq, 'of all of those one of a kind'),
+        (len(IS.ICE), 'countermeasures'),
+        (len(FA.FACTIONS), 'factions'),
+        (len(RV.RIVALS), 'rival runners'),
+        (len(NP.NPCS), 'named characters'),
+        (len(TH.THREADS), 'storylines'),
+        (scenes, 'scenes'),
+        (decisions, 'decisions'),
+        (len(AP.FEATURES), 'appearance features'),
+        (quarters, 'quarters in all'),
+        (len(EV.EVENTS), 'ambient city events'),
+        (len(MA.TOPICS) if hasattr(MA, 'TOPICS') else len(MA.BY_KEY), 'manual topics'),
+        (len(DR.DRUGS), 'drugs'),
+        (commands, 'commands'),
+        (axes, 'axes'),
+    ]
+
+
+def check_readme(rep: Report) -> None:
+    readme = pathlib.Path('README.md')
+    if not readme.exists():
+        return
+    text = readme.read_text()
+    for value, fragment in catalogue():
+        needle = f'{value:,} {fragment}' if value >= 1000 else f'{value} {fragment}'
+        rep.check(needle in text, 'README.md',
+                  f'says something other than "{needle}" (the count moved; '
+                  f'run `python3 tools/counts.py --write` or fix the wording)')
+
 CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
     check_guide, check_consequences, check_spine, check_city_texture,
@@ -4290,7 +4359,7 @@ CHECKS = (
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_palette_separation, check_markup, check_balance,
     check_heat, check_guile, check_roster, check_reads, check_relics, check_street,
-    check_weapons, check_pit, check_feed, check_record,
+    check_weapons, check_pit, check_feed, check_record, check_readme,
 )
 
 

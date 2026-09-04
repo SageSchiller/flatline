@@ -784,6 +784,16 @@ def _resolve(sess) -> None:
         c.say('[accent2]Something you are wearing has settled another '
               'millimetre closer in.[/] [dim]Dissonance '
               f'{game.char.dissonance}.[/]')
+    # A Deepwater network moves you the way chrome does (D146). Drift was
+    # reachable only by installing things you do not get back, so a clean
+    # runner could never cross the record's line for it; and the one
+    # network in the game that is about the boundary dissolving is the
+    # right place to lose a millimetre of it. Small, and only theirs.
+    elif summary['faction'] == 'deepwater':
+        game.char.dissonance += 1
+        c.say('[accent2]You were somewhere with no edges again, and a '
+              'little less of you came back out than went in.[/] '
+              f'[dim]Dissonance {game.char.dissonance}.[/]')
 
     gained = 2 + summary['ticks'] // 12 + (2 if summary.get('objective') else 0)
     game.char.xp += gained

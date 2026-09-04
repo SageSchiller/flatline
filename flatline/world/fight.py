@@ -591,4 +591,12 @@ def _end(sess, f: Fight, result: str) -> None:
         c.say(f'[warn]{street_content.FIGHT_KILLED}[/]')
         if got is not None:
             c.say(f'[dim]It leaves a mark: {got.name.lower()}.[/]')
+        # Sendai keep a file on people who can do that, and the
+        # Glasshouse demonstration was gated behind meeting theirs
+        # (D146). The mark is the introduction, the way Hollis's is the
+        # wall (D144).
+        if game.story.meet('demonstrator', game.city.shift):
+            c.say('[dim]Somebody from Sendai was in the crowd, and was '
+                  'not there by accident. There is a card in your pocket '
+                  'you did not put there: the Glasshouse, and a name.[/]')
     f.then(sess, f, result)

@@ -1043,6 +1043,14 @@ def _job_then(sess, job: dict, f, result: str) -> None:
                   f'[dim]`carry` or `sell`.[/]')
         game.story.flags.add(f'job:{job["job"]}')
         game.city.news.append(f'[warn]A fixer\'s job[/] in {fill["district"]}: done.')
+        # The fence under the Shambles fronts this kind of work, and a
+        # fighter who never `look`ed for them had the street-jobs thread
+        # gated behind a person they were never pointed at (D146). The
+        # work is the introduction, the way the pit is Hollis's (D144).
+        if game.story.meet('fence', game.city.shift):
+            c.say('[dim]Word gets to the fence under the Shambles that '
+                  'there is somebody who does this kind of work. '
+                  '`talk fence` when you are down there.[/]')
         c.say(f'[credit]{pay:,}c[/] [dim]from {job["from"]}, as agreed. '
               f'{ERRAND_XP} experience.[/]')
         sess.record_progress()

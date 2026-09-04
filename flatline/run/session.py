@@ -2136,6 +2136,17 @@ class RunState:
             asset=asset_name,
             ticks=self.SURVEIL_TICKS,
             who=(self.escort or {}).get('name', 'them'))
+        # The one network with no perimeter (D146). The posting is a
+        # posture-72 exfiltrate handed to a runs-five character, and two
+        # of three who took it came out with nothing the first time
+        # because they breached it like anything else. The whole point
+        # of the story is that there is nothing arranged around it: the
+        # way in is to be expected, not to force. Said once, in the aim.
+        if (self.contract or {}).get('target') == 'deepwater':
+            aim = (aim + ' There is no perimeter here to break: nothing '
+                   'is arranged around anything. `approach` it as an '
+                   'inside job or talk your way in, and you come up past '
+                   'the wall instead of through it.')
 
         # Nothing else in the brief matters if the thing that does the job is
         # not on the deck. The loadout is fixed at the door and `jack in` says

@@ -13274,6 +13274,90 @@ def test_the_third_round() -> None:
     save_mod.write_meta(dict(save_mod.META_DEFAULT))
 
 
+def test_the_signposts_and_the_counts() -> None:
+    """D146: a non-chrome path for drift, the posting's brief names the route
+    that fits, the fence and the demonstrator introduce themselves through
+    the work, and the README's counts are held to the modules."""
+    T.section('the signposts and the counts')
+    from flatline.world import street as street_world, fight as fight_world
+    from flatline.content import threads as thread_content
+    from flatline import save as save_mod
+
+    def fresh(where='shambles', origin='expolice', seed=9):
+        char = Character.from_origin(origin, 't')
+        game = Game.new(char, seed=seed)
+        game.city.where = where
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    def do(sess, con, cmd):
+        con.start_capture()
+        sess.execute(cmd)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    # 1. A Deepwater run moves drift, so a clean runner can reach the record's
+    # line for it. The branch reads summary['faction']; the record entry is 60.
+    import inspect
+    from flatline.commands import run as run_cmd
+    src = inspect.getsource(run_cmd)
+    i = src.index("summary['faction'] == 'deepwater'")
+    T.ok("dissonance += 1" in src[i:i + 200],
+         'a Deepwater run adds a point of drift')
+    # It is the elif of the chrome branch, so the two do not both fire.
+    T.ok("elif summary['faction'] == 'deepwater'" in src,
+         'as the water-only alternative to the chrome that creeps')
+
+    # 2. The posting brief names the perimeter-less route.
+    from flatline.run import session as run_session
+    T.ok('no perimeter here to break' in inspect.getsource(run_session),
+         'the posting brief says there is no perimeter, approach it inside')
+
+    # 3a. The fence introduces themselves through a fixer's street job.
+    sess, con, game = fresh()
+    job = {'job': 'protect', 'to': 'shambles', 'who': 'somebody', 'pay': 800,
+           'tier': 1, 'from': 'a fixer'}
+    T.ok('fence' not in game.story.met, 'the fence is a stranger at first')
+    out = do_capture(sess, con, lambda: street_world._job_then(sess, job, None, 'won'))
+    T.ok('fence' in game.story.met, 'a fixer job introduces the fence')
+    T.ok('talk fence' in out, 'and points you at them')
+    # doing another job does not introduce them twice.
+    out2 = do_capture(sess, con, lambda: street_world._job_then(sess, dict(job), None, 'won'))
+    T.ok('Word gets to the fence' not in out2, 'once, not every job')
+
+    # 3b. The demonstrator notes whoever earns the blooded mark.
+    sess, con, game = fresh()
+    game.char.base_skills['violence'] = 5
+    game.char.base_attrs['grit'] = 9
+    foe = fight_world.Foe(tier=4, chromed=False, faction='carrion',
+                          fill={'fac': "Carrion's", 'district': 'the Shambles'},
+                          danger=40, them='them')
+    fight = fight_world.Fight(foe=foe, pool=1, pool_max=40, then=lambda *a: None)
+    out = do_capture(sess, con, lambda: fight_world._end(sess, fight, 'won'))
+    T.ok('blooded' in game.char.marks, 'a killing blow leaves the mark')
+    T.ok('demonstrator' in game.story.met, 'and Sendai note whoever leaves it')
+    T.ok('Glasshouse' in out, 'and point them at the Glasshouse')
+
+    # 4. The README is held to the modules.
+    import validate
+    cat = validate.catalogue()
+    T.ok(len(cat) >= 20 and all(isinstance(v, int) and v > 0 for v, _ in cat),
+         'the catalogue reads every count off the modules')
+    rep = validate.Report()
+    validate.check_readme(rep)
+    T.ok(not rep.errors,
+         'and the README states every one of them: ' + '; '.join(rep.errors[:3]))
+
+    save_mod.write_meta(dict(save_mod.META_DEFAULT))
+
+
+def do_capture(sess, con, fn):
+    con.start_capture()
+    fn()
+    return ' '.join(strip_ansi(con.end_capture()).split())
+
+
 def manual_body(key: str) -> str:
     from flatline.content import manual
     return manual.BY_KEY[key].body
@@ -14570,6 +14654,7 @@ SUITES = (
     test_after_the_water,
     test_what_the_players_said,
     test_the_third_round,
+    test_the_signposts_and_the_counts,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,
