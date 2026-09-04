@@ -1332,6 +1332,157 @@ def cmd_wear(sess, args) -> None:
                        f'what there is.')
 
 
+@command('pit', 'The pit: fight the next name up the wall, for money.',
+         contexts=('city',), group='city', usage='pit [<name>|next] [<stake>]',
+         detail=(
+                'A room in the Shambles (D134) where people hit each other '
+                'for money, open at night, run by Carrion\'s. `pit` shows the '
+                'card: the wall of names, your rank, the purse for each rung '
+                'and what the house pays for reaching above yours. `pit next` '
+                'fights the next name up; `pit <name>` any name above yours; '
+                'a stake after it is a bet on yourself at the house\'s odds. '
+                'Hands, blades and sticks: the house holds the gun. Nobody '
+                'dies on the floor. One bout a night, and a rank that fades '
+                'if you stop. The top name holds a blade you can only get by '
+                'taking it.'))
+def cmd_pit(sess, args) -> None:
+    from ..content import pit as pit_content
+    from ..world import fight as fight_mod
+    game, c = sess.require_game(), sess.console
+    char = game.char
+    if game.city.where != pit_content.WHERE or pit_content.AT not in game.city.district.services:
+        raise CommandError(f'the pit is in {districts.BY_KEY[pit_content.WHERE].name}, '
+                           f'under the fence. Not here.')
+    ledger = game.city.pit
+    ledger.setdefault('rank', 0)
+    ledger.setdefault('beaten', [])
+    ledger.setdefault('last', -99)
+    # A rank fades if you stop (D134).
+    idle = game.city.shift - int(ledger.get('last_fought', game.city.shift))
+    while ledger['rank'] > 0 and idle >= pit_content.RANK_DECAY_SHIFTS:
+        ledger['rank'] -= 1
+        idle -= pit_content.RANK_DECAY_SHIFTS
+        ledger['last_fought'] = game.city.shift - idle
+    rank = int(ledger['rank'])
+    word = (args.get(0) or '').lower()
+    if not word:
+        c.header('The pit', pit_content.NAME)
+        c.say(f'[dim]{pit_content.ARRIVAL}[/]')
+        c.blank()
+        c.say(f'[dim]{pit_content.PITCH}[/]')
+        c.blank()
+        c.rule('the wall')
+        rows = []
+        for f in sorted(pit_content.FIGHTERS, key=lambda f: -f.rung):
+            above = f.rung - rank
+            odds = (f'{pit_content.ODDS.get(min(above, 3), 3)}:1' if above >= 1
+                    else 'beaten' if f.key in ledger['beaten'] else '')
+            purse = f.purse
+            tonight = street_world.night(game)
+            if tonight is not None:
+                purse = int(purse * tonight.muscle)
+            rows.append((str(f.rung), f.name, f.epithet, f.style,
+                         f'{purse:,}c', odds))
+        c.table(('rung', 'name', 'who', 'fights with', 'purse', 'pays'), rows,
+                roles=('dim', 'accent', 'dim', 'dim', 'credit', 'info'))
+        c.blank()
+        if rank >= pit_content.TOP:
+            c.say('[ok]Your name is at the top of the wall.[/]')
+        elif rank:
+            c.say(f'[dim]Your name is on the wall at rung {rank}. '
+                  f'`pit next` fights rung {rank + 1}.[/]')
+        else:
+            c.say('[dim]Your name is not on the wall. `pit next` fights '
+                  'the bottom rung.[/]')
+        if game.city.phase != 'night':
+            c.say(f'[dim]{pit_content.CLOSED}[/]')
+        c.say(f'[dim]`pit next [stake]` or `pit <name> [stake]`, a stake up '
+              f'to {pit_content.MAX_STAKE:,}c; the house keeps a tenth.[/]')
+        return
+    if game.city.phase != 'night':
+        raise CommandError(pit_content.CLOSED)
+    if ledger.get('last') == game.city.shift // 3:
+        raise CommandError(pit_content.ONE_A_NIGHT)
+    w = fight_mod.weapon_of(char)
+    if w is not None and w.loud:
+        raise CommandError(pit_content.NO_GUNS)
+    if word == 'next':
+        fighter = pit_content.BY_RUNG.get(rank + 1)
+        if fighter is None:
+            raise CommandError('there is nobody above you. The wall is yours.')
+    else:
+        fighter = next((f for f in pit_content.FIGHTERS
+                        if f.key == word or f.name.lower().startswith(word)), None)
+        if fighter is None:
+            raise CommandError('nobody on the wall by that name. `pit` lists them.')
+        if fighter.rung <= rank:
+            raise CommandError(f'{fighter.name} is below you on the wall. The '
+                               f'house does not pay for going down it.')
+    stake = args.int_at(1, 0, 'a stake') if len(args) > 1 else 0
+    if stake < 0 or stake > pit_content.MAX_STAKE:
+        raise CommandError(f'a stake is between nothing and {pit_content.MAX_STAKE:,}c.')
+    if stake > char.credits:
+        raise CommandError(f'you have {char.credits:,}c.')
+    above = fighter.rung - rank
+    odds = pit_content.ODDS.get(min(above, 3), 3)
+    ledger['last'] = game.city.shift // 3
+    ledger['last_fought'] = game.city.shift
+    char.credits -= stake
+    c.blank()
+    c.say(f'[warn]{fighter.intro.format(handle=char.handle)}[/]')
+    if stake:
+        c.say(f'[dim]{stake:,}c on yourself at {odds}:1, the house\'s tenth '
+              f'already gone.[/]')
+    foe = fight_mod.Foe(tier=fighter.tier, chromed=fighter.chromed, faction='',
+                        fill={'fac': 'the house', 'district': game.city.district.name},
+                        them=fighter.name, pool_bonus=fighter.pool_bonus,
+                        hit_bonus=fighter.hit_bonus)
+
+    def then(s, f, result):
+        g = s.game
+        ch = g.char
+        c.blank()
+        if result == 'won':
+            purse = fighter.purse
+            tonight = street_world.night(g)
+            if tonight is not None:
+                purse = int(purse * tonight.muscle)
+            win = purse + (int(stake * odds * (1 - pit_content.HOUSE_CUT)) + stake if stake else 0)
+            ch.credits += win
+            g.earned += win
+            ledger['rank'] = max(int(ledger['rank']), fighter.rung)
+            if fighter.key not in ledger['beaten']:
+                ledger['beaten'].append(fighter.key)
+            g.story.flags.add(f'pit:{fighter.key}')
+            g.alias.adjust_rep(pit_content.HOUSE, 2)
+            c.say(f'[ok]{fighter.beaten}[/]')
+            c.say(f'[credit]+{win:,}c[/] [dim]the purse'
+                  + (f' and the stake at {odds}:1' if stake else '') + '. Your '
+                  f'name goes on the wall above {fighter.name}\'s.[/]')
+            g.city.news.append(f'[warn]The pit:[/] {ch.handle} put '
+                               f'{fighter.name} on the floor.')
+            if fighter.rung >= pit_content.TOP and 'pit:champion' not in g.story.flags:
+                g.story.flags.add('pit:champion')
+                ch.library.append(pit_content.RELIC)
+                from ..content import weapons as weapon_content
+                c.say(f'[accent2]{weapon_content.BY_KEY[pit_content.RELIC].name} '
+                      f'is in the bag.[/] [dim]`carry eightfold`. It was always '
+                      f'going to be somebody\'s.[/]')
+                g.city.news.append(f'[warn]The pit:[/] the wall is {ch.handle}\'s.')
+        elif result == 'lost':
+            g.alias.adjust_rep(pit_content.HOUSE, -1)
+            c.say('[err]The floor. The house is proud that you are getting up '
+                  'from it, and says so, and keeps the stake.[/]')
+        else:
+            c.say('[dim]The house does not pay for a bout that did not '
+                  'finish, and it keeps the stake, and the crowd remembers '
+                  'the way you left.[/]')
+        s.record_progress()
+        s.autosave()
+
+    fight_mod.begin(sess, foe, then)
+
+
 # --------------------------------------------------------------------------
 # the board
 # --------------------------------------------------------------------------

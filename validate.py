@@ -3920,6 +3920,35 @@ def check_conditions(rep: Report) -> None:
 # --------------------------------------------------------------------------
 
 
+def check_pit(rep: Report) -> None:
+    """The pit (D134): a ladder that is a ladder, in a place that exists,
+    with a blade at the top that is never sold."""
+    from flatline.content import pit, weapons, districts as dist_content
+    rungs = sorted(f.rung for f in pit.FIGHTERS)
+    rep.check(rungs == list(range(1, len(rungs) + 1)), 'pit',
+              f'rungs {rungs} are not 1..n')
+    tiers = [pit.BY_RUNG[r].tier for r in rungs]
+    rep.check(tiers == sorted(tiers), 'pit', 'tiers do not climb the wall')
+    purses = [pit.BY_RUNG[r].purse for r in rungs]
+    rep.check(purses == sorted(purses) and purses[0] > 0, 'pit',
+              'purses do not climb the wall')
+    for f in pit.FIGHTERS:
+        where = f'pit/{f.key}'
+        rep.check(bool(f.intro and f.beaten and f.epithet and f.style), where,
+                  'is not written')
+        rep.check(1 <= f.tier <= 4 and f.pool_bonus >= 0 and f.hit_bonus >= 0,
+                  where, 'numbers out of band')
+    rep.check(pit.HOUSE in factions.BY_KEY, 'pit', f'house {pit.HOUSE!r} is no faction')
+    rep.check(pit.WHERE in dist_content.BY_KEY
+              and pit.AT in dist_content.BY_KEY[pit.WHERE].services, 'pit',
+              'the pit is somewhere that does not exist')
+    relic = weapons.BY_KEY.get(pit.RELIC)
+    rep.check(relic is not None and relic.unique and relic not in weapons.carriable(),
+              'pit', 'the blade at the top is sold, or missing')
+    rep.check(0 < pit.HOUSE_CUT < 0.5 and pit.MAX_STAKE > 0 and pit.RANK_DECAY_SHIFTS > 0,
+              'pit', 'house numbers out of band')
+
+
 def check_weapons(rep: Report) -> None:
     """The street's shelf (D128, D130). One axis that matters, and every
     rider read by the engine."""
@@ -4190,7 +4219,7 @@ CHECKS = (
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_palette_separation, check_markup, check_balance,
     check_heat, check_guile, check_roster, check_reads, check_relics, check_street,
-    check_weapons,
+    check_weapons, check_pit,
 )
 
 

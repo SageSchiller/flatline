@@ -29,7 +29,7 @@ from dataclasses import dataclass, field
 TONES = ('absurd', 'warm', 'grim', 'tragic', 'deceitful', 'unsettling')
 
 #: What an NPC will do for you, if anything. `talk` is always available.
-OFFERS = ('work', 'goods', 'intel', 'favour', 'nothing')
+OFFERS = ('work', 'goods', 'intel', 'favour', 'muscle', 'nothing')
 
 #: The `requires` rules this file can evaluate by itself. Anything else in a
 #: requires tuple is a story rule (a flag, or `not:<flag>`), which the world
@@ -83,7 +83,7 @@ class Npc:
 NPCS: tuple[Npc, ...] = (
     # -- Marrow -----------------------------------------------------------
     Npc('mara', 'Mara Okonkwo', 'who answers for the Switchboard',
-        'marrow', 'fixer', 'grim', ('work', 'intel', 'favour'),
+        'marrow', 'fixer', 'grim', ('work', 'intel', 'favour', 'muscle'),
         'The noodle bar has three landlines and one woman in her sixties who '
         'does not look up when you come in. She finishes writing something, '
         'caps the pen, and only then decides to have been expecting you.',
@@ -618,7 +618,7 @@ NPCS: tuple[Npc, ...] = (
 
     # -- found rather than located ----------------------------------------
     Npc('broker', 'Mr Sunday', 'who works for whoever you think',
-        '', 'fixer', 'deceitful', ('work', 'intel'),
+        '', 'fixer', 'deceitful', ('work', 'intel', 'muscle'),
         'Somebody has taken the stool next to you and ordered what you are '
         'drinking, and has been talking for a little while before you '
         'noticed the conversation had started.',
@@ -992,7 +992,7 @@ NPCS: tuple[Npc, ...] = (
         },
         hours=('afternoon', 'morning')),
     Npc('notary', 'the Notary', 'behind the one counter on the Row',
-        'row', 'fixer', 'unsettling', ('intel', 'work'),
+        'row', 'fixer', 'unsettling', ('intel', 'work', 'muscle'),
         'One person behind one counter in a room built to make you feel the '
         'height of it. They do not look up when you come in and they do not '
         'look up when you stop in front of them. "State the matter," they '

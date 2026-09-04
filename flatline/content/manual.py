@@ -934,7 +934,8 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] talking costs nothing and no shift, so the '
         'only reason not to is not knowing they are there. Walk into districts '
         'you have no job in. And take the work before you need the favour, '
-        'because the order those two happen in is the whole system.',
+        'because the order those two happen in is the whole system.'
+        '\n\nA fixer\'s [fg]deal <name> muscle[/] is the physical kind of work: see `help street`.',
         see=('threads', 'rivals', 'city', 'contracts'),
         commands=('look', 'talk', 'ask', 'who is', 'deal'),
         covers=('npcs', 'offers'),
@@ -1154,15 +1155,18 @@ TOPICS: tuple[Topic, ...] = (
         'it collects. `rep` and the map\'s x marks say where your name is '
         'worth money. Going anyway is a choice; so is `rest`, and so is '
         '`burn`, and so is paying.'
-        '\n\n[warn]Tonight, outside.[/] The run has its conditions (`help conditions`); the street has its own, drawn when the night comes in and gone by morning, said on the arrival line: a Nightwatch sweep (quieter, and a gun is heard twice), fight night (rougher, a rung worse, muscle pays half again), a curfew (nearly empty, and what is out is bad), a wake, the lights out (rougher, and what they carried is easier to walk off with), and payday (money on the street). And a clinic will patch you: [fg]clinic patch[/] puts Integrity back for money and no shift, which is how a fighter is back on the street the same night.',
+        '\n\n[warn]Tonight, outside.[/] The run has its conditions (`help conditions`); the street has its own, drawn when the night comes in and gone by morning, said on the arrival line: a Nightwatch sweep (quieter, and a gun is heard twice), fight night (rougher, a rung worse, muscle pays half again), a curfew (nearly empty, and what is out is bad), a wake, the lights out (rougher, and what they carried is easier to walk off with), and payday (money on the street). And a clinic will patch you: [fg]clinic patch[/] puts Integrity back for money and no shift, which is how a fighter is back on the street the same night.'
+        '\n\n[warn]The pit.[/] Under the fence in the Shambles, at night, Carrion\'s room: a floor with tape on it and a wall with names. [fg]pit[/] shows the card; [fg]pit next[/] fights the next name up the wall and [fg]pit <name>[/] any name above yours, with a stake on yourself at the house\'s odds (even money for the next rung, two to one for the one after, three to one past that; the house keeps a tenth). Five names, each a style, and at the top the one who has held the wall for nine years and holds a blade you can only get by taking it. The pit\'s rules are its own: hands, blades and sticks, the house holds the gun; nobody dies on the floor, whatever rung; no Nightwatch, no grudge; one bout a night; and a rank that fades if you stop. The purse rises with the night (fight night pays half again).'
+        '\n\n[warn]A fixer\'s street jobs.[/] The fixers who hand out runs also hand out the other kind of work: [fg]deal <fixer> muscle[/] lists two things a window that need doing with your hands, not the deck. Somebody needs hurting, something needs standing in front of, something needs getting back. Take one and you carry it like an errand; it happens where it is, when you arrive, as a fight at the tier they said. Real pay, and for a recovery, the thing itself. None of it is a run.',
         see=('death', 'heat', 'skills', 'city'),
         commands=('errands', 'arrange', 'travel', 'rest', 'rep', 'carry',
-                  'wear'),
-        covers=('street', 'weapons', 'armour'),
+                  'wear', 'pit', 'clinic'),
+        covers=('street', 'weapons', 'armour', 'pit'),
         terms=('mugging', 'ambush', 'encounter', 'beating', 'physical',
                'courier', 'odd jobs', 'fight', 'combat', 'weapon', 'gun',
                'armour', 'armor', 'katana', 'bat', 'muscle', 'style',
-               'loot'),
+               'loot', 'pit', 'arena', 'gladiator', 'champion', 'wall',
+               'patch'),
         group='city'),
     Topic(
         'relics', 'Things there is one of',

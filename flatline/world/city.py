@@ -218,6 +218,9 @@ class City:
     grip: dict = field(default_factory=dict)
     #: Tonight, outside (D133): a `conditions.Night` key while it is night.
     tonight: str = ''
+    #: The pit's ledger (D134): rank, the night last fought, the names
+    #: beaten, whether the wall is yours.
+    pit: dict = field(default_factory=dict)
     #: Errands already taken this window, as 'district:window:index' (D101):
     #: a collection at the same door paid nine times in one shift.
     errands_taken: set = field(default_factory=set)
@@ -1233,6 +1236,7 @@ class City:
             'backdoors': dict(self.backdoors),
             'grip': {k: round(v, 1) for k, v in self.grip.items()},
             'tonight': self.tonight,
+            'pit': dict(self.pit),
             'errands_taken': sorted(self.errands_taken),
             'next_cid': self.next_cid,
             'stock': {k: [l.to_dict() for l in v] for k, v in self.stock.items()},
@@ -1274,6 +1278,7 @@ class City:
             backdoors={str(k): int(v) for k, v in (d.get('backdoors') or {}).items()},
             grip={str(k): float(v) for k, v in (d.get('grip') or {}).items()},
             tonight=str(d.get('tonight') or ''),
+            pit=dict(d.get('pit') or {}),
             errands_taken={str(k) for k in (d.get('errands_taken') or [])},
             done_titles=[str(t) for t in (d.get('done_titles') or [])],
             next_cid=int(d.get('next_cid', 1)),

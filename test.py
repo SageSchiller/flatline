@@ -11940,6 +11940,139 @@ def test_the_match() -> None:
          'and the help says all of it')
 
 
+def test_the_pit() -> None:
+    """D134: a room to be a fighter in, and a fixer's street jobs. The wall,
+    its rules, the blade at the top, and work that happens where it is."""
+    T.section('the pit')
+    from flatline.content import pit as pit_content, npcs, weapons
+    from flatline.content import street as street_content
+    from flatline.world import street as street_world
+    from flatline.world.city import City
+
+    def fresh(seed=3, attrs=None, installed=(), weapon='', **ranks):
+        char = Character.from_origin('gutter', 't')
+        for k, r in ranks.items():
+            char.base_skills[k] = r
+        for k, v in (attrs or {}).items():
+            char.base_attrs[k] = v
+        char.installed = list(installed)
+        char.weapon = weapon
+        char.credits = 3000
+        game = Game.new(char, seed=seed)
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    def do(sess, con, cmd):
+        con.start_capture()
+        sess.execute(cmd)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    def night(game):
+        while game.city.phase != 'night':
+            game.city.shift += 1
+
+    def rounds(sess, con, n=14):
+        out = ''
+        for _ in range(n):
+            if sess.pending is None:
+                break
+            ch = sess.pending.choices
+            out += do(sess, con, 'finish' if 'finish' in ch else 'strike')
+        return out
+
+    # The wall is a ladder, and the blade at the top is never sold.
+    T.ok(len(pit_content.FIGHTERS) == pit_content.TOP
+         and weapons.BY_KEY[pit_content.RELIC].unique
+         and weapons.BY_KEY[pit_content.RELIC] not in weapons.carriable(),
+         'five names on the wall, and a blade at the top that is not for sale')
+
+    # Closed by day, a gun refused, a bout at night.
+    sess, con, game = fresh(attrs={'grit': 5}, weapon='bat', violence=3)
+    game.city.where = pit_content.WHERE
+    out = do(sess, con, 'pit')
+    T.ok('Bottle' in out and 'mopped' in out, 'the card shows the wall, and the pit is closed by day')
+    night(game)
+    game.char.weapon = 'pistol'
+    T.ok('shotgun' in do(sess, con, 'pit next'), 'the house holds the gun')
+    game.char.weapon = 'bat'
+    credits = game.char.credits
+    out = do(sess, con, 'pit next 200')
+    T.ok('Bottle' in out and 'a fight' in out and game.char.credits == credits - 200,
+         'a stake on yourself, and the bout opens')
+    res = rounds(sess, con)
+    T.ok('name goes on the wall' in res and game.city.pit.get('rank') == 1
+         and 'pit:bottle' in game.story.flags,
+         'a won bout puts your name on the wall')
+    T.ok(game.char.credits > credits, 'and pays the purse and the stake')
+    T.ok('twice' in do(sess, con, 'pit next'), 'one bout a night')
+    T.ok(City.from_dict(game.city.to_dict()).pit.get('rank') == 1, 'and the wall saves')
+
+    # Reaching up, at the house's odds, and taking the blade.
+    sess, con, game = fresh(seed=5, attrs={'grit': 6, 'nerve': 5},
+                            installed=['milplate'], weapon='katana', violence=5)
+    game.city.where = pit_content.WHERE
+    night(game)
+    out = do(sess, con, 'pit mother 1000')
+    T.ok('3:1' in out, 'three rungs up pays three to one')
+    res = rounds(sess, con)
+    T.ok('It is yours' in res and pit_content.RELIC in game.char.library
+         and 'pit:champion' in game.story.flags,
+         'the top of the wall hands over the blade')
+    T.ok('in hand' in do(sess, con, 'carry eightfold'), 'and it can be carried')
+    T.ok(game.city.pit.get('rank') == pit_content.TOP, 'the wall is yours')
+    game.city.shift += pit_content.RANK_DECAY_SHIFTS * 2 + 1
+    do(sess, con, 'pit')
+    T.ok(game.city.pit.get('rank') == pit_content.TOP - 2, 'and it fades if you stop')
+
+    # Nobody dies on the floor: a lost top bout leaves you at one, unwarned.
+    sess, con, game = fresh(seed=7)
+    game.city.where = pit_content.WHERE
+    night(game)
+    do(sess, con, 'pit mother')
+    res = rounds(sess, con)
+    T.ok('The floor' in res and game.char.integrity == 1 and not game.over
+         and not any(f.startswith('warned') for f in game.story.flags),
+         'the floor, and you get up from it, every time')
+
+    # A fixer's street jobs: listed, taken, met where they are, paid.
+    fixer = next(n for n in npcs.NPCS if 'muscle' in n.offers and n.where)
+    sess, con, game = fresh(seed=2, attrs={'grit': 6, 'nerve': 5}, weapon='blade', violence=5)
+    game.city.where = fixer.where
+    game.story.meet(fixer.key)
+    out = do(sess, con, f'deal {fixer.key} muscle')
+    T.ok('need doing with your hands' in out and '1' in out, 'a fixer lists physical work')
+    jobs = street_world.fixer_jobs(game, fixer)
+    T.ok(len(jobs) == 2 and {j['job'] for j in jobs} <= set(street_content.FIXER_JOBS),
+         'two a window, of the three shapes')
+    do(sess, con, f'deal {fixer.key} muscle 1')
+    job = dict(game.city.errand)
+    T.ok(job.get('kind') == 'job' and job.get('to'), 'taking one carries it')
+    credits = game.char.credits
+    guard = 0
+    while (sess.pending is not None or game.city.where != job['to']) and guard < 14:
+        guard += 1
+        if sess.pending is not None:
+            ch = sess.pending.choices
+            do(sess, con, 'finish' if 'finish' in ch else 'strike' if 'strike' in ch
+               else 'run' if 'run' in ch else ch[0])
+        else:
+            do(sess, con, f"walk {job['to']}")
+    T.ok(game.city.where == job['to'] and not game.city.errand,
+         'it happens where it is, and is done')
+    T.ok(game.char.credits >= credits + job['pay'] // 2 or f"job:{job['job']}" in game.story.flags
+         or any('not done' in n for n in game.city.news[-3:]),
+         'and it pays, or it did not and the fixer heard')
+    T.ok('The pit' in manual_body('street') and 'muscle' in manual_body('people'),
+         'the help knows the pit and the fixer\'s work')
+
+
+def manual_body(key: str) -> str:
+    from flatline.content import manual
+    return manual.BY_KEY[key].body
+
+
 
 def test_the_lifepath() -> None:
     """D126: your origin's complication comes to find you after the first run,
@@ -13221,7 +13354,7 @@ SUITES = (
     test_planting_a_way_in, test_the_changing_world, test_swagger_and_legend,
     test_the_lifepath, test_tactic_tools, test_the_fight,
     test_the_rough_street, test_a_fighters_living, test_help_is_current,
-    test_the_match,
+    test_the_match, test_the_pit,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

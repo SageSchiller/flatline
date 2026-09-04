@@ -177,12 +177,12 @@ The three ideas everything else hangs off:
 ## What is in it
 
 15 skills with 30 techniques, 6 of them for the street · 29 traits · 12 origins, each with a signature
-verb nobody else can use and its own starting face · 10 icons · 58 implants · 12 weapons and 3 things to wear · 68 programs
+verb nobody else can use and its own starting face · 10 icons · 58 implants · 13 weapons and 3 things to wear · 68 programs
 · 34 deck components · 24 of all of those one of a kind, never sold, found at a place at an hour or handed over by a decision, each with a history · 28 countermeasures · 9 pieces of bench work · 12 districts, each with a mark for the faction that
 holds it · 12 factions · 7 rival runners who decide about you, and one you can keep · 29 named characters who keep hours, hand out work, keep private stock and do favours on a tab · 35 storylines across 103 scenes and 119 decisions, every one of them read back by the world and every scene played where it is set, with a spine through the middle that has four endings and one of them is a door ·
 102 appearance features · 12 districts, drawn, each with what it is built of, what it works at, its named quarters and what is past its edge, 72 quarters in all, a scene for every hour, 151 things to see in the street, 20 written crossings between them, and 60 places to go and stand · 199 ambient city events, 80 of them consequences of something you decided and 12 of them rumours that stop when the thing is found · 43 manual topics · networks in six shapes · the street in four tiers and 24 ways it stops you, six of them written for one street only ·
 12 drugs · 3 lenders · 2 games of chance in 5 rooms ·
-141 commands · 72 pieces of terminal across 7 axes.
+142 commands · 72 pieces of terminal across 7 axes.
 
 Every number on every one of those is read by the engine, and `validate.py`
 holds it to that: every modifier key and every rider string in the content
@@ -202,8 +202,10 @@ is rounds rather than a check: strike, guard, the deck against their chrome,
 a finisher, a talk-down, a way out. A fifteenth skill, a fence shelf of
 weapons on one axis (quiet or loud, and the law hears loud), armour worn and
 fitted, chrome that fights, four styles, what you beat people with taken off
-them, and a fighter's living in muscle work. Combat is a way to survive the
-street. It is never a way to do a job.
+them, a fighter's living in muscle work and a fixer's street jobs, and a
+pit under the fence in the Shambles with a wall of names and a blade at the
+top you can only get by taking it. Combat is a way to survive the street. It
+is never a way to do a job.
 
 Footnotes are a real feature of the console. `{{like this}}` in any content
 string gets lifted out and printed under the block, and they nest, because the

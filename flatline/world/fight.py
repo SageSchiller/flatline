@@ -89,6 +89,10 @@ class Foe:
     danger: int = 0
     #: A word for them in the state line.
     them: str = 'them'
+    #: A named fighter (D134): extra on the pool and on every hit, over
+    #: the tier.
+    pool_bonus: int = 0
+    hit_bonus: int = 0
 
 
 @dataclass
@@ -306,7 +310,7 @@ def begin(sess, foe: Foe, then: Callable, first_hit: bool = False,
     you, by name, or ''."""
     game, c = sess.game, sess.console
     char = game.char
-    pool = FOE_POOL[foe.tier]
+    pool = FOE_POOL[foe.tier] + foe.pool_bonus
     f = Fight(foe=foe, pool=pool, pool_max=pool, then=then, ally=ally)
     c.blank()
     c.rule('a fight', role='err')
@@ -505,7 +509,7 @@ def _foe_hits(sess, f: Fight, scale: float = 1.0, bonus: int = 0) -> None:
     char = game.char
     rng = game.rng('combat')
     lo, hi = FOE_HIT[f.foe.tier]
-    raw = rng.int(lo, hi) + bonus - f.bricked
+    raw = rng.int(lo, hi) + bonus + f.foe.hit_bonus - f.bricked
     told = []
     if f.stunned:
         raw //= 2

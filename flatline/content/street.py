@@ -1063,3 +1063,75 @@ def pool(tier: int, who: str, phase: str, district: str = '') -> list[Encounter]
             if e.tier <= tier and e.who == who
             and (not e.phases or phase in e.phases)
             and (not e.districts or district in e.districts)]
+
+
+# -- a fixer's street jobs (D134) ------------------------------------------
+#: Three shapes of physical work a fixer hands out, over and above muscle
+#: errands: somebody needs hurting, something needs protecting, something
+#: needs getting back. Each is a fight where the job is, at the tier the
+#: fixer says, and it is not a run: combat is never the way to do a job,
+#: and these are a second kind of work.
+
+FIXER_JOBS = {
+    'hurt': {
+        'label': 'somebody needs hurting',
+        'pitch': '"{who}. {district}. I do not want them dead and I do not '
+                 'want them talked to. I want them to have had a bad night '
+                 'that they connect, afterwards, with a decision they made."',
+        'arrive': 'You find {who} in {district}, which is not hard, because '
+                  'people who have made the decision the fixer meant do not '
+                  'expect the consequence to have a face.',
+        'won': 'They will connect it. You leave them where the fixer would '
+               'want them found, which is where they are.',
+        'lost': 'They had friends, or you were slower than the fixer was '
+                'paying for. The fixer will hear, and the fixer does not pay '
+                'for hearing.',
+        'talked': '',
+    },
+    'protect': {
+        'label': 'something needs standing in front of',
+        'pitch': '"{who}, {district}, tonight. Somebody is coming to close '
+                 'it, and I would like it to still be open in the morning. '
+                 'I am not paying you to be reasonable."',
+        'arrive': 'You find {who} in {district} and you stand where it can '
+                  'be seen that you are standing, and it is not long before '
+                  'the people who were coming arrive and find the doorway '
+                  'has an opinion.',
+        'won': 'It is still open in the morning. The fixer\'s money is where '
+               'the fixer said it would be.',
+        'lost': 'It is not open in the morning.',
+        'talked': 'It is still open in the morning, and nobody bled on the '
+                  'step, and the fixer pays half and says nothing about the '
+                  'half.',
+    },
+    'recover': {
+        'label': 'something needs getting back',
+        'pitch': '"Somebody in {district} has {item}, which is not theirs, '
+                 'and they are not going to hand it over, and I would rather '
+                 'they were asked by somebody who is not me."',
+        'arrive': 'You find them in {district}, and they have {item} on '
+                  'them, which they make no attempt to hide, because they do '
+                  'not think you are the kind of problem that gets it back.',
+        'won': 'You have {item}. They do not, and the fixer does not want it '
+               'either; it was never about the thing.',
+        'lost': 'They still have {item}, and now they know what the fixer '
+                'sends.',
+        'talked': '',
+    },
+}
+
+#: Who the hurting is for, by the fixer's tone. `{district}` fills.
+FIXER_MARKS = (
+    'a man who runs a stall and a side business the stall is for',
+    'a woman who collects for somebody and has started collecting for '
+    'herself',
+    'two brothers with a van and a route that is not theirs',
+    'somebody\'s cousin, which is the whole of what you are told',
+    'a printer who printed the wrong thing for the wrong people',
+    'a docker who has been saying things on the rota about the fixer',
+)
+FIXER_PLACES = (
+    'a print shop that is also a betting shop', 'a clinic with a back door',
+    'a bar under the arches', 'a stall that sells one thing',
+    'a laundry with a queue', 'a workshop that is not open',
+)

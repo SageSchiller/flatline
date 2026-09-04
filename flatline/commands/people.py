@@ -673,8 +673,10 @@ def cmd_deal(sess, args) -> None:
         _deal_goods(sess, npc)
     elif kind.startswith('f'):
         _deal_favour(sess, npc, args)
+    elif kind in ('muscle', 'street', 'job'):
+        _deal_muscle(sess, npc, args)
     else:
-        raise CommandError(f'{npc.name} deals in work, goods and favours, '
+        raise CommandError(f'{npc.name} deals in work, goods, muscle and favours, '
                            f'not {kind!r}')
 
 
@@ -719,6 +721,9 @@ def _deal_person(sess, npc) -> None:
     if 'intel' in live and npc.topics:
         c.say(f'[fg]ask {npc.key} <topic>[/] [dim]'
               + ', '.join(sorted(npc.topics)) + '[/]')
+    if 'muscle' in live:
+        c.say(f'[fg]deal {npc.key} muscle[/] [dim]physical work: somebody '
+              f'hurt, something held, something got back[/]')
     if 'favour' in live:
         for fav in offers.favours_for(npc.key):
             c.say(f'[fg]deal {npc.key} favour {fav.key}[/] [dim]{fav.blurb}[/]')
@@ -767,6 +772,62 @@ def _deal_work(sess, npc, args) -> None:
     c.say(f'[dim]It is on the board as [fg]{existing.cid}[/][dim], held for '
           f'{work.patience} shifts longer than a posting. `take '
           f'{existing.cid}` to agree to it.[/]')
+    sess.autosave()
+
+
+def _deal_muscle(sess, npc, args) -> None:
+    """A fixer's street jobs (D134). Two a window; accept one and it is
+    carried like an errand and met where it is."""
+    from ..world import street as street_world
+    game, c = sess.require_game(), sess.console
+    if 'muscle' not in npc.offers:
+        raise CommandError(f'{npc.name} does not hand out that kind of work.')
+    jobs = street_world.fixer_jobs(game, npc)
+    pick = args.get(2)
+    if not pick:
+        c.blank()
+        c.rule(npc.name)
+        if not jobs:
+            c.say('[dim]Nothing physical this window. Ask again in a day.[/]')
+            return
+        c.say('[dim]Two things that need doing with your hands, not the '
+              'deck. Each is a fight, where it is, at the tier they say. '
+              'Combat is never the way to do a run; this is a second kind of '
+              'work.[/]')
+        c.blank()
+        rows = []
+        for n, job in enumerate(jobs, 1):
+            fill = street_world.job_fill(game, job)
+            from ..content import street as street_content
+            rows.append((str(n), street_content.FIXER_JOBS[job['job']]['label'],
+                         f'{fill["district"]}, {street_content.TIER_NAMES[job["tier"]]}'
+                         + (', chromed' if job.get('chromed') else ''),
+                         f'{job["pay"]:,}c'
+                         + (f' + {fill["item"]}' if job['job'] == 'recover' else '')))
+        c.table(('#', 'what', 'where, and how bad', 'pays'), rows,
+                roles=('dim', 'accent', 'dim', 'credit'))
+        c.blank()
+        c.say(f'[dim]`deal {npc.key} muscle <#>` to take one. You carry it '
+              f'like an errand, and it happens when you arrive.[/]')
+        return
+    if game.city.errand:
+        raise CommandError(f'you are already carrying '
+                           f'{game.city.errand.get("what", "something")}. '
+                           f'`errands drop` to put it down.')
+    try:
+        job = jobs[int(pick) - 1]
+    except (ValueError, IndexError):
+        raise CommandError(f'which one? 1 to {len(jobs)}.')
+    from ..content import street as street_content, districts
+    fill = street_world.job_fill(game, job)
+    game.city.errands_taken.add(job['key'])
+    game.city.errand = dict(job)
+    c.blank()
+    c.say(f'[warn]{street_content.FIXER_JOBS[job["job"]]["pitch"].format(**fill)}[/]')
+    to = districts.BY_KEY[job['to']]
+    c.ok(f'Taken. {to.name}, {game.city.shifts_to(to.key)} shift'
+         f'{"s" if game.city.shifts_to(to.key) != 1 else ""} from here; '
+         f'[credit]{job["pay"]:,}c[/] when it is done.')
     sess.autosave()
 
 

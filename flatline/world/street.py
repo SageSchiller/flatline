@@ -955,6 +955,101 @@ def muscle(sess, job: dict) -> None:
                     ally=partner.name if partner is not None else '')
 
 
+# -- a fixer's street jobs (D134) --------------------------------------------
+JOB_PAY = {'hurt': (900, 1800), 'protect': (700, 1400), 'recover': (600, 1200)}
+
+
+def fixer_jobs(game, npc) -> list[dict]:
+    """Two pieces of physical work this fixer has this window, deterministic
+    in (fixer, window) so asking twice shows the same two."""
+    from ..content import weapons as weapon_content
+    city = game.city
+    window = city.shift // 6
+    stream = game.rng.fork('errands', f'job:{npc.key}:{window}')
+    far = [d for d in districts.DISTRICTS if d.key != city.where
+           and 1 <= city.shifts_to(d.key) <= 3]
+    if not far:
+        far = [d for d in districts.DISTRICTS if d.key != city.where]
+    out = []
+    kinds = list(street_content.FIXER_JOBS)
+    for i in range(2):
+        kind = stream.pick(kinds)
+        kinds.remove(kind)
+        target = stream.pick(far)
+        tier = 3 if stream.chance(0.4) else 2
+        lo, hi = JOB_PAY[kind]
+        pay = stream.int(lo, hi) // 50 * 50 + (300 if tier == 3 else 0)
+        job = {'kind': 'job', 'job': kind, 'to': target.key, 'pay': int(pay),
+               'tier': tier, 'chromed': stream.chance(0.5), 'from': npc.key,
+               'key': f'job:{npc.key}:{window}:{i}', 'hot': False}
+        if kind == 'protect':
+            job['who'] = stream.pick(street_content.FIXER_PLACES)
+        else:
+            job['who'] = stream.pick(street_content.FIXER_MARKS)
+        if kind == 'recover':
+            item = stream.pick(weapon_content.carriable())
+            job['item'] = item.key
+            job['item_name'] = f'a {item.name.lower()}'
+        job['what'] = f'a job for {npc.name}: {street_content.FIXER_JOBS[kind]["label"]}'
+        out.append(job)
+    return [j for j in out if j['key'] not in getattr(city, 'errands_taken', ())]
+
+
+def job_fill(game, job: dict) -> dict:
+    return {'who': job.get('who', 'somebody'),
+            'district': districts.BY_KEY[job['to']].name,
+            'item': job.get('item_name', 'it')}
+
+
+def start_job(sess, job: dict) -> None:
+    """Called on arrival where the job is: the confrontation."""
+    game, c = sess.game, sess.console
+    shape = street_content.FIXER_JOBS[job['job']]
+    fill = job_fill(game, job)
+    c.blank()
+    c.rule('the job', role='warn')
+    c.say(f'[warn]{shape["arrive"].format(**fill)}[/]')
+    foe = fight_mod.Foe(tier=int(job['tier']), chromed=bool(job.get('chromed')),
+                        faction='', fill={'fac': 'nobody\'s', 'district': fill['district']},
+                        danger=rough(game), them='them')
+    from . import rivals as rival_world
+    partner = rival_world.active_partner(game.city.rivals)
+    fight_mod.begin(sess, foe, lambda s, f, result: _job_then(s, job, f, result),
+                    ally=partner.name if partner is not None else '')
+
+
+def _job_then(sess, job: dict, f, result: str) -> None:
+    game, c = sess.game, sess.console
+    shape = street_content.FIXER_JOBS[job['job']]
+    fill = job_fill(game, job)
+    pay = int(job['pay'])
+    game.city.errand = {}
+    c.blank()
+    if result == 'won' or (result == 'talked' and shape['talked']):
+        if result == 'talked':
+            pay //= 2
+            c.say(f'[ok]{shape["talked"].format(**fill)}[/]')
+        else:
+            c.say(f'[ok]{shape["won"].format(**fill)}[/]')
+        game.char.credits += pay
+        game.earned += pay
+        game.city.errands_done += 1
+        game.char.xp += ERRAND_XP
+        if job['job'] == 'recover' and job.get('item') and result == 'won':
+            game.char.library.append(job['item'])
+            c.say(f'[ok]{fill["item"].capitalize()} is in the bag.[/] '
+                  f'[dim]`carry` or `sell`.[/]')
+        game.story.flags.add(f'job:{job["job"]}')
+        game.city.news.append(f'[warn]A fixer\'s job[/] in {fill["district"]}: done.')
+        c.say(f'[credit]{pay:,}c[/] [dim]from {job["from"]}, as agreed. '
+              f'{ERRAND_XP} experience.[/]')
+        sess.record_progress()
+    else:
+        c.say(f'[err]{shape["lost"].format(**fill)}[/]')
+        game.city.news.append(f'[warn]A fixer\'s job[/] in {fill["district"]}: not done.')
+    sess.autosave()
+
+
 DEBTORS = (
     'a man behind a shutter who owes the Sixes and knows your face from '
     'somewhere',
@@ -1004,6 +1099,11 @@ def deliver(sess) -> None:
     """Called on arrival: if the package was for here, it is delivered."""
     game, c = sess.game, sess.console
     errand = game.city.errand
+    if errand and errand.get('kind') == 'job':
+        # A fixer's job (D134): it happens where it is.
+        if errand.get('to') == game.city.where and sess.pending is None:
+            start_job(sess, dict(errand))
+        return
     if not errand or errand.get('kind') not in ('courier', 'escort'):
         return
     if errand.get('to') != game.city.where:

@@ -28,6 +28,10 @@ class Weapon:
     drawback: str
     #: Engine special case by key, or ''.
     rider: str = ''
+    #: One of a kind (D63 e): never sold, taken off somebody. `lore` is its
+    #: history, shown by `inspect`.
+    unique: bool = False
+    lore: str = ''
 
 
 WEAPONS: tuple[Weapon, ...] = (
@@ -113,6 +117,18 @@ WEAPONS: tuple[Weapon, ...] = (
            'They are always there, which is the point and the problem: you '
            'cannot put them down, and a scanner sees them from across a '
            'lobby.'),
+    Weapon('eightfold', 'The Eightfold Blade', 5, False, 0, 3,
+           'A blade folded eight times by somebody who is dead, which is '
+           'the only kind of person who still did it that way. It has held '
+           'the wall in the pit under the fence for nine years, in one hand '
+           'and then, tonight, in yours.',
+           'Everybody in the Shambles knows the blade and knows who held '
+           'it, and now they know who has it, and some of them are going to '
+           'want to know why.',
+           rider='edge', unique=True,
+           lore='Mother took it off the man who held the wall before her, '
+                'and he took it off a woman whose name is still on the wall '
+                'under both of theirs, and past that the ledger does not go.'),
     Weapon('smartgun', 'Smartgun', 5, True, 6500, 3,
            'A pistol that knows where you are looking, through a neural link '
            'that it will also remember. Without something in the neural slot '
@@ -134,7 +150,7 @@ CHROME_WEAPONS: dict[str, str] = {'wolvers': 'wolvers'}
 
 def carriable() -> list:
     """What a fence can stock: everything with a price."""
-    return [w for w in WEAPONS if w.price > 0]
+    return [w for w in WEAPONS if w.price > 0 and not w.unique]
 
 
 def granted(installed) -> Weapon | None:
