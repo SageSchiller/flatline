@@ -12,7 +12,7 @@ updated: 2026-09-03
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-09-01.** D86 to D89 landed in one session, from three play-tests run in parallel with three different briefs (a first-timer who does what `now` says, an explorer who ignores it, and a run specialist who types every verb by hand). What they found, in order of size: the story layer was gated on meeting people and nothing ever said to meet anyone, and forty-two scenes declared a district that nothing read; the advice could recommend the same severed run five nights running and never once name Intrusion; a credential warden was an unanswerable wall for the Chromed origin and the board could not see it; and D6's severed-connection cooldown had never been implemented. All fixed, with `test_people_are_the_story`, `test_night_before`, `test_wall_and_clock` and `test_remembered_inside` holding them. Two things were added rather than fixed: the construct that cut you loose is on the route next time, awake and named, and the other runners can turn up inside a network with consequences that read their opinion of you. `validate.py` clean, `test.py` green at **18,171 checks** (D90 to D114 followed on 2026-09-02 and 2026-09-03: the visual layer, from pictures and the drawn instrument through the schematic map, player icons, more palettes and prompts, the portrait, reveal styles, seen ICE with screen disruption, a glyph per host type across the scan, the map, and the node header, a full-colour city that the boot now comes up on, and the player icons redrawn as a bestiary of creatures and characters with four more to buy, and a story/quest play-test that fixed the first-runs signposting, and a cold-open first job, sharper run beats, an ambitions ladder, and a blank-prompt lifeline for newcomers). The next thing worth doing is another round of the same method: play it three ways and fix what the players say, because every one of the fourteen decisions since D75 came out of somebody playing rather than somebody guessing.
+> **State as of 2026-09-01.** D86 to D89 landed in one session, from three play-tests run in parallel with three different briefs (a first-timer who does what `now` says, an explorer who ignores it, and a run specialist who types every verb by hand). What they found, in order of size: the story layer was gated on meeting people and nothing ever said to meet anyone, and forty-two scenes declared a district that nothing read; the advice could recommend the same severed run five nights running and never once name Intrusion; a credential warden was an unanswerable wall for the Chromed origin and the board could not see it; and D6's severed-connection cooldown had never been implemented. All fixed, with `test_people_are_the_story`, `test_night_before`, `test_wall_and_clock` and `test_remembered_inside` holding them. Two things were added rather than fixed: the construct that cut you loose is on the route next time, awake and named, and the other runners can turn up inside a network with consequences that read their opinion of you. `validate.py` clean, `test.py` green at **18,182 checks** (D90 to D114 followed on 2026-09-02 and 2026-09-03: the visual layer, from pictures and the drawn instrument through the schematic map, player icons, more palettes and prompts, the portrait, reveal styles, seen ICE with screen disruption, a glyph per host type across the scan, the map, and the node header, a full-colour city that the boot now comes up on, and the player icons redrawn as a bestiary of creatures and characters with four more to buy, and a story/quest play-test that fixed the first-runs signposting, and a cold-open first job, sharper run beats, an ambitions ladder, a blank-prompt lifeline for newcomers, and a nemesis reckoning that gives the rival arc a payoff). The next thing worth doing is another round of the same method: play it three ways and fix what the players say, because every one of the fourteen decisions since D75 came out of somebody playing rather than somebody guessing.
 >
 > **State as of 2026-08-21, end of the long session.** **Phases 0 through 5 are done, D17's finish line is passed, Phase 7 is closed, and D63 to D65 are the deep work.** `python3 validate.py` is clean with zero warnings, `python3 test.py` is green at **15,311 checks**, and `./build.sh` produces a `dist/flatline.pyz` that runs standalone. **D63, the mechanics deep dive** in six parts: every declared number and rider has a reader (`check_reads`); the intrusion layer's holes closed (`mask` decays, sealed records, armour wears, faction style knobs, soft wardens); the catalogue readable (`inspect`, a bare `load`, `fit`, passives once per kind, program riders, six mid-tier parts); the vices capped (Threes, collections, hook-4 warnings); twenty-four relics with histories; and programs held to skill rank plus two. **D64, the play test**: networks in six shapes by doctrine with the brief reading the sums; the city grown to twelve districts (the Stacks, Meridian Row, the Hall) with people, places, threads, events and relics; and the advice made into a chain that ends in a run, with seven dead ends closed and `test_advice` to keep them closed. **D65, the street is real**: encounters in four tiers answered by run, talk, pay or stand with printed checks; warning-then-lethal under the black-ICE contract; two street skills; `errands` (courier, watch, collect, escort); `arrange` to pay a faction for their streets; and the whole of it hooked into travel, rest and the close-call band. Before those, on the same day: D50 to D62, the onboarding layer, decisions that are read, the Deepwater spine, the city deeper, voices and hours, district arcs, the rival bond, the drawn map, the HUD, the tutorial's second half, run conditions, and the rest of the Phase 7 list.
 >
@@ -3909,6 +3909,37 @@ first run, and it never shows during a run, on top of a waiting question,
 or while the tutorial is already holding their hand. A hand on the shoulder
 for exactly as long as somebody is new, and gone before it could become
 nag. `test_the_lifeline` holds the fade and every one of the silences.
+
+### D119: The reckoning
+
+The rival system already did the hard half well: run the board faster than
+somebody for a campaign and you make an enemy of them by nothing more than
+being quicker, disposition sinking three points at a time until it latches
+into a nemesis with a scene of its own. What it had no second half of was
+an ending. A nemesis was a weather system with no season: heat every few
+shifts, and the only way to make it stop was to pay them off, which is a
+transaction and not a resolution. A rivalry that cannot end is a chore,
+not a story.
+
+So once the grievance goes deeper than the declaration and stays there
+(past `RECKON_AT`, which takes a campaign of being crossed to reach), the
+nemesis stops working through the city and comes to find you in it, in the
+same words the street already uses (D65): [fg]face[/] them, [fg]settle[/]
+it, or [fg]walk[/] and leave it for a night you are readier for. Facing
+them is a printed sum like any street check, nerve and your name and what
+you can do against how good they are; win and something goes out of them
+that does not come back, lose and they take the inch in front of people it
+travels to, and either way the score is settled and the bond comes off,
+because standing in it is the ending whichever way the roll goes. Settling
+is real money and a clean peace. Walking leaves it for another night, and
+it comes again.
+
+It reuses the confrontation machinery whole (`world/rivals.reckoning_begin`
+mirrors `world/street.begin`, the `Check`, the question), fires from the
+city story hook only when nothing else is waiting on the next line, and
+remembers itself in the story's flag set (`reckoned:<key>`), so a settled
+score stays settled. `test_the_reckoning` holds the trigger, the three
+answers, and the silences.
 
 ### D17: The finish line
 

@@ -470,3 +470,130 @@ def can_ask(rival: Rival, kind: str, char=None) -> tuple[bool, str]:
                        f'That favour needs them at {cost} and they are at '
                        f'{rival.disposition}.')
     return True, ''
+
+
+# --------------------------------------------------------------------------
+# the reckoning (D119)
+# --------------------------------------------------------------------------
+
+
+def active_nemesis(pool: list[Rival]) -> Rival | None:
+    return next((r for r in pool if r.alive and r.bond == 'nemesis'), None)
+
+
+def reckoning_due(pool: list[Rival], flags=()) -> Rival | None:
+    """The nemesis whose arc has come to a head, or None. Once per runner: a
+    settled score stays settled, and the `reckoned:<key>` flag says so."""
+    rival = active_nemesis(pool)
+    if rival is None or f'reckoned:{rival.key}' in flags:
+        return None
+    if rival.disposition > rival_content.RECKON_AT:
+        return None
+    return rival
+
+
+def _face_check(game, rival: Rival):
+    """Your standing against theirs. Nerve because it is a nerve thing, your
+    name because a name is hard to push, your best skill because in the end
+    you are the argument."""
+    from ..run.checks import Check
+    from ..content import skills
+    char = game.char
+    check = Check(name='face them down', resistance=6 + rival.data.skill)
+    check.add('nerve', char.attr('nerve'))
+    best_rep = max((game.alias.reputation(k) for k in factions.FACTION_KEYS),
+                   default=0)
+    if best_rep >= 20:
+        check.add('your name', best_rep // 20)
+    best_skill = max((char.skill(k) for k in skills.SKILL_KEYS), default=0)
+    if best_skill:
+        check.add('what you can do', best_skill)
+    check.add(f'{rival.name} means it', -2)
+    return check
+
+
+def settle_price(rival: Rival) -> int:
+    return int(rival_content.RECKON_COST * (0.6 + rival.data.skill / 10.0))
+
+
+def _end_bond(game, rival: Rival, disposition: int) -> None:
+    """A settled score. The bond comes off, the disposition lands above the
+    latch so it does not re-form on the next shift, and the flag remembers."""
+    rival.bond = None
+    rival.disposition = disposition
+    game.story.flags.add(f'reckoned:{rival.key}')
+
+
+def reckoning_begin(sess, rival: Rival) -> None:
+    """The confrontation, as a question (mirrors world/street.py). Waits on
+    the next line for face, settle, or walk."""
+    game, c = sess.game, sess.console
+    setup = (rival_content.RECKON_SETUP.get(rival.data.style)
+             or next(iter(rival_content.RECKON_SETUP.values())))
+    check = _face_check(game, rival)
+    price = settle_price(rival)
+    afford = game.char.credits >= price
+    c.blank()
+    c.rule('a reckoning', role='err')
+    c.say(f'[warn]{setup.format(name=rival.name)}[/]')
+    c.blank()
+    c.raw(f'  [accent]{"face":<7}[/] Stand in it. Give them nothing.  '
+          f'[dim]{check.summary()}[/]')
+    c.raw(f'  [accent]{"settle":<7}[/] Buy the peace.  '
+          + (f'[credit]{price:,}c[/]' if afford
+             else f'[dim]{price:,}c, which you do not have[/]'))
+    c.raw(f'  [accent]{"walk":<7}[/] Not tonight.  [dim]it keeps[/]')
+    c.blank()
+    c.say('[dim]Type one. `walk` leaves it for a night you are readier for.'
+          '[/]')
+    sess.ask('this is happening > ',
+             lambda s, line: _reckoning_answer(s, rival, line),
+             must_answer=True, choices=('face', 'settle', 'walk'))
+
+
+#: Words that are somebody looking at the odds again rather than answering:
+#: they reprint the confrontation and cost nothing.
+_RECKON_ASIDES = ('help', '?', 'again', 'what', 'repeat', 'odds')
+
+
+def _reckoning_answer(sess, rival: Rival, line: str) -> None:
+    game, c = sess.game, sess.console
+    word = line.strip().lower().split()[0] if line.strip() else ''
+    if not word or word in _RECKON_ASIDES:
+        reckoning_begin(sess, rival)
+        return
+    if word in ('settle', 'pay', 'buy'):
+        price = settle_price(rival)
+        if game.char.credits < price:
+            c.err(f'{price:,}c and you have {game.char.credits:,}. `face` it '
+                  f'or `walk`.')
+            reckoning_begin(sess, rival)
+            return
+        game.char.credits -= price
+        _end_bond(game, rival, 0)
+        c.blank()
+        c.say(f'[dim]{rival_content.RECKON_SETTLED.format(name=rival.name)}[/]')
+        c.say(f'[credit]-{price:,}c[/]')
+        return
+    if word in ('walk', 'leave', 'later', 'no', 'not'):
+        c.blank()
+        c.say(f'[dim]{rival_content.RECKON_WALKED.format(name=rival.name)}[/]')
+        return
+    # Anything else stands in it: facing them is what a runner who did not say
+    # otherwise is doing.
+    check = _face_check(game, rival)
+    check.resolve(game.rng('combat'))
+    if check.success:
+        _end_bond(game, rival, -15)
+        c.blank()
+        c.rule('faced down', role='ok')
+        c.say(f'[ok]{rival_content.RECKON_FACE_WIN.format(name=rival.name)}[/]')
+    else:
+        _end_bond(game, rival, -30)
+        hot, _ = game.alias.hottest
+        if hot:
+            game.alias.add_heat(hot, 10)
+        c.blank()
+        c.rule('it cost you', role='err')
+        c.say(f'[warn]{rival_content.RECKON_FACE_LOSE.format(name=rival.name)}'
+              f'[/]')

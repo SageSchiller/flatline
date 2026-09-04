@@ -1249,7 +1249,21 @@ def _check_story(sess) -> None:
               f'{len(held)} more scene{"s" if len(held) != 1 else ""}, on '
               f'the next thing you do.[/]')
     _check_ambitions(sess)
+    _check_reckoning(sess)
     sess.autosave()
+
+
+def _check_reckoning(sess) -> None:
+    """A nemesis whose arc has boiled over comes to find you in the city
+    (D119). Only when nothing else is already waiting on the next line, so it
+    never lands on top of a scene or a question."""
+    game = sess.game
+    if game is None or sess.run is not None or sess.pending is not None:
+        return
+    from ..world import rivals as rival_mod
+    rival = rival_mod.reckoning_due(game.city.rivals, game.story.flags)
+    if rival is not None:
+        rival_mod.reckoning_begin(sess, rival)
 
 
 def _check_ambitions(sess) -> None:

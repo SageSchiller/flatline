@@ -10931,6 +10931,83 @@ def test_the_cold_open() -> None:
     T.ok(text.isascii(), 'the cold open is ascii-clean on an ascii terminal')
 
 
+def test_the_reckoning() -> None:
+    """D119: a nemesis arc comes to a head, and is settled one way or other."""
+    T.section('the reckoning')
+    from flatline.world import rivals as rival_mod
+
+    def nemesis(game, key='hound', disp=-85):
+        for r in game.city.rivals:
+            if r.key == key:
+                r.bond = 'nemesis'
+                r.disposition = disp
+                r.jobs = 10
+                return r
+
+    # It is due only for a nemesis who has gone deep, once ever.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+    T.eq(rival_mod.reckoning_due(game.city.rivals, game.story.flags), None,
+         'no reckoning without a nemesis')
+    r = nemesis(game, disp=-70)
+    T.eq(rival_mod.reckoning_due(game.city.rivals, game.story.flags), None,
+         'a shallow grudge is not a reckoning')
+    r.disposition = -85
+    T.eq(rival_mod.reckoning_due(game.city.rivals, game.story.flags).key,
+         'hound', 'a boiled-over nemesis is due')
+    game.story.flags.add('reckoned:hound')
+    T.eq(rival_mod.reckoning_due(game.city.rivals, game.story.flags), None,
+         'a settled score stays settled')
+
+    def play_reckoning(choice, key='hound', credits=8000):
+        g = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+        g.char.credits = credits
+        nemesis(g, key)
+        con = quiet_console()
+        sess = Session(console=con, slot='nem')
+        sess.game = g
+        con.start_capture()
+        sess.execute('look')  # a command that runs _check_story
+        fired = 'a reckoning' in strip_ansi(con.end_capture())
+        pend = sess.pending is not None
+        con.start_capture()
+        sess.execute(choice)
+        out = strip_ansi(con.end_capture())
+        rv = next(x for x in g.city.rivals if x.key == key)
+        return fired, pend, out, rv, g
+
+    # It fires in the city and waits on the next line.
+    fired, pend, out, rv, g = play_reckoning('walk')
+    T.ok(fired and pend, 'the reckoning fires and waits for an answer')
+    T.ok(rv.bond == 'nemesis' and 'reckoned:hound' not in g.story.flags,
+         'walking away leaves it unsettled, to happen again')
+
+    # Settling buys it off: real money, bond gone, remembered.
+    _, _, out, rv, g = play_reckoning('settle', credits=8000)
+    T.ok(rv.bond is None and 'reckoned:hound' in g.story.flags,
+         'settling ends the bond')
+    T.ok(g.char.credits < 8000, 'and it costs real money')
+
+    # Facing them resolves it either way (won or lost, the arc ends).
+    _, _, out, rv, g = play_reckoning('face')
+    T.ok(rv.bond is None and 'reckoned:hound' in g.story.flags,
+         'facing them settles the score whichever way the roll goes')
+    T.ok('faced down' in out or 'cost you' in out,
+         'and says which way it went')
+
+    # Never mid-run or on top of a waiting question.
+    g = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+    nemesis(g)
+    con = quiet_console()
+    sess = Session(console=con, slot='nem')
+    sess.game = g
+    sess.pending = 'busy'  # any non-None value blocks the reckoning
+    from flatline.commands.people import _check_reckoning
+    con.start_capture()
+    _check_reckoning(sess)
+    T.eq(strip_ansi(con.end_capture()).strip(), '',
+         'not on top of a waiting question')
+
+
 def test_the_lifeline() -> None:
     """D118: the fading blank-prompt reminder for a brand-new runner."""
     T.section('the lifeline')
@@ -11937,7 +12014,7 @@ SUITES = (
     test_remembered_inside, test_second_look, test_second_wave,
     test_the_way_in, test_more_to_say, test_the_door, test_corporate_night,
     test_named_shelf, test_and_in_nights, test_the_fourth_wave,
-    test_the_cold_open, test_ambitions, test_the_lifeline,
+    test_the_cold_open, test_ambitions, test_the_lifeline, test_the_reckoning,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

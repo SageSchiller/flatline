@@ -391,6 +391,72 @@ PARTNER_HEAT = 8
 
 
 # --------------------------------------------------------------------------
+# the reckoning (D119)
+# --------------------------------------------------------------------------
+#
+# A nemesis was a weather system with no season: heat every few shifts and no
+# way to make it stop that was not paying them off, which is a transaction and
+# not an ending. An arc wants a place it comes to a head. So once the
+# grievance has gone deeper than the declaration and stayed there, the nemesis
+# stops working through the city and comes to find you in it, and it is
+# settled one way or another, in the words the street already uses: you
+# [fg]face[/] them, you [fg]settle[/] it, or you [fg]walk[/] and leave it for a
+# night you are readier for.
+
+#: Deeper than NEMESIS_AT, because the reckoning is the end of the arc and not
+#: the middle of it: it takes a campaign of being crossed to get here.
+RECKON_AT = -80
+#: The base price of buying the peace, scaled by how good they are. Real money,
+#: because a settlement that did not cost is not a settlement.
+RECKON_COST = 3400
+
+#: Them finding you, per style. The one flavourful beat; the outcomes below
+#: are shared, because what a reckoning resolves is the same whoever it is.
+RECKON_SETUP = {
+    'loud': '{name} is in the doorway of wherever you were going, not '
+            'pretending to be anywhere else, and loud enough that the street '
+            'has stopped to watch how this goes. They have decided it goes '
+            'here.',
+    'quiet': '{name} is sitting where you were going to sit, and has been for '
+             'a while, and does not get up. There is no message and there was '
+             'never going to be one. This is the message.',
+    'social': '{name} is smiling at you across a room that has gone quiet in '
+              'the specific way a room goes quiet when everybody in it has '
+              'already heard the story and is waiting to see which version is '
+              'true.',
+    'careful': '{name} has arranged to be exactly here, exactly now, with '
+               'exactly you, which from them is not a coincidence and not a '
+               'threat. It is a conclusion, and you are standing in it.',
+    'chrome': '{name} is waiting with the stillness of something that has '
+              'nowhere else it needs to be. Whatever runs them decided this '
+              'was worth their time, and it does not spend their time on '
+              'things it expects to lose.',
+}
+
+#: What you settle it with. Read to the player as the sum behind each answer,
+#: exactly as the street reads its own.
+RECKON_FACE_WIN = (
+    'You stand in it and do not give them the inch. It turns out that is the '
+    'whole of what they came for, and it is not there, and something goes out '
+    'of {name} that does not come back tonight. The street saw. That is worth '
+    'more than the fee, and it will cost {name} more than it cost you.')
+RECKON_FACE_LOSE = (
+    'You stand in it and {name} takes the inch anyway, in front of the people '
+    'it will travel to. You are still standing when it is over. You are just '
+    'standing smaller, and the city files the difference.')
+RECKON_SETTLED = (
+    'You pay {name} what it takes, and it takes a real number, and the thing '
+    'in the air goes out of it. Bought peace is still peace. It holds for '
+    'exactly as long as you keep being worth more to them alive and quiet '
+    'than loud.')
+RECKON_WALKED = (
+    'You are not doing this tonight. You turn the way you were already going '
+    'and you keep going, and {name} lets you, because a reckoning you refuse '
+    'is a reckoning they get to have again, on a night that suits them '
+    'better.')
+
+
+# --------------------------------------------------------------------------
 # a crew
 # --------------------------------------------------------------------------
 #
