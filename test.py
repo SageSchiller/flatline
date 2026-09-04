@@ -11445,6 +11445,72 @@ def test_the_fight() -> None:
          'combat survives the street and never does a job')
 
 
+def test_the_rough_street() -> None:
+    """D129: the street has teeth of its own. A district is dangerous on its
+    own account, by the hour, whoever is or is not looking for you."""
+    T.section('the rough street')
+    from flatline.content import street as street_content, districts
+    from flatline.world import street as street_world
+
+    from flatline.world import city as city_mod
+    phase_shift = {n: i for i, n in enumerate(city_mod.SHIFT_NAMES)}
+
+    def fresh(seed=5, where='shambles', phase='night', runs=0):
+        char = Character.from_origin('gutter', 't')
+        char.runs = runs
+        game = Game.new(char, seed=seed)
+        game.city.where = where
+        game.city.shift = phase_shift[phase]
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    sess, con, game = fresh()
+    T.ok(street_world.rough(game, 'shambles') > street_world.rough(game, 'vertical'),
+         'the Shambles is rougher than the Vertical')
+    night = street_world.rough(game, 'shambles')
+    game.city.shift = phase_shift['morning']
+    T.ok(street_world.rough(game, 'shambles') < night,
+         'and rougher at night than in the morning')
+    T.ok(street_world.rough(game, 'precinct') < street_world.ROUGH_PRESS_AT,
+         'the Precinct never offers a press on its own account')
+
+    def fires(where, phase, n=120):
+        hit = 0
+        tiers = set()
+        for seed in range(n):
+            s_, c_, g_ = fresh(seed=seed, where=where, phase=phase, runs=0)
+            c_.start_capture()
+            if street_world.texture(s_, 0):
+                hit += 1
+                tiers.add(street_content.BY_KEY[g_.city.last_street].tier)
+            c_.end_capture()
+            s_.pending = None
+        return hit / n, tiers
+    rough_rate, rough_tiers = fires('shambles', 'night')
+    safe_rate, safe_tiers = fires('vertical', 'morning')
+    T.ok(rough_rate > safe_rate * 1.8,
+         f'the street fires far more in the Shambles at night '
+         f'({rough_rate:.0%}) than the Vertical by day ({safe_rate:.0%})')
+    T.ok(max(rough_tiers) >= 2, 'and offers a press or worse where it is rough')
+    T.ok(max(safe_tiers, default=1) == 1, 'and only a lean where it is not')
+
+    # Four new encounters for it, two of them fightable with chrome to reach.
+    for key, tier, chromed in (('walkway', 2, False), ('frame', 2, True),
+                               ('callout', 3, True), ('collectors', 3, True)):
+        e = street_content.BY_KEY[key]
+        T.ok(e.tier == tier and e.who == 'street'
+             and street_content.fightable(e)
+             and street_content.chromed(e) == chromed,
+             f'{key} is a tier-{tier} street encounter, '
+             f'{"chromed" if chromed else "nothing to jack"}')
+    T.ok('runs:4' in street_content.BY_KEY['callout'].requires,
+         'somebody who heard needs something to have heard')
+    T.ok(street_world.ENCOUNTER_SHARE >= 0.8,
+         'when somebody is paid to find you it is people, not a ladder')
+
+
 
 def test_the_lifepath() -> None:
     """D126: your origin's complication comes to find you after the first run,
@@ -12725,6 +12791,7 @@ SUITES = (
     test_the_nemesis_run, test_the_partner, test_the_ways_in,
     test_planting_a_way_in, test_the_changing_world, test_swagger_and_legend,
     test_the_lifepath, test_tactic_tools, test_the_fight,
+    test_the_rough_street,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

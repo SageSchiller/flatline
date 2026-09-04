@@ -40,7 +40,7 @@ from ..run.checks import Check
 #: What there is to get through, by tier, and what each of their hits is
 #: worth before armour. A lean is a couple of people who did not expect
 #: it; the kind that kills is people who did.
-FOE_POOL = {1: 4, 2: 7, 3: 11, 4: 16}
+FOE_POOL = {1: 4, 2: 8, 3: 12, 4: 16}
 FOE_HIT = {1: (1, 2), 2: (2, 3), 3: (3, 5), 4: (5, 8)}
 #: Who hears a gun, and what it costs them to have heard it.
 LAW = 'nightwatch'
@@ -125,7 +125,8 @@ def strike_damage(char, crit: bool = False) -> int:
     dmg = 2 + char.skill('violence')
     w = weapon_of(char)
     if w is not None:
-        dmg += w.damage
+        # Holding it is not using it: untrained, a weapon does half.
+        dmg += w.damage if char.skill('violence') else max(1, w.damage // 2)
         if w.rider == 'smartlink' and not any(
                 k for k in char.installed
                 if k in _neural_keys()):

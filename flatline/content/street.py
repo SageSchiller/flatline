@@ -57,7 +57,7 @@ NOBODY_TO_FIGHT: frozenset[str] = frozenset({
 #: People with nothing in them for the deck to reach: four kids with one
 #: knife, an amateur tail, a courier. `jack` needs chrome to hit.
 UNCHROMED: frozenset[str] = frozenset({
-    'knives', 'tail', 'courier', 'queue_jumper',
+    'knives', 'tail', 'courier', 'queue_jumper', 'walkway',
 })
 
 
@@ -71,7 +71,8 @@ def chromed(enc: Encounter) -> bool:
     if enc.key in UNCHROMED:
         return False
     return enc.who == 'faction' or enc.key in ('crossed', 'hounds_people',
-                                               'backqueue', 'colonnade_coat')
+                                               'backqueue', 'colonnade_coat',
+                                               'frame', 'callout', 'collectors')
 
 
 # -- the fight, in words (D128) ---------------------------------------------
@@ -504,6 +505,141 @@ ENCOUNTERS: tuple[Encounter, ...] = (
                    Outcome('You stand, and they are four, and you are an '
                            'adult, and that counts for exactly as long as it '
                            'takes.', hurt=(3, 7), credits=0.25)),
+        )),
+    Encounter(
+        'walkway', 'The toll on the walkway', 2, 'street', 'grim',
+        'The covered walkway in {district} has a toll now. Six of them, '
+        'nobody\'s, the oldest maybe nineteen, with a shopping trolley across '
+        'the narrow part and a price written on a piece of card. The price is '
+        'more than the card cost and less than what is in the bag, and they '
+        'have thought about that harder than you would expect.',
+        (
+            Option('run', 'Go over the trolley', 'run',
+                   Outcome('You go over the trolley while they are still '
+                           'deciding whether you would, and you are through '
+                           'the narrow part with the card behind you.'),
+                   Outcome('You go over the trolley and the trolley goes over '
+                           'with you, and there are six of them and a lot of '
+                           'boots.', hurt=(3, 6), credits=0.25)),
+            Option('talk', 'Ask who set the price', 'talk',
+                   Outcome('You ask who set the price and it turns out to be '
+                           'the one at the back, who is pleased to be asked, '
+                           'and the price comes down to nothing on the '
+                           'grounds that you asked.'),
+                   Outcome('You ask who set the price and they all did, '
+                           'which is the problem with committees.',
+                           hurt=(2, 5), credits=0.3)),
+            Option('pay', 'Pay the card', 'pay',
+                   Outcome('You pay the card. It is an honest price for a '
+                           'walkway, considered as a walkway.'),
+                   Outcome('')),
+            Option('stand', 'Wait for them to get bored', 'stand',
+                   Outcome('You stand there. They are nineteen and it is '
+                           'cold and there is a queue forming behind you '
+                           'that is more trouble than you are, and the '
+                           'trolley moves.'),
+                   Outcome('You stand there, and the queue behind you would '
+                           'rather you paid, and says so, with help.',
+                           hurt=(3, 6), credits=0.2)),
+        )),
+    Encounter(
+        'frame', 'The man in the frame', 2, 'street', 'wry',
+        'A docker in {district} in a load frame, the kind that lifts pallets, '
+        'and he is drunk in it, which the frame was not built for. He has '
+        'decided something about you. It is not clear what. He is wearing '
+        'eleven thousand credits of crane and none of it is a brain, and '
+        'the arms are coming up.',
+        (
+            Option('run', 'Be somewhere the frame is not', 'run',
+                   Outcome('You are somewhere the frame is not, which is '
+                           'easy, because the frame is slow and he is slower, '
+                           'and the arms come down on nothing.'),
+                   Outcome('You go and the frame does not need to be fast '
+                           'when the street is narrow.', hurt=(4, 7))),
+            Option('talk', 'Ask him what he is lifting', 'talk',
+                   Outcome('You ask him what he is lifting. He looks at his '
+                           'arms. It takes a while. By the end of it he is '
+                           'lifting a wall, carefully, and you are gone.'),
+                   Outcome('You ask, and he tells you, and it is you.',
+                           hurt=(3, 6))),
+            Option('careful', 'Wait for the arms to come down', 'careful',
+                   Outcome('You wait for the arms to come down, which they '
+                           'do, because they are hydraulic and he is not, '
+                           'and you step round the man inside them.'),
+                   Outcome('You wait for the arms to come down and one of '
+                           'them does, on you.', hurt=(4, 8))),
+        ),
+        phases=('night',)),
+    Encounter(
+        'callout', 'Somebody who heard', 3, 'street', 'grim',
+        'One person, in {district}, who has been waiting for you specifically, '
+        'and who says your handle, and then says what you did, the thing you '
+        'are known for, in a tone that has decided it is not true. Not '
+        'anybody\'s. His own. He has chrome in both arms and a small crowd '
+        'that has come to watch, and he wants you to know that whatever '
+        'happens next, they will tell it.',
+        (
+            Option('run', 'Give him nothing to tell', 'run',
+                   Outcome('You give him nothing. You walk, and the crowd '
+                           'has nothing to tell except that you walked, and '
+                           'they tell it anyway, and it costs you nothing '
+                           'that you cannot afford.'),
+                   Outcome('You walk and he does not let you, in front of '
+                           'people, which was the point.', hurt=(5, 9),
+                           credits=0.15)),
+            Option('talk', 'Ask him what he heard', 'talk',
+                   Outcome('You ask him what he heard, and he tells you, and '
+                           'you correct one detail, quietly, and it is the '
+                           'detail that matters, and the crowd goes home '
+                           'with a better story than the one they came for.'),
+                   Outcome('You ask, and he was not here to talk, and the '
+                           'crowd came to see that.', hurt=(5, 9))),
+            Option('stand', 'Let him say it', 'stand',
+                   Outcome('You stand there and let him say it. It takes '
+                           'longer than he planned and lands worse than he '
+                           'hoped, because you are still standing there, '
+                           'and the crowd knows what that means.',
+                           hurt=(1, 3)),
+                   Outcome('You stand there and let him say it, and then '
+                           'let him show it.', hurt=(6, 10))),
+        ),
+        requires=('runs:4',)),
+    Encounter(
+        'collectors', 'Hired', 3, 'street', 'grim',
+        'Three people in {district} who are not anybody\'s, which is the '
+        'thing they want you to understand first: hired, by somebody who '
+        'did not want their own people seen doing this, which means paid, '
+        'which means they are not going to be talked out of it and they are '
+        'not in a hurry. They have a van. They have a piece of paper with '
+        'your handle on it, and the handle is spelt right.',
+        (
+            Option('run', 'Make them earn it', 'run',
+                   Outcome('You make them earn it, through a market and out '
+                           'the back of a laundry, and by the time they have '
+                           'earned it you are three districts away and they '
+                           'are being paid by the hour.'),
+                   Outcome('You make them earn it and they earn it.',
+                           hurt=(6, 10), deck=True)),
+            Option('talk', 'Ask who is paying', 'talk',
+                   Outcome('You ask who is paying. They do not know. You '
+                           'tell them what it would be worth to know, and '
+                           'what that is worth to them, and it turns out '
+                           'they have a rate for that too.', credits=0.1),
+                   Outcome('You ask who is paying, and they are '
+                           'professionals, and professionals do not gossip '
+                           'with the work.', hurt=(5, 9), credits=0.2)),
+            Option('pay', 'Outbid whoever it is', 'pay',
+                   Outcome('You outbid whoever it is. They take the money '
+                           'and they take the paper, and the paper goes '
+                           'back to whoever with a note about the rate.'),
+                   Outcome('')),
+            Option('stand', 'Get in the van', 'stand',
+                   Outcome('You get in the van. It is a conversation, in '
+                           'the end, with a man who wanted to be sure you '
+                           'understood something, and you understood it, '
+                           'and the van lets you out.', hurt=(2, 4)),
+                   Outcome('You get in the van and it is not a '
+                           'conversation.', hurt=(7, 11), deck=True)),
         )),
     Encounter(
         'stair', 'The dark stairwell', 2, 'street', 'grim',

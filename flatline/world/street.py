@@ -33,12 +33,34 @@ ERRAND_XP = 1
 
 #: How much of the incident roll at travel is an encounter rather than the
 #: old ladder (shakedown, beating, deck, chrome, burn). Both are the street.
-ENCOUNTER_SHARE = 0.6
+ENCOUNTER_SHARE = 0.8
 
-#: Chance of a tier-1 street encounter in the close-call band on arrival,
-#: and of a lean on a rough night's rest somewhere dangerous.
+#: Chance of a street encounter on arrival with nobody looking for you,
+#: before the district's own roughness scales it (D129), and of a lean on
+#: a rough night's rest somewhere dangerous.
 TEXTURE_CHANCE = 0.18
 ROUGH_NIGHT_CHANCE = 0.3
+#: The street's own danger, by the hour (D129). The faction clock runs the
+#: other way (an afternoon has more people to recognise you); the street's
+#: own people come out at night.
+ROUGH_BY_PHASE = {'morning': 0.8, 'afternoon': 1.0, 'night': 1.4}
+#: Roughness at which the street offers a press, and a taking.
+ROUGH_PRESS_AT = 50
+ROUGH_TAKING_AT = 80
+
+
+def rough(game, district_key: str = '') -> int:
+    """How dangerous a district is on its own account, to anybody, with
+    nobody looking for you in particular (D129). The heat-keyed danger in
+    `city.danger` is somebody's people; this is the street's. Security
+    inverted, by the hour, 0..100."""
+    from ..content import districts
+    key = district_key or game.city.where
+    district = districts.BY_KEY.get(key)
+    if district is None:
+        return 0
+    base = 100 - district.security
+    return max(0, min(100, int(base * ROUGH_BY_PHASE.get(game.city.phase, 1.0))))
 
 #: Errands: courier pay per hop, and a watch's base.
 COURIER_PER_HOP = 180
@@ -681,17 +703,31 @@ def on_arrival(sess, faction: str, danger: int) -> bool:
 
 
 def texture(sess, danger: int) -> bool:
-    """Below the ladder: a small thing in the street, sometimes. Twice as
-    often with somebody in tow or something warm in the bag."""
+    """The street on its own account (D129): nobody's people, in a district
+    that is rough regardless of who is looking for you. Scaled by the
+    district's roughness and the hour, a press where it is rough and a
+    taking where it is worst, twice as often with somebody in tow or
+    something warm in the bag. Before D129 this was a fixed eighteen
+    percent and only ever a lean, which made the whole city safe to walk
+    for anybody nobody was looking for; a runner could cross the Shambles
+    at night thirty-six times and be bothered once."""
     game = sess.game
     rng = game.rng('events')
-    chance = TEXTURE_CHANCE * (2.0 if game.city.errand.get('hot') else 1.0)
+    here = rough(game)
+    chance = TEXTURE_CHANCE * (0.4 + here / 80.0)
+    if game.city.errand.get('hot'):
+        chance *= 2.0
     if not rng.chance(chance):
         return False
-    enc = choose(rng, game, 'street', 1)
+    tier = 1
+    if here >= ROUGH_TAKING_AT and rng.chance(0.3):
+        tier = 3
+    elif here >= ROUGH_PRESS_AT and rng.chance(0.5):
+        tier = 2
+    enc = choose(rng, game, 'street', tier)
     if enc is None:
         return False
-    begin(sess, enc, '', danger)
+    begin(sess, enc, '', max(danger, here))
     return True
 
 
@@ -700,7 +736,9 @@ def rough_night(sess) -> bool:
     game = sess.game
     danger, who = game.city.danger(game.alias, game.city.where,
                                    flags=game.story.flags, riders=game.char.riders())
-    if danger < 40 or game.city.phase != 'night':
+    # Somebody's people, or the street's own (D129): the Shambles at night
+    # is a bad place to sleep whoever you are.
+    if max(danger, rough(game)) < 40 or game.city.phase != 'night':
         return False
     rng = game.rng('events')
     if not rng.chance(ROUGH_NIGHT_CHANCE):

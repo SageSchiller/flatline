@@ -3088,6 +3088,8 @@ def cmd_travel(sess, args) -> None:
         else:
             c.warn(f'{factions.BY_KEY[who].short} have people here and they '
                    f'are looking for your name. Do not linger.')
+            # And the street itself does not care who is looking (D129).
+            street_world.texture(sess, danger)
     elif sess.pending is None:
         # Below that: the street as texture (D65). Somebody behind you,
         # somebody with a pot. Small, and not every time.
@@ -3181,6 +3183,9 @@ def _resolve_incident(sess, faction: str, danger: int) -> None:
         c.blank()
         c.warn('You get most of the way across before somebody looks twice, '
                'and you are around a corner before they finish looking.')
+        # Their people missed you. The street itself did not necessarily
+        # (D129): a hunted runner is more exposed, not less.
+        street_world.texture(sess, danger)
         return
     # D65: more often than not it is people, not a ladder. The ladder stays
     # for the rest: shakedown, beating, deck, chrome, burn.
@@ -4319,7 +4324,8 @@ def describe_item(sess, kind: str, item) -> None:
         rows.append(('down', f'{item.down} shift{"s" if item.down != 1 else ""}'))
         rows.append(('hook', 'none' if not item.hook else str(item.hook)))
     elif kind == 'weapon':
-        rows.append(('a landed strike', f'+{item.damage}'))
+        rows.append(('a landed strike', f'+{item.damage} [dim](half of that '
+                     f'with no Violence)[/]'))
         rows.append(('who hears it', '[err]loud: every fight it is drawn in '
                      'is a Nightwatch matter[/]' if item.loud
                      else '[ok]quiet[/]'))
