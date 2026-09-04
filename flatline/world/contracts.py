@@ -261,6 +261,10 @@ class Contract:
     story: str = ''
     #: What the objective record is called, when the scene names it.
     label: str = ''
+    #: The way in you have committed to (D122): {} for a straight breach, or
+    #: {'kind': 'social'|'inside', ...flags}. Set by `approach`, read at jack
+    #: in to shape the run before it starts.
+    approach: dict = field(default_factory=dict)
 
     @property
     def held(self) -> bool:
@@ -286,6 +290,7 @@ class Contract:
             'intel': dict(self.intel), 'taken': self.taken,
             'from_npc': self.from_npc, 'size_mod': self.size_mod,
             'story': self.story, 'label': self.label,
+            'approach': dict(self.approach),
         }
 
     @classmethod
@@ -300,6 +305,7 @@ class Contract:
             from_npc=d.get('from_npc', ''),
             size_mod=float(d.get('size_mod', 1.0)),
             story=d.get('story', ''), label=d.get('label', ''),
+            approach=dict(d.get('approach') or {}),
         )
 
 

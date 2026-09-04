@@ -220,7 +220,13 @@ def _now_city(sess):
         for go in goes[:2]:
             if go not in steps:
                 steps.append(go)
-        also = ['job', 'map', 'deck', 'market', 'errands', 'look',
+        # The way in is a choice before it is a run (D122): a job held with no
+        # approach set yet is a job you have only thought about one way.
+        if not contract.approach and not any(cmd == 'approach'
+                                             for cmd, _ in steps):
+            steps.append(('approach', 'how you get in: breach it, talk your '
+                                      'way in, or buy in'))
+        also = ['job', 'approach', 'map', 'deck', 'market', 'errands', 'look',
                 'journal', 'help']
     # `city_steps` opens with the same advice when the budget is unspent,
     # and a list that says `spend` twice reads as two different things to

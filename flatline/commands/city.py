@@ -3622,6 +3622,176 @@ LEGWORK_DRIFT = {
 }
 
 
+#: The base price of buying your way in through somebody on the inside,
+#: before it is scaled by how hard the target runs (D122).
+INSIDE_BASE = 1800
+
+
+def _social_check(game, contract):
+    """Your face and your name against how hard the door is. The same sum a
+    warden reads, run before there is a warden."""
+    from ..run.checks import Check
+    char = game.char
+    posture = int(contract.posture)
+    check = Check(name='talk your way in', resistance=8 + posture // 8)
+    check.add('guile', char.attr('guile'))
+    check.add('subterfuge', char.skill('subterfuge') * 2)
+    pretext = char.bonus('pretext_bonus')
+    if pretext:
+        check.add('the face you wear', pretext)
+    if 'credential' in contract.intel:
+        check.add('a name from the inside', 2)
+    if contract.target in game.city.arrangements:
+        check.add(f'your arrangement on their street', 2)
+    return check
+
+
+def _inside_price(game, contract) -> int:
+    posture = int(contract.posture)
+    price = int(INSIDE_BASE * (0.6 + posture / 55.0))
+    # Somebody who already leans that faction's way for you leans cheaper.
+    if (contract.target in game.city.arrangements
+            or contract.patron in game.city.arrangements):
+        price = int(price * 0.7)
+    return int(price * game.char.mult('price_mult'))
+
+
+def _approach_menu(sess, contract) -> None:
+    game, c = sess.require_game(), sess.console
+    chosen = contract.approach.get('kind', 'breach')
+    c.header('The way in', contract.title)
+    c.say('[dim]A job is not one thing. Pick how you get in, and the run '
+          'starts halfway through a different one.[/]')
+    c.blank()
+    check = _social_check(game, contract)
+    price = _inside_price(game, contract)
+    afford = game.char.credits >= price
+    rows = [
+        ('breach', 'free', 'The loud way, through the net. Always open.',
+         '[ok]set[/]' if chosen == 'breach' else ''),
+        ('social', 'a shift', f'Talk your way in. {check.summary()}.',
+         '[ok]set[/]' if chosen == 'social' else ''),
+        ('inside', f'{price:,}c' if afford else f'{price:,}c, short',
+         'Buy in through somebody on the inside. Money, not skill.',
+         '[ok]set[/]' if chosen == 'inside' else ''),
+    ]
+    c.table(('approach', 'cost', 'what it is', ''), rows,
+            roles=('accent', 'credit', 'dim', None))
+    c.blank()
+    c.say('[dim]`approach social` or `approach inside` to prepare one, each a '
+          'shift. `approach breach` to go straight in.[/]')
+
+
+def _approach_social(sess, contract) -> None:
+    game, c = sess.require_game(), sess.console
+    check = _social_check(game, contract)
+    check.resolve(game.rng('events'))
+    _advance(sess, 1)
+    c.blank()
+    if check.success:
+        contract.approach = {'kind': 'social'}
+        c.rule('a way in', role='ok')
+        c.say('[ok]A shift of being somebody who belongs there, and by the '
+              'end of it you are. A name that opens the door and a face '
+              'nobody stops.[/]')
+        c.say('[dim]You come up inside, with the run half already done. '
+              '`jack in`.[/]')
+    else:
+        contract.approach = {'kind': 'social', 'blown': True}
+        # A blown con costs more than the shift: the probing hardens them,
+        # and it does not come off by choosing to breach instead.
+        game.city.posture[contract.target] = min(
+            100, int(game.city.posture.get(contract.target,
+                                           contract.target_data.posture)) + 4)
+        c.rule('made', role='err')
+        c.say('[warn]It does not take. Somewhere in it your face gets made, '
+              'and now they are a little harder and a little readier, and '
+              'expecting somebody exactly like you.[/]')
+        c.say('[dim]`jack in` goes in hot. `approach breach` forgets the con, '
+              'but not the shift, and not that they are readier now.[/]')
+
+
+def _approach_inside(sess, contract, confirm: bool) -> None:
+    game, c = sess.require_game(), sess.console
+    price = _inside_price(game, contract)
+    hostile = (contract.target_data.kind == 'corp'
+               or int(contract.posture) >= 55
+               or game.alias.reputation(contract.target) <= -20)
+    if not confirm:
+        c.header('Buy in', f'{price:,}c')
+        c.say('[dim]Somebody on the inside leaves a door open: the shape of '
+              'the place in front of you, a way past the perimeter, and one '
+              'thing that was watching, asleep.[/]')
+        if hostile:
+            c.say('[warn]They run lethal or they do not like you. A door '
+                  'somebody sells you is a door somebody can sell twice.[/]')
+        c.blank()
+        c.say(f'[dim]`approach inside --confirm` for {price:,}c and a shift.'
+              '[/]')
+        return
+    if game.char.credits < price:
+        raise CommandError(f'that is {price:,}c and you have '
+                           f'{game.char.credits:,}c')
+    game.char.credits -= price
+    sold = hostile and game.rng('events').chance(0.22)
+    _advance(sess, 1)
+    c.blank()
+    if sold:
+        contract.approach = {'kind': 'inside', 'sold': True}
+        c.rule('a trap', role='err')
+        c.say('[err]The door is real. So is the fact that they knew you were '
+              'coming through it. Your money bought you a way in they are '
+              'standing on the other side of.[/]')
+        c.say('[dim]`jack in` walks into it hot. `approach breach` eats the '
+              'money and goes in the front instead.[/]')
+    else:
+        contract.approach = {'kind': 'inside'}
+        c.rule('a way in', role='ok')
+        c.say('[ok]Somebody on the inside owed somebody who owed you, and the '
+              'door is open. The shape of the place is in front of you, the '
+              'perimeter is behind it, and one thing that was watching is '
+              'asleep.[/]')
+        c.say('[dim]`jack in` comes up past the wall.[/]')
+
+
+@command('approach', 'How you get in: breach it, talk your way in, or buy in.',
+         contexts=('city',), group='prep',
+         usage='approach [breach|social|inside]',
+         detail='A contract is not one run. `breach` is the loud way in '
+                'through the net, and it is always there. `social` talks you '
+                'in on Guile and Subterfuge, better the more of a face you '
+                'wear, and you come up inside with the run half done. '
+                '`inside` buys a way past the perimeter through somebody who '
+                'works there, on money rather than skill. Each is a shift, '
+                'and each is a different run before it starts.')
+def cmd_approach(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    contract = game.city.current
+    if contract is None:
+        raise CommandError('take a contract first: an approach is a way into '
+                           'one.')
+    kind = (args.get(0) or '').lower()
+    if not kind:
+        _approach_menu(sess, contract)
+        return
+    if kind in ('breach', 'net', 'loud', 'front'):
+        contract.approach = {}
+        c.ok('The front door, then. `jack in` when you are at it.')
+        return
+    if sess.run is not None:
+        raise CommandError('you are already in.')
+    if contract.approach and not contract.approach.get('blown'):
+        raise CommandError('you have a way in set already. `approach breach` '
+                           'to go back to the front first.')
+    if kind in ('social', 'talk', 'con', 'face', 'pretext'):
+        _approach_social(sess, contract)
+        return
+    if kind in ('inside', 'buy', 'insider', 'bribe'):
+        _approach_inside(sess, contract, args.has('confirm'))
+        return
+    raise CommandError('approach breach, social, or inside.')
+
+
 @command('legwork', 'Learn about the target before you go in.',
          contexts=('city',), group='prep', usage='legwork [perimeter|intel|employee|tap]',
          detail='Each costs a shift and most cost money. What you learn is '

@@ -308,6 +308,8 @@ def cmd_jack_in(sess, args) -> None:
         for node in net.nodes.values():
             if node.data:
                 node.known = True
+    # The way in you chose in the city (D122), applied before the first tick.
+    _apply_approach(state, net, contract, c)
     if state.ally:
         from ..content import rivals as rival_content
         style, detail = rival_content.ALLY_SPECIALTY[state.ally['style']]
@@ -786,6 +788,71 @@ def _resolve(sess) -> None:
 # --------------------------------------------------------------------------
 # reconnaissance
 # --------------------------------------------------------------------------
+
+
+def _apply_approach(state, net, contract, c) -> None:
+    """Shape the run for the way in the player committed to (D122): a social
+    con walks them up to the objective, an inside job puts them past the wall,
+    and either one blown starts them hot. A head start, never a free win."""
+    app = contract.approach or {}
+    kind = app.get('kind')
+    obj_uid = net.objective_node
+    entry = net.node(net.entry)
+    if kind == 'social' and not app.get('blown'):
+        if entry:
+            entry.open = entry.known = entry.mapped = True
+        state.tier = max(state.tier, 2)
+        route = list(state._path(net.entry, obj_uid)) if obj_uid else []
+        for uid in [net.entry] + route:
+            node = net.nodes.get(uid)
+            if node is None:
+                continue
+            node.known = node.mapped = True
+            if uid != obj_uid:                       # the last one you still do
+                node.open = True
+        c.blank()
+        c.say('[ok]You came up inside, wearing a face the door already knows. '
+              'The way to it is open in front of you, and the only thing left '
+              'is the thing you came for.[/]')
+    elif kind == 'social' and app.get('blown'):
+        c.blank()
+        c.say('[warn]The con did not hold, and your face is already made. '
+              'Something in here is deciding about you before you have '
+              'moved.[/]')
+        state.escalate(1, 'they were expecting somebody like you')
+    elif kind == 'inside' and not app.get('sold'):
+        _reveal_topology(state)
+        if obj_uid and obj_uid in net.nodes:         # a backdoor at the vault
+            for e in net.nodes[obj_uid].edges:
+                node = net.nodes.get(e)
+                if node:
+                    node.known = node.mapped = node.open = True
+                    break
+        for uid in (list(state._path(net.entry, obj_uid)) if obj_uid else []):
+            node = net.nodes.get(uid)
+            if node:
+                asleep = next((con for con in node.ice
+                               if con.alive and con.state != 'dormant'), None)
+                if asleep:
+                    asleep.state = 'dormant'
+                    break
+        c.blank()
+        c.say('[ok]The door somebody left open is real. The shape of the '
+              'place is in front of you, the perimeter is behind it, and one '
+              'thing that was watching is asleep.[/]')
+    elif kind == 'inside' and app.get('sold'):
+        c.blank()
+        c.say('[err]The door opens onto somebody waiting for it to. The '
+              'insider sold you the way in and then sold the way in.[/]')
+        state.escalate(1, 'the door was a trap')
+        for uid in [net.entry] + list(entry.edges if entry else []):
+            node = net.nodes.get(uid)
+            if node:
+                awake = next((con for con in node.ice if con.alive), None)
+                if awake:
+                    awake.state = 'awake'
+                    awake.known = True
+                    break
 
 
 def _host_glyph(caps, node) -> str:

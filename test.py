@@ -11069,6 +11069,78 @@ def test_the_nemesis_run() -> None:
     T.ok(not st.rival_race, 'a rival who is not your nemesis does not race you')
 
 
+def test_the_ways_in() -> None:
+    """D122: a job can be breached, talked into, or bought into, and each is
+    a different run before it starts."""
+    T.section('the ways in')
+    from flatline.run import network as net_mod
+    from flatline.run.session import RunState
+    from flatline.rng import Rng
+    from flatline.commands import run as run_cmd
+    from flatline.commands import city as city_cmd
+
+    # The chosen way in survives a save.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=3)
+    c = game.city.current or game.city.board[0]
+    c.approach = {'kind': 'inside', 'sold': True}
+    from flatline.world.contracts import Contract
+    T.eq(Contract.from_dict(c.to_dict()).approach, {'kind': 'inside', 'sold': True},
+         'the approach round-trips through a save')
+
+    # The social check reads the build: a face and Guile beat a blank slate.
+    plain = Character.from_origin('gutter', 'x')
+    g1 = Game.new(plain, seed=3)
+    con1 = g1.city.board[0]
+    weak = city_cmd._social_check(g1, con1)
+    face = Character.from_origin('protege', 'x')
+    face.icon = 'corporate'  # Compliance Shell: a pretext bonus
+    for _ in range(4):
+        try:
+            face.boost('guile')
+        except Exception:
+            break
+    g2 = Game.new(face, seed=3)
+    strong = city_cmd._social_check(g2, g2.city.board[0])
+    T.ok(strong.chance > weak.chance, 'a face and Guile make the con likelier')
+
+    # The grants, applied to a fresh run.
+    def rigged(approach):
+        char = Character.from_origin('gutter', 't')
+        gm = Game.new(char, seed=5)
+        net = net_mod.generate(Rng(5).fork('network', 't'), 'sixes', 40,
+                               'exfiltrate', 1.0)
+        con = quiet_console()
+        st = RunState.begin(net, char, Rng(5)('combat'), con,
+                            contract={'objective': 'exfiltrate', 'title': 'T'})
+        st.render_mode = 'none'
+
+        class C:  # a stand-in contract carrying the approach
+            objective = 'exfiltrate'
+        C.approach = approach
+        con.start_capture()
+        run_cmd._apply_approach(st, net, C, con)
+        return st, net, strip_ansi(con.end_capture())
+
+    st, net, out = rigged({'kind': 'social'})
+    T.ok(st.tier >= 2 and net.node(net.objective_node).known,
+         'social walks you up: a tier in hand and the objective in sight')
+    T.ok(not net.node(net.objective_node).open,
+         'but the objective itself is still yours to do')
+
+    st, net, out = rigged({'kind': 'social', 'blown': True})
+    T.ok(st.alert != 'green', 'a blown con starts you hot')
+
+    st, net, out = rigged({'kind': 'inside'})
+    T.ok(all(n.known for n in net.nodes.values()),
+         'inside hands you the whole map')
+    T.ok(any(net.nodes[e].open for e in net.nodes[net.objective_node].edges),
+         'and a door past the perimeter')
+
+    st, net, out = rigged({'kind': 'inside', 'sold': True})
+    T.ok(st.alert != 'green' and 'sold' in out.lower(),
+         'a sold-out inside job is a trap you walk into')
+
+
 def test_the_partner() -> None:
     """D121: the mirror of the nemesis. A partner helps in the run, and deep
     enough, comes to run with you for good."""
@@ -12157,7 +12229,7 @@ SUITES = (
     test_the_way_in, test_more_to_say, test_the_door, test_corporate_night,
     test_named_shelf, test_and_in_nights, test_the_fourth_wave,
     test_the_cold_open, test_ambitions, test_the_lifeline, test_the_reckoning,
-    test_the_nemesis_run, test_the_partner,
+    test_the_nemesis_run, test_the_partner, test_the_ways_in,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,
