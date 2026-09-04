@@ -1,3 +1,5 @@
 __pycache__/
 *.pyc
 dist/
+tools/playtest/data/
+tools/playtest/logs/

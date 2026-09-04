@@ -4982,7 +4982,8 @@ stayed at seven across thirty-three chrome-free shifts, so "Deepest drift"
 and "Runners who decided about you" were the only lines the achiever could
 not move; and the previous round's harness did not set `XDG_DATA_HOME`, so
 its personas wrote into the real profile. This round's does, and the next
-round's must.
+round's must: it lives at `tools/playtest/`, with the three personas, the
+spine driver, the round's report and a README on the method.
 
 `test_what_the_players_said` holds all of it: the posting down for each
 answer and for the settle, the afterwards waiting three shifts and not
@@ -6694,3 +6695,10 @@ who ends on the main line: five campaigns, no crashes, every ending reached
 by play. Seven fixes, the largest being the posting that outlived its own
 ending and an afterwards that opened in the same breath.
 `test_what_the_players_said`.
+
+### 2026-09-04 (p): the harness, kept
+
+The D144 play-test harness moved from the ephemeral job directory into
+`tools/playtest/` (harness, spine driver, three personas, the round's
+report, a README). It sets `XDG_DATA_HOME` before importing the game, and
+its data and logs directories are ignored by git.
