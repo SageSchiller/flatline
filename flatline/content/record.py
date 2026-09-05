@@ -148,6 +148,22 @@ ENTRIES: tuple[Entry, ...] = (
     Entry('blooded', 'floor', 'The kind that kills, survived', 'kills_done', 1,
           earned='You have been to the top of the street\'s ladder and come '
                  'back, and it left something in how you stand.'),
+    # What you keep (D160): the systems that had no line.
+    Entry('keeper', 'city', 'Shifts you kept an animal alive', 'pet_shifts', 30,
+          title='who keeps something alive',
+          earned='Thirty shifts of coming home to something that needed you '
+                 'to. The city has a word for people who do that, and it is '
+                 'not a kind one, and it is not an unkind one either.'),
+    Entry('company', 'work', 'Runs with a familiar riding the deck', 'familiar_runs', 10,
+          title='who runs with company',
+          earned='Ten networks with something talking in your ear that was '
+                 'not the ICE. The other runners have noticed. They have '
+                 'opinions about the memory.'),
+    Entry('named', 'people', 'Names the city has given you', 'titles_earned', 3,
+          title='who answers to several names',
+          earned='Three names and you answer to all of them, which is either '
+                 'a reputation or a symptom, and the city has stopped '
+                 'distinguishing.'),
 )
 
 #: Titles the city gives you for a deed rather than for a count (D151). Where
@@ -211,6 +227,13 @@ TITLES: tuple[Title, ...] = (
           'carrier_told',
           'You climbed a tank on legs to help an eleven-year-old point a dish '
           'at the sea, and told them what it was hearing, and meant it.'),
+    # The quiet door (D160)
+    Title('freight', 'who left on the freight line', 'amusing', 'left_quietly',
+          'You went out in a box that smelled of what it carried before, and '
+          'nobody asked your name, and that was the whole of the deal.'),
+    Title('stayed', 'who stayed to be found', 'heroic', 'quiet_stayed',
+          'A berth out was offered and you said no with a number on your '
+          'name. The docks watched. The docks do not forget that kind of thing.'),
 )
 
 TITLE_BY_KEY: dict[str, Title] = {t.key: t for t in TITLES}

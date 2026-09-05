@@ -419,6 +419,11 @@ META_DEFAULT = {
     #: Snapshotted here when the deed is done, so a title a dead
     #: character earned is still one the next can wear.
     'titles': [],
+    # What you keep (D160): counted off the live game, kept here so the
+    # record can name them.
+    'pet_shifts': 0,
+    'familiar_runs': 0,
+    'titles_earned': 0,
     #: The title the player has pinned, or '' for newest-earned.
     'called': '',
     #: `kind:key` for everything earned, so a new unlock can be announced once.

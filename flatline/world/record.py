@@ -41,6 +41,12 @@ def counts(game, meta: dict) -> dict:
         'kills_done': 1 if 'killer' in flags else 0,
         'bounties_taken': 1 if city.bounties else 0,
         'black_ice_survived': 1 if 'black_ice' in char.marks else 0,
+        # What you keep (D160): the animal at the safehouse, the familiar on
+        # the deck, and the names the city has given you.
+        'pet_shifts': (max(0, int(city.shift) - int(city.pet.get('since', city.shift)))
+                       if city.pet else 0),
+        'familiar_runs': int((char.deck.familiar or {}).get('runs', 0)),
+        'titles_earned': len((meta or {}).get('titles') or ()),
     }
     for key, value in live.items():
         if key in out:

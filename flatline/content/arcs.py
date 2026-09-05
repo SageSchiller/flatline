@@ -1122,9 +1122,21 @@ MORE_THREADS: tuple[Thread, ...] = (
                   'which is the point. It costs the name, which somebody '
                   'else is paying to find. And it costs the city, which '
                   'is the only thing you own.',
-                  requires=('bounty:1', 'not:credits:1800', 'runs:3'),
+                  # A career, not a bad week: the first cut opened at three
+                  # runs and five of six campaigns took the box by default.
+                  requires=('bounty:1', 'not:credits:1800', 'runs:6', 'shift:20'),
                   sets=('quiet_berth',),
                   choices=(
+                      Choice('stay', 'Stay and be found',
+                             'You say no. The person who knows somebody '
+                             'shrugs, which is what that kind of person '
+                             'does, and the offer is gone by morning. The '
+                             'number on your name is not. You are still '
+                             'here, which means you still think you can '
+                             'turn it, and the city has watched people '
+                             'think that before.',
+                             sets=('quiet_stayed',),
+                             rep={'freeport': 4}),
                       Choice('go', 'Take the berth',
                              'You go the same night. The container is cold '
                              'and smells of what it carried before, and the '
@@ -1137,16 +1149,6 @@ MORE_THREADS: tuple[Thread, ...] = (
                              'into it as somebody who used to do this.',
                              sets=('left_quietly',),
                              ends='left quietly'),
-                      Choice('stay', 'Stay and be found',
-                             'You say no. The person who knows somebody '
-                             'shrugs, which is what that kind of person '
-                             'does, and the offer is gone by morning. The '
-                             'number on your name is not. You are still '
-                             'here, which means you still think you can '
-                             'turn it, and the city has watched people '
-                             'think that before.',
-                             sets=('quiet_stayed',),
-                             rep={'freeport': 4}),
                   )),
             Stage('watched', 'Still here',
                   'The docks know you were offered the berth and did not '

@@ -497,6 +497,35 @@ FAMILIARS: tuple[Familiar, ...] = (
 
 FAMILIAR_BY_KEY: dict[str, Familiar] = {f.key: f for f in FAMILIARS}
 
+
+#: The one thing each animal plays with (D160): (what it is, what it costs,
+#: what playing with it looks like). Cosmetic, which is the rule for pets:
+#: `pet play` fills the same need with or without one, and reads differently.
+TOYS: dict[str, tuple[str, int, str]] = {
+    'cat': ('a wire mouse', 40,
+            'The wire mouse dies four times and is brought back each time by '
+            'the cat being bored of its being dead. You are the referee. '
+            'Nobody consulted you.'),
+    'dog': ('a rope', 60,
+            'The rope has two ends and the dog is certain about both of them. '
+            'You lose. You were always going to, and it is the best thing '
+            'that happens to you this week.'),
+    'rat': ('a wheel', 50,
+            'The wheel goes nowhere at a speed that would be impressive if it '
+            'went somewhere. The rat is not interested in your opinion of '
+            'the arrangement.'),
+    'pigeon': ('a mirror', 30,
+               'The mirror has another pigeon in it. The two of them have a '
+               'great deal to discuss and none of it is your business.'),
+    'gecko': ('a warm stone', 45,
+              'The stone is warm and the gecko is on it, and that is the '
+              'entire game, and the gecko is winning it.'),
+    'chimera': ('a bell', 80,
+                'The bell rings when it moves and it moves when the bell '
+                'rings, and it has worked out, slowly and with some '
+                'resentment, that the thing in the middle of that is you.'),
+}
+
 #: A familiar's charge runs 0..100 (D154). A run fills it; idle shifts
 #: drain it at the familiar's own rate. At nothing it is dormant, quiet
 #: until you run it or tend it; it is software, it does not die, it waits.

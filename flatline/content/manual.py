@@ -1357,6 +1357,9 @@ TOPICS: tuple[Topic, ...] = (
         'being run, and left in a folder too long it winds down and goes '
         'quiet, the needy kinds faster than the patient ones; '
         '`familiar tend` gives it a charge between runs.\n\n'
+        'Each animal has the one thing it plays with: `pet toy` says what, '
+        '`pet toy buy` buys it, and `pet play` reads differently with it in '
+        'the flat. It changes nothing else, which is the rule for pets.\n\n'
         '[warn]The decision:[/] whether to take one on at all, in a city that '
         'is hard on everything, and then whether to come home.',
         see=('city', 'basics', 'death'),

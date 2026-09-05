@@ -14222,12 +14222,15 @@ def test_the_quiet_door() -> None:
     T.section('the quiet door')
     from flatline.content import threads as thread_content, legacy
     quiet = next(t for t in thread_content.THREADS if t.key == 'quiet')
-    T.ok(quiet.stages[0].requires == ('bounty:1', 'not:credits:1800', 'runs:3'),
+    T.ok(quiet.stages[0].requires == ('bounty:1', 'not:credits:1800', 'runs:6', 'shift:20'),
          'the berth opens on a bounty, no money for a name, and a career')
+    T.ok(quiet.stages[0].choices[0].key == 'stay' and quiet.stages[0].choices[1].ends,
+         'staying is the first answer; the one that ends you is not the default')
     T.ok(all(f in legacy.EPILOGUE_BY_FLAG for f in ('left_quietly', 'quiet_stayed')),
          'both answers have an epilogue line')
     game = Game.new(Character.from_origin('gutter', 'x'), seed=171)
-    game.char.runs = 3
+    game.char.runs = 6
+    game.city.shift = 20
     game.char.credits = 55
     game.city.bounties['sixes'] = 900
     T.ok(game.story.satisfied('bounty:1', game), 'the bounty rule reads the city')
@@ -14242,7 +14245,14 @@ def test_the_quiet_door() -> None:
         thread, stage = found
         if thread.key == 'quiet':
             opened = True; break
-        sess.console.start_capture(); sess.execute(f'choose {stage.choices[0].key}'); sess.console.end_capture()
+        # Answer it with whatever answer is not refused (one may cost money
+        # this runner does not have), and stay broke whatever it paid.
+        for choice in stage.choices:
+            sess.console.start_capture(); sess.execute(f'choose {choice.key}'); sess.console.end_capture()
+            again = game.story.open_choice()
+            if again is None or again[1] is not stage:
+                break
+        game.char.credits = 55
     T.ok(opened, 'the berth is offered to a broke, hunted runner')
     if opened:
         sess.console.start_capture()
@@ -14284,7 +14294,8 @@ def test_the_follower_never_stalls() -> None:
     from flatline.commands import city as city_cmd
     LIMIT = 20
     worst = (0, '')
-    for seed, origin in ((181, 'gutter'), (182, 'academic'), (183, 'expolice')):
+    from flatline.content import origins as origin_content
+    for seed, origin in ((181 + i, key) for i, key in enumerate(origin_content.BY_KEY)):
         game = Game.new(Character.from_origin(origin, 'x'), seed=seed)
         console = quiet_console()
         sess = Session(console=console, slot='fuzz')
@@ -14292,7 +14303,7 @@ def test_the_follower_never_stalls() -> None:
         console.start_capture()
         last, streak = '', 0
         raised = ''
-        for i in range(110):
+        for i in range(90):
             if game.over:
                 break
             try:
@@ -14343,6 +14354,102 @@ def test_the_follower_never_stalls() -> None:
             T.ok(len(got2) == 2, 'and a fragment still asks which one')
         finally:
             city_cmd._item = real_item
+
+
+def test_every_origin_has_its_verb() -> None:
+    """D160: the signature verbs, played by state. Each origin's own verb is
+    never refused for the origin reason when that origin types it in a
+    network; typed by anybody else it is. What it then does is the verb's
+    business: a success line, "once a run" the second time, or an honest
+    context refusal ("nothing here is sealed")."""
+    T.section('every origin has its verb')
+    from flatline.content import origins as origin_content
+    GATE = 'is not something you can do'
+    for key, origin in origin_content.BY_KEY.items():
+        verb = origin.signature
+        if not verb:
+            continue
+        game = Game.new(Character.from_origin(key, 'Sig'), seed=190)
+        board = list(game.city.board)
+        if not board:
+            game.city.refresh_board(game.rng, game.alias)
+            board = list(game.city.board)
+        contract = board[0]
+        game.city.accepted = contract.cid
+        contract.taken = True
+        game.city.where = contract.district
+        sess = Session(console=quiet_console(), slot='sigtest')
+        sess.game = game
+        sess.console.start_capture()
+        sess.execute('jack in --force')
+        sess.execute('scan')
+        sess.console.end_capture()
+        if sess.run is None:
+            T.ok(False, f'{key}: could not jack in to try {verb}')
+            continue
+        host = next((n.uid for n in sess.run.net.nodes.values() if n.known), '')
+        cmd = f'{verb} {host}' if verb in ('backway',) else verb
+        sess.console.start_capture()
+        sess.execute(cmd)
+        first = sess.console.end_capture()
+        T.ok(GATE not in first, f'{key}: {verb} is theirs to type ({" ".join(first.split())[:70]})')
+        sess.console.start_capture()
+        sess.execute(cmd)
+        second = sess.console.end_capture()
+        T.ok(GATE not in second, f'{key}: and the second time is the verb\'s own answer')
+        sess.console.start_capture()
+        sess.execute('jack out --anyway')
+        sess.console.end_capture()
+    # And the gate holds: a gutter runner cannot read a policy.
+    game = Game.new(Character.from_origin('gutter', 'Sig'), seed=191)
+    board = list(game.city.board) or (game.city.refresh_board(game.rng, game.alias) or list(game.city.board))
+    contract = board[0]; game.city.accepted = contract.cid; contract.taken = True
+    game.city.where = contract.district
+    sess = Session(console=quiet_console(), slot='sigtest'); sess.game = game
+    sess.console.start_capture(); sess.execute('jack in --force'); sess.execute('policy'); out = sess.console.end_capture()
+    T.ok(GATE in out and 'Corporate defector' in out, 'somebody else typing it is told whose it is')
+
+
+def test_what_you_keep_is_on_the_record() -> None:
+    """D160: toys, and the record lines for the systems that had none. Every
+    animal has the one thing it plays with; `pet play` reads differently
+    with it; keeping an animal, running with a familiar and answering to
+    several names are lines on the record; the freight line has titles."""
+    T.section('what you keep is on the record')
+    from flatline.content import pets as pet_content, record as record_content
+    from flatline.world import pets as pet_world, record as record_world
+    from flatline import save as save_mod
+    T.ok(all(a.key in pet_content.TOYS for a in pet_content.ANIMALS),
+         'every animal has a toy')
+    T.ok(all(t[1] > 0 and t[2].endswith('.') for t in pet_content.TOYS.values()),
+         'each costs something and says something')
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=200)
+    game.city.safehouse = {'key': 'test', 'district': game.city.where}
+    pet_world.adopt(game.city, 'cat', 'Ledger')
+    game.char.credits = 500
+    sess, text = play(['pet toy', 'pet toy buy', 'pet toy buy', 'pet play', 'pet'], game=game)
+    T.ok('wire mouse' in text and game.city.pet.get('toy') == 'a wire mouse',
+         'the toy is bought and kept on the animal')
+    T.ok('One is the number' in text, 'and one is the number')
+    T.ok('referee' in text, 'and play reads with the toy')
+    for key in ('keeper', 'company', 'named'):
+        T.ok(key in record_content.BY_KEY if hasattr(record_content, 'BY_KEY')
+             else any(e.key == key for e in record_content.ENTRIES), f'record line {key} exists')
+    for counter in ('pet_shifts', 'familiar_runs', 'titles_earned'):
+        T.ok(counter in save_mod.META_DEFAULT, f'the profile keeps {counter}')
+    game.city.pet['since'] = int(game.city.shift) - 31
+    game.char.deck.familiar = {'key': 'pixelcat', 'name': 'Echo', 'charge': 100, 'runs': 10}
+    meta = dict(save_mod.META_DEFAULT); meta['titles'] = ['bloodprice', 'veteran', 'magpie']
+    counts = record_world.counts(game, meta)
+    T.ok(counts['pet_shifts'] >= 30 and counts['familiar_runs'] == 10 and counts['titles_earned'] == 3,
+         f'the counts read the keep: {counts["pet_shifts"]}, {counts["familiar_runs"]}, {counts["titles_earned"]}')
+    got = {e.key for e in record_world.earned(counts)}
+    T.ok({'keeper', 'company', 'named'} <= got, f'and the three lines are earned: {sorted(got & {"keeper","company","named"})}')
+    game.char.deck.familiar = {}
+    T.ok(all(k in record_content.TITLE_BY_KEY for k in ('freight', 'stayed')),
+         'the freight line has a title for each answer')
+    regs = {t.register for t in record_content.TITLES}
+    T.ok(regs >= {'heroic', 'vile', 'amusing'}, 'and the registers still span')
 
 def manual_body(key: str) -> str:
     from flatline.content import manual
@@ -15655,6 +15762,8 @@ SUITES = (
     test_the_quiet_door,
     test_a_runner_is_named_as_one,
     test_the_follower_never_stalls,
+    test_every_origin_has_its_verb,
+    test_what_you_keep_is_on_the_record,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

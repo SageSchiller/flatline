@@ -279,6 +279,10 @@ def cmd_jack_in(sess, args) -> None:
     c.rule('connected')
     c.say(f'[dim]Target: [/][err]{contract.target_data.name}[/][dim], posture '
           f'{int(contract.posture)}. Objective: {contract.objective}.[/]')
+    fam = state.char.deck.familiar
+    if fam:
+        # Counted for the record (D160); the familiar itself reads nothing.
+        fam['runs'] = int(fam.get('runs', 0)) + 1
     state.familiar_say('connect')
     c.blank()
     # Whose network this is, as a shape before it is a sentence. After five
@@ -3910,13 +3914,21 @@ def cmd_requisition(sess, args) -> None:
     state = _signature(sess, 'requisition')
     c = sess.console
     query = (args.get(0) or '').lower()
-    pool = [p for p in programs.PROGRAMS
-            if p.tier <= 2 and p.key not in state.char.deck.loaded]
+    stock = [p for p in programs.PROGRAMS
+             if p.tier <= 2 and p.key not in state.char.deck.loaded]
+    pool = stock
     if query:
         pool = [p for p in pool if query in p.name.lower() or query == p.key]
     if not pool:
         state.spent.discard('sig:requisition')
-        raise CommandError('nothing available matches that.')
+        # Say what the form would have got (D160): the indentured runner
+        # who typed `requisition siphon` was told nothing matched, which
+        # was true and not the answer.
+        names = ', '.join(p.name.lower() for p in
+                          sorted(stock, key=lambda p: (p.category, -p.rating))[:10])
+        raise CommandError(f'nothing available matches {query!r}.'
+                           + (f' The form covers: {names}.' if names
+                              else ' Everything the form covers is already on the deck.'))
     pick = max(pool, key=lambda p: p.rating)
     state.char.deck.loaded.append(pick.key)
     state.requisitioned = pick.key

@@ -242,7 +242,11 @@ class Play:
             thread, stage = found
             keys = [c.key for c in stage.choices]
             want = table.get(f'{thread.key}.{stage.key}')
-            order = ([want] if want in keys else []) + [k for k in keys if k != want]
+            # Never an ending by default: a persona takes the box out of
+            # the city only when its brief says so.
+            ending = {c.key for c in stage.choices if getattr(c, 'ends', '')}
+            order = ([want] if want in keys else []) + [k for k in keys if k != want and k not in ending] \
+                + [k for k in keys if k != want and k in ending]
             self.do('choose')
             chosen = ''
             for key in order:

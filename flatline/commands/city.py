@@ -6283,7 +6283,7 @@ def _thing_name(key: str) -> str:
 
 @command('pet', 'The one thing you keep that is not for the work.',
          contexts=('city',), group='character', aliases=('pets',),
-         usage='pet [feed|water|play|name <name>|feed buy|get <animal>|let go]',
+         usage='pet [feed|water|play|toy [buy]|name <name>|feed buy|get <animal>|let go]',
          detail=(
                 'A pet lives at your safehouse (D152), because you cannot keep '
                 'a thing alive out of a chair, and it has food, water and play '
@@ -6294,7 +6294,7 @@ def _thing_name(key: str) -> str:
                 'it is; `pet get` is what you can take on where you are; '
                 '`pet feed`, `pet water`, `pet play` are the keeping of it; '
                 '`pet name <name>` names it; `pet feed buy` buys a bag of '
-                'feed.'))
+                'feed; `pet toy buy` buys the one thing it plays with.'))
 def cmd_pet(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     from ..content import pets as pet_content
@@ -6316,6 +6316,9 @@ def cmd_pet(sess, args) -> None:
     animal = pet_content.BY_KEY[pet['key']]
     name = pet.get('name', animal.name)
 
+    if verb == 'toy':
+        _pet_toy(sess, args, pet, animal, name)
+        return
     if verb in ('feed', 'water', 'play', 'name', 'let', 'get', 'adopt', 'take'):
         if verb == 'get' or verb == 'adopt' or verb == 'take':
             raise CommandError(f'you already have {name}. `pet let go` first, '
@@ -6368,6 +6371,13 @@ def cmd_pet(sess, args) -> None:
             pet_world.care(city, 'play')
             _advance(sess, 0)  # play is time, but a small kind; no shift lost
             sess.autosave()
+            toy = pet_content.TOYS.get(pet['key'])
+            if pet.get('toy') and toy:
+                # The one thing it plays with (D160): the same need filled,
+                # read differently, which is what a toy is for.
+                c.ok(f'You get {toy[0]} out and {name} knows what that means.')
+                c.say(f'[dim]{toy[2]}[/]')
+                return
             c.ok(f'You spend a while on {name} and nothing else, which is the '
                  f'whole of what it wanted and more than you meant to give and '
                  f'exactly right.')
@@ -6406,6 +6416,35 @@ def _since(shifts: int) -> str:
         return 'newly yours'
     days = shifts
     return f'{days} shift{"s" if days != 1 else ""} yours'
+
+
+def _pet_toy(sess, args, pet: dict, animal, name: str) -> None:
+    """The one thing it plays with. `pet toy` says what that would be and
+    whether it is in the flat; `pet toy buy` buys it. Cosmetic by rule."""
+    from ..content import pets as pet_content
+    game, c = sess.game, sess.console
+    toy = pet_content.TOYS.get(pet['key'])
+    if toy is None:
+        raise CommandError(f'there is nothing {name} plays with that you could buy.')
+    what, price, _line = toy
+    if (args.get(1) or '').lower() != 'buy':
+        if pet.get('toy'):
+            c.say(f'[dim]{name} has {what}. `pet play` is a different thing '
+                  f'with it in the flat.[/]')
+        else:
+            c.say(f'[dim]{name} would play with {what}, which is '
+                  f'[credit]{price:,}c[/] at any market. `pet toy buy`.[/]')
+        return
+    if pet.get('toy'):
+        raise CommandError(f'{name} already has {what}. One is the number.')
+    if game.char.credits < price:
+        raise CommandError(f'{what} is {price:,}c and you have '
+                           f'{game.char.credits:,}c.')
+    game.char.credits -= price
+    pet['toy'] = what
+    sess.autosave()
+    c.ok(f'{what[0].upper() + what[1:]}. [credit]{price:,}c[/]. It is in '
+         f'the flat before you are, and {name} has already decided about it.')
 
 
 def _feed_buy(sess) -> None:

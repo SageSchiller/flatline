@@ -88,3 +88,14 @@ persona that plays every technique is the next campaign worth writing.
   ambiguous in Marrow on its first run (the optic lattice): exact names win.
 - Across all six campaigns the only commands never typed are `begin` and
   `quit`.
+
+## Round three, 2026-09-05 (D160): the regression that caught the door
+
+All six campaigns rerun on the D159/D160 build. First pass: five of six
+ended "left quietly" at shifts 8 to 72, because *The Freight Line* opened
+on a bounty at three runs and its first answer was the ending, and a
+default chooser takes the first answer. Fixed in the content (six runs,
+twenty shifts, staying first) and in the harness (never an ending the brief
+did not name). Second pass: six clean, 0 crashes, refused/employed/refused
+by play, a partner bond by play, five offered the berth and staying (the
+`stayed` title), coverage 84 to 111.
