@@ -6408,7 +6408,7 @@ def cmd_pet(sess, args) -> None:
     feed = int(pet.get('feed', 0))
     c.blank()
     toy = pet_content.TOYS.get(pet['key'])
-    has_toy = (f'{pet["toy"]} in the flat' if pet.get('toy')
+    has_toy = (f'{pet["toy"]} in the corner' if pet.get('toy')
                else (f'no {toy[0].split(" ", 1)[1]} yet, `pet toy`' if toy else ''))
     c.say(f'[dim]{feed} feed in the flat{", " + has_toy if has_toy else ""}. '
           f'`pet feed`, `pet water`, `pet play`; `pet name <name>`.[/]')
