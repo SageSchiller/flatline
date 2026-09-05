@@ -73,3 +73,18 @@ The run techniques beyond the brief (`backdoor`, `backway`, `collapse`,
 rest of the defence verbs), `betray`, `vouch`, `requisition`, `uninstall`,
 `script`, `bind`, `switch`, `new`, `delete`, `reset`, `quit`. A run-craft
 persona that plays every technique is the next campaign worth writing.
+
+## Round two, 2026-09-05 (D159): the five suggestions, and the sixth persona
+
+- `q6_runcraft.py`: rank four in everything, every technique in six batches
+  over twelve runs, then `betray`, `uninstall`, `script`, `bind`, `new`,
+  `switch`, `delete`, then one character per origin for the origin verb.
+  110 commands, 0 crashes. Every refusal honest: origin-gated verbs name
+  the origin that has them, context refusals say what is missing ("nothing
+  here is sealed", "you are running this one alone", "no daemon program
+  loaded"), once-a-run verbs say so. One wording: `uninstall` said
+  "available" for the fitted list; it says fitted now.
+- The follower fuzz (`test_the_follower_never_stalls`) found `buy lattice`
+  ambiguous in Marrow on its first run (the optic lattice): exact names win.
+- Across all six campaigns the only commands never typed are `begin` and
+  `quit`.

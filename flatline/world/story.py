@@ -101,6 +101,10 @@ class Story:
             return game.city.shift >= int(value)
         if kind == 'heat':
             return game.alias.hottest[1] >= int(value)
+        if kind == 'bounty':
+            # Somebody paying to find this name (D159): the number, not
+            # the heat, which cools; a bounty does not.
+            return max(game.city.bounties.values(), default=0) >= int(value)
         if kind == 'rep':
             faction, _, amount = value.partition(':')
             return game.alias.reputation(faction) >= int(amount)

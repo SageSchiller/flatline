@@ -14181,6 +14181,169 @@ def test_now_never_says_deck() -> None:
                                     or step[0] == 'market components'),
              f'with the deck nearly bare, the step is still a thing to do: {step[0]}')
 
+
+def test_the_street_takes_the_money_first() -> None:
+    """D159: on the two rungs that put people in clinics, `give` is on the
+    first question when the money is there. Three of five campaigns died
+    on the fourth rung with the money in their pocket and `cover` chosen,
+    because the money was only ever the second question."""
+    T.section('the street takes the money first')
+    from flatline.world import street as street_world
+    from flatline.content import street as street_content
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=170)
+    encs = [e for v in vars(street_content).values()
+            if isinstance(v, (list, tuple)) and v and isinstance(v[0], street_content.Encounter)
+            for e in v]
+    by_tier = {}
+    for e in encs:
+        if not any(o.check == 'pay' for o in e.options):
+            by_tier.setdefault(e.tier, e)
+    T.ok(4 in by_tier and 1 in by_tier, f'encounters exist at the top and bottom rungs: {sorted(by_tier)}')
+    if 4 in by_tier:
+        top = by_tier[4]
+        game.char.credits = 5000
+        keys = [k for k, _, _ in street_world.extra_answers(game, top, '', 0)]
+        T.ok('give' in keys, f'with the money, give is an answer to the kind that kills: {keys}')
+        game.char.credits = 10
+        keys = [k for k, _, _ in street_world.extra_answers(game, top, '', 0)]
+        T.ok('give' not in keys, 'without it, it is not')
+    if 1 in by_tier:
+        game.char.credits = 5000
+        keys = [k for k, _, _ in street_world.extra_answers(game, by_tier[1], '', 0)]
+        T.ok('give' not in keys, 'a lean is a skill, not a purchase')
+    T.ok(street_world.give_cost(by_tier[4]) == 120 + 90 * 4 if 4 in by_tier else True,
+         'and it costs what the flinch asks')
+
+
+def test_the_quiet_door() -> None:
+    """D159: a bounty and less than a new name costs was the one state the
+    door had nothing for. The freight line is the cheap way out: it costs
+    the name, the record and the city, and it ends the character."""
+    T.section('the quiet door')
+    from flatline.content import threads as thread_content, legacy
+    quiet = next(t for t in thread_content.THREADS if t.key == 'quiet')
+    T.ok(quiet.stages[0].requires == ('bounty:1', 'not:credits:1800', 'runs:3'),
+         'the berth opens on a bounty, no money for a name, and a career')
+    T.ok(all(f in legacy.EPILOGUE_BY_FLAG for f in ('left_quietly', 'quiet_stayed')),
+         'both answers have an epilogue line')
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=171)
+    game.char.runs = 3
+    game.char.credits = 55
+    game.city.bounties['sixes'] = 900
+    T.ok(game.story.satisfied('bounty:1', game), 'the bounty rule reads the city')
+    T.ok(not game.story.satisfied('bounty:1000', game), 'and its size')
+    sess, text = play(['look', 'rest', 'look'], game=game)
+    opened = False
+    for _ in range(8):
+        found = game.story.open_choice()
+        if found is None:
+            sess.console.start_capture(); sess.execute('rest'); sess.execute('look'); sess.console.end_capture()
+            continue
+        thread, stage = found
+        if thread.key == 'quiet':
+            opened = True; break
+        sess.console.start_capture(); sess.execute(f'choose {stage.choices[0].key}'); sess.console.end_capture()
+    T.ok(opened, 'the berth is offered to a broke, hunted runner')
+    if opened:
+        sess.console.start_capture()
+        sess.execute('choose go')
+        out = sess.console.end_capture()
+        T.ok(game.over == 'left quietly', f'taking it ends the character: over={game.over!r}')
+        T.ok('left quietly' in out and 'freight line' in out,
+             'and the ending reads the freight line back')
+
+
+def test_a_runner_is_named_as_one() -> None:
+    """D159: `deal <runner>`, `talk <runner>`, `ask <runner>` say what a
+    runner is for instead of that nobody is called that."""
+    T.section('a runner is named as one')
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=172)
+    riv = game.city.rivals[0]
+    sess, text = play([f'deal {riv.key}', f'talk {riv.key}'], game=game)
+    T.ok('is a runner' in text and f'hire {riv.key}' in text,
+         'a runner is a runner, and the commands for one are named')
+    from flatline.content import rice as rice_content
+    names = [c.name for c in vars(rice_content).get('COSMETICS', ()) or ()] or \
+            [getattr(c, 'name', '') for v in vars(rice_content).values()
+             if isinstance(v, (list, tuple)) for c in v if hasattr(c, 'name')]
+    T.ok('None' not in names and 'Bare' in names, 'the plain style has a name that is a word')
+    import inspect
+    from flatline.commands import city as city_cmd
+    src = inspect.getsource(city_cmd)
+    T.ok("c.warn(f'The walk is {hops}" in src, 'the deadline on the job screen is a warning, not an error')
+    T.ok("_find_ware(args.get(0), game.char.installed, what='fitted')" in src,
+         'uninstall says nothing is fitted, not that nothing is available')
+
+
+def test_the_follower_never_stalls() -> None:
+    """D159: the fuzz the campaigns argued for. Play a few seeds by doing
+    exactly what `now` says (and what the brief says inside a run), and
+    fail if any one step repeats for long or anything raises. Every D158
+    finding was a step a follower could not leave; this holds them all."""
+    T.section('the follower never stalls')
+    from flatline.commands import city as city_cmd
+    LIMIT = 20
+    worst = (0, '')
+    for seed, origin in ((181, 'gutter'), (182, 'academic'), (183, 'expolice')):
+        game = Game.new(Character.from_origin(origin, 'x'), seed=seed)
+        console = quiet_console()
+        sess = Session(console=console, slot='fuzz')
+        sess.game = game
+        console.start_capture()
+        last, streak = '', 0
+        raised = ''
+        for i in range(110):
+            if game.over:
+                break
+            try:
+                if sess.pending is not None:
+                    ch = list(sess.pending.choices)
+                    step = 'answer:' + (ch[0] if ch else 'yes')
+                    sess.execute(ch[0] if ch else 'yes')
+                elif sess.run is not None:
+                    b = sess.run.brief()
+                    s0 = b.steps[0] if b.steps else ''
+                    cmd = s0 if s0 and '<' not in s0 else 'scan'
+                    if b.done or sess.run.objective_met():
+                        cmd = 'jack out'
+                    step = 'run:' + cmd
+                    sess.execute(cmd)
+                else:
+                    steps = city_cmd.city_steps(game)
+                    cmd = steps[0][0] if steps else 'rest'
+                    if '<' in cmd:
+                        cmd = 'rest'
+                    step = 'city:' + cmd
+                    sess.execute(cmd)
+            except Exception as e:  # noqa: BLE001
+                raised = f'{step}: {e!r}'
+                break
+            streak = streak + 1 if step == last else 1
+            last = step
+            if streak > worst[0]:
+                worst = (streak, f'{origin}/{seed} {step}')
+        console.end_capture()
+        T.ok(not raised, f'{origin}/{seed}: nothing raised ({raised or "clean"})')
+    T.ok(worst[0] <= LIMIT, f'no step repeats more than {LIMIT} times running: worst {worst}')
+    # What the first fuzz found: an exact name wins over a substring.
+    from types import SimpleNamespace as NS
+    from flatline.content import programs as PRc, cyberware as CWc
+    lat = next(p for p in PRc.BY_KEY.values() if p.name.lower() == 'lattice')
+    optic = next((w for w in CWc.BY_KEY.values() if 'lattice' in w.name.lower()), None)
+    if optic is not None:
+        listings = [NS(key=lat.key, kind='program'), NS(key=optic.key, kind='ware')]
+        real_item = city_cmd._item
+        def fake_item(l):
+            return lat if l.key == lat.key else optic
+        city_cmd._item = fake_item
+        try:
+            got = city_cmd.match_listings('lattice', listings)
+            T.ok(len(got) == 1 and got[0][1] is lat, 'buy lattice buys the Lattice, not the optic')
+            got2 = city_cmd.match_listings('latt', listings)
+            T.ok(len(got2) == 2, 'and a fragment still asks which one')
+        finally:
+            city_cmd._item = real_item
+
 def manual_body(key: str) -> str:
     from flatline.content import manual
     return manual.BY_KEY[key].body
@@ -15488,6 +15651,10 @@ SUITES = (
     test_what_the_honest_players_found,
     test_the_posting_is_never_dropped,
     test_now_never_says_deck,
+    test_the_street_takes_the_money_first,
+    test_the_quiet_door,
+    test_a_runner_is_named_as_one,
+    test_the_follower_never_stalls,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

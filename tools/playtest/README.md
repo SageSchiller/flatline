@@ -84,3 +84,10 @@ grep -h "^--- " logs/q*_*.log | grep -E "ENDING|jobs:|crew:|after the door"
 ```
 
 `SWEEP-2026-09-04-campaigns.md` is what the first five rounds of them found.
+
+`q6_runcraft.py` is the sixth: somebody trained to rank four in everything
+types every run technique in a network, in context, in six batches spread over
+twelve runs, then the city-side commands nobody else typed (`betray`,
+`uninstall`, `script`, `bind`, `new`, `switch`, `delete`), and then becomes one
+character per origin to type the verb only that origin has. Its refusals are
+the deliverable: every one should be an honest answer, never a crash or a loop.

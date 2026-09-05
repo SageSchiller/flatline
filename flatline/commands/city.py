@@ -924,7 +924,7 @@ def cmd_uninstall(sess, args) -> None:
     game, c = sess.require_game(), sess.console
     if 'clinic' not in game.city.district.services:
         raise CommandError('no clinic here.')
-    key = _find_ware(args.get(0), game.char.installed)
+    key = _find_ware(args.get(0), game.char.installed, what='fitted')
     game.char.uninstall(key)
     game.char.library.append(key)
     c.ok(f'{cyberware.BY_KEY[key].name} removed.')
@@ -1016,6 +1016,28 @@ def cmd_market(sess, args) -> None:
           '`buy <name> --why` to see the price broken down.[/]')
 
 
+
+def match_listings(query: str, listings, by_number: bool = False) -> list:
+    """The listings a `buy` names. An exact name or key wins outright: the
+    follower fuzz (D159) found `now` saying `buy lattice` in a market that
+    also sold a Kohler-Reyes Optic Lattice, and the substring match asked
+    which one, fifty-nine times running."""
+    found = []
+    for listing in listings:
+        item = _item(listing)
+        if not item:
+            continue
+        if by_number:
+            if query == listing.key:
+                return [(listing, item)]
+            continue
+        if query == listing.key or query == item.name.lower():
+            return [(listing, item)]
+        if query in item.name.lower():
+            found.append((listing, item))
+    return found
+
+
 @command('buy', 'Buy something from the local market.',
          blocked='Nobody in here is selling, and your credits are out there '
                  'with the rest of you.',
@@ -1039,14 +1061,7 @@ def cmd_buy(sess, args) -> None:
         query = sess.pick('market', query,
                           fallback=[x.key for x in listings if _item(x)],
                           what='row', again='market')
-    matches = []
-    for listing in listings:
-        item = _item(listing)
-        if item and (query == listing.key if by_number
-                     else (query in item.name.lower() or query == listing.key)):
-            matches.append((listing, item))
-            if by_number:
-                break
+    matches = match_listings(query, listings, by_number)
     if not matches:
         raise CommandError(f'nothing here matches {query!r}')
     if len(matches) > 1:
@@ -1844,10 +1859,10 @@ def city_job(sess) -> None:
     # fee is the only arithmetic (D97).
     if hops and hops >= left and not contract.held:
         c.blank()
-        c.err(f'The walk is {hops} shift{"s" if hops != 1 else ""} and it '
-              f'expires in {max(0, left)}. You will not make it in time: '
-              f'`drop` it, or go anyway for {int(city_mod.LATE_SHARE * 100)}% '
-              f'of the fee.')
+        c.warn(f'The walk is {hops} shift{"s" if hops != 1 else ""} and it '
+               f'expires in {max(0, left)}. You will not make it in time: '
+               f'`drop` it, or go anyway for {int(city_mod.LATE_SHARE * 100)}% '
+               f'of the fee.')
 
     need = OBJECTIVE_PROGRAM.get(contract.objective)
     if need and not game.char.deck.has_category(need):
@@ -5055,7 +5070,8 @@ def _find_program(query: str | None, pool: list[str]) -> str:
     raise CommandError(f'nothing called {query!r} available')
 
 
-def _find_ware(query: str | None, pool: list[str]) -> str:
+def _find_ware(query: str | None, pool: list[str],
+               what: str = 'available') -> str:
     if not query:
         raise CommandError('which cyberware?')
     q = query.lower()
@@ -5063,7 +5079,7 @@ def _find_ware(query: str | None, pool: list[str]) -> str:
         w = cyberware.BY_KEY.get(key)
         if w and (q == key or q in w.name.lower()):
             return key
-    raise CommandError(f'nothing called {query!r} available')
+    raise CommandError(f'nothing called {query!r} {what}')
 
 
 def _library_names(sess) -> list[str]:

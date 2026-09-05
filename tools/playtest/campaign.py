@@ -212,10 +212,13 @@ def run_job(p, approach='', legwork='', hire=False, extra=()):
         last = step
     if p.sess.run is None and p.g.city.current is not None:
         o = p.do('jack in')
-        m = re.search(r'`(travel \w+)`', o)
-        if '✗' in o and m:
+        m = re.search(r'`((?:travel|walk) \w+)`', o)
+        for _ in range(3):
+            if '✗' not in o or not m:
+                break
             p.do_step(m.group(1)); p.settle(prefer=SAFE)
             o = p.do('jack in')
+            m = re.search(r'`((?:travel|walk) \w+)`', o)
         if '✗' in o and 'shift' not in o:
             p.do('jack in --force')
     if p.sess.run is not None:

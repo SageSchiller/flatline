@@ -470,7 +470,7 @@ COSMETICS: tuple[Cosmetic, ...] = (
              'the big one enough times.',
              needs=('runs', 10),
              hint='Ten contracts.'),
-    Cosmetic('none', 'banner', 'None',
+    Cosmetic('none', 'banner', 'Bare',
              'No wordmark. Straight to the tagline and the prompt.',
              needs=('runs', 18),
              hint='Eighteen contracts. By then you know what it says.'),
@@ -510,7 +510,7 @@ COSMETICS: tuple[Cosmetic, ...] = (
     Cosmetic('mark', 'render', 'Mark',
              'The eleven-by-four mark and nothing else. What every terminal '
              'gets when it cannot do the picture.'),
-    Cosmetic('none', 'render', 'None',
+    Cosmetic('none', 'render', 'Bare',
              'No picture and no mark. The name, the doctrine, and the job.'),
 
     # ----------------------------------------------------------------- reveal

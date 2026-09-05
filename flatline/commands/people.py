@@ -1331,6 +1331,19 @@ def _find(sess, query: str):
     game = sess.require_game()
     npc = _match(query)
     if npc is None:
+        # A runner is not somebody you deal with, talk to or ask: the
+        # campaigns typed `deal vesper` eight times and were told nobody
+        # was called that, which is true and not the answer.
+        low = (query or '').lower().strip()
+        runner = next((r for r in game.city.rivals
+                       if low in (r.key, r.name.lower(), getattr(r, 'handle', '').lower())
+                       or low in r.name.lower()), None)
+        if runner is not None:
+            raise CommandError(f'{runner.name} is a runner, not somebody you '
+                               f'do business with. `who {runner.key}` for '
+                               f'where you stand, `hire {runner.key}` for a '
+                               f'job, `crew take {runner.key}` for longer, '
+                               f'`message {runner.key}` to say something.')
         raise CommandError(f'nobody called {query!r}')
     if npc.key not in game.story.met:
         # Standing here now: that is a meeting. Somewhere else, or not at

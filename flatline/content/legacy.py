@@ -175,6 +175,13 @@ def ending(dissonance: int, flags=()) -> tuple[str, str]:
 #: fails the build on a decision this forgets, because an ending that does
 #: not mention what you did to Lark is an ending to somebody else's game.
 EPILOGUE: tuple[tuple[str, str], ...] = (
+    # The quiet door (D159)
+    ('left_quietly',
+     'You left on the freight line with nothing and no name, and the city '
+     'did not notice, which was the deal.'),
+    ('quiet_stayed',
+     'You were offered the berth out and stayed to be found, and the docks '
+     'never said what they thought of that.'),
     # Deepwater
     ('dw_employed',
      'Deepwater hired you, and you took it, and the money was real, and you '

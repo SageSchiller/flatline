@@ -238,7 +238,40 @@ def extra_answers(game, enc, faction: str, danger: int) -> list:
         check = front_check(game, enc, faction, danger)
         out.append(('front', 'Tell them who you are',
                     f'[dim]{check.summary()}[/]'))
+    # The money, up front, on the two rungs that put people in clinics.
+    # It was only ever the second question, after a bad answer had already
+    # landed, and three of five campaigns died on the fourth rung with the
+    # money in their pocket and `cover` chosen (D159). Never the only
+    # answer, and never on the small ones, where the street is a skill.
+    if enc.tier >= GIVE_AT and not any(o.check == 'pay' for o in enc.options):
+        cost = give_cost(enc)
+        if char.credits >= cost:
+            out.append(('give', 'Make it not worth the trouble',
+                        f'[credit]{cost:,}c[/]'))
     return out
+
+
+#: The rung from which the money is an answer to the first question.
+GIVE_AT = 3
+
+
+def give_cost(enc) -> int:
+    """What making it not worth their time costs, up front: the same sum
+    the flinch asks, because it is the same word and the same people."""
+    return 120 + 90 * enc.tier
+
+
+def _give(sess, enc, faction: str, danger: int) -> None:
+    """Pay before it lands. Nothing to roll: they were never here for you."""
+    game, c = sess.game, sess.console
+    cost = give_cost(enc)
+    game.char.credits -= cost
+    c.blank()
+    c.say(f'[credit]{cost:,}c[/] [dim]changes hands before anybody has '
+          f'to decide anything. They were never here for you, and now '
+          f'they are not here at all.[/]')
+    _apply(sess, enc, faction, street_content.Outcome(''), game.rng('events'),
+           won=True)
 
 
 def _print_extras(c, extras) -> None:
@@ -500,6 +533,9 @@ def _answer(sess, enc, faction: str, danger: int, text: str,
             return
         if chosen == 'front':
             _front(sess, enc, faction, danger)
+            return
+        if chosen == 'give':
+            _give(sess, enc, faction, danger)
             return
     opt = next((o for o in enc.options if o.key == low
                 or o.key.startswith(low)), None)

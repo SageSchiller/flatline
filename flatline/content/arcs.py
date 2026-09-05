@@ -1101,6 +1101,65 @@ BUYOFF = 2500
 #: Threads that sit beside a district's own (D65 depth): a second story in
 #: a place that already has one. Merged into `threads.THREADS` with the rest.
 MORE_THREADS: tuple[Thread, ...] = (
+    # -- The quiet door (D159) ---------------------------------------------
+    # A number on the name and less in the account than a new name costs
+    # is the one state the door had nothing for: a bounty does not cool,
+    # `burn` wants 1,800c, and the campaigns' explorer stood at the door
+    # with 55c and nowhere to go. This is the cheap way out. It costs the
+    # name, the record and the city, which is what cheap means here.
+    Thread(
+        'quiet', 'The Freight Line',
+        'There is a way out of the city that does not go through a door.',
+        stages=(
+            Stage('berth', 'Somebody knows a berth',
+                  'It comes through the kind of person who is only ever '
+                  'introduced as somebody who knows somebody. A container '
+                  'goes out on the freight line from the docks four nights '
+                  'a week, and one in nine is checked, and the man who '
+                  'decides which one has a cousin. Nobody asks your name. '
+                  'That is the offer: nobody asks your name, ever again.'
+                  '\n\nIt costs what is in your pocket, which is nothing, '
+                  'which is the point. It costs the name, which somebody '
+                  'else is paying to find. And it costs the city, which '
+                  'is the only thing you own.',
+                  requires=('bounty:1', 'not:credits:1800', 'runs:3'),
+                  sets=('quiet_berth',),
+                  choices=(
+                      Choice('go', 'Take the berth',
+                             'You go the same night. The container is cold '
+                             'and smells of what it carried before, and the '
+                             'freight line does not stop, and somewhere '
+                             'past the last relay the deck loses the city '
+                             'and does not find anything to replace it with.'
+                             '\n\nNobody checks. Nobody asks. In the morning '
+                             'there is a town with a name you have never '
+                             'heard, and you get out of the box and walk '
+                             'into it as somebody who used to do this.',
+                             sets=('left_quietly',),
+                             ends='left quietly'),
+                      Choice('stay', 'Stay and be found',
+                             'You say no. The person who knows somebody '
+                             'shrugs, which is what that kind of person '
+                             'does, and the offer is gone by morning. The '
+                             'number on your name is not. You are still '
+                             'here, which means you still think you can '
+                             'turn it, and the city has watched people '
+                             'think that before.',
+                             sets=('quiet_stayed',),
+                             rep={'freeport': 4}),
+                  )),
+            Stage('watched', 'Still here',
+                  'The docks know you were offered the berth and did not '
+                  'take it. Nobody says so. A docker nods at you once, '
+                  'the way you nod at somebody who has decided something '
+                  'expensive, and the freight line goes out that night '
+                  'without you in it.',
+                  requires=('quiet_stayed',),
+                  any_of=('quiet_stayed', 'left_quietly'),
+                  after=2,
+                  where='freeport'),
+        )),
+
     # -- The Hall: the woman who does not sing (D65 depth) ---------------------
     Thread(
         'listener', 'The Woman Who Does Not Sing',
