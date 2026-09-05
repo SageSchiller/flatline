@@ -5370,6 +5370,24 @@ the voice being provably cosmetic, dormancy without loss, and the save
 round-trip; `check_pets` reads the voice method's own body to hold the
 no-mechanics rule. `validate.py` clean, `test.py` green.
 
+### D154: A familiar needs feeding too
+
+The digital pets shipped with only dormancy for care, where the animals got
+a full loop, and the author's brief wanted both kinds tended. A familiar is
+fed the way it exists: by being run. It carries a charge now, full when you
+load it and full again every time it rides a run, that winds down over the
+shifts it sits in a folder, faster if it is the needy kind (the good boy
+loses it quickest, wanting you) and slower if it is the patient kind
+(wormwood barely notices). Low charge it says so, in a line of its own. At
+no charge it is dormant, quiet until you run it, which is not death, because
+it is software and waits. `familiar tend` gives it a charge between runs, and
+the status shows the charge as a bar. Still cosmetic to the bone: `validate`
+reads the voice method and holds that the charge never reaches a check.
+
+`test_the_other_kind_of_pet` gained the charge: it drains on an idle shift at
+the familiar's own rate, a run and `familiar tend` restore it, and no charge
+is dormant without loss. `validate.py` clean, `test.py` green.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -7150,3 +7168,10 @@ you into runs and speak at connect/amber/red/lockdown/black-ICE/clean/burned
 via RunState.familiar_say, cosmetic (validate reads the method body to hold
 it), go dormant unrun without dying, in the save. `familiar` command.
 `test_the_other_kind_of_pet`.
+
+### 2026-09-04 (y): a familiar needs feeding too
+
+D154. Digital-pet care: familiars carry a charge fed by runs and drained by
+idle shifts at a per-familiar rate, a low-charge line each, `familiar tend`
+between runs, dormant at zero without loss. Closes the pets-spec gap the
+honest-play round flagged.
