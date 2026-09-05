@@ -4396,12 +4396,46 @@ def check_pets(rep: Report) -> None:
         rep.check(bool(a.kept_coda and a.lost_coda)
                   and a.kept_coda.rstrip().endswith('.'), where,
                   'has no ending')
-    # The one rule that matters: a pet is never read by a run or a fight.
+    # The animal (D152) is never read by a run, a fight or the street: it
+    # is pure meat-side, and nothing about the work can see it.
     for mod in ('run/session.py', 'commands/run.py', 'world/fight.py',
                 'world/street.py'):
         src = pathlib.Path('flatline/' + mod).read_text(encoding='utf-8')
-        rep.check('.pet' not in src and 'import pets' not in src,
-                  f'pets/{mod}', 'the work reads the pet: it must not')
+        rep.check('city.pet' not in src, f'pets/{mod}',
+                  'the work reads the animal: it must not')
+    # The familiar (D153) does ride the run, but only to talk: its one method
+    # reads the deck for a line and touches nothing a check can see. Held by
+    # reading the method's own body, so a familiar that ever moved a number
+    # would fail the build.
+    run_src = pathlib.Path('flatline/run/session.py').read_text(encoding='utf-8')
+    rep.check('def familiar_say' in run_src, 'pets/familiar',
+              'the familiar has lost its one method')
+    body = run_src.split('def familiar_say', 1)[1].split('\n    def ', 1)[0]
+    for forbidden in ('self.trace', 'self.noise', 'self.alert =', 'escalate',
+                      'check(', 'return True', 'return False'):
+        rep.check(forbidden not in body, 'pets/familiar',
+                  f'the familiar\'s voice touches {forbidden!r}: it must only '
+                  f'ever print')
+    rep.check('self.console' in body, 'pets/familiar',
+              'the familiar does not even speak')
+    # And the familiars themselves: a spread of tones and a line for every
+    # beat of a run.
+    rep.check(len(pet_content.FAMILIARS) >= 4, 'pets', 'too few familiars')
+    fam_tones = {f.tone for f in pet_content.FAMILIARS}
+    rep.check(len(fam_tones) >= 3
+              and ('unsettling' in fam_tones or 'grim' in fam_tones),
+              'pets/familiar', 'the familiars are all one register')
+    beats = ('connect', 'amber', 'red', 'lockdown', 'blackice', 'clean',
+             'burned', 'idle', 'dormant')
+    for f in pet_content.FAMILIARS:
+        where = f'pets/familiar/{f.key}'
+        rep.check(f.memory >= 1, where, 'costs no memory: not a real choice')
+        rep.check(f.tone in pet_content.TONES, where, f'tone {f.tone!r}')
+        for beat in beats:
+            lines = f.says.get(beat)
+            rep.check(bool(lines) and all(l.rstrip().endswith(('.', '"'))
+                                          for l in lines), where,
+                      f'has nothing to say on {beat!r}')
 
 CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,

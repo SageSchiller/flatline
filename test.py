@@ -13803,6 +13803,98 @@ def test_the_one_that_is_not_for_the_work() -> None:
              f'{a.key} does nothing for the work')
 
 
+def test_the_other_kind_of_pet() -> None:
+    """D153: a digital pet that rides the deck into a run and talks. It costs
+    memory a program could have had, it speaks at every beat of a run, it is
+    cosmetic to the bone, and it survives the save."""
+    T.section('the other kind of pet')
+    from flatline.content import pets as pet_content
+
+    def fresh(seed=7):
+        char = Character.from_origin('gutter', 't')
+        game = Game.new(char, seed=seed)
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    def do(sess, con, cmd):
+        con.start_capture()
+        sess.execute(cmd)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    # A spread of familiars, each with a line for every beat, and one of them
+    # is meant to be a bad idea.
+    beats = ('connect', 'amber', 'red', 'lockdown', 'blackice', 'clean',
+             'burned', 'idle', 'dormant')
+    T.ok(len(pet_content.FAMILIARS) >= 4, 'at least four to run with')
+    tones = {f.tone for f in pet_content.FAMILIARS}
+    T.ok('unsettling' in tones or 'grim' in tones,
+         'and one of them is not a comfort')
+    for f in pet_content.FAMILIARS:
+        for beat in beats:
+            T.ok(bool(f.says.get(beat)), f'{f.key} speaks on {beat}')
+
+    # Loading one costs memory a program could have had.
+    sess, con, game = fresh()
+    deck = game.char.deck
+    deck.loaded = deck.loaded[:1]
+    free = deck.memory_free
+    do(sess, con, 'familiar get tally')
+    T.ok(deck.familiar.get('key') == 'tally', 'the tally is on the deck')
+    T.ok(deck.memory_free == free - 1,
+         'and it took a memory a program cannot now have')
+    # A familiar that does not fit is refused, like a program.
+    sess, con, game = fresh()
+    out = do(sess, con, 'familiar get goodboy')   # 2 memory, deck is full
+    T.ok('memory' in out.lower() and not game.char.deck.familiar,
+         'one that does not fit is refused')
+
+    # Name it, drop it.
+    sess, con, game = fresh()
+    game.char.deck.loaded = game.char.deck.loaded[:1]
+    do(sess, con, 'familiar get pixelcat')
+    do(sess, con, 'familiar name Bit')
+    T.ok(game.char.deck.familiar.get('name') == 'Bit', 'you can name it')
+    do(sess, con, 'familiar drop')
+    T.ok(not game.char.deck.familiar, 'and take it off the deck')
+
+    # It speaks on connect, and waking resets its idle. familiar_say is the
+    # cosmetic voice: it prints and returns nothing.
+    sess, con, game = fresh()
+    game.char.deck.loaded = game.char.deck.loaded[:1]
+    do(sess, con, 'familiar get wormwood') if game.char.deck.memory_free >= 2 else \
+        do(sess, con, 'familiar get chatterbird')
+    # Build a minimal run state to exercise the voice without a whole run.
+    from flatline.run.session import RunState
+    import inspect
+    src = inspect.getsource(RunState.familiar_say)
+    T.ok('return' in src and 'self.console' in src,
+         'the voice writes to the console')
+    for banned in ('self.trace', 'self.noise', 'escalate', 'check('):
+        T.ok(banned not in src, f'the voice does not touch {banned}')
+
+    # It goes dormant unrun, and does not die: it is software, it waits.
+    sess, con, game = fresh()
+    game.char.deck.loaded = game.char.deck.loaded[:1]
+    do(sess, con, 'familiar get tally')
+    game.char.deck.familiar['idle'] = pet_content.FAMILIAR_DORMANT_AFTER + 1
+    status = do(sess, con, 'familiar')
+    T.ok('dormant' in status.lower(), 'left unrun it goes dormant')
+    T.ok(game.char.deck.familiar, 'but it is not gone: software waits')
+
+    # It survives the save.
+    sess, con, game = fresh()
+    game.char.deck.loaded = game.char.deck.loaded[:1]
+    do(sess, con, 'familiar get tally')
+    do(sess, con, 'familiar name Nine')
+    game.save('famtest')
+    back = Game.load('famtest')
+    T.eq(back.char.deck.familiar.get('name'), 'Nine', 'the familiar is in the save')
+    from flatline import save as save_mod
+    save_mod.delete('famtest')
+
+
 def manual_body(key: str) -> str:
     from flatline.content import manual
     return manual.BY_KEY[key].body
@@ -15105,6 +15197,7 @@ SUITES = (
     test_the_specialist_and_the_reckoner,
     test_the_names_the_city_gives,
     test_the_one_that_is_not_for_the_work,
+    test_the_other_kind_of_pet,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

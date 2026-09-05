@@ -1331,10 +1331,17 @@ TOPICS: tuple[Topic, ...] = (
         'and the same rule. It belongs to the character, and when they go it '
         'is in the ending, because a thing that depended on you is the truest '
         'account of what you were.\n\n'
+        'And there is the other kind (D153), which is not an animal but a '
+        'small construct you let run on the [fg]deck[/] for no reason but '
+        'company. It costs memory, the one thing a deck never has enough '
+        'of, which is the whole price of it, and it rides into a run with '
+        'you and says what it makes of what is happening, and some of '
+        'them are a comfort and some of them are not. `familiar get` '
+        'loads one; it does nothing to the run but talk.\n\n'
         '[warn]The decision:[/] whether to take one on at all, in a city that '
         'is hard on everything, and then whether to come home.',
         see=('city', 'basics', 'death'),
-        commands=('pet', 'safehouse'),
+        commands=('pet', 'familiar', 'safehouse'),
         covers=('pets',),
         terms=('pet', 'animal', 'cat', 'dog', 'companion', 'feed'),
         group='city'),

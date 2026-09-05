@@ -568,6 +568,7 @@ class RunState:
         self.console.raw(f'[err]Something has been sent. {data.name} is on '
                          f'{self.here}, awake, and it did not come up '
                          f'through the network.[/]')
+        self.familiar_say('blackice')
         self.log(f'nightwatch sent {data.name}')
 
     def cool(self) -> None:
@@ -586,6 +587,30 @@ class RunState:
         self.console.raw(f'[ok]Alert: {self.alert}.[/] '
                          f'[dim]{ice_content.ALERT_BLURB[self.alert]}[/]')
         self.log(f'alert cooled -> {self.alert}')
+
+    def familiar_say(self, event: str) -> None:
+        """A digital pet riding the deck says what it makes of the run (D153).
+        Cosmetic to the bone: it reads nothing, changes nothing, and only
+        ever prints a line. On connect it wakes, which is the one bit of
+        state it has."""
+        from ..content import pets as pet_content
+        fam_state = self.char.deck.familiar
+        if not fam_state:
+            return
+        fam = pet_content.FAMILIAR_BY_KEY.get(fam_state.get('key', ''))
+        if fam is None:
+            return
+        if event == 'connect':
+            dormant = int(fam_state.get('idle', 0)) >= pet_content.FAMILIAR_DORMANT_AFTER
+            fam_state['idle'] = 0
+            key = 'dormant' if dormant else 'connect'
+        else:
+            key = event
+        lines = fam.says.get(key)
+        if not lines:
+            return
+        self.console.blank()
+        self.console.say(f'[dim]{self.rng.pick(lines)}[/]')
 
     def escalate(self, steps: int = 1, why: str = '') -> None:
         levels = ice_content.ALERT_LEVELS
@@ -611,6 +636,7 @@ class RunState:
         self.console.blank()
         self.console.raw(f'[err][bold]ALERT: {self.alert.upper()}[/][/]  '
                          f'[dim]{ice_content.ALERT_BLURB[self.alert]}[/]')
+        self.familiar_say(self.alert)
         if why:
             self.console.say(f'[dim]{why}[/]')
         if self.alert in ('red', 'lockdown') and self.tick > 0:

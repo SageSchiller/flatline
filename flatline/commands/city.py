@@ -4545,6 +4545,10 @@ def _pet(sess, shifts: int) -> None:
     for line in pet_world.advance(sess.game.city, shifts):
         sess.console.blank()
         sess.console.say(line)
+    # A digital familiar left unrun drifts toward dormant (D153).
+    fam = sess.game.char.deck.familiar
+    if fam:
+        fam['idle'] = int(fam.get('idle', 0)) + max(1, shifts)
 
 
 def _advance(sess, shifts: int, story: bool = True) -> None:
@@ -6298,6 +6302,114 @@ def _pets_here(game):
         if a is not None and a not in out:
             out.append(a)
     return out
+
+
+@command('familiar', 'A digital pet that rides the deck and talks on runs.',
+         contexts=('city',), group='character', aliases=('construct',),
+         usage='familiar [get <name>|drop|name <name>]',
+         detail=(
+                'The other kind of pet (D153): a small construct you let run '
+                'on the deck for no reason but company. It costs memory, the '
+                'one thing a deck never has enough of, which is the whole '
+                'price of it: a slot that could have been a breaker, spent on '
+                'a thing that only talks. It rides into a run with you and '
+                'says what it makes of what is happening, and some of them '
+                'are a comfort and some of them are not. It does nothing to '
+                'the run itself. `familiar get <name>` loads one, `familiar '
+                'drop` unloads it, `familiar name <name>` names it. Leave it '
+                'unrun too long and it goes dormant until you take it out '
+                'again; it is software, it waits.'))
+def cmd_familiar(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    from ..content import pets as pet_content
+    deck = game.char.deck
+    verb = (args.get(0) or '').lower()
+    fam_state = deck.familiar
+
+    if verb in ('get', 'load', 'take'):
+        want = args.rest(1).strip().lower()
+        if not want:
+            c.header('To run with', f'{deck.memory_free} memory free')
+            for f in pet_content.FAMILIARS:
+                c.raw(f'  [accent]{f.key}[/]  [fg]{f.name}[/] '
+                      f'[dim]({f.memory}mem, {f.species})[/]')
+                c.say(f'[dim]{f.blurb.split(".")[0]}.[/]', indent='    ',
+                      subsequent='    ')
+            c.blank()
+            c.say('[dim]`familiar get <name>`. It eats the memory while it is '
+                  'loaded, like a program, because that is what it is.[/]')
+            return
+        fam = next((f for f in pet_content.FAMILIARS
+                    if f.key == want or want in f.name.lower()), None)
+        if fam is None:
+            raise CommandError('no such construct. `familiar get` lists them.')
+        # It has to fit, the way a program has to fit.
+        current = pet_content.FAMILIAR_BY_KEY.get(fam_state.get('key', '')) if fam_state else None
+        freed = current.memory if current is not None else 0
+        if fam.memory > deck.memory_free + freed:
+            raise CommandError(f'{fam.name} wants {fam.memory} memory and the '
+                               f'deck has {deck.memory_free + freed} it could '
+                               f'give a familiar. Carry less, or a bigger '
+                               f'bank.')
+        deck.familiar = {'key': fam.key, 'name': fam.name, 'idle': 0}
+        sess.autosave()
+        c.blank()
+        c.rule('on the deck', role='accent2')
+        c.say(fam.blurb)
+        c.blank()
+        c.say(f'[dim]{fam.memory} memory, while it is loaded. It comes with '
+              f'you next time you jack in. `familiar name <name>` to name '
+              f'it.[/]')
+        return
+
+    if verb in ('drop', 'unload', 'let'):
+        if not fam_state:
+            raise CommandError('no familiar loaded.')
+        name = fam_state.get('name', 'it')
+        deck.familiar = {}
+        sess.autosave()
+        c.ok(f'{name} is off the deck. The memory is yours again. It is not '
+             f'gone, it is just not riding along.')
+        return
+
+    if verb == 'name':
+        if not fam_state:
+            raise CommandError('no familiar to name. `familiar get` first.')
+        new = args.rest(1).strip()
+        if not new:
+            raise CommandError('name it what? `familiar name <name>`.')
+        fam_state['name'] = new[:24]
+        sess.autosave()
+        c.ok(f'{new[:24]}. It answers to it instantly, being software, which '
+             f'is either the best or the worst thing about it.')
+        return
+
+    # Status.
+    if not fam_state:
+        c.header('Familiar', 'none')
+        c.say('[dim]Nothing riding the deck but you. A familiar is company '
+              'for the cost of memory. `familiar get` for what there is.[/]')
+        return
+    fam = pet_content.FAMILIAR_BY_KEY.get(fam_state.get('key', ''))
+    if fam is None:
+        deck.familiar = {}
+        c.say('[dim]Whatever was loaded is not in the catalogue any more. '
+              'It is gone.[/]')
+        return
+    name = fam_state.get('name', fam.name)
+    idle = int(fam_state.get('idle', 0))
+    dormant = idle >= pet_content.FAMILIAR_DORMANT_AFTER
+    c.header(name, f'{fam.species}, {fam.memory}mem'
+                   + ('  dormant' if dormant else ''))
+    c.say(f'[dim]{fam.blurb}[/]')
+    c.blank()
+    idle_line = fam.says.get('dormant' if dormant else 'idle')
+    if idle_line:
+        c.say(f'[dim]{idle_line[0]}[/]')
+    c.blank()
+    c.say('[dim]It rides in when you `jack in` and says what it makes of the '
+          'run. `familiar drop` to take it off, `familiar name <name>` to '
+          'name it.[/]')
 
 
 @command('safehouse', 'Somewhere of your own to keep things.',

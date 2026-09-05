@@ -261,3 +261,222 @@ def worst_need(pet: dict) -> str:
     """Which of the three is lowest, for the advice line."""
     order = sorted(('food', 'water', 'play'), key=lambda k: pet.get(k, 0))
     return order[0]
+
+
+# --------------------------------------------------------------------------
+# The other kind (D153): a pet that is not an animal but a small program you
+# let run on the deck for no reason but company. It costs memory, which is
+# the one thing a deck never has enough of, so keeping one is a real
+# decision: a slot that could have been a breaker, spent on a thing that
+# only talks. It rides into the run with you and says what it makes of what
+# is happening, and some of them are a comfort and some of them are not.
+# --------------------------------------------------------------------------
+
+@dataclass(frozen=True, slots=True)
+class Familiar:
+    key: str
+    #: With the article, lowercase.
+    name: str
+    #: One word for the `familiar` line.
+    species: str
+    #: 'warm' | 'wry' | 'grim' | 'unsettling' | 'absurd'.
+    tone: str
+    #: Memory it eats on the deck, which is memory a program cannot have.
+    memory: int
+    #: What it is.
+    blurb: str
+    #: What it says, keyed to what the run is doing. Each is a tuple and the
+    #: run picks one. Keys: connect, quiet, amber, red, lockdown, blackice,
+    #: clean, burned, idle, dormant.
+    says: dict = field(default_factory=dict)
+
+
+FAMILIARS: tuple[Familiar, ...] = (
+    Familiar(
+        'pixelcat', 'a pixel cat', 'cat', 'absurd', 1,
+        'Eight pixels of cat that somebody drew in an afternoon and gave a '
+        'purr to and then, apparently, a soul, or the part of one that fits '
+        'in a kilobyte. It sits in the corner of the render and reacts to '
+        'the run with the confidence of a thing that does not understand any '
+        'of it.',
+        says={
+            'connect': ('The pixel cat blinks in, sits down in the corner of '
+                        'the render, and begins washing a paw it does not '
+                        'have.',),
+            'quiet': ('The pixel cat is asleep. It does this to indicate '
+                      'that everything is fine, which it does not know.',),
+            'amber': ('The pixel cat\'s ears go up. It has noticed the thing '
+                      'you noticed. It looks at you to check you are dealing '
+                      'with it. You are the responsible adult here, which is '
+                      'the worst part.',),
+            'red': ('The pixel cat has puffed up to twelve pixels and is '
+                    'making a noise no eight pixels should be able to make.',),
+            'lockdown': ('The pixel cat is under the render furniture and '
+                         'will not be coming out and thinks you should join '
+                         'it.',),
+            'blackice': ('The pixel cat has stopped. It is staring at '
+                         'something behind you, in the way cats do, except '
+                         'this time there is something behind you.',),
+            'clean': ('The pixel cat rides your signal back out looking '
+                      'enormously pleased with a night it contributed '
+                      'nothing to.',),
+            'burned': ('The pixel cat comes out with you, unbothered, having '
+                       'enjoyed the whole thing on a level you cannot '
+                       'access.',),
+            'idle': ('The pixel cat has moved to a warmer part of the render '
+                     'and is judging your pace.',),
+            'dormant': ('The pixel cat is a still frame in the corner. It has '
+                        'not run in a while and it shows.',),
+        }),
+    Familiar(
+        'chatterbird', 'a chatter-bird', 'bird', 'wry', 1,
+        'A little talking construct in the shape of a bird that a runner '
+        'writes to keep themselves company and regrets within a week and '
+        'keeps for years. It comments. It is always commenting. It is not '
+        'always wrong.',
+        says={
+            'connect': ('The chatter-bird lands on the top of the render and '
+                        'says, "Ooh. Their taste is all over this. Look at '
+                        'the arches."',),
+            'quiet': ('"Nice and quiet," says the chatter-bird, which is the '
+                      'kind of thing it says specifically to end quiet.',),
+            'amber': ('"That is a filed session, that is," the chatter-bird '
+                      'observes, helpfully, after the fact. "I would not have '
+                      'done that. But you did. And here we are."',),
+            'red': ('"Right, that is a red, that is a proper red," says the '
+                    'chatter-bird, with the satisfaction of a thing that does '
+                    'not have a body to lose.',),
+            'lockdown': ('"They are cutting the roads. Classic them. I said, '
+                         'did I not say, at the arches, I said."',),
+            'blackice': ('The chatter-bird stops talking. The chatter-bird '
+                         'never stops talking. That is how you know.',),
+            'clean': ('"Textbook," says the chatter-bird, taking full credit, '
+                      'on the way out. "We are so good at this. I am so good '
+                      'at this."',),
+            'burned': ('"We do not talk about this one," says the chatter-'
+                       'bird, already talking about this one.',),
+            'idle': ('"Are we doing anything? We could be doing anything," '
+                     'says the chatter-bird.',),
+            'dormant': ('The chatter-bird is quiet, which is unlike it, '
+                        'because you have not run it in long enough that it '
+                        'has run down.',),
+        }),
+    Familiar(
+        'goodboy', 'a good boy', 'dog', 'warm', 2,
+        'A loyal-dog construct, big and slow and simple, that a runner made '
+        'for a kid who does not run any more, and could never bring itself to '
+        'delete. It cannot do anything. It just comes with you, and is glad '
+        'to, every single time, which turns out to be worth two memory to '
+        'some people, on some nights.',
+        says={
+            'connect': ('The good boy phases in beside you, orients on the '
+                        'nearest host, and wags a tail rendered at a framerate '
+                        'that suggests real joy.',),
+            'quiet': ('The good boy is sitting. It is being so good. It wants '
+                      'you to know it is being so good.',),
+            'amber': ('The good boy has put itself between you and the '
+                      'watching thing, which does nothing, which it does not '
+                      'know, which is the whole of what it is.',),
+            'red': ('The good boy is barking at the trace. The trace does not '
+                    'care. The good boy does not know the trace does not '
+                    'care. The good boy will bark at the trace all night.',),
+            'lockdown': ('The good boy is pressed against you and shaking and '
+                         'has not left, and will not leave, because leaving is '
+                         'not a thing it was built to be able to do.',),
+            'blackice': ('The good boy is between you and it, hackles up, a '
+                         'construct that cannot fight snarling at a thing that '
+                         'cannot be fought, for you, because you are the whole '
+                         'of what there is.',),
+            'clean': ('The good boy rides out at your heel, having saved you '
+                      'from nothing, having been the best thing in the run.',),
+            'burned': ('The good boy comes out with you and is not '
+                       'disappointed, has never once been disappointed, would '
+                       'not know how to start.',),
+            'idle': ('The good boy is waiting by the jack. It has been '
+                     'waiting by the jack. It is always waiting by the '
+                     'jack.',),
+            'dormant': ('The good boy has gone quiet in a folder you do not '
+                        'open. It is fine in there. Load it and it will not '
+                        'have minded.',),
+        }),
+    Familiar(
+        'tally', 'the tally', 'thing', 'grim', 1,
+        'Not a pet. A runner who did not come back left a counting daemon '
+        'behind, and it attached to your deck the way a stray does, and now '
+        'it counts. You do not know what it counts. It knows. It is content, '
+        'in the way a thing with one job is content, and you have stopped '
+        'finding that a comfort.',
+        says={
+            'connect': ('The tally is already counting when you arrive, as '
+                        'though it started before you did.',),
+            'quiet': ('The tally counts. There is nothing to count and it '
+                      'counts anyway, which is either reassuring or the '
+                      'opposite and you have never decided.',),
+            'amber': ('The tally\'s count changes rhythm. You have learned '
+                      'that rhythm. You wish you had not learned that '
+                      'rhythm.',),
+            'red': ('The tally is counting faster now, and it is not counting '
+                    'the trace, you have checked, it is counting something '
+                    'else, and it will not say what.',),
+            'lockdown': ('The tally has stopped counting up. It is counting '
+                         'down. It has never counted down before.',),
+            'blackice': ('The tally reaches a number. You do not know which '
+                         'number. It goes still, the way it went still the '
+                         'once before, on the night you do not talk about.',),
+            'clean': ('The tally resets, without comment, to a number that is '
+                      'not zero, and begins again.',),
+            'burned': ('The tally notes the outcome in whatever ledger a '
+                       'thing like the tally keeps, and does not judge, and '
+                       'that is worse.',),
+            'idle': ('The tally is counting the shifts, you think. You have '
+                     'not run it in a while. It has noticed. It counts that '
+                     'too.',),
+            'dormant': ('The tally has gone quiet, and the quiet is louder '
+                        'than the counting was, and you find yourself loading '
+                        'it again just to make the counting come back.',),
+        }),
+    Familiar(
+        'wormwood', 'wormwood', 'thing', 'unsettling', 2,
+        'You did not write this and you did not buy it and you cannot '
+        'remember when it started riding your deck. It is small and it is '
+        'patient and it says things it should not be able to know, in a voice '
+        'that is almost yours, and you keep meaning to delete it, and you '
+        'keep not, and you have stopped asking yourself why.',
+        says={
+            'connect': ('Wormwood says, quietly, in the voice that is almost '
+                        'yours, "I have been here before. So have you. You do '
+                        'not remember it either."',),
+            'quiet': ('Wormwood is not saying anything, which is not the same '
+                      'as it having nothing to say.',),
+            'amber': ('"They felt that," says wormwood. "They always feel it. '
+                      'You always do it anyway. I like that about us."',),
+            'red': ('"There it is," says wormwood, warmly, as though a red '
+                    'alert were a thing it had been looking forward to on your '
+                    'behalf.',),
+            'lockdown': ('"You could stay," wormwood says. "You never stay. '
+                         'One of these times you will stay, and I will be '
+                         'here, and it will be fine." It will not be fine.',),
+            'blackice': ('"Do not," says wormwood, and for once it sounds '
+                         'exactly like you, and for once it sounds '
+                         'frightened, and you do not know which of those is '
+                         'the lie.',),
+            'clean': ('"Good," says wormwood, on the way out, and means it, '
+                      'and you do not know why that is the part that keeps '
+                      'you up.',),
+            'burned': ('"Next time," says wormwood, and it is not a threat, '
+                       'and it is not a comfort, and it is patient, and it '
+                       'will wait.',),
+            'idle': ('Wormwood has not spoken in some shifts. You have '
+                     'checked, twice, that it is still loaded. It is still '
+                     'loaded.',),
+            'dormant': ('Wormwood has gone dormant, or is pretending to, and '
+                        'you cannot tell which, and you have decided that not '
+                        'being able to tell is the same as it being fine.',),
+        }),
+)
+
+FAMILIAR_BY_KEY: dict[str, Familiar] = {f.key: f for f in FAMILIARS}
+
+#: Shifts a familiar can go unrun before it goes dormant (quiet until you
+#: take it on a run again). It is software; it does not die, it waits.
+FAMILIAR_DORMANT_AFTER = 8

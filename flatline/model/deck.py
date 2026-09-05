@@ -35,6 +35,10 @@ class Deck:
     #: What you call it (D62). Cosmetic, persisted, read by nothing but the
     #: screens that mention the deck.
     name: str = ''
+    #: The digital pet riding the deck (D153), or {} for none. {key,
+    #: name, charge}. It eats memory a program could have had, which is
+    #: the whole cost of keeping one; it does nothing else to the run.
+    familiar: dict = field(default_factory=dict)
     #: What the room is doing, for programs whose passives depend on it
     #: (D69). Set by the run; 'green' out in the city, where nothing is
     #: looking for you yet.
@@ -148,8 +152,14 @@ class Deck:
 
     @property
     def memory_used(self) -> int:
-        return sum(programs.BY_KEY[k].memory for k in self.loaded
+        used = sum(programs.BY_KEY[k].memory for k in self.loaded
                    if k in programs.BY_KEY)
+        if self.familiar:
+            from ..content import pets as pet_content
+            fam = pet_content.FAMILIAR_BY_KEY.get(self.familiar.get('key', ''))
+            if fam is not None:
+                used += fam.memory
+        return used
 
     @property
     def memory_free(self) -> int:
@@ -253,6 +263,8 @@ class Deck:
         out = {'parts': dict(self.parts), 'loaded': list(self.loaded),
                'damage': {k: v for k, v in self.damage.items() if v},
                'mods': {k: list(v) for k, v in self.mods.items() if v}}
+        if self.familiar:
+            out['familiar'] = dict(self.familiar)
         if self.name:
             out['name'] = self.name
         return out
@@ -261,6 +273,7 @@ class Deck:
     def from_dict(cls, d: dict) -> Deck:
         return cls(parts=dict(d.get('parts') or {}),
                    loaded=list(d.get('loaded') or []),
+                   familiar=dict(d.get('familiar') or {}),
                    damage={k: int(v) for k, v in (d.get('damage') or {}).items()},
                    mods={k: [m for m in (v or ())
                              if m in mod_content.BY_KEY]

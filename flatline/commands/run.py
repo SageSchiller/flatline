@@ -278,6 +278,7 @@ def cmd_jack_in(sess, args) -> None:
     c.rule('connected')
     c.say(f'[dim]Target: [/][err]{contract.target_data.name}[/][dim], posture '
           f'{int(contract.posture)}. Objective: {contract.objective}.[/]')
+    state.familiar_say('connect')
     c.blank()
     # Whose network this is, as a shape before it is a sentence. After five
     # runs a player knows the mark without reading the name under it.
@@ -460,6 +461,10 @@ def _resolve(sess) -> None:
             anim.disrupt(c, frames=6, height=5)
         anim.sever(c, c.transcript[-1] if c.transcript else '')
     c.say(verdict)
+    # The digital pet rode out with you and has an opinion (D153). Only on
+    # the two ordinary ways out; a severing or a flatline is not a moment it
+    # gets a line on.
+    state.familiar_say(summary['outcome'])
 
     # The card (D62): the one framed thing in the game, because this is the
     # one moment that is a result rather than a stream.
