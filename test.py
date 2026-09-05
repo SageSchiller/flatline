@@ -14450,9 +14450,11 @@ def test_what_you_keep_is_on_the_record() -> None:
     game.city.pet['since'] = int(game.city.shift) - 31
     game.char.deck.familiar = {'key': 'pixelcat', 'name': 'Echo', 'charge': 100, 'runs': 10}
     meta = dict(save_mod.META_DEFAULT); meta['titles'] = ['bloodprice', 'veteran', 'magpie']
+    meta['recorded'] = ['runner', 'clean']
     counts = record_world.counts(game, meta)
-    T.ok(counts['pet_shifts'] >= 30 and counts['familiar_runs'] == 10 and counts['titles_earned'] == 3,
-         f'the counts read the keep: {counts["pet_shifts"]}, {counts["familiar_runs"]}, {counts["titles_earned"]}')
+    T.ok(counts['pet_shifts'] >= 30 and counts['familiar_runs'] == 10 and counts['titles_earned'] == 5,
+         f'the counts read the keep, and the record\'s own names count too: '
+         f'{counts["pet_shifts"]}, {counts["familiar_runs"]}, {counts["titles_earned"]}')
     got = {e.key for e in record_world.earned(counts)}
     T.ok({'keeper', 'company', 'named'} <= got, f'and the three lines are earned: {sorted(got & {"keeper","company","named"})}')
     game.char.deck.familiar = {}
@@ -14460,6 +14462,54 @@ def test_what_you_keep_is_on_the_record() -> None:
          'the freight line has a title for each answer')
     regs = {t.register for t in record_content.TITLES}
     T.ok(regs >= {'heroic', 'vile', 'amusing'}, 'and the registers still span')
+
+
+def test_the_paper_and_the_first_answer() -> None:
+    """D162: the other side of a bounty (somebody took the paper on your
+    name, and Mara says so), and the rule the freight line taught: an
+    ending is never the first answer of a stage, anywhere in the content."""
+    T.section('the paper and the first answer')
+    from flatline.content import threads as thread_content, legacy
+    paper = next(t for t in thread_content.THREADS if t.key == 'paper')
+    first = paper.stages[0]
+    T.ok('bounty:1' in first.requires and 'met:mara' in first.requires,
+         'the paper is taken on a hunted runner Mara knows')
+    T.ok({c.key for c in first.choices} == {'ground', 'buy', 'front'},
+         'three things people do about it')
+    T.ok(all(f in legacy.EPILOGUE_BY_FLAG for f in ('paper_ground', 'paper_bought', 'paper_faced')),
+         'each has an epilogue line')
+    for t in thread_content.THREADS:
+        for st in t.stages:
+            if len(st.choices) > 1:
+                T.ok(not st.choices[0].ends,
+                     f'{t.key}.{st.key}: the first answer does not end the character')
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=201)
+    game.char.runs = 6
+    game.city.bounties['sixes'] = 900
+    game.story.meet('mara')
+    game.city.where = 'marrow'
+    sess, text = play(['look', 'rest', 'look'], game=game)
+    opened = False
+    for _ in range(8):
+        found = game.story.open_choice()
+        if found is None:
+            sess.console.start_capture(); sess.execute('rest'); sess.execute('look'); sess.console.end_capture()
+            continue
+        thread, stage = found
+        if thread.key == 'paper':
+            opened = True; break
+        for choice in stage.choices:
+            sess.console.start_capture(); sess.execute(f'choose {choice.key}'); sess.console.end_capture()
+            again = game.story.open_choice()
+            if again is None or again[1] is not stage:
+                break
+    T.ok(opened, 'the paper is taken on a hunted runner who knows Mara')
+    if opened:
+        game.char.credits = 100
+        sess.console.start_capture(); sess.execute('choose buy'); out = sess.console.end_capture()
+        T.ok('costs' in out and 'paper_bought' not in game.story.flags, 'buying it back costs money you may not have')
+        sess.console.start_capture(); sess.execute('choose front'); out = sess.console.end_capture()
+        T.ok('paper_faced' in game.story.flags and 'Hall' in out, 'being seen is free and reads the Hall')
 
 def manual_body(key: str) -> str:
     from flatline.content import manual
@@ -15774,6 +15824,7 @@ SUITES = (
     test_the_follower_never_stalls,
     test_every_origin_has_its_verb,
     test_what_you_keep_is_on_the_record,
+    test_the_paper_and_the_first_answer,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

@@ -77,6 +77,8 @@ line with the commands it typed out of everything the game registers
 parallel; they take a few minutes each:
 
 ```bash
+tools/playtest/run_all.sh     # all six in parallel, then the four lines that matter
+# or by hand:
 cd tools/playtest
 for f in q1_netrunner q2_fighter q3_face q4_explorer q5_drift; do python3 $f.py & done; wait
 grep -c "!!! CRASH\|!!! PERSONA ERROR" logs/q*_*.log

@@ -175,6 +175,16 @@ def ending(dissonance: int, flags=()) -> tuple[str, str]:
 #: fails the build on a decision this forgets, because an ending that does
 #: not mention what you did to Lark is an ending to somebody else's game.
 EPILOGUE: tuple[tuple[str, str], ...] = (
+    # The paper (D162)
+    ('paper_ground',
+     'When somebody took the paper on your name you went to ground and let '
+     'them walk your old routes, and the routes were all they found.'),
+    ('paper_bought',
+     'You bought the paper on your name back through Mara and kept it, folded, '
+     'with your name in somebody else\'s hand.'),
+    ('paper_faced',
+     'You sat in the Hall where the collector could see you seeing them, and '
+     'the number on your name was never worth what it said again.'),
     # The quiet door (D159)
     ('left_quietly',
      'You left on the freight line with nothing and no name, and the city '

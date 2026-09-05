@@ -339,6 +339,15 @@ THREADS: tuple[Thread, ...] = (
                             'lark_saved'),
                   sets=('dw_asked',),
                   choices=(
+                      Choice('stay', 'Say no',
+                             'You say no, the way the Archivist was told no: '
+                             'plainly, once.\n\n'
+                             'It does not ask again. That is the whole of '
+                             'what happens, and for a long time afterwards it '
+                             'is the loudest thing in any network you run: '
+                             'the specific quiet of something that could '
+                             'have, and did not.',
+                             sets=('dw_stayed',)),
                       Choice('go', 'Go under',
                              'You jack in with no contract and nothing loaded '
                              'and you do not jack out.\n\n'
@@ -352,15 +361,6 @@ THREADS: tuple[Thread, ...] = (
                              'it, and right about the Tuesday.',
                              sets=('dw_under',),
                              ends='went under'),
-                      Choice('stay', 'Say no',
-                             'You say no, the way the Archivist was told no: '
-                             'plainly, once.\n\n'
-                             'It does not ask again. That is the whole of '
-                             'what happens, and for a long time afterwards it '
-                             'is the loudest thing in any network you run: '
-                             'the specific quiet of something that could '
-                             'have, and did not.',
-                             sets=('dw_stayed',)),
                   )),
         )),
 

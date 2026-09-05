@@ -2485,6 +2485,13 @@ def check_threads(rep: Report) -> None:
             for choice in st.choices:
                 rep.check(bool(choice.label and choice.text),
                           f'{sw}/{choice.key}', 'is empty')
+                # An ending is never the first answer (D162): the first cut
+                # of the freight line put the box out of the city first, and
+                # five of six campaigns took it by default.
+                rep.check(not (choice.ends and choice is st.choices[0]
+                               and len(st.choices) > 1),
+                          f'{sw}/{choice.key}',
+                          'ends the character and is the first answer')
                 for faction in choice.rep:
                     rep.check(faction in factions.BY_KEY, f'{sw}/{choice.key}',
                               f'unknown faction {faction!r}')

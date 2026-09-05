@@ -1101,6 +1101,70 @@ BUYOFF = 2500
 #: Threads that sit beside a district's own (D65 depth): a second story in
 #: a place that already has one. Merged into `threads.THREADS` with the rest.
 MORE_THREADS: tuple[Thread, ...] = (
+    # -- The paper (D162) ----------------------------------------------------
+    # The other side of a bounty: the freight line is the way out, this is
+    # the thing coming in. Somebody has taken the paper on your name, and
+    # Mara, who placed the paper on everybody else, tells you so.
+    Thread(
+        'paper', 'The Paper',
+        'Somebody has taken the paper on your name, and is coming to collect it.',
+        stages=(
+            Stage('taken', 'Somebody took the paper',
+                  'Mara says it the way she says everything, into the book '
+                  'and not to you. "Somebody took the paper on you. A '
+                  'runner, not a firm. They asked me where you drink." A '
+                  'pause the length of a line being written. "I told them '
+                  'you do not."'
+                  '\n\nA runner who takes a bounty collects it in person, '
+                  'which means a night, a doorway, and a number that has '
+                  'your face on it. There are three things people do about '
+                  'that, and Mara has watched all three.',
+                  requires=('bounty:1', 'runs:6', 'met:mara'),
+                  sets=('paper_taken',),
+                  choices=(
+                      Choice('ground', 'Go to ground',
+                             'You stop being where you are. A different bed, '
+                             'a different market, the deck off for three '
+                             'nights. Whoever took the paper walks the routes '
+                             'you used to walk and finds the routes. It '
+                             'costs you the week and it costs them the '
+                             'certainty, and certainty is what a collector '
+                             'is paid in.',
+                             sets=('paper_ground',)),
+                      Choice('buy', 'Buy the paper back',
+                             'Mara knows what they were promised and she '
+                             'knows what they would take instead, which is '
+                             'more, in cash, tonight. The paper comes back '
+                             'through her, folded, with your name on it in '
+                             'somebody else\'s hand. You keep it. Everybody '
+                             'keeps theirs.',
+                             sets=('paper_bought',),
+                             credits=-2400),
+                      Choice('front', 'Be seen',
+                             'You go to the Hall and you sit where you can '
+                             'be found and you let the room know you know. '
+                             'A collector wants a doorway, not an audience. '
+                             'They come in, they see you seeing them, and '
+                             'they have a drink instead, because the '
+                             'number on the paper was for a surprise and '
+                             'there is not going to be one.',
+                             sets=('paper_faced',),
+                             rep={'fixers': 6}),
+                  ),
+                  where='marrow'),
+            Stage('kept', 'What the paper cost',
+                  'Mara does not bring it up again, which is how you know it '
+                  'is over. The book has a line in it that she does not '
+                  'read to you. Somewhere a runner is a week older and no '
+                  'richer, and the number on your name is the same number, '
+                  'and everybody in the room knows what it is worth now, '
+                  'which is less than it says.',
+                  requires=('paper_taken',),
+                  any_of=('paper_ground', 'paper_bought', 'paper_faced'),
+                  after=3,
+                  where='marrow'),
+        )),
+
     # -- The quiet door (D159) ---------------------------------------------
     # A number on the name and less in the account than a new name costs
     # is the one state the door had nothing for: a bounty does not cool,

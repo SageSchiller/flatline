@@ -46,7 +46,10 @@ def counts(game, meta: dict) -> dict:
         'pet_shifts': (max(0, int(city.shift) - int(city.pet.get('since', city.shift)))
                        if city.pet else 0),
         'familiar_runs': int((char.deck.familiar or {}).get('runs', 0)),
-        'titles_earned': len((meta or {}).get('titles') or ()),
+        'titles_earned': (len((meta or {}).get('titles') or ())
+                          + sum(1 for k in ((meta or {}).get('recorded') or ())
+                                if k in record_content.BY_KEY
+                                and record_content.BY_KEY[k].title)),
     }
     for key, value in live.items():
         if key in out:
