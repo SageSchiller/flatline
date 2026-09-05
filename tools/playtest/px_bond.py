@@ -14,7 +14,7 @@ target = min([r for r in g.city.rivals if r.alive], key=lambda r: getattr(r.data
 key = target.key
 p.mark(f'the runner is {target.name} ({key}); crew up and run beside them')
 trace = []
-for j in range(40):
+for j in range(90):
     if g.over: break
     r = g.city.rival(key)
     if r is None or not r.alive:
@@ -24,13 +24,23 @@ for j in range(40):
     # earn to afford hiring
     if 'siphon' not in g.char.library and 'siphon' not in g.char.deck.loaded and g.char.credits > 2500:
         p.do('market program'); p.do('buy siphon')
-    # crew them if we can, else hire per job
+    # crew them if we can, else hire per job: and make sure it TOOK
     if not g.city.crew:
         o = p.do(f'crew take {key}')
-        if o.lstrip().startswith('✗'):
-            p.do(f'hire {key}'); p.settle(prefer=('yes',))
+        if 'retainer' in o and '✗' not in o:
+            # they will crew: pay the retainer for real
+            if g.char.credits < 12000:
+                p.shortcut(f'credits {g.char.credits} -> 14000 to pay the retainer (the bond is the test)')
+                g.char.credits = 14000
+            o = p.do(f'crew take {key} --confirm'); p.settle(prefer=('yes',))
+            p.mark(f'crew take: {"took" if g.city.crew else "did not take: " + " ".join(o.split())[:160]}')
+        if '✗' in o and not g.city.crew:
+            if g.char.credits < 6000:
+                p.shortcut(f'credits {g.char.credits} -> 8000 to afford the hire (the bond is the test)')
+                g.char.credits = 8000
+            p.do(f'hire {key} --confirm'); p.settle(prefer=('yes',))
             if g.city.hired != key:
-                p.do(f'hire {key} --confirm'); p.settle(prefer=('yes',))
+                p.mark(f'HIRE FAILED for {key}: ' + ' '.join(p.do(f'hire {key}').split())[:160])
     p.play_job(); p.answer_choices()
     r = g.city.rival(key)
     trace.append((g.city.shift, r.disposition, r.jobs, r.bond or '-', 'crew' if g.city.crew else ('hired' if g.city.hired==key else '-')))

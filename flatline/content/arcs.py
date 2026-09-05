@@ -1565,7 +1565,7 @@ MORE_THREADS: tuple[Thread, ...] = (
                   'Nobody decided to do this. It is what a city does with a '
                   'name it has heard attached to enough things: it stops being '
                   'a person and becomes a way of measuring the thing they did.',
-                  requires=('record:15',),
+                  requires=('record:10',),
                   sets=('reckoner_heard',)),
             Stage('meet', 'Somebody has been keeping the count',
                   'It turns out somebody has been keeping the actual count, on '
@@ -1578,7 +1578,7 @@ MORE_THREADS: tuple[Thread, ...] = (
                   'are not many and none of them lasted, and I would like to '
                   'have got yours down right before the same thing happens to '
                   'you. Tell me if I have any of it wrong."',
-                  requires=('reckoner_heard', 'record:20'),
+                  requires=('reckoner_heard', 'record:15'),
                   sets=('reckoner_met',),
                   choices=(
                       Choice('correct', 'Put them right where they are wrong',

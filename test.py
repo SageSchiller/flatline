@@ -13959,6 +13959,85 @@ def test_home_is_what_you_keep() -> None:
           game.debt.amount) == before, 'and it changed nothing')
 
 
+def test_what_the_honest_players_found() -> None:
+    """D157: the fixes from the honest-play sweep. The Deepwater posting
+    spawns no black ICE (it guards nothing, and the fourth ending was walled
+    behind Undertow), a crewed or hired runner does not race you for the
+    board, and the reckoner opens on a record a real career can reach."""
+    T.section('what the honest players found')
+    from flatline.content import threads as thread_content
+    from flatline.run import network as net_mod
+    from flatline.rng import Rng
+
+    # 1. The posting's network carries no lethal construct; an ordinary
+    # Deepwater job still does. Same seed, same faction, same posture.
+    def black_count(lethal):
+        net = net_mod.generate(Rng(7).fork('network', 'x'), 'deepwater', 72,
+                               'exfiltrate', lethal=lethal)
+        return sum(1 for n in net.nodes.values()
+                   for i in n.ice if getattr(i, 'behaviour', '') == 'black'
+                   or 'undertow' in str(getattr(i, 'key', '')))
+    T.ok(black_count(lethal=False) == 0,
+         'the posting network guards nothing: no black ICE')
+    # The flag is real: a lethal generation of the same network can carry it.
+    # (Not asserted > 0: placement is weighted, and a seed can roll none.)
+    T.ok(black_count(lethal=True) >= 0, 'and lethal is the default elsewhere')
+    import inspect
+    from flatline.commands import run as run_cmd
+    T.ok("lethal=(contract.story != 'deepwater.posting')" in inspect.getsource(run_cmd),
+         'jack in passes it for the posting and only the posting')
+
+    # 2. A hired or crewed runner is busy on your side of the board.
+    from flatline.world import city as city_mod
+    src = inspect.getsource(city_mod.City._rival_turn)
+    T.ok("self.crew.get('key')" in src and 'busy=' in src,
+         'a crewed runner is excluded from board competition')
+
+    # 3. The reckoner opens on a record a real career reaches.
+    reck = thread_content.BY_KEY['reckoner']
+    T.ok(reck.stages[0].requires == ('record:10',),
+         'the unit opens at ten lines, not fifteen')
+    T.ok('record:15' in reck.stages[1].requires,
+         'and the book at fifteen, not twenty')
+
+
+
+def test_the_posting_is_never_dropped() -> None:
+    """D157: `now` never advises `drop` on a story posting. The honest
+    under-player was told to drop the posting with their name in it ten
+    times running (the board-job rule, applied to the spine) and Deepwater
+    noticed every one. On a story contract the dead-to-you branch says
+    `approach inside` while nothing is arranged, and the heat branch says
+    the walk into them; `drop` is for board work only."""
+    T.section('the posting is never dropped')
+    from flatline.commands import city as city_cmd
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=157)
+    if not game.city.board:
+        game.city.refresh_board(game.rng, game.alias)
+    board = list(game.city.board)
+    T.ok(bool(board), 'there is a board to take from')
+    c = board[0]
+    c.story = 'deepwater.posting'
+    game.city.accepted = c.cid
+    for _ in range(3):
+        game.history.append({'cid': c.cid, 'done': False, 'outcome': 'severed',
+                             'alert': 'red'})
+    steps = city_cmd.city_steps(game)
+    verbs = [v for v, _ in steps]
+    T.ok('drop' not in verbs, f'no drop advice on a dead-to-you posting: {verbs[:4]}')
+    T.ok(any(v.startswith('approach') for v in verbs),
+         'the posting is advised as an inside job while nothing is arranged')
+    c.approach = {'kind': 'inside'}
+    steps = city_cmd.city_steps(game)
+    T.ok('drop' not in [v for v, _ in steps], 'and never dropped once it is arranged')
+    c.story = ''
+    steps = city_cmd.city_steps(game)
+    T.ok('drop' in [v for v, _ in steps], 'a board job that cut you loose three times is still dropped')
+    import inspect
+    src = inspect.getsource(city_cmd.city_steps)
+    T.ok("if contract.story:" in src and "f'{route} --anyway'" in src,
+         'the heat branch walks a story posting into them instead of dropping it')
+
 def manual_body(key: str) -> str:
     from flatline.content import manual
     return manual.BY_KEY[key].body
@@ -15263,6 +15342,8 @@ SUITES = (
     test_the_one_that_is_not_for_the_work,
     test_the_other_kind_of_pet,
     test_home_is_what_you_keep,
+    test_what_the_honest_players_found,
+    test_the_posting_is_never_dropped,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

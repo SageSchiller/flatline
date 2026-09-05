@@ -43,3 +43,22 @@ End 1,163c, range 95-6,436c, 6 of 50 cycles under 500c: money stays a real
 constraint. Sinks: pet feed 360c and clinic 585c over 50 cycles. Pet feed
 (7.5c/feed) is trivial, which is acceptable (a pet should not bankrupt you).
 No action needed unless you want feed to matter economically.
+
+## Resolution (D157, same day)
+
+Every wall above is closed on the build after D157, by play:
+
+- Under: the posting completes (`pu_under.py`, posting DONE, chain on to
+  the offer and settled, 0 crashes). Three causes, all fixed in the game:
+  the posting network spawned black ICE on the objective (`generate(lethal=)`),
+  the persona's route was heat-blocked and it ignored the refusal
+  (harness `do_step` now takes the out the refusal names), and `now`
+  advised `drop` on the posting ten times running (`now` never advises
+  `drop` on a story contract now; inside job or the walk into them).
+- Bond: partner by shift 27 after 10 jobs at +67 (`px_bond.py` pays the
+  retainer for real; cooperative gains +8/+3; crew excluded from board
+  competition).
+- Reckoner: opens on 10 record lines, speaks on 15.
+- Finds: left as designed (career-gated); a longer persona is the measure.
+- Harness: `drive_run` trusts the brief's first concrete step; the driver
+  that second-guessed it finished fewer runs.

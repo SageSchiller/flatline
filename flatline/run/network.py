@@ -270,7 +270,7 @@ CROWD_CEILING = 1.10
 
 def generate(rng: Stream, faction: str, posture: int,
              objective: str = 'exfiltrate', size_mod: float = 1.0,
-             grudge: str = '') -> Network:
+             grudge: str = '', lethal: bool = True) -> Network:
     """Build a network. Deterministic given `rng`, `faction`, and `posture`."""
     fac = factions.BY_KEY[faction]
     scale = posture / 50.0
@@ -414,7 +414,7 @@ def generate(rng: Stream, faction: str, posture: int,
             count += 1
             chance *= 0.35
         for _ in range(count):
-            behaviour = _pick_behaviour(rng, node, scale, style)
+            behaviour = _pick_behaviour(rng, node, scale, style, lethal)
             pool = ice_content.available(behaviour, faction)
             if not pool and behaviour == 'black':
                 # D63 b: seven factions have no lethal construct of their
@@ -778,7 +778,7 @@ def _link(a: Node, b: Node) -> None:
 
 
 def _pick_behaviour(rng: Stream, node: Node, scale: float,
-                    style: dict | None = None) -> str:
+                    style: dict | None = None, lethal: bool = True) -> str:
     """Which kind of countermeasure fits this node.
 
     Weighted by node type rather than uniform, because a Coffin on a perimeter
@@ -800,8 +800,14 @@ def _pick_behaviour(rng: Stream, node: Node, scale: float,
         weights['hunter'] *= 2.0
         weights['trap'] *= 1.3
         weights['herder'] *= 1.4
-    if node.zone == 'core' or node.type == 'vault':
+    if (node.zone == 'core' or node.type == 'vault') and lethal:
         weights['black'] = 1.1 * scale * style.get('black', 1.0)
+    # A network that guards nothing (D157): the Deepwater posting is the
+    # one the story says has nothing arranged around anything, and it
+    # was spawning Undertow on the objective with a cover check no
+    # mid-game build could pass, which walled the fourth ending behind
+    # a run nobody could finish. `lethal=False` keeps the black ICE off
+    # it; every other Deepwater job keeps its signature construct.
     if node.type == 'honeypot':
         # Honeypots are soft on purpose, right up to the part that is not.
         weights = {'sentry': 4.0, 'trap': 2.5, 'probe': 0.5,

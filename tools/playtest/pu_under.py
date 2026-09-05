@@ -40,15 +40,25 @@ while 'did:deepwater.posting' not in g.story.flags and tries < 10 and not g.over
     tries += 1
     story = [c for c in g.city.board if c.story == 'deepwater.posting']
     if g.city.current is not None and g.city.current.story == 'deepwater.posting':
+        # a payload has to be LOADED, not just owned: make room for it
+        if 'siphon' not in g.char.deck.loaded:
+            if 'siphon' not in g.char.library:
+                p.do('market program'); p.do('buy siphon')
+            while g.char.deck.memory_free < 2 and g.char.deck.loaded:
+                drop = [k for k in g.char.deck.loaded if k != 'sable'] or g.char.deck.loaded
+                p.do(f'unload {drop[-1]}')
+            p.do('load siphon')
+        if not (g.city.current.approach or {}).get('kind'):
+            p.do('approach inside --confirm'); p.settle(prefer=('yes',))
         # travel to it and run it with the strong driver
         for _ in range(4):
             from flatline.commands import city as CC
             st = CC.city_steps(g)
             if not st or g.city.current is None or st[0][0].startswith('jack'): break
             if '<' in st[0][0]: break
-            p.do(st[0][0]); p.settle()
+            p.do_step(st[0][0]); p.settle()
         o = p.do('jack in')
-        if o.lstrip().startswith('✗'): p.do('jack in --force')
+        if '✗' in o: p.do('jack in --force')
         if p.sess.run is not None:
             p.drive_run()
     elif story:

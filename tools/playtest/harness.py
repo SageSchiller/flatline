@@ -109,12 +109,13 @@ class Play:
         if self.sess.run is not None:
             self.do('jack out'); self.settle()
 
-    def drive_run(self, cap=60):
-        """Play a run toward its objective the way a competent runner would:
-        scan, enumerate reachable hosts, crack what is closed, move toward the
-        objective node, and do the objective verb when standing on it. Bails
-        out when the trace is high or nothing can be done. Returns True if the
-        objective was met."""
+    def drive_run(self, cap=80):
+        """Play a run the way the game's own brief says to: do its first
+        concrete step every time. The brief already knows the route, the
+        door, the objective verb and the sealed-pull fallback; a driver that
+        second-guesses it finishes fewer runs than one that trusts it. Bails
+        only when the brief itself says out, or the trace is spent with no
+        finishing move in hand. Returns True if the objective was met."""
         run = self.sess.run
         if run is None:
             return False
@@ -122,64 +123,18 @@ class Play:
             run = self.sess.run
             if run is None:
                 break
-            if run.objective_met():
-                self.do('jack out'); self.settle(); return True
-            # too hot to continue
-            if getattr(run, 'trace_pct', 0) > 0.85:
-                self.do('jack out'); self.settle(); break
             b = run.brief()
-            # follow a concrete brief step if it names a real move
-            if b.steps:
-                step = b.steps[0]
-                head = step.split()[0]
-                if head in ('observe', 'pull', 'push', 'wipe', 'brace',
-                            'mask', 'scrub', 'jack') and '<' not in step:
-                    self.do(step); self.settle()
-                    continue
-                if head == 'jack':
-                    self.do('jack out'); self.settle(); break
-            # otherwise, open the network up
-            self.do('scan')
-            run = self.sess.run
-            if run is None:
-                break
-            here = run.here
-            obj = run.net.objective_node
-            moved = False
-            for uid, node in list(run.net.nodes.items()):
-                if self.sess.run is None:
-                    break
-                if not getattr(node, 'known', False):
-                    continue
-                if uid == here:
-                    continue
-                if uid not in run.node.edges:
-                    continue
-                if not getattr(node, 'mapped', False):
-                    self.do(f'probe {uid}')
-                if self.sess.run is None:
-                    break
-                closed = [sv for sv in getattr(node, 'services', [])
-                          if not getattr(sv, 'cracked', False)]
-                if closed:
-                    self.do(f'crack {uid} {closed[0].key}')
-                if self.sess.run is None:
-                    break
-                if getattr(node, 'open', False) and (uid == obj or not moved):
-                    self.do(f'connect {uid}')
-                    moved = True
-                    break
-            if not moved and self.sess.run is not None:
-                # on the objective with the door open: do the job
-                if run.here == obj:
-                    b = self.sess.run.brief()
-                    if b.steps and '<' not in b.steps[0]:
-                        self.do(b.steps[0]); self.settle()
-                    else:
-                        self.do('observe'); self.settle()
-                else:
-                    self.do('scan')
-            self.settle()
+            if b.done or run.objective_met():
+                self.do('jack out'); self.settle(); return True
+            step = b.steps[0] if b.steps else ''
+            on_obj = run.here == run.net.objective_node
+            if getattr(run, 'trace_pct', 0) > 0.9 and not (step and on_obj):
+                self.do('jack out'); self.settle(); break
+            if not step or '<' in step:
+                self.do('scan'); self.settle(); continue
+            if step == 'jack out':
+                self.do('jack out'); self.settle(); break
+            self.do(step); self.settle()
         if self.sess.run is not None:
             self.do('jack out'); self.settle()
         return False
@@ -203,6 +158,24 @@ class Play:
             done.append(cmd)
         return done
 
+    def do_step(self, step, note=''):
+        """Do a city step the way a player would: if the street refuses it
+        for heat, take the out the refusal names (an arrangement if they
+        will take the money, otherwise going anyway), then carry on."""
+        out = self.do(step, note=note)
+        if '\u2717' in out and '--anyway' in out:
+            m = re.search(r'`arrange (\w+)`', out)
+            if m and self.g.char.credits >= 400:
+                o2 = self.do(f'arrange {m.group(1)} --confirm'); self.settle()
+                if '\u2717' not in o2:
+                    out = self.do(step, note='after arranging')
+                    if '\u2717' not in out:
+                        return out
+            m = re.search(r'`(travel \w+ --anyway)`', out)
+            if m:
+                out = self.do(m.group(1), note='heat: going anyway'); self.settle()
+        return out
+
     def play_job(self, city_cap=14):
         """One job the way `now` would have you do it. True if a run finished."""
         before = self.g.char.runs
@@ -222,7 +195,7 @@ class Play:
                     continue
                 self.do('rest'); self.settle()
                 continue
-            self.do(steps[0][0], note=f'now says: {steps[0][1][:70]}')
+            self.do_step(steps[0][0], note=f'now says: {steps[0][1][:70]}')
             self.settle()
         return self.g.char.runs > before
 

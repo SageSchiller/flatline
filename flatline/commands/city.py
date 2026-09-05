@@ -2896,10 +2896,22 @@ def city_steps(game) -> list[tuple[str, str]]:
         else:
             reason = (f'the room found you at {last.get("alert", "red")} '
                       f'each time, which is the trace and not the doors')
-        steps.append(('drop',
-                      f'{contract.title} has cut you loose {len(tries)} '
-                      f'times now: {reason}. Drop it and take something '
-                      f'softer, or come back with more than you carry'))
+        # Never `drop` on a story posting (D157). The posting with your
+        # name in it was advised dropped by the same rule that drops a
+        # board job, and the honest player who followed the advice dropped
+        # it ten times running, and Deepwater noticed every one. The way
+        # in there was said at the door: nothing is arranged around it.
+        if contract.story and not (getattr(contract, 'approach', None) or {}).get('kind'):
+            steps.append(('approach inside',
+                          f'{contract.title} has cut you loose {len(tries)} '
+                          f'times now: {reason}. It has your name in it, '
+                          f'and nothing is arranged around it: come up '
+                          f'past the wall as an inside job, not through it'))
+        elif not contract.story:
+            steps.append(('drop',
+                          f'{contract.title} has cut you loose {len(tries)} '
+                          f'times now: {reason}. Drop it and take something '
+                          f'softer, or come back with more than you carry'))
     need = OBJECTIVE_PROGRAM.get(contract.objective)
     if need and not game.char.deck.has_category(need):
         owned = [programs.BY_KEY[k] for k in game.char.library
@@ -3056,12 +3068,23 @@ def city_steps(game) -> list[tuple[str, str]]:
                        if bounty else
                        f'{fac.short} are hunting you at heat {hot}, which '
                        f'cools about a point a shift')
-                steps.append(('drop',
-                              f'{why}, and the job walks through '
-                              f'{districts.BY_KEY[first].name}. Drop it and '
-                              f'take work that does not, or `{route} '
-                              f'--anyway` walks into them and the street '
-                              f'prices it'))
+                if contract.story:
+                    # The posting with your name in it is not work you
+                    # take somewhere else (D157): the walk into them is
+                    # the honest step, and the street prices it.
+                    steps.append((f'{route} --anyway',
+                                  f'{why}, and the job walks through '
+                                  f'{districts.BY_KEY[first].name}. This '
+                                  f'one has your name in it and does not '
+                                  f'wait: walk into them and the street '
+                                  f'prices it'))
+                else:
+                    steps.append(('drop',
+                                  f'{why}, and the job walks through '
+                                  f'{districts.BY_KEY[first].name}. Drop it and '
+                                  f'take work that does not, or `{route} '
+                                  f'--anyway` walks into them and the street '
+                                  f'prices it'))
                 if game.char.credits >= cost:
                     steps.append(('burn --confirm',
                                   f'{why}, and the job walks through them. '

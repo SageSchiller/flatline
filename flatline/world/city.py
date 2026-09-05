@@ -598,7 +598,13 @@ class City:
             rng('rivals'), self.rivals,
             [c for c in self.board if not c.held], self.posture, self.shift,
             protected=self.accepted,
-            busy={self.hired} if self.hired else None)
+            # Somebody hired for tonight or crewed with you for good is on
+            # your side of the board, not racing you for it (D157): a crew
+            # member who kept taking work against you lost three
+            # disposition a job and could never reach the partner line.
+            busy=({self.hired} if self.hired else set())
+                 | ({self.crew.get('key')} if self.crew.get('key') else set())
+                 or None)
         if taken:
             gone = {c.cid for c in taken}
             self.board = [c for c in self.board if c.cid not in gone]

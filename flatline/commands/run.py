@@ -173,7 +173,8 @@ def cmd_jack_in(sess, args) -> None:
     stream = game.rng.fork('network', contract.cid)
     net = net_mod.generate(stream, contract.target, int(contract.posture),
                            contract.objective, contract.size_mod,
-                           grudge=game.city.grudges.get(contract.target, ''))
+                           grudge=game.city.grudges.get(contract.target, ''),
+                           lethal=(contract.story != 'deepwater.posting'))
     if contract.label and net.objective_asset:
         # A scene named the record. The brief, the node and the haul all
         # call it that, so the run is about the thing the story said (D52).
@@ -773,7 +774,11 @@ def _resolve(sess) -> None:
                         other.adjust_disposition(-6)
                 game.city.news.append(f'{ally["name"]} died on a job with you.')
             else:
-                who.adjust_disposition(6 if summary.get('objective') else 2)
+                # A night run beside somebody is the thing that makes a
+                # partner (D145, D157): the sweep found it climbing but
+                # slowly, thirty-eight by shift fifty-eight, so it is a
+                # little more now and lands inside a normal campaign.
+                who.adjust_disposition(8 if summary.get('objective') else 3)
                 # A job you actually ran together counts toward the
                 # bond (D145). The partner bond wanted four jobs, and
                 # `rival.jobs` only ever counted the board work a rival
