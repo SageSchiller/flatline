@@ -6315,6 +6315,95 @@ def _pets_here(game):
     return out
 
 
+@command('home', 'What you are keeping alive, and what you are keeping up.',
+         contexts=('city',), group='character', aliases=('keep', 'life'),
+         usage='home',
+         detail=(
+                'The net side of you is the [fg]deck[/]; this is the other '
+                'side (D156), the one you have to come home to. It gathers '
+                'in one place everything that depends on you or costs you '
+                'between runs: the safehouse, the pet and how it is, the '
+                'familiar on the deck, any standing arrangement, a debt, and '
+                'anybody crewed with you. It changes nothing; it points at '
+                'the commands that do.'))
+def cmd_home(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    from ..content import pets as pet_content, safehouses, factions as fac
+    from ..world import pets as pet_world
+    city = game.city
+    c.header('Home', 'what you keep')
+
+    house = city.safehouse
+    prop = safehouses.BY_KEY.get(house.get('key', '')) if house else None
+    c.blank()
+    if prop is not None and not house.get('burned'):
+        where = house.get('district', '')
+        district_name = (districts.BY_KEY[where].name
+                         if where in districts.BY_KEY else '')
+        c.raw(f'  [accent]safehouse[/]  [fg]{prop.name}[/]'
+              + (f' [dim]in {district_name}[/]' if district_name else ''))
+    else:
+        c.raw('  [accent]safehouse[/]  [dim]none. a chair in the district you '
+              'jacked in from. `safehouse`[/]')
+
+    if city.pet:
+        animal = pet_content.BY_KEY.get(city.pet.get('key', ''))
+        name = city.pet.get('name', animal.name if animal else 'it')
+        mood = pet_content.mood(city.pet)
+        word = {'content': 'well', 'ok': 'all right', 'low': 'wanting something',
+                'failing': 'not all right'}.get(mood, '')
+        need = ''
+        if mood in ('low', 'failing'):
+            need = f'  [warn]needs {pet_content.worst_need(city.pet)}[/]'
+        c.raw(f'  [accent]pet[/]       [fg]{name}[/] [dim]({animal.species if animal else "?"}, '
+              f'{word})[/]{need}')
+    else:
+        c.raw('  [accent]pet[/]       [dim]none. `pet get` where strays are[/]')
+
+    fam_state = game.char.deck.familiar
+    if fam_state:
+        fam = pet_content.FAMILIAR_BY_KEY.get(fam_state.get('key', ''))
+        name = fam_state.get('name', fam.name if fam else 'it')
+        charge = int(fam_state.get('charge', pet_content.FAMILIAR_FULL))
+        state = ('dormant' if charge <= 0 else 'low, wants a run'
+                 if charge <= pet_content.FAMILIAR_LOW else 'charged')
+        c.raw(f'  [accent]familiar[/]  [fg]{name}[/] [dim]({fam.memory if fam else "?"}mem, '
+              f'{state})[/]')
+    else:
+        c.raw('  [accent]familiar[/]  [dim]none. `familiar get` for company on a '
+              'run[/]')
+
+    if city.arrangements:
+        for key, arr in city.arrangements.items():
+            short = fac.BY_KEY[key].short if key in fac.BY_KEY else key
+            c.raw(f'  [accent]arranged[/]  [fg]{short}[/] [dim]{arr.get("rate", 0):,}c '
+                  f'a cycle, their streets safer for you[/]')
+    else:
+        c.raw('  [accent]arranged[/]  [dim]nothing standing. `arrange` to pay a '
+              'faction for their streets[/]')
+
+    debt = game.debt
+    if debt.owed:
+        short = fac.BY_KEY[debt.lender].short if debt.lender in fac.BY_KEY else debt.lender
+        c.raw(f'  [accent]owe[/]       [warn]{debt.amount:,}c[/] [dim]to {short}. '
+              f'`debt`[/]')
+    else:
+        c.raw('  [accent]owe[/]       [dim]nobody. keep it that way[/]')
+
+    if city.crew:
+        r = city.rival(city.crew.get('key', ''))
+        if r is not None:
+            runs = int(city.crew.get('runs', 0))
+            c.raw(f'  [accent]crew[/]      [fg]{r.name}[/] [dim]runs with you, '
+                  f'{runs} night{"s" if runs != 1 else ""} in[/]')
+    else:
+        c.raw('  [accent]crew[/]      [dim]you run alone. `crew` or `hire`[/]')
+
+    c.blank()
+    c.say('[dim]None of it wins a run. All of it is why you come back from '
+          'one. It changes on the shift tick, whether you look or not.[/]')
+
+
 @command('familiar', 'A digital pet that rides the deck and talks on runs.',
          contexts=('city',), group='character', aliases=('construct',),
          usage='familiar [get <name>|tend|drop|name <name>]',

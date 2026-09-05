@@ -1475,7 +1475,7 @@ TOPICS: tuple[Topic, ...] = (
         'heat physical. Everywhere else, being wanted is a multiplier on a '
         'roll. Here it is somebody in your room.',
         see=('heat', 'money', 'city', 'legacy'),
-        commands=('safehouse', 'rest'),
+        commands=('home', 'safehouse', 'rest'),
         covers=('safehouses',),
         terms=('storage', 'stash', 'hideout', 'home', 'base', 'raid'),
         group='city'),

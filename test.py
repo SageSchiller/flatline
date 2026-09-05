@@ -13909,6 +13909,56 @@ def test_the_other_kind_of_pet() -> None:
     save_mod.delete('famtest')
 
 
+def test_home_is_what_you_keep() -> None:
+    """D156: one screen for the meat-side life. Summarises the safehouse, the
+    pet, the familiar, arrangements, a debt and a crew, changes nothing, and
+    never crashes on a full or an empty life."""
+    T.section('home is what you keep')
+    from flatline.world import pets as pet_world
+    from flatline.content import safehouses
+
+    def fresh(seed=7):
+        char = Character.from_origin('gutter', 't')
+        game = Game.new(char, seed=seed)
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    def do(sess, con, cmd):
+        con.start_capture()
+        sess.execute(cmd)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    # An empty life reads as a set of invitations, not a wall of none.
+    sess, con, game = fresh()
+    out = do(sess, con, 'home')
+    for line in ('safehouse', 'pet', 'familiar', 'arranged', 'owe', 'crew'):
+        T.ok(line in out, f'home lists {line} even when empty')
+    T.ok('run alone' in out and 'nobody' in out, 'and reads as invitations')
+
+    # A full life: every row filled, no crash, and it changes nothing.
+    sess, con, game = fresh()
+    game.city.safehouse = {'key': list(safehouses.BY_KEY)[0], 'district': 'ninth'}
+    pet_world.adopt(game.city, 'dog', 'Rex')
+    game.city.pet['food'] = 15
+    game.char.deck.loaded = game.char.deck.loaded[:1]
+    do(sess, con, 'familiar get tally')
+    game.char.deck.familiar['charge'] = 20
+    game.debt.amount = 3000
+    game.debt.lender = 'fixers'
+    game.city.arrangements = {'sixes': {'rate': 1200, 'paid': 0}}
+    before = (dict(game.city.pet), int(game.char.deck.familiar['charge']),
+              game.debt.amount)
+    out = do(sess, con, 'home')
+    T.ok('Rex' in out and 'needs food' in out, 'the pet and what it needs')
+    T.ok('tally' in out and 'wants a run' in out, 'the familiar and its charge')
+    T.ok('Sixes' in out, 'a standing arrangement')
+    T.ok('3,000c' in out and 'Switchboard' in out, 'a debt and who holds it')
+    T.ok((dict(game.city.pet), int(game.char.deck.familiar['charge']),
+          game.debt.amount) == before, 'and it changed nothing')
+
+
 def manual_body(key: str) -> str:
     from flatline.content import manual
     return manual.BY_KEY[key].body
@@ -15212,6 +15262,7 @@ SUITES = (
     test_the_names_the_city_gives,
     test_the_one_that_is_not_for_the_work,
     test_the_other_kind_of_pet,
+    test_home_is_what_you_keep,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,
