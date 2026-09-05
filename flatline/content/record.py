@@ -231,9 +231,10 @@ TITLES: tuple[Title, ...] = (
     Title('freight', 'who left on the freight line', 'amusing', 'left_quietly',
           'You went out in a box that smelled of what it carried before, and '
           'nobody asked your name, and that was the whole of the deal.'),
-    Title('stayed', 'who stayed to be found', 'heroic', 'quiet_stayed',
+    Title('stayed', 'who stayed to be found', 'heroic', 'quiet_turned',
           'A berth out was offered and you said no with a number on your '
-          'name. The docks watched. The docks do not forget that kind of thing.'),
+          'name, and then you turned the number. The docks watched both '
+          'halves. The docks do not forget that kind of thing.'),
 )
 
 TITLE_BY_KEY: dict[str, Title] = {t.key: t for t in TITLES}

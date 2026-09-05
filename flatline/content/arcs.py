@@ -1160,6 +1160,17 @@ MORE_THREADS: tuple[Thread, ...] = (
                   any_of=('quiet_stayed', 'left_quietly'),
                   after=2,
                   where='freeport'),
+            Stage('turned', 'The number came off',
+                  'The number is off your name. Paid, burned, or outlasted: '
+                  'the docks do not ask which, and do not need to. The same '
+                  'docker nods at you again, once, which is a whole '
+                  'conversation on that quay, and the person who knows '
+                  'somebody is not seen again, because there is nothing '
+                  'left to know somebody about.',
+                  requires=('quiet_stayed', 'not:bounty:1'),
+                  sets=('quiet_turned',),
+                  after=4,
+                  where='freeport'),
         )),
 
     # -- The Hall: the woman who does not sing (D65 depth) ---------------------

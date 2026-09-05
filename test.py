@@ -12129,11 +12129,15 @@ def test_the_deck_in_the_city() -> None:
     T.ok('smartgun' not in game.city.watches, 'and can be dropped')
 
     # Message: what comes back is what they think of you.
+    from flatline.content import feed as feed_content
+    def said(out, band):
+        # Any line of that band, by its first few words: the pool grew (D161).
+        return any(' '.join(line.split())[:14] in ' '.join(out.split()) for line in feed_content.REPLIES[band])
     out = do(sess, con, f'message {partner.key} here')
-    T.ok('Here' in out or 'ours' in out, 'a partner answers like a partner')
+    T.ok(said(out, 'partner'), 'a partner answers like a partner')
     d0 = nemesis.disposition
     out = do(sess, con, f'message {nemesis.key}')
-    T.ok('read' in out or 'wondering' in out, 'a nemesis lets you watch it show as read')
+    T.ok(said(out, 'nemesis'), 'a nemesis answers like a nemesis')
     stranger = game.city.rivals[2]
     stranger.bond = ''
     stranger.disposition = 0
@@ -14228,6 +14232,12 @@ def test_the_quiet_door() -> None:
          'staying is the first answer; the one that ends you is not the default')
     T.ok(all(f in legacy.EPILOGUE_BY_FLAG for f in ('left_quietly', 'quiet_stayed')),
          'both answers have an epilogue line')
+    turned = next(st for st in quiet.stages if st.key == 'turned')
+    T.ok('not:bounty:1' in turned.requires and 'quiet_stayed' in turned.requires,
+         'the number coming off is the stage after staying, and the title reads it')
+    from flatline.content import record as record_content
+    T.ok(record_content.TITLE_BY_KEY['stayed'].rule == 'quiet_turned',
+         'staying is not the title; turning the number is')
     game = Game.new(Character.from_origin('gutter', 'x'), seed=171)
     game.char.runs = 6
     game.city.shift = 20

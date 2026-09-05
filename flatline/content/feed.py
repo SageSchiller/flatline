@@ -199,39 +199,55 @@ REPLIES: dict[str, tuple[str, ...]] = {
     'will sell you': (
         '"Received." That is the whole of it, and it was sent to two '
         'people.',
+        '"Noted." Then nothing, and then, an hour later, a job appears on the board against a target you mentioned once.',
+        'No reply. Two shifts later somebody you have never met asks after you by the handle you used in the message.',
     ),
     'hostile': (
         '"Do not message me."',
         '"I read it. I am not going to say what I did with it."',
+        '"You have the wrong number." You do not. They know you do not.',
+        'A reply arrives that is only the time, to the second, which is somebody saying they have a record and it has you in it.',
     ),
     'cold': (
         '"Busy."',
         '"What do you want." There is no question mark.',
+        '"Working." Nothing after it. There was never going to be anything after it.',
+        '"Is this about money." No question mark. It is not, and you can feel them deciding it was.',
     ),
     'neutral': (
         '"Sure." A minute later: "What was that about?"',
         '"Heard you. Working. Talk at the Hall sometime."',
+        '"Alright." Then, after a while, "Still here?", which is the closest that one comes to conversation.',
+        '"Got it." A pause long enough to be somebody putting a deck down. "Was there more?"',
     ),
     'friendly': (
         '"Good to hear from you. I am on something in {district}; it is '
         'going the way they go. Yours?"',
         '"Message me when you are done, and I will tell you what I heard '
         'about the place you are going."',
+        '"Ha. Yes. Come find me when you are out of whatever you are in; I will be in the Hall, or being thrown out of it."',
+        '"You always message at the worst time and I always read it. Do not tell anybody that second part."',
     ),
     'owes you': (
         '"Anything. Say the word. I have not forgotten."',
         '"You messaged. Good. I was going to. I am in {district} and the '
         'thing there is worse than the board says; if you are near, do '
         'not be."',
+        '"Say where and I am there. I mean it the way I meant it the night you did what you did."',
+        '"Whatever it is, yes. Ask the thing. You are the one person I do not make wait."',
     ),
     'partner': (
         '"Here. Where?"',
         '"I am two districts away and moving. Whatever it is, it is ours."',
+        '"Reading you. Give me twenty minutes and a district."',
+        '"You do not have to ask. Tell me the door and the hour."',
     ),
     'nemesis': (
         '"I was wondering when you would."',
         'No reply. The message shows as read, and then, an hour later, '
         'as read again.',
+        '"Careful. That message has your location in the header, and I read headers."',
+        '"Good. I like knowing where you are. It saves me asking."',
     ),
 }
 NO_REPLY_YET = 'Nothing back yet. They will, or they will not.'
