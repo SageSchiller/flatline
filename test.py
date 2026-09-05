@@ -14038,6 +14038,149 @@ def test_the_posting_is_never_dropped() -> None:
     T.ok("if contract.story:" in src and "f'{route} --anyway'" in src,
          'the heat branch walks a story posting into them instead of dropping it')
 
+
+def test_now_never_says_deck() -> None:
+    """The campaigns after D157: `now` answered a payload that did not fit
+    with `deck`, a screen, and a player who does what `now` says typed it
+    four hundred and twenty times. The step is the largest thing on the
+    deck that is not the breaker, or the bigger bank when nothing carried
+    would make the room."""
+    T.section('now never says deck')
+    from flatline.commands import city as city_cmd
+    import inspect
+    T.ok("return ('deck'" not in inspect.getsource(city_cmd),
+         'no branch of the advice returns a bare `deck` step')
+    from flatline.commands import run as run_cmd
+    T.ok('Progress: {brief.progress.rstrip(".")}.' in inspect.getsource(run_cmd),
+         'the job screen ends its progress line with one full stop, not two')
+    src = inspect.getsource(city_cmd._fit_step)
+    T.ok('best_owned.memory > deck.memory_free + deck.memory_used' in src,
+         'an upgrade bigger than the whole bank is not advice')
+    T.ok('OBJECTIVE_PROGRAM' in src and 'keep' in src,
+         'the job\'s own category is never what gets unloaded for an upgrade')
+    # An upgrade is not a step: with a payload loaded and a better one
+    # owned that does not fit, `now` has nothing to say about it.
+    from flatline.content import programs as PR2
+    g2 = Game.new(Character.from_origin('gutter', 'x'), seed=159)
+    d2 = g2.char.deck
+    pays = sorted((q for q in PR2.BY_KEY.values() if q.category == 'payload'),
+                  key=lambda q: (q.rating, q.memory))
+    small, big2 = pays[0], pays[-1]
+    for k in list(d2.loaded):
+        if PR2.BY_KEY.get(k) and PR2.BY_KEY[k].category != 'breaker':
+            d2.unload(k)
+    for k in (small.key, big2.key):
+        if k not in g2.char.library:
+            g2.char.library.append(k)
+    if d2.can_load(small.key)[0]:
+        d2.load(small.key)
+        step = city_cmd._fit_step(g2, 'payload', 'the job needs it')
+        T.ok(step is None or not step[0].startswith('unload '),
+             f'a loaded payload is never unloaded for a bigger one: {step}')
+    # The plan itself: a job that needs a payload gets one, and the plan
+    # fits the deck, even when the best breaker owned would crowd it out.
+    g3 = Game.new(Character.from_origin('gutter', 'x'), seed=160)
+    d3 = g3.char.deck
+    breakers = sorted((q for q in PR2.BY_KEY.values() if q.category == 'breaker'), key=lambda q: -q.memory)
+    fat = breakers[0]
+    for k in (fat.key, small.key):
+        if k not in g3.char.library:
+            g3.char.library.append(k)
+    board3 = list(g3.city.board)
+    if not board3:
+        g3.city.refresh_board(g3.rng, g3.alias)
+        board3 = list(g3.city.board)
+    if board3:
+        c3 = board3[0]; c3.objective = 'exfiltrate'; g3.city.accepted = c3.cid
+        plan = city_cmd._loadout_plan(g3)
+        T.ok(any(q.category == 'payload' for q in plan),
+             f'an exfiltrate plan carries a payload: {[q.key for q in plan]}')
+        T.ok(sum(q.memory for q in plan) <= d3.memory,
+             f'and the plan fits the deck: {sum(q.memory for q in plan)} of {d3.memory}')
+        # With a familiar riding one memory, a plan for a job that does not
+        # need the room is built around it, so the advice never swaps two
+        # plan programs against each other.
+        d3.familiar = {'key': 'pixelcat', 'name': 'Echo', 'charge': 100}
+        c3.objective = 'surveil'
+        plan2 = city_cmd._loadout_plan(g3)
+        T.ok(sum(q.memory for q in plan2) <= d3.memory - 1,
+             f'the plan leaves the familiar its memory: {sum(q.memory for q in plan2)} of {d3.memory - 1}')
+        d3.familiar = {}
+    # The familiar rides the deck's memory: when it is what stands between
+    # the deck and the job's payload, the advice names it.
+    g4 = Game.new(Character.from_origin('gutter', 'x'), seed=161)
+    d4 = g4.char.deck
+    for k in list(d4.loaded):
+        if PR2.BY_KEY.get(k) and PR2.BY_KEY[k].category != 'breaker':
+            d4.unload(k)
+    if small.key not in g4.char.library:
+        g4.char.library.append(small.key)
+    board4 = list(g4.city.board)
+    if not board4:
+        g4.city.refresh_board(g4.rng, g4.alias)
+        board4 = list(g4.city.board)
+    d4.familiar = {'key': 'wormwood', 'name': 'Sorrow', 'charge': 100}
+    if board4 and d4.memory_free < small.memory <= d4.memory_free + 2:
+        c4 = board4[0]; c4.objective = 'exfiltrate'; g4.city.accepted = c4.cid
+        # Spare programs go first (a gutter deck ships two Crowbars); the
+        # familiar is named once nothing spare would make the room.
+        step = None
+        for _ in range(4):
+            step = city_cmd._loadout_step(g4)
+            if step is None or not step[0].startswith('unload '):
+                break
+            name = step[0][len('unload '):]
+            key = next((q.key for q in PR2.BY_KEY.values() if q.name.lower() == name), '')
+            if not key or not d4.unload(key):
+                break
+        T.ok(step is not None and step[0] == 'familiar drop',
+             f'with the familiar in the way of the payload, the advice names it: {step}')
+    d4.familiar = {}
+    src3 = inspect.getsource(city_cmd.city_steps)
+    T.ok("a fence pays for it" in src3 and "The errand you" in src3,
+         'a collection you cannot meet names the fence or the errand before the screen')
+    # And the branch runs: a collection due, no money, `now` answers rather
+    # than raising (the first version read a `deck` bound only in another
+    # branch, and the netrunner campaign crashed on it).
+    from flatline.content import lenders as LN
+    from flatline.world import debt as debt_mod
+    g5 = Game.new(Character.from_origin('gutter', 'x'), seed=162)
+    g5.debt.amount = 2400
+    g5.debt.lender = next(iter(LN.BY_KEY))
+    g5.city.shift = 40
+    g5.debt.opened = g5.city.shift - g5.debt.terms[1] - debt_mod.COLLECT_EVERY
+    g5.debt.last_collected = -1
+    g5.char.credits = 10
+    try:
+        steps5 = city_cmd.city_steps(g5)
+        T.ok(any('collect' in why for _, why in steps5),
+             f'a collection you cannot meet is a step: {[v for v, _ in steps5][:4]}')
+    except Exception as e:  # pragma: no cover
+        T.ok(False, f'now raised on a collection you cannot meet: {e!r}')
+    src2 = inspect.getsource(city_cmd._loadout_step)
+    T.ok("'market programs'" in src2 and 'want.memory > deck.memory_free + deck.memory_used' in src2,
+         'a needed program bigger than the deck sends you to a smaller one, not a screen')
+    from flatline.content import programs as PR
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=158)
+    deck = game.char.deck
+    payloads = sorted((p for p in PR.BY_KEY.values() if p.category == 'payload'), key=lambda p: -p.memory)
+    big = payloads[0]
+    game.char.library.append(big.key) if big.key not in game.char.library else None
+    step = city_cmd._fit_step(game, 'payload', 'the job needs it')
+    T.ok(step is None or step[0] != 'deck', f'no deck step for a payload that does not fit: {step}')
+    if step is not None:
+        T.ok(step[0].startswith('unload ') or step[0].startswith('load ') or step[0] == 'market components',
+             f'the step is a thing to do: {step[0]}')
+    # With nothing loaded but the breaker and a program bigger than the bank:
+    for k in list(deck.loaded):
+        if PR.BY_KEY.get(k) and PR.BY_KEY[k].category != 'breaker':
+            deck.loaded.remove(k)
+    step = city_cmd._fit_step(game, 'payload', 'the job needs it')
+    if step is not None and deck.memory_free < big.memory:
+        T.ok(step[0] != 'deck' and (step[0].startswith(('unload ', 'load '))
+                                    or step[0] == 'market components'),
+             f'with the deck nearly bare, the step is still a thing to do: {step[0]}')
+
 def manual_body(key: str) -> str:
     from flatline.content import manual
     return manual.BY_KEY[key].body
@@ -15344,6 +15487,7 @@ SUITES = (
     test_home_is_what_you_keep,
     test_what_the_honest_players_found,
     test_the_posting_is_never_dropped,
+    test_now_never_says_deck,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

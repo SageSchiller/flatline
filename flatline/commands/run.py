@@ -2838,7 +2838,8 @@ def cmd_job(sess, args) -> None:
         c.ok(f'Done: {brief.progress}. Everything from here is spending time '
              f'you have already been paid for.')
     else:
-        c.say(f'[dim]Progress: {brief.progress}.[/]')
+        # One full stop, whichever way the progress line was phrased.
+        c.say(f'[dim]Progress: {brief.progress.rstrip(".")}.[/]')
     if brief.steps:
         c.blank()
         c.say('[dim]Next:[/]')

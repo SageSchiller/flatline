@@ -1,0 +1,75 @@
+# Five full campaigns, 2026-09-04 (after D157)
+
+Five personas, one per way of playing, each a whole career composed from
+`campaign.py`: the netrunner, the fighter, the face, the explorer, the drift.
+Every one of them types the real commands for every system it touches (86
+to 96 of the 156 the game registers), and the run was repeated until the
+transcripts were clean. Zero crashes in any round. What the rounds found,
+largest first, and what was done.
+
+## Found in the game
+
+1. **`now` said `deck`, a screen, for a payload that did not fit.** Two
+   branches of the loadout advice returned a bare `deck` step; a player who
+   does what `now` says typed it 420 times. Both name a move now (the spare
+   program, then the bigger bank), and the test holds that no branch of the
+   advice returns a bare `deck` step.
+2. **The loadout plan crowded out the job's own program.** It took the best
+   breaker first (a Lattice, three of a four-memory deck), so the Siphon the
+   exfiltrate needed had no room, the plan had no payload in it, and the
+   advice unloaded the Siphon for the Lattice, 390 times. The plan reserves
+   the job's category first and picks the best of each kind *that fits*.
+3. **The familiar's memory was invisible to the advice.** A Wormwood on two
+   of four left a Siphon no room and `now` said a bigger bank 419 times to
+   somebody who owned the answer. The plan is built around the familiar's
+   memory; when the job's own program fits the bank and not the bank less the
+   familiar, the step is `familiar drop`, said as the player's choice.
+4. **An upgrade was a step.** A better breaker owned but not fitting was
+   advised over the adequate loaded one. With something of the kind loaded
+   and the better one not fitting, `now` has nothing to say about it.
+5. **The advice swapped two plan programs for ever** (Siphon for Blink,
+   Siphon for Pike) when the plan did not fit. The branch that unloaded a
+   plan program for another is gone; with a plan that fits by construction,
+   spare programs are all it ever unloads.
+6. **A collection you could not meet said `debt`, a screen,** 418 times. It
+   names the fence (a spare program to sell), or finishing the errand held,
+   before the screen. The first version of that fix crashed `now` on an
+   unbound name; the netrunner campaign caught it, and a test now runs the
+   branch.
+7. **`called` took a title's phrase, not its key.** `called bloodprice`
+   works now, as well as `called who paid the blood price`.
+8. **The job screen ended its progress line with two full stops.** One now.
+
+## Measured and left alone
+
+- Three of five personas were killed in the street in one round: every death
+  was a bounty street entered `--anyway`, then `cover` chosen over `give`.
+  The game warned each time. The harness now prefers `give`; the deaths were
+  the harness being reckless, not the street being unfair.
+- An explorer with a bounty and 55c cannot retire: a new name costs 1,800c.
+  Consistent; the door says so.
+- `chart` and `listen` want rank 2, `playbook` is ex-enforcement only, `odds`
+  wants a service: all honest answers.
+- The rice gallery's last style is called "None". Deliberate ("by then you
+  know what it says"), reads oddly in a list.
+- `deal` is for people you have met, not runners; `deal <runner>` says nobody
+  called that.
+
+## Where the five ended
+
+- netrunner: employed ending, afterwards lived; 17 runs; 95 commands typed.
+- fighter: refused ending, afterwards lived; `unbought`; 88 commands.
+- face: employed ending, a partner bond by play (+63); 90 commands.
+- explorer: 6 of 15 finds, 26 threads, save/restore intact with both pets;
+  door closed by a bounty it could not afford to burn; 93 commands.
+- drift: refused ending, chrome to the first band and back, a habit and a
+  detox, the scary familiar; `unbought`; 93 commands.
+
+## Never typed by any of them
+
+The run techniques beyond the brief (`backdoor`, `backway`, `collapse`,
+`crash`, `daemon`, `ghost`, `hotswap`, `mask`, `misdirect`, `overclock`,
+`overload`, `pivot`, `plant`, `scrub`, `sidechannel`, `steady`, and the
+rest of the defence verbs), `betray`, `vouch`, `requisition`, `uninstall`,
+`script`, `bind`, `switch`, `new`, `delete`, `reset`, `quit`. A run-craft
+persona that plays every technique is the next campaign worth writing.

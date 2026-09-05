@@ -2331,12 +2331,51 @@ def _loadout_plan(game) -> list:
                         if not p.unique), key=lambda p: p.price, default=None)
         if cheapest is not None and char.credits >= cheapest.price:
             room -= cheapest.memory
-    for cat in order:
-        p = best_of(cat)
-        if p is not None and p.memory <= room:
-            plan.append(p)
+
+    def best_fitting(category, room):
+        have = [p for p in owned if p.category == category and p.memory <= room]
+        return max(have, key=strength) if have else None
+
+    # The job's own program is reserved before the breaker is chosen. The
+    # best breaker first (a Lattice, three of a four-memory deck) left no
+    # room for the Siphon the exfiltrate needed, so the plan had no payload
+    # in it and every step after it was wrong: the posting campaign after
+    # D157 unloaded its Siphon for the Lattice, three hundred and ninety
+    # times. A lesser breaker that leaves room for the payload beats a
+    # better one that does not; the best of each kind is the best that fits.
+    need = OBJECTIVE_PROGRAM.get(contract.objective, '') if contract is not None else ''
+    # The familiar rides the deck's memory (D153) and the plan is built
+    # around it: a plan for the whole bank with a Chatterbird on one of
+    # it wanted a Siphon and a Blink that could not both be loaded, and
+    # the advice swapped them for ever. The one exception is the job's
+    # own program: if it fits the bank and not the bank less the familiar,
+    # the plan is for the whole bank and the step that follows says so.
+    fam_memory = 0
+    if deck.familiar:
+        from ..content import pets as pet_content
+        fam = pet_content.FAMILIAR_BY_KEY.get(deck.familiar.get('key', ''))
+        fam_memory = fam.memory if fam is not None else 0
+    room -= fam_memory
+    chosen = {}
+    if need:
+        smallest_breaker = min((p.memory for p in owned if p.category == 'breaker'),
+                               default=0)
+        p = best_fitting(need, room - smallest_breaker)
+        if p is None and fam_memory:
+            p = best_fitting(need, room + fam_memory - smallest_breaker)
+            if p is not None:
+                room += fam_memory
+        if p is not None:
+            chosen[need] = p
             room -= p.memory
-    return plan
+    for cat in order:
+        if cat in chosen:
+            continue
+        p = best_fitting(cat, room)
+        if p is not None:
+            chosen[cat] = p
+            room -= p.memory
+    return [chosen[cat] for cat in order if cat in chosen]
 
 
 LOADOUT_WHY = {
@@ -2391,8 +2430,38 @@ def _loadout_step(game):
                 f'{want.name} needs {want.memory} memory with '
                 f'{deck.memory_free} free, and {drop.name} is one more '
                 f'than the deck you should be carrying needs: {why}')
-    return ('deck', f'{want.name} needs {want.memory} memory and the deck '
-                    f'has {deck.memory_free}. A bigger bank, or carry less')
+    # Nothing spare makes the room. `deck` was the step here, a screen, and
+    # a player who does what `now` says typed it four hundred times running
+    # (the campaigns after D157). Carry less means a thing to unload: the
+    # spare first, then the largest of what the plan wanted that is not
+    # the breaker, one at a time; with nothing to carry less of, the bank.
+    if want.memory > deck.memory_free + deck.memory_used:
+        return ('market programs',
+                f'{want.name} needs {want.memory} memory and the whole deck '
+                f'holds {deck.memory_free + deck.memory_used}: a smaller one '
+                f'of the same kind, or a bigger bank from `market components`')
+    if drops:
+        return (f'unload {drops[0].name.lower()}',
+                f'{want.name} needs {want.memory} memory and the deck has '
+                f'{deck.memory_free}: {drops[0].name} first, then another, '
+                f'or a bigger bank')
+    # The familiar rides the deck's memory (D153) and the advice could not
+    # see it: a Wormwood on two of four left a Siphon with no room and
+    # `now` said a bigger bank four hundred times to somebody who owned
+    # the answer. It is the player's to keep or not; the advice says so.
+    fam = deck.familiar or {}
+    if fam:
+        from ..content import pets as pet_content
+        f = pet_content.FAMILIAR_BY_KEY.get(fam.get('key', ''))
+        if f is not None and deck.memory_free + f.memory >= want.memory:
+            return ('familiar drop',
+                    f'{want.name} needs {want.memory} memory and '
+                    f'{fam.get("name") or f.name} is riding {f.memory} of it. '
+                    f'The job needs the room tonight; `familiar drop` lets '
+                    f'it go, or a bigger bank keeps both')
+    return ('market components',
+            f'{want.name} needs {want.memory} memory and the deck cannot '
+            f'hold it as it is. A bigger bank')
 
 
 def _fit_step(game, category: str, why: str):
@@ -2422,16 +2491,57 @@ def _fit_step(game, category: str, why: str):
         return (f'load {best_owned.name.lower()}',
                 f'{best_owned.name} is in the bag and the deck has room: '
                 f'{why}')
+    # Something of the kind is already on the deck and the better one does
+    # not fit as things stand: that is an upgrade, not a step. The posting
+    # campaign unloaded its Siphon for a Lattice that never fit and never
+    # jacked in. What is loaded does the job; the upgrade is for a night
+    # with room.
+    if best_loaded is not None:
+        return None
+    # A program bigger than the whole bank is not advice: the posting
+    # campaign was told to unload its payload for a breaker the deck
+    # could never hold, then sent to a shelf it could not afford, for ever.
+    if best_owned.memory > deck.memory_free + deck.memory_used:
+        return None
+    # And the job's own category is not what gets unloaded to make room
+    # for an upgrade in another: a better breaker is not worth the payload.
+    from .. world.contracts import OBJECTIVE_PROGRAM
+    current = game.city.current
+    keep = (OBJECTIVE_PROGRAM.get(current.objective, '') if current else '')
     spare = best_owned.memory - deck.memory_free
     drop = next((p for p in sorted(
-        (programs.BY_KEY[k] for k in deck.loaded if k in programs.BY_KEY),
+        (programs.BY_KEY[k] for k in deck.loaded if k in programs.BY_KEY
+         and not (keep and programs.BY_KEY[k].category == keep
+                  and keep != category)),
         key=lambda p: (p.category == category and p.rating >= best_owned.rating,
                        p.rating, -p.memory))
         if p.memory >= spare), None)
     if drop is None:
-        return ('deck', f'{best_owned.name} needs {best_owned.memory} memory '
-                        f'and the deck has {deck.memory_free}. A bigger bank, '
-                        f'or carry less')
+        # No single program frees enough. `deck` was the step here, and a
+        # player who does what `now` says typed it for ever (the D157
+        # campaigns): the honest step is the largest thing on the deck
+        # that is not the breaker, one at a time, or, with nothing to
+        # carry less of, the bigger bank itself.
+        others = sorted((programs.BY_KEY[k] for k in deck.loaded
+                         if k in programs.BY_KEY
+                         and programs.BY_KEY[k].category != 'breaker'
+                         and not (keep and programs.BY_KEY[k].category == keep
+                                  and keep != category)),
+                        key=lambda p: (-p.memory, p.rating))
+        if others and deck.memory_free + others[0].memory < best_owned.memory \
+                and len(others) > 1:
+            return (f'unload {others[0].name.lower()}',
+                    f'{best_owned.name} needs {best_owned.memory} memory and '
+                    f'the deck has {deck.memory_free}: {others[0].name} '
+                    f'first, then another, or a bigger bank')
+        if others and deck.memory_free + others[0].memory >= best_owned.memory:
+            return (f'unload {others[0].name.lower()}',
+                    f'{best_owned.name} needs {best_owned.memory} memory and '
+                    f'the deck has {deck.memory_free}: {others[0].name} is '
+                    f'what makes the room')
+        return ('market components',
+                f'{best_owned.name} needs {best_owned.memory} memory and '
+                f'the deck cannot hold it as it is. A bigger bank')
     return (f'unload {drop.name.lower()}',
             f'{best_owned.name} is in the bag and needs {best_owned.memory} '
             f'memory with {deck.memory_free} free: {drop.name} is the least '
@@ -2538,11 +2648,34 @@ def city_steps(game) -> list[tuple[str, str]]:
                               f'{char.credits:,}c: short, they price the '
                               f'room. This one pays {offers[best]["pay"]:,}c'))
             else:
-                steps.append(('debt',
-                              f'{fac_short(debt.lender)} collect {take:,}c '
-                              f'within a shift and you have '
-                              f'{char.credits:,}c: short, they price the '
-                              f'room'))
+                # No errand here to say. `debt` is a screen, and a player
+                # who does what `now` says read it four hundred times
+                # (the campaigns after D157): the moves are the fence, or
+                # finishing the errand already held.
+                spare = [programs.BY_KEY[k] for k in char.library
+                         if k in programs.BY_KEY
+                         and k not in game.char.deck.loaded]
+                if spare:
+                    best = max(spare, key=lambda p: p.price)
+                    steps.append((f'sell {best.name.lower()}',
+                                  f'{fac_short(debt.lender)} collect {take:,}c '
+                                  f'within a shift and you have '
+                                  f'{char.credits:,}c: short, they price the '
+                                  f'room. {best.name} is in the bag and not '
+                                  f'on the deck; a fence pays for it'))
+                elif game.city.errand:
+                    steps.append(('rest',
+                                  f'{fac_short(debt.lender)} collect {take:,}c '
+                                  f'within a shift and you have '
+                                  f'{char.credits:,}c: short. The errand you '
+                                  f'hold pays when it is done'))
+                else:
+                    steps.append(('debt',
+                                  f'{fac_short(debt.lender)} collect {take:,}c '
+                                  f'within a shift and you have '
+                                  f'{char.credits:,}c: short, they price the '
+                                  f'room. Nothing here pays tonight; the '
+                                  f'screen says what they take'))
     # Hurt is a step before any job (D65): the street hits harder when you
     # are, and a run starts with what you carry in.
     if char.integrity <= max(4, char.integrity_max // 3):

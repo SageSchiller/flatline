@@ -27,8 +27,8 @@ from flatline.commands import city as city_cmd
 from flatline.world import story as story_world
 
 _ANSI = re.compile(r'\033\[[0-9;?]*[A-Za-z]')
-NOFIGHT = ('run', 'talk', 'careful', 'pay', 'bolt', 'break', 'yes', 'take')
-FIGHTER = ('fight', 'finish', 'strike', 'yes', 'take')
+NOFIGHT = ('give', 'pay', 'run', 'talk', 'careful', 'bolt', 'break', 'yes', 'take')
+FIGHTER = ('fight', 'finish', 'strike', 'give', 'yes', 'take')
 
 
 class Play:
@@ -46,6 +46,7 @@ class Play:
         self.prefer = prefer
         self.errors = []
         self.turns = 0
+        self.verbs = collections.Counter()
         self.seen = collections.Counter()   # notable lines, counted
         self.runs_done = 0
         self.runs_tried = 0
@@ -57,6 +58,7 @@ class Play:
 
     def do(self, cmd, note=''):
         self.turns += 1
+        self.verbs[_verb(cmd)] += 1
         self.con.start_capture()
         try:
             self.sess.execute(cmd)
@@ -137,6 +139,8 @@ class Play:
             self.do(step); self.settle()
         if self.sess.run is not None:
             self.do('jack out'); self.settle()
+        if self.sess.run is not None:
+            self.do('jack out --anyway'); self.settle()
         return False
 
     def auto_city(self, k=1, stop_at_run=True):
@@ -222,15 +226,34 @@ class Play:
 
     def answer_choices(self, table=None, limit=6):
         """Answer every open story decision: `table` maps 'thread.stage' to
-        a choice key; anything else takes the first. Returns what was chosen."""
+        a choice key; anything else takes the first. A refused answer (it
+        costs what you do not have) falls through to the next one, the way
+        a player reads "another option" and picks it. Returns what was chosen."""
         table = table or {}
         out = []
         for _ in range(limit):
             found = self.g.story.open_choice()
             if found is None:
                 break
+            if self.sess.run is not None:
+                self.do('jack out'); self.settle()
+                if self.sess.run is not None:
+                    self.do('jack out --anyway'); self.settle()
             thread, stage = found
-            out.append(self.choose_open(table.get(f'{thread.key}.{stage.key}')))
+            keys = [c.key for c in stage.choices]
+            want = table.get(f'{thread.key}.{stage.key}')
+            order = ([want] if want in keys else []) + [k for k in keys if k != want]
+            self.do('choose')
+            chosen = ''
+            for key in order:
+                o = self.do(f'choose {key}')
+                self.settle()
+                if '\u2717' not in o:
+                    chosen = key
+                    break
+            out.append(f'{thread.key}.{stage.key}:{chosen or "REFUSED ALL"}')
+            if not chosen:
+                break
         return out
 
     def shortcut(self, what):
@@ -249,8 +272,38 @@ class Play:
     def mark(self, text):
         self.log.write(f'\n--- {text}\n    STATE: {self.state()}\n')
 
+    def coverage(self):
+        """(hit, missed): the commands this persona typed at least once, and
+        the ones it never did, out of everything the game registers."""
+        names = all_verbs()
+        hit = sorted(v for v in self.verbs if v in names)
+        return hit, sorted(names - set(hit))
+
     def finish(self, label):
         self.log.write(f'\n\n=== {label}: {self.turns} turns, ERRORS: {len(self.errors)}\n')
         for cmd, err, tb in self.errors:
             self.log.write(f'  CRASH on {cmd!r}: {err}\n{tb}\n')
         self.log.write(f'  notable: {dict(self.seen)}\n')
+
+def _verb(cmd):
+    w = cmd.split()
+    if not w:
+        return ''
+    if len(w) > 1 and w[0] in ('jack', 'who'):
+        return f'{w[0]} {w[1]}'
+    return w[0]
+
+
+def all_verbs():
+    """Every command the game registers, by name, so a persona can say what
+    it never typed."""
+    import importlib, pkgutil
+    import flatline.commands as CM
+    for m in pkgutil.iter_modules(CM.__path__):
+        importlib.import_module(f'flatline.commands.{m.name}')
+    from flatline.shell import REGISTRY
+    names = set()
+    for k, c in REGISTRY.commands.items():
+        names.add(getattr(c, 'name', k))
+    return names
+

@@ -343,7 +343,11 @@ def cmd_called(sess, args) -> None:
 
     if arg:
         low = arg.lower()
+        squash = low.replace(' ', '').replace('_', '')
+        by_name = {t.name: t.key for t in record_content.TITLES}
         match = next((t for t in pool if t.lower() == low), None) \
+            or next((t for t in pool if by_name.get(t, '') == squash), None) \
+            or next((t for t in pool if t.lower().replace(' ', '') == squash), None) \
             or next((t for t in pool if low in t.lower()), None)
         if match is None:
             raise CommandError('you have not earned that one, or there is no '

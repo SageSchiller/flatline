@@ -54,3 +54,33 @@ after anything that asks, and `p.finish(...)` at the end. Prefer the automatic
 helpers for the parts the brief does not care about, and type the rest by hand,
 because the finding is nearly always in the part the persona reads rather than the
 part it drives.
+
+## Full campaigns (after D157)
+
+`campaign.py` is a set of acts, each typing the real commands for one part
+of a life in the city: `setup`, `deck_life`, `city_deck`, `jobs` (take,
+legwork, approach, hire, walk, jack in, the run's reading commands, then the
+brief to the end), `people`, `safehouse`, `pets` (both kinds), `money`,
+`street`, `chrome_and_chem`, `walk_all`, `record_and_titles`, `save_restore`,
+`appearance`, `heat_and_names`, `crew`, `story_end`, `retire_end`. Every act
+runs under `act(p, fn, ...)`, which logs a persona-side exception as a
+`!!! PERSONA ERROR` and carries on, because the finding is in the game's
+transcript, not the script driving it.
+
+The five `q*` personas compose those acts five ways: `q1_netrunner` (the
+deck, in and out of the city), `q2_fighter` (the wall, a dog, a crew, the
+burn ending), `q3_face` (everybody talked to, the offer taken), `q4_explorer`
+(everything walked, the finds, save and restore, the door), `q5_drift`
+(chrome, a habit, the scary familiar, the lender). Each prints one summary
+line with the commands it typed out of everything the game registers
+(`Play.coverage()`), and its log ends with `### never typed:`. Run them in
+parallel; they take a few minutes each:
+
+```bash
+cd tools/playtest
+for f in q1_netrunner q2_fighter q3_face q4_explorer q5_drift; do python3 $f.py & done; wait
+grep -c "!!! CRASH\|!!! PERSONA ERROR" logs/q*_*.log
+grep -h "^--- " logs/q*_*.log | grep -E "ENDING|jobs:|crew:|after the door"
+```
+
+`SWEEP-2026-09-04-campaigns.md` is what the first five rounds of them found.

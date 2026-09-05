@@ -12,23 +12,28 @@ def go(p, district):
     for _ in range(8):
         if p.g.city.where == district or p.g.over or p.sess.run is not None:
             break
-        p.do(f'walk {district}'); p.settle()
+        p.do_step(f'walk {district}'); p.settle()
     return p.g.city.where == district
 
 def meet(p, key, district, waits=5):
     """Go where somebody is, wait for their hours, talk, ask them everything."""
     go(p, district)
+    npc = NPC.BY_KEY[key]
     for _ in range(waits):
         if p.g.over:
             return False
         if key in p.present():
             break
         p.do('look')
+        if npc.at:
+            # Somebody who keeps to one place is found there, not in the street.
+            p.do(f'visit {npc.at}'); p.settle()
+            if key in p.present():
+                break
         p.do('rest'); p.settle()
     if key not in p.present():
         p.do('look')
         return False
-    npc = NPC.BY_KEY[key]
     out = p.do(f'talk {key}'); p.settle()
     if out.lstrip().startswith('✗'):
         p.do(f'talk {npc.name.split()[-1].lower()}'); p.settle()
@@ -41,7 +46,13 @@ def board_deepwater(p):
             if c.target == 'deepwater' or 'Four Hundred' in c.title]
 
 def run_contract(p, cid):
-    p.do(f'take {cid}'); p.settle()
+    if p.g.city.current is None or p.g.city.current.cid != cid:
+        p.do(f'take {cid}'); p.settle()
+    try:
+        import campaign
+        campaign.ensure_payload(p)
+    except Exception:
+        pass
     for _ in range(14):
         if p.g.over or p.sess.run is not None:
             break
@@ -75,15 +86,44 @@ def to_ending(p, carried='read', offer='take', max_jobs=30):
         if flags & ENDINGS:
             break
         found = p.g.story.open_choice()
+        if found is not None and p.sess.run is not None:
+            # `choose` is a city command; a run left open is the harness's
+            # fault, not a decision that cannot be answered.
+            p.do('jack out'); p.settle()
+            if p.sess.run is not None:
+                p.do('jack out --anyway'); p.settle()
         if found is not None:
             thread, stage = found
-            pick = {'carried': carried, 'offer': offer}.get(stage.key)
+            table = getattr(p, 'table', None) or {}
+            pick = ({'carried': carried, 'offer': offer}.get(stage.key)
+                    or table.get(f'{thread.key}.{stage.key}'))
             p.mark(f'a decision is open: {thread.key}.{stage.key}, choosing {pick or "the first"}')
             p.choose_open(pick)
+            again = p.g.story.open_choice()
+            if again is not None and again[1] is stage:
+                # It did not close. Try every other answer once, then stop:
+                # a decision no answer closes is a finding, not a loop.
+                for c in stage.choices:
+                    if c.key == pick:
+                        continue
+                    p.choose_open(c.key)
+                    if p.g.story.open_choice() is None or p.g.story.open_choice()[1] is not stage:
+                        break
+                else:
+                    p.mark(f'FINDING: {thread.key}.{stage.key} stays open whatever is chosen')
+                    break
             continue
         dw = board_deepwater(p)
-        if dw and p.g.city.current is None:
+        cur = p.g.city.current
+        if dw and cur is not None and cur.cid != dw[0].cid and 'Four Hundred' in dw[0].title:
+            # The posting with your name in it outranks whatever half-done
+            # board job is still accepted; a player drops that for this.
+            p.do('drop'); p.settle()
+            cur = p.g.city.current
+        if dw and cur is None:
             p.mark(f'a Deepwater job on the board: {dw[0].title} ({dw[0].cid}); {dw_flags(p)}')
+            run_contract(p, dw[0].cid); jobs += 1
+        elif dw and cur is not None and cur.cid == dw[0].cid:
             run_contract(p, dw[0].cid); jobs += 1
         else:
             p.play_job(); jobs += 1
