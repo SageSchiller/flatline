@@ -41,6 +41,9 @@ RESIDUE_DELAY = 1
 NEWS_KEPT = 40
 
 #: A runner's loan: how often they mention it, and what a mention costs.
+#: A nemesis buys your crew for a night about this often (D166).
+POACH_CHANCE = 0.12
+
 TAB_NAG = 9
 TAB_NAG_COST = 3
 
@@ -628,6 +631,23 @@ class City:
         if alias is not None:
             told.extend(rival_mod.bond_turn(rng('rivals'), self.rivals, alias,
                                             flags or ()))
+        # A nemesis hires your crew out from under you for a night (D166):
+        # the people who decided about you decide about each other.
+        if self.crew and self.crew.get('key'):
+            nemeses = [r for r in self.rivals if r.alive and r.bond == 'nemesis'
+                       and f'paid_{r.key}' not in (flags or ())
+                       and r.key != self.crew.get('key')]
+            if nemeses and rng('rivals').chance(POACH_CHANCE) \
+                    and int(self.crew.get('away', -1)) < self.shift:
+                nem = nemeses[0]
+                self.crew['away'] = self.shift + 1
+                crew_rival = self.rival(self.crew.get('key', ''))
+                crew_name = crew_rival.name if crew_rival is not None else 'your crew'
+                line = (f'[warn]{nem.name} hired {crew_name} '
+                        f'for tonight, at a price that was about you and not '
+                        f'the job. One night. They said yes.[/]')
+                told.append(line)
+                self.news.append(line)
         # The mentioning is the interest. Every TAB_NAG shifts a tab stands,
         # the runner who lent it says something, and it costs you.
         for key, (amount, since) in list(self.tabs.items()):

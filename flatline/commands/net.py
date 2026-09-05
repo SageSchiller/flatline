@@ -418,6 +418,7 @@ def cmd_record(sess, args) -> None:
     game = sess.game
     meta = save_mod.read_meta()
     counts = record_world.counts(game, meta)
+    life = record_world.this_life(game)
     done = {e.key for e in record_world.earned(counts)}
     want = (args.get(0) or '').lower()
     shown = [k for k in record_content.SECTION_KEYS
@@ -441,12 +442,19 @@ def cmd_record(sess, args) -> None:
                         cells=8)
             num = (f'{have:,}/{e.target:,}' if e.target > 1
                    else ('yes' if have else 'not yet'))
+            # This life beside the profile (D166): the record counts across
+            # characters, and a second character used to read as having
+            # done everything the first did.
+            mine = int(life.get(e.counter, 0))
+            if game is not None and mine != have and e.target > 1:
+                num += f'  [dim]this life {mine:,}[/]'
             line = f'  {bar} [{"ok" if got else "fg"}]{e.name:<32}[/] [dim]{num}[/]'
             c.raw(line + (f'  [accent2]{e.title}[/]' if got and e.title else ''))
     c.blank()
     left = len(record_content.ENTRIES) - len(done)
     if left:
         c.say(f'[dim]{left} line{"s" if left != 1 else ""} to go. It keeps '
-              f'counting across characters, like the terminal does.[/]')
+              f'counting across characters, like the terminal does; where '
+              f'this life is behind the profile, it says so.[/]')
     else:
         c.say(f'[accent2]{record_content.COMPLETE_LINE}[/]')

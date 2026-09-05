@@ -57,6 +57,15 @@ def counts(game, meta: dict) -> dict:
     return out
 
 
+def this_life(game) -> dict:
+    """The same counters read off this character alone (D166): what the
+    life in front of you has done, beside what the profile has."""
+    if game is None:
+        return {}
+    merged = counts(game, {})
+    return {k: int(v) for k, v in merged.items()}
+
+
 def earned(counts_now: dict) -> list:
     """Every entry whose line is done."""
     return [e for e in record_content.ENTRIES

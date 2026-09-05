@@ -862,6 +862,7 @@ TOPICS: tuple[Topic, ...] = (
         group='city'),
     Topic(
         'rivals', 'The other runners',
+        'They decide about each other too: a partner hears who you crewed and thinks less of you for it, and a nemesis will buy your crew for a night now and then, at a price that is about you.\n\n'
         'Seven named people who are also working, and two of them will decide.',
         'Seven runners work this city and they are not scenery. They take '
         'contracts off the board while you deliberate, they harden the '
@@ -1060,6 +1061,7 @@ TOPICS: tuple[Topic, ...] = (
         group='city'),
     Topic(
         'street', 'The street is real',
+        'A rank on the wall fades if you stop, and the top does not stay empty: the one you took it from comes back for it, and `pit` says who holds it.\n\n'
         'The half of the danger that happens with the deck in the bag.',
         'The net is half the game and the street is the other half, and the '
         'street has people in it. Walk into a district where a faction has a '
@@ -1241,6 +1243,7 @@ TOPICS: tuple[Topic, ...] = (
         group='city'),
     Topic(
         'record', 'The record',
+        'Where this life is behind the profile, the line says so, "this life 3" beside the count.\n\n'
         'What the city can say about you, and what is left.',
         '`now` names the line you are closest to crossing, when it is close; `record` is the whole of it.\n\n'
         'A city with twelve districts, seventy-two quarters, sixty places '
@@ -1292,6 +1295,7 @@ TOPICS: tuple[Topic, ...] = (
         group='city'),
     Topic(
         'relics', 'Things there is one of',
+        'There is a second way in. Somebody you have asked everything tells you where to look, once, and what they told you gets you past the career the thing would otherwise wait for.\n\n'
         'What is not for sale, where it might be, and why it is worth having.',
         'Most of what you will ever carry came off a shelf, and the shelf '
         'will have another one next week. A few things did not. They are one '

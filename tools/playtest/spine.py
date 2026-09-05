@@ -59,7 +59,7 @@ def run_contract(p, cid):
         steps = city_cmd.city_steps(p.g)
         if not steps:
             break
-        p.do(steps[0][0], note=f'now says: {steps[0][1][:70]}'); p.settle()
+        p.do_step(steps[0][0], note=f'now says: {steps[0][1][:70]}'); p.settle()
     if p.sess.run is not None:
         p.drive_run()
 

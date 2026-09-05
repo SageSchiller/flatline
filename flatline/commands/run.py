@@ -231,6 +231,12 @@ def cmd_jack_in(sess, args) -> None:
     # Somebody on a retainer is in on every run without being asked, which is
     # the whole difference between a crew and a hire.
     crew = game.city.crew
+    if crew and int(crew.get('away', -1)) >= game.city.shift:
+        # Bought for the night by somebody who dislikes you (D166).
+        away = game.city.rival(crew.get('key', ''))
+        c.say(f'[warn]{away.name if away is not None else "Your crew"} is working '
+              f'for somebody else tonight. You go in alone.[/]')
+        crew = {}
     if crew and not game.city.hired:
         who = game.city.rival(crew.get('key', ''))
         if who is not None and who.alive:

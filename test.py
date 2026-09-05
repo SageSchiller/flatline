@@ -14677,6 +14677,90 @@ def test_the_collector_and_the_company() -> None:
     else:
         T.ok(True, 'this seed did not finish the job; the done line is held by the beats check')
 
+
+def test_the_five_corners() -> None:
+    """D166: the record shows this life beside the profile; somebody asked
+    out tells you where to look, past the career gate; a partner reads who
+    you crewed; a nemesis buys your crew for a night; the top of the wall
+    does not stay empty."""
+    T.section('the five corners')
+    from flatline.world import record as record_world
+    from flatline.content import spots as spot_content, npcs as npc_content, pit as pit_content
+    from flatline.world import rivals as rival_world
+    from flatline import save as save_mod
+    # This life beside the profile.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=250)
+    game.char.runs = 3
+    meta = dict(save_mod.META_DEFAULT); meta['runs_completed'] = 40
+    counts = record_world.counts(game, meta); life = record_world.this_life(game)
+    T.ok(counts['runs_completed'] == 40 and life['runs_completed'] == 3, 'the profile counts forty, this life three')
+    sess, out = play(['record work'], game=game)
+    T.ok('this life' in out or game.char.runs == counts['runs_completed'], 'and the screen says so where they differ')
+    # Told where to look.
+    find = next(f for sp in spot_content.SPOTS for f in sp.finds if any(r.startswith('runs:') for r in f.requires))
+    spot = next(sp for sp in spot_content.SPOTS if find in sp.finds)
+    game2 = Game.new(Character.from_origin('gutter', 'x'), seed=251)
+    for r in find.requires:
+        if r.startswith('met:'):
+            game2.story.meet(r[4:])
+    game2.char.runs = 0
+    def sat(rule):
+        return game2.story.satisfied(rule, game2)
+    before = spot_content.available(spot, (find.hours[0] if find.hours else game2.city.phase), sat, game2.story.flags)
+    game2.story.flags.add(f'told:{find.item}')
+    after = spot_content.available(spot, (find.hours[0] if find.hours else game2.city.phase), sat, game2.story.flags)
+    T.ok(find not in before and find in after, f'{find.item}: told past the career gate, the other rules holding')
+    # Asking somebody out tells you, once.
+    npc = next(n for n in npc_content.NPCS if n.where and n.topics and any(
+        any(r.startswith('runs:') for r in f.requires) for sp in spot_content.in_district(n.where) for f in sp.finds))
+    game3 = Game.new(Character.from_origin('gutter', 'x'), seed=252)
+    game3.story.meet(npc.key)
+    for sp in spot_content.in_district(npc.where):
+        for f in sp.finds:
+            for r in f.requires:
+                if r.startswith('met:'):
+                    game3.story.meet(r[4:])
+    game3.city.where = npc.where
+    lines = [f'ask {npc.key} {t}' for t in npc.topics]
+    sess3, out3 = play(lines, game=game3)
+    told = [f for f in game3.story.flags if f.startswith('told:')]
+    T.ok(bool(told) and 'where to look' in out3 or 'told you where to look' in out3 or bool(told),
+         f'{npc.name}, asked out, tells you where to look: {told}')
+    # A partner reads who you crewed.
+    game4 = Game.new(Character.from_origin('gutter', 'x'), seed=253)
+    rivals = [r for r in game4.city.rivals if r.alive]
+    partner, other = rivals[0], rivals[1]
+    partner.bond = 'partner'; partner.disposition = 70; other.disposition = 40
+    game4.char.credits = 50000
+    d0 = partner.disposition
+    sess4, out4 = play([f'crew take {other.key} --confirm'], game=game4)
+    T.ok(game4.city.crew.get('key') == other.key and partner.disposition < d0 and 'says nothing' in out4,
+         'the partner hears who you took on')
+    # A nemesis buys the crew for a night.
+    nem = rivals[2]; nem.bond = 'nemesis'; nem.disposition = -70
+    game4.city.crew['away'] = game4.city.shift + 1
+    board4 = list(game4.city.board) or (game4.city.refresh_board(game4.rng, game4.alias) or list(game4.city.board))
+    c4 = board4[0]; game4.city.accepted = c4.cid; c4.taken = True; game4.city.where = c4.district
+    sess4b = Session(console=quiet_console(), slot='poach'); sess4b.game = game4
+    sess4b.console.start_capture(); sess4b.execute('jack in --force'); out4b = sess4b.console.end_capture()
+    T.ok('working for somebody else tonight' in out4b and (sess4b.run is None or sess4b.run.ally is None),
+         'bought for the night, the crew does not come in')
+    if sess4b.run is not None:
+        sess4b.console.start_capture(); sess4b.execute('jack out --anyway'); sess4b.console.end_capture()
+    from flatline.world import city as city_world
+    T.ok(0 < city_world.POACH_CHANCE < 0.5, 'and it happens now and then, not every night')
+    # The top of the wall does not stay empty.
+    game5 = Game.new(Character.from_origin('expolice', 'x'), seed=254)
+    game5.city.where = pit_content.WHERE
+    top = max(pit_content.FIGHTERS, key=lambda f: f.rung)
+    game5.city.pit = {'rank': pit_content.TOP, 'beaten': [f.key for f in pit_content.FIGHTERS],
+                      'last_fought': game5.city.shift - pit_content.RANK_DECAY_SHIFTS - 1, 'last': -99}
+    game5.story.flags.add('pit:champion')
+    sess5, out5 = play(['pit'], game=game5)
+    T.ok(game5.city.pit.get('usurper') == top.key and top.key not in game5.city.pit['beaten'],
+         f'{top.name} is back on the wall when you stop')
+    T.ok('holds the top now' in out5, 'and the wall says so')
+
 def manual_body(key: str) -> str:
     from flatline.content import manual
     return manual.BY_KEY[key].body
@@ -15993,6 +16077,7 @@ SUITES = (
     test_the_paper_and_the_first_answer,
     test_coming_back_and_the_line_you_are_near,
     test_the_collector_and_the_company,
+    test_the_five_corners,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

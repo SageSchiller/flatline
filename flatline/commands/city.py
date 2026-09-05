@@ -1416,6 +1416,15 @@ def cmd_pit(sess, args) -> None:
     # A rank fades if you stop (D134).
     idle = game.city.shift - int(ledger.get('last_fought', game.city.shift))
     while ledger['rank'] > 0 and idle >= pit_content.RANK_DECAY_SHIFTS:
+        if ledger['rank'] >= pit_content.TOP and not ledger.get('usurper'):
+            # A new name on the wall (D166): the top does not stay empty.
+            # The one you took it from comes back for it, at full price.
+            top = next((f for f in sorted(pit_content.FIGHTERS, key=lambda f: -f.rung)), None)
+            if top is not None:
+                ledger['usurper'] = top.key
+                if top.key in ledger['beaten']:
+                    ledger['beaten'].remove(top.key)
+                game.city.news.append(f'[warn]{top.name} is back on the wall, above you.[/]')
         ledger['rank'] -= 1
         idle -= pit_content.RANK_DECAY_SHIFTS
         ledger['last_fought'] = game.city.shift - idle
@@ -1428,6 +1437,12 @@ def cmd_pit(sess, args) -> None:
         c.say(f'[dim]{pit_content.PITCH}[/]')
         c.blank()
         c.rule('the wall')
+        if ledger.get('usurper'):
+            who = pit_content.BY_KEY.get(ledger['usurper']) if hasattr(pit_content, 'BY_KEY') else None
+            name = who.name if who else ledger['usurper']
+            c.say(f'[warn]{name} holds the top now. You stopped, and the wall '
+                  f'did not: `pit {ledger["usurper"]}` takes it back, at full price.[/]')
+            c.blank()
         rows = []
         tonight = street_world.night(game)
         for f in sorted(pit_content.FIGHTERS, key=lambda f: -f.rung):
@@ -1536,6 +1551,9 @@ def cmd_pit(sess, args) -> None:
             ledger['rank'] = max(int(ledger['rank']), fighter.rung)
             if fighter.key not in ledger['beaten']:
                 ledger['beaten'].append(fighter.key)
+            if ledger.get('usurper') == fighter.key:
+                ledger['usurper'] = ''
+                c.say('[ok]The wall is yours again.[/]')
             if (int(ledger['rank']) >= 2
                     and g.story.meet('hollis', g.city.shift)):
                 # The wall has an owner (D144): a fighter who never `look`ed
@@ -5584,6 +5602,14 @@ def _crew_take(sess, args) -> None:
                            f'{game.char.credits:,}c')
     game.char.credits -= price
     game.city.crew = {'key': rival.key, 'runs': 0}
+    # A partner who is not the one you crewed reads it (D166): the
+    # people who decided about you decide about each other too.
+    from ..world import rivals as _rw
+    partner = _rw.active_partner(game.city.rivals)
+    if partner is not None and partner.key != rival.key:
+        partner.adjust_disposition(-8)
+        c.say(f'[warn]{partner.name} hears who you took on, and says '
+          f'nothing, which is how {partner.name} says it.[/]')
     game.city.hired = ''
     line = rival_content.CREW_JOINED.get(rival.data.style, '{name} agrees.')
     c.blank()

@@ -696,6 +696,10 @@ def available(spot: Spot, phase: str, satisfied, flags) -> list[Find]:
             continue
         if find.hours and phase not in find.hours:
             continue
-        if all(satisfied(rule) for rule in find.requires):
+        # Told where to look (D166): somebody asked out tells you, and the
+        # career gate is what they told you past. The other rules hold.
+        told = f'told:{find.item}' in flags
+        if all(satisfied(rule) or (told and rule.startswith('runs:'))
+               for rule in find.requires):
             out.append(find)
     return out

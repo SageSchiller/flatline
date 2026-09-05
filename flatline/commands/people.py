@@ -681,6 +681,7 @@ def ask_npc(sess, args) -> bool:
     flag = f'asked:{npc.key}:{match}'
     before = {(t, s.key) for t, s in game.story.available(game)}
     game.story.flags.add(flag)
+    _asked_out(sess, npc)
     opened = [(t, s) for t, s in game.story.available(game)
               if (t, s.key) not in before and flag in s.requires]
     c.blank()
@@ -1407,6 +1408,37 @@ def _settle_paper(sess, choice) -> None:
     if choice.sets and any(f.startswith('paper_') for f in choice.sets):
         game.city.paper = ''
 
+
+
+def _asked_out(sess, npc) -> None:
+    """Somebody you have asked everything tells you where to look (D166):
+    the one thing in their district that a career would otherwise gate,
+    once. A pure explorer or a pure talker earns the finds this way; the
+    walking is still theirs to do."""
+    game, c = sess.game, sess.console
+    flags = game.story.flags
+    if not npc.topics or not all(f'asked:{npc.key}:{t}' in flags for t in npc.topics):
+        return
+    if not npc.where:
+        return
+    for spot in spots.in_district(npc.where):
+        for find in spot.finds:
+            if f'found:{find.item}' in flags or f'told:{find.item}' in flags:
+                continue
+            if not any(r.startswith('runs:') for r in find.requires):
+                continue
+            if not all(game.story.satisfied(r, game) for r in find.requires
+                       if not r.startswith('runs:')):
+                continue
+            flags.add(f'told:{find.item}')
+            flags.add(f'heard:{find.item}')
+            c.blank()
+            c.say(f'[dim]{npc.name} has run out of things you have not asked, '
+                  f'and says one more, quieter: there is something at '
+                  f'{spot.name} that is not on the way to anywhere, and it '
+                  f'is not there for people who have not been told.[/]')
+            game.city.news.append(f'[dim]{npc.name} told you where to look: {spot.name}.[/]')
+            return
 
 
 def _check_story(sess) -> None:
