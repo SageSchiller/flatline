@@ -284,6 +284,95 @@ def _finds(sess, spot) -> None:
         sess.record_progress()
 
 
+def _sense(sess, spot) -> None:
+    """Standing where a one-of-a-kind thing is makes you aware of it
+    (D148), even when you cannot take it yet: wrong hour, or the person
+    who hands it over is not here. It goes on the `rumours` board so the
+    walking is a hunt you can see, not a line you had to catch."""
+    game, c = sess.game, sess.console
+    story = game.story
+    for find in spot.finds:
+        if f'found:{find.item}' in story.flags:
+            continue
+        if f'heard:{find.item}' in story.flags:
+            continue
+        lead = [r for r in find.requires if not r.startswith('met:')]
+        if not all(story.satisfied(rule, game) for rule in lead):
+            continue
+        story.flags.add(f'heard:{find.item}')
+        c.blank()
+        c.say('[dim]There is something to this place you have not '
+              'worked out. `rumours` keeps what you have heard.[/]')
+        return
+
+
+def _find_name(key: str) -> str:
+    from ..content import cyberware, drugs, hardware, programs, weapons
+    for table in (programs.BY_KEY, cyberware.BY_KEY, hardware.BY_KEY,
+                  drugs.BY_KEY, weapons.BY_KEY):
+        if key in table:
+            return table[key].name
+    return key
+
+
+@command('rumours', 'The one-of-a-kind things: what you have found, and what you have heard of.',
+         group='info', contexts=('city',), aliases=('rumors', 'legends'),
+         usage='rumours',
+         detail=(
+                'The city keeps things back for the people who go and '
+                'look (D148): one of a kind, at a place, at an hour, once the '
+                'right thing is true. This is the hunt made visible: the ones '
+                'you have found, and the ones you have heard of and not yet '
+                'found, with where and when. The ones you have not heard of '
+                'are not here, because hearing of them is the first half of '
+                'finding them. Stand where nothing is, and ask the people who '
+                'keep hours there.'))
+def cmd_rumours(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    story = game.story
+    found = [f for f in spots.FINDS if f'found:{f.item}' in story.flags]
+    heard = [f for f in spots.FINDS
+             if f'heard:{f.item}' in story.flags
+             and f'found:{f.item}' not in story.flags]
+    unheard = len(spots.FINDS) - len(found) - len(heard)
+    c.header('Rumours', f'{len(found)} of {len(spots.FINDS)} found')
+    if found:
+        c.blank()
+        c.rule('found', role='ok')
+        for f in found:
+            sp = spots.spot_of(f)
+            c.raw(f'  [ok]{c.caps.g("check")}[/] [fg]{_find_name(f.item)}[/] '
+                  f'[dim]{sp.name}, {districts.BY_KEY[sp.district].name}[/]')
+    if heard:
+        c.blank()
+        c.rule('heard, not yet found', role='accent2')
+        for f in heard:
+            sp = spots.spot_of(f)
+            where = f'{sp.name}, {districts.BY_KEY[sp.district].name}'
+            when = ''
+            if f.hours:
+                when = ', ' + ' or '.join(f.hours)
+            need = ''
+            unmet = [r[4:] for r in f.requires if r.startswith('met:')
+                     and not story.satisfied(r, game)]
+            if unmet:
+                npc = npc_content.BY_KEY.get(unmet[0])
+                if npc is not None:
+                    need = f'  [dim]somebody {npc.epithet} would know[/]'
+            c.raw(f'  [accent2]·[/] [dim]{f.rumour}[/]')
+            c.raw(f'      [dim]{where}{when}[/]{need}')
+    if not found and not heard:
+        c.blank()
+        c.say('[dim]Nothing yet. The city keeps things back for the '
+              'people who go and look. Stand in the places that are not '
+              'on the way to anywhere, and ask whoever keeps hours '
+              'there.[/]')
+    elif unheard:
+        c.blank()
+        c.say(f'[dim]And {unheard} other{"s" if unheard != 1 else ""} you have '
+              f'not heard of yet.[/]')
+
+
 @command('visit', 'Go and stand somewhere in this district.',
          group='city', contexts=('city',), aliases=('enter', 'goto'),
          usage='visit [place|row number]',
@@ -333,6 +422,7 @@ def cmd_visit(sess, args) -> None:
     c.say(spots.scene_for(spot, game.city.phase))
     # Standing somewhere is a thing a scene can wait for (D91).
     game.story.flags.add(f'visited:{spot.key}')
+    _sense(sess, spot)
     here = {n.key for n in story_mod.present(game, game.story)}
     for key in spot.who:
         npc = npc_content.BY_KEY.get(key)
@@ -527,7 +617,13 @@ def _lead(sess, npc) -> None:
                 continue
             if f'heard:{find.item}' in story.flags:
                 continue
-            if not all(story.satisfied(rule, game) for rule in find.requires):
+            # The rumour leads (D148): it points at the place and the
+            # person, so it cannot need you to have met the person
+            # already. The `met:` rules are what the rumour is for; the
+            # rest (runs, standing, drift) still gate whether it is
+            # something you could go and get.
+            lead = [r for r in find.requires if not r.startswith('met:')]
+            if not all(story.satisfied(rule, game) for rule in lead):
                 continue
             story.flags.add(f'heard:{find.item}')
             c.blank()

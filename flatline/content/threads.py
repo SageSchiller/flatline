@@ -41,6 +41,9 @@ CONDITIONS = ('runs', 'diss', 'shift', 'credits', 'heat', 'met', 'rep',
               # How much of the city you have stood in and found (D147),
               # as counts, so the explorer has threads that read it.
               'places', 'finds',
+              # How many lines of the record you have earned (D150),
+              # so the achiever has a thread the scoreboard opens.
+              'record',
               # `asked:<npc>:<topic>`: set by `ask`, so a scene that is
               # written as a question can wait for the question (D86).
               'asked',

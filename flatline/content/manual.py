@@ -1284,7 +1284,10 @@ TOPICS: tuple[Topic, ...] = (
         'People know. Somebody standing in a district where something can '
         'be found will say what they have heard, once, when you [fg]talk[/] '
         'to them, which is the payoff for meeting people and the reason a '
-        'district with somebody in it is worth the walk.\n\n'
+        'district with somebody in it is worth the walk. Standing where '
+        'one of them is makes you aware of it too, even at the wrong hour, '
+        'and [fg]rumours[/] keeps everything you have heard of and not yet '
+        'found, with where and when.\n\n'
         'They are found rather than bought. A place, at an hour, after '
         'something has happened: [fg]visit[/] somewhere at night that you have '
         'only stood in by day, go back to a place after a thing you did, '
@@ -1300,7 +1303,7 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] whether to go and look. Standing somewhere at '
         'the wrong hour costs nothing but the hour.',
         see=('city', 'threads', 'programs'),
-        commands=('visit', 'inspect', 'look'),
+        commands=('visit', 'inspect', 'look', 'rumours'),
         terms=('unique', 'rare', 'special', 'artifact', 'artefact', 'legendary'),
         group='city'),
     Topic(

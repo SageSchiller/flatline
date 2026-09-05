@@ -13436,6 +13436,168 @@ def test_the_walking_answered() -> None:
     save_mod.delete('walk')
 
 
+def test_the_hunt_made_visible() -> None:
+    """D148: the one-of-a-kind things were rich but hard to find (one in a
+    full sweep). The rumour leads now, standing where a thing is makes you
+    aware of it, and `rumours` is the hunt made visible."""
+    T.section('the hunt made visible')
+    from flatline.content import spots
+
+    def fresh(where='marrow', phase='night', origin='courier', seed=7, runs=6):
+        char = Character.from_origin(origin, 't')
+        char.runs = runs
+        game = Game.new(char, seed=seed)
+        game.alias.runs = runs
+        game.city.where = where
+        while game.city.phase != phase:
+            game.city.shift += 1
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    def do(sess, con, cmd):
+        con.start_capture()
+        sess.execute(cmd)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    # Empty board reads as a hunt, not a wall.
+    sess, con, game = fresh(runs=0)
+    out = do(sess, con, 'rumours')
+    T.ok('0 of 15 found' in out and 'go and look' in out,
+         'a runner who has found nothing gets a hunt, not a blank')
+
+    # Standing where a runs-gated thing is, at its hour, finds it and it shows
+    # as found.
+    sess, con, game = fresh()
+    do(sess, con, 'visit transit')
+    T.ok('found:thessaly' in game.story.flags,
+         'standing at the transit gate at night with the runs finds it')
+    out = do(sess, con, 'rumours')
+    T.ok('found' in out and 'Thessaly' in out and '1 of 15 found' in out,
+         'and the rumours board checks it off')
+
+    # Standing where a thing is that you cannot take yet (wrong hour, unmet
+    # person) makes you aware of it: heard, with where, when, and a nudge.
+    sess, con, game = fresh(where='vertical', phase='night', runs=5)
+    out = do(sess, con, 'visit lobby')
+    T.ok('found:boxstep' not in game.story.flags
+         and 'heard:boxstep' in game.story.flags,
+         'the wrong hour senses it without giving it')
+    board = do(sess, con, 'rumours')
+    T.ok('heard, not yet found' in board and 'the lobby' in board
+         and 'morning' in board,
+         'and the board shows where and when')
+    T.ok('would know' in board,
+         'and that somebody there would know, without naming them')
+
+    # The rumour leads: it surfaces on the runs, not on having met the person
+    # who hands the thing over, so it can point you at that person.
+    from flatline.commands.people import _lead
+    from flatline.content import npcs as npc_content
+    sess, con, game = fresh(where='vertical', phase='morning', runs=5)
+    tailor = npc_content.BY_KEY['tailor']
+    con.start_capture()
+    _lead(sess, tailor)
+    said = ' '.join(strip_ansi(con.end_capture()).split())
+    T.ok('heard:boxstep' in game.story.flags or 'heard' in said,
+         'the rumour surfaces before you have met the person it names')
+
+    # Every find is reachable in principle: its non-met requirements are all
+    # real rules, and its spot exists.
+    for f in spots.FINDS:
+        sp = spots.spot_of(f)
+        T.ok(sp is not None, f'{f.item} has a place')
+
+
+def test_the_specialist_and_the_reckoner() -> None:
+    """D149, D150: the deck specialist beyond running jobs had two threads and
+    the achiever had one. Two specialist threads (a cryptographer's and a
+    signal reader's) and one the record opens, plus the record:N rule."""
+    T.section('the specialist and the reckoner')
+    from flatline.content import threads as thread_content
+    from flatline.commands.people import _check_story
+    from flatline.world import record as record_world
+
+    def fresh(where='marrow', seed=7, **skills):
+        char = Character.from_origin('gutter', 't')
+        char.runs = 8
+        for k, v in skills.items():
+            char.base_skills[k] = v
+        game = Game.new(char, seed=seed)
+        game.city.where = where
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    def story(sess, con):
+        con.start_capture()
+        _check_story(sess)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    # The cryptographer's thread wants a cryptographer, and Osei.
+    sess, con, game = fresh(where='marrow', cryptography=3)
+    game.story.meet('osei')
+    story(sess, con)
+    T.ok('kept' in game.story.reached.get('sealed', []),
+         'crypto three and Osei opens the sealed thing')
+    sess, con, game = fresh(where='marrow', cryptography=2)
+    game.story.meet('osei')
+    story(sess, con)
+    T.ok('sealed' not in game.story.reached, 'crypto two does not')
+
+    # The signal reader's thread wants signal, and Pip.
+    sess, con, game = fresh(where='stacks', signal=3)
+    game.story.meet('pip')
+    story(sess, con)
+    T.ok('names' in game.story.reached.get('carrier', []),
+         'signal three and Pip opens the names on the dish')
+
+    # The record opens the reckoner, and record:N counts earned lines.
+    sess, con, game = fresh(where='marrow')
+    st = game.story
+    # earn a dozen-plus record lines outright
+    game.char.runs = 15
+    game.char.credits = 25000
+    game.char.dissonance = 60
+    st.flags.update({f'visited:{i}' for i in range(30)})
+    st.flags.update({f'asked:x{i}:t' for i in range(25)})
+    st.flags.update({f'found:{i}' for i in range(6)})
+    st.flags.update({f'night:{i}' for i in range(5)})
+    game.city.fights_won = 10
+    game.city.pit['rank'] = 3
+    game.city.errands_done = 15
+    game.city.doorways = 5
+    game.city.messaged['watch_hits'] = 5
+    game.city.bounties = {'x': 20}
+    game.char.marks.append('black_ice')
+    st.met.update({f'p{i}' for i in range(20)})
+    for i in range(12):
+        st.reached[f'th{i}'] = ['s']
+    n = len(record_world.earned(record_world.counts(game, {})))
+    T.ok(n >= 15, f'the setup earns at least fifteen record lines (got {n})')
+    T.ok(st.satisfied('record:15', game) and not st.satisfied(f'record:{n + 1}', game),
+         'record:N counts the lines this character has earned')
+    # Many threads are available at once here; the scene cap fires three
+    # a breath, so it takes a few commands, as it would in play.
+    for _ in range(8):
+        story(sess, con)
+        if 'reckoner' in st.reached:
+            break
+    T.ok('measure' in st.reached.get('reckoner', []),
+         'having done the lot opens the reckoner')
+
+    # Every choice flag in the three new threads has an epilogue line.
+    from flatline.content import legacy
+    epi = {f for f, _ in legacy.EPILOGUE}
+    for key in ('sealed', 'carrier', 'reckoner'):
+        for st2 in thread_content.BY_KEY[key].stages:
+            for ch in st2.choices:
+                for flag in ch.sets:
+                    T.ok(flag in epi, f'{key}: {flag} is in the ending')
+
+
 def manual_body(key: str) -> str:
     from flatline.content import manual
     return manual.BY_KEY[key].body
@@ -14734,6 +14896,8 @@ SUITES = (
     test_the_third_round,
     test_the_signposts_and_the_counts,
     test_the_walking_answered,
+    test_the_hunt_made_visible,
+    test_the_specialist_and_the_reckoner,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

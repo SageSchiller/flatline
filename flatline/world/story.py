@@ -128,6 +128,16 @@ class Story:
             # having been that somebody more than once.
             return sum(1 for f in self.flags
                        if f.startswith('found:')) >= int(value)
+        if kind == 'record':
+            # How many lines of the record this character has earned
+            # (D150), live, so the achiever, whose only payoff was the
+            # scoreboard, has a story that opens when they have done a
+            # great deal of everything. The profile is not read: this is
+            # about what this one has done, not what the terminal has
+            # ever seen.
+            from . import record as record_world
+            counts = record_world.counts(game, {})
+            return len(record_world.earned(counts)) >= int(value)
         if kind == 'pit':
             # A name on the wall (D134): `pit:champion` is the flag the
             # house sets, and `pit:<n>` is the rung.

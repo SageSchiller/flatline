@@ -1399,6 +1399,224 @@ MORE_THREADS: tuple[Thread, ...] = (
                   any_of=('kept_asked', 'kept_left'),
                   sets=('kept_known',)),
         )),
+
+    # -- The deck specialist: what only your line can open (D149) --------------
+    Thread(
+        'sealed', 'The Sealed Thing',
+        'Osei keeps things people leave. One of them is a drive nobody has '
+        'been able to open, and he has been waiting to meet somebody who '
+        'could.',
+        crosses=(),
+        stages=(
+            Stage('kept', 'A drive behind the bar',
+                  'Osei puts it on the bar the way he puts down the second '
+                  'drink, without being asked and without comment. A drive, '
+                  'old, the casing worn smooth on one corner by a thumb that '
+                  'is not yours.\n\n'
+                  '"A runner left this with me. Paid a year up front for me to '
+                  'keep it, and did not come back, and the year is a long way '
+                  'gone." He wipes the bar that does not need it. "It is '
+                  'locked in a way that has beaten everybody I have shown it '
+                  'to. You are supposed to be good at that. I would like to '
+                  'know what I have been keeping."',
+                  requires=('met:osei', 'skill:cryptography:3'),
+                  sets=('sealed_shown',),
+                  where='marrow'),
+            Stage('open', 'What was under the lock',
+                  'It is not a job and it is not money. It is a letter, the '
+                  'kind nobody writes, addressed to a name that is not Osei\'s '
+                  'and not yours, and under the letter a second file the '
+                  'letter tells that person how to open, which is the only '
+                  'reason the letter was locked at all: it is a key with an '
+                  'apology wrapped round it.\n\n'
+                  'Osei reads the name over your shoulder and goes very still, '
+                  'and then says, "She still drinks here. Thursdays." He does '
+                  'not say anything else. He is leaving it to you, the way the '
+                  'runner left it to him.',
+                  requires=('sealed_shown',),
+                  sets=('sealed_open',),
+                  choices=(
+                      Choice('deliver', 'Give it to the name on it',
+                             'You wait until Thursday. She reads the letter '
+                             'standing up, at the bar, and does not sit down, '
+                             'and when she is finished she puts the second '
+                             'file in her pocket and buys the bar a drink it '
+                             'does not know it is being bought, and leaves, '
+                             'and Osei pours yours last, and does not charge '
+                             'you for it, and that is the whole of what is '
+                             'said about it.',
+                             sets=('sealed_delivered',)),
+                      Choice('read', 'Read the second file first',
+                             'You open the second file before you give the '
+                             'letter over, because you are the one who can, '
+                             'and knowing you could was the same as doing it. '
+                             'It is a list of everybody the runner ever gave '
+                             'up, and to whom, and for how much, and the last '
+                             'name on it is the name on the letter.\n\n'
+                             'You give her the letter and keep that you read '
+                             'the file, and it sits in you the way a thing you '
+                             'cannot unknow sits, which is badly.',
+                             sets=('sealed_read',), drift=4),
+                      Choice('burn', 'Wipe it and tell Osei it was nothing',
+                             'You wipe it, both files, and tell Osei it was a '
+                             'corrupted backup, nothing anybody kept for a '
+                             'reason. He looks at you for a moment longer than '
+                             'the lie deserves and then nods and takes the '
+                             'drive back and puts it under the bar, because a '
+                             'thing somebody paid a year to keep is a thing you '
+                             'keep, even after it is empty.',
+                             sets=('sealed_burned',)),
+                  )),
+            Stage('after', 'What a lock is for',
+                  'You are the one who can open what is shut, which you knew, '
+                  'and what you did not know until Osei\'s drive is that being '
+                  'the one who can open a thing is the same as being the one '
+                  'who decides whether it should have been opened. A lock is '
+                  'somebody trusting that the person who can beat it will know '
+                  'when not to. You are that person now, to the people who '
+                  'lock things, whether or not you ever wanted the job.',
+                  requires=(),
+                  any_of=('sealed_delivered', 'sealed_read', 'sealed_burned'),
+                  sets=('sealed_done',)),
+        )),
+
+    Thread(
+        'carrier', 'The Names on the Big Dish',
+        'Pip catches things on the big dish that do not come from anywhere. '
+        'You are the one who can find out where nowhere is.',
+        crosses=(),
+        stages=(
+            Stage('names', 'What comes in on tower three',
+                  'Pip has the dish off its mount and in your hands before you '
+                  'have agreed to hold it. "Names," they say. "The big dish '
+                  'catches names. Not on a channel. Between the channels, '
+                  'where there is not supposed to be a channel. I have written '
+                  'them down." They have. Pages of them, in a child\'s careful '
+                  'hand.\n\n'
+                  '"I do not know from where. Nobody does. You do the thing '
+                  'with signals. I will trade you the pages for where."',
+                  requires=('met:pip', 'skill:signal:3'),
+                  sets=('carrier_heard',),
+                  where='stacks'),
+            Stage('where', 'Where nowhere is',
+                  'You take the pages up tower three where the dish sits and '
+                  'you do the thing with signals, the triangulation, the '
+                  'walking of the phase, the long patient arithmetic of where '
+                  'a thing that is between the channels is actually standing, '
+                  'and the arithmetic keeps returning an answer that is not a '
+                  'transmitter.\n\n'
+                  'It is the water. The signal is coming up out of the harbour '
+                  'at Freeport, from under it, on no power anybody is paying '
+                  'for, and the names it is carrying are the names of runners, '
+                  'and some of them are still alive, and one of them, when you '
+                  'check, is you.',
+                  requires=('carrier_heard',),
+                  any_of=('dw_heard', 'runs:6'),
+                  sets=('carrier_where',),
+                  choices=(
+                      Choice('tell', 'Tell Pip where',
+                             'You tell Pip it comes from the water and let them '
+                             'make of that what an eleven-year-old on a tower '
+                             'makes of it, which is to nod as though you have '
+                             'confirmed something, and write \'the water\' at '
+                             'the top of the pages, and point the dish a '
+                             'degree lower, at the harbour, to catch more of '
+                             'it, because to Pip more of a thing is always the '
+                             'answer.',
+                             sets=('carrier_told',)),
+                      Choice('keep', 'Keep where it comes from to yourself',
+                             'You tell Pip the arithmetic did not close, that '
+                             'the signal is a reflection, an artefact, nothing '
+                             'standing anywhere, and Pip takes the dish back '
+                             'and is disappointed in a way that is worse than '
+                             'angry, and you keep that your name is coming up '
+                             'out of the harbour on a frequency nobody pays '
+                             'for, which is a thing you now get to know on your '
+                             'own.',
+                             sets=('carrier_kept',), drift=4),
+                  )),
+            Stage('after', 'A frequency nobody pays for',
+                  'You know a thing about the water now that you did not go '
+                  'looking for, which is the way you find out the things about '
+                  'the water: it is carrying names, on no power, from under '
+                  'the harbour, and it has yours. You do not do anything with '
+                  'knowing it. There is nothing to do with it. It is just one '
+                  'more thing that is true about the city that most people in '
+                  'it get to not know.',
+                  requires=(),
+                  any_of=('carrier_told', 'carrier_kept'),
+                  sets=('carrier_done',)),
+        )),
+
+    # -- The achiever: the scoreboard, answered (D150) -------------------------
+    Thread(
+        'reckoner', 'The Unit',
+        'You have done a great deal of everything, and the city has started '
+        'using your name as the measurement.',
+        crosses=(),
+        stages=(
+            Stage('measure', 'A name that means an amount',
+                  'You hear it in Marrow, from two people who do not know you '
+                  'are behind them. One is describing a job to the other, and '
+                  'to say how much of it there was, how loud and how long and '
+                  'how much came out the far end, they use your handle. Not as '
+                  'a person. As a unit. "It was half a" you, they say, and the '
+                  'other one knows exactly how much that is.\n\n'
+                  'Nobody decided to do this. It is what a city does with a '
+                  'name it has heard attached to enough things: it stops being '
+                  'a person and becomes a way of measuring the thing they did.',
+                  requires=('record:15',),
+                  sets=('reckoner_heard',)),
+            Stage('meet', 'Somebody has been keeping the count',
+                  'It turns out somebody has been keeping the actual count, on '
+                  'purpose, for a while. They find you, which is easy, because '
+                  'they know where you have been, because knowing where you '
+                  'have been is the hobby. They have a book. You are most of '
+                  'it.\n\n'
+                  '"I do not want anything," they say, and mean it, which is '
+                  'the strange part. "I keep the ones who did the lot. There '
+                  'are not many and none of them lasted, and I would like to '
+                  'have got yours down right before the same thing happens to '
+                  'you. Tell me if I have any of it wrong."',
+                  requires=('reckoner_heard', 'record:20'),
+                  sets=('reckoner_met',),
+                  choices=(
+                      Choice('correct', 'Put them right where they are wrong',
+                             'You go through the book with them and correct '
+                             'the two or three things they have slightly '
+                             'wrong, the seed of a night, the order of two '
+                             'jobs, the name of somebody who was there, and '
+                             'they write the corrections in a hand that is '
+                             'careful about being a record and not a story, '
+                             'and at the end they close the book and say '
+                             '"thank you" as though you have done them the '
+                             'favour, and you cannot decide whether you have.',
+                             sets=('reckoner_corrected',)),
+                      Choice('leave', 'Let the book say what it says',
+                             'You tell them you would rather not know what is '
+                             'in the book, or fix it, or read it, and they '
+                             'accept that without argument, because a person '
+                             'who did the lot not wanting to see the count of '
+                             'it is itself a thing worth writing down, and '
+                             'they write that down, and you leave them to it, '
+                             'and it is out there now, a book with you in it, '
+                             'being kept right by somebody whether you like it '
+                             'or not.',
+                             sets=('reckoner_left',)),
+                  )),
+            Stage('kept', 'In the book, either way',
+                  'There is a book with you in it, kept by somebody who does '
+                  'it for no reason except that the people who did the lot '
+                  'should be got down right before the city closes over them, '
+                  'which it does, over everybody, which is the reason for the '
+                  'book. You did the lot. That is what the book is for, and it '
+                  'is a stranger thing to have been than rich, and it lasts '
+                  'about as long, which is to say not very, which is to say '
+                  'longer than you will.',
+                  requires=(),
+                  any_of=('reckoner_corrected', 'reckoner_left'),
+                  sets=('reckoner_done',)),
+        )),
 )
 
 

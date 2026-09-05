@@ -693,6 +693,33 @@ EPILOGUE: tuple[tuple[str, str], ...] = (
     ('kept_left',
      'You decided not to find out who leaves the city\'s things out for '
      'you, in case the knowing stopped it, and it never did stop.'),
+    # The deck specialist (D149)
+    ('sealed_delivered',
+     'You opened what a dead runner left with Osei and gave it to the '
+     'name on it, who read it standing up and bought the bar a drink and '
+     'left.'),
+    ('sealed_read',
+     'You read the list of everybody a dead runner ever gave up before '
+     'you handed their letter on, and you did not unknow it afterwards.'),
+    ('sealed_burned',
+     'You wiped what a dead runner left with Osei and told him it was '
+     'nothing, and he kept the empty drive anyway, because somebody had '
+     'paid to keep it.'),
+    ('carrier_told',
+     'You told Pip the names on the big dish come up out of the water at '
+     'Freeport, and Pip pointed the dish a degree lower to catch more of '
+     'them.'),
+    ('carrier_kept',
+     'You found that your own name comes up out of the harbour on a '
+     'frequency nobody pays for, and told Pip it was nothing, and kept '
+     'the knowing to yourself.'),
+    # The achiever (D150)
+    ('reckoner_corrected',
+     'Somebody keeps a book of the runners who did the lot, and you sat '
+     'with them and put your page right, and they thanked you for it.'),
+    ('reckoner_left',
+     'Somebody keeps a book of the runners who did the lot, and you are '
+     'most of a page of it, and you never asked to see what it says.'),
 
 )
 

@@ -12,7 +12,7 @@ updated: 2026-09-04
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
-> **State as of 2026-09-04, end of the session.** D133 to D143 landed today on top of the combat layer, all from the author's briefs and three rounds of play-testing, and the plan is current through all of them. First, the rest of the game met the fight (D133 to D136): street conditions, chem and traits that read a fighter, a clinic that patches a cut, the pit at Carrion's with a wall of names and a fixer's muscle work, and then the deck as a thing you live with in the city (mail, search, watch, message, ads) and a thing with a body (condition, reach, sweep, route, tune). Then the same method as D86 to D89 turned on all of it (D137 to D139): three play-tests of everything since D128 (a brawler, a netrunner who never throws a punch, a first-timer who does what `now` says), then three aimed at the deck and four at the fight and the pit, no crashes anywhere, nineteen fixes, and a balance simulation across the fighting routes with the measured take per shift written into `test_the_fight_under_pressure`. Then the story caught up with the street (D140, D141): rules that can read a skill, a rank in the pit, a habit, what you carry and what you have fought, eight new threads and three new people so that every gate in the game has fiction behind it, and `test_a_thread_for_every_way_of_working`, which fails the build if a system ships without a story. Last, against the Bartle axes, the two kinds of player the game had nothing for (D142, D143): `record`, twenty-four lines across the work, the city, the people and the floor that count things the engine actually writes, each crossing earning a name shown on `char`; and the main line paying off, the Deepwater palette gated behind finishing it, the city settling the water once and differently per ending, and *Afterwards*, the thread that hands the city back. Then the same method again (D144): an achiever playing for the record, the ending played three ways, and a fighter who ends on the main line; five campaigns, no crashes, every ending reached by play, and seven fixes, the largest being the posting that outlived its own ending and an afterwards that opened in the same breath as the offer. `validate.py` clean, `test.py` green at **18,991 checks**. Counts (read off the code on 2026-09-04): 15 skills / 30 techniques, 33 traits, 12 origins, 14 icons, 58 implants, 13 weapons and 3 things to wear, 70 programs, 34 components, 14 drugs, 25 one of a kind, 28 ICE, 46 threads / 137 scenes / 147 decisions, 32 named people with 129 topics, 7 rivals, 204 events, 12 factions, 12 districts / 72 quarters / 60 places, 24 street encounters, 5 names on the wall, 8 run conditions and 6 street nights, 25 record lines, 7 ambitions, 46 manual topics, 151 commands, 91 pieces of terminal across 9 axes. **The next thing worth doing is unchanged:** play it three ways with fresh briefs and fix what the players say. Nobody has yet played the under ending (read the log, consent to the archive, keep Lark alive), a chem habit through *Ninety*, or a campaign that lives on the deck's search and watches; and every play-test harness from here must set `XDG_DATA_HOME`. Then two more rounds the same day (D145, D146): six personas on the three corners nobody had reached by play (the fourth ending, retirement, a bond with another runner), no crashes, three fixes (a loadout dead-end that looped on a duplicate program, a partner bond that could not form, `market chrome`) and two confirmations (the under ending is complete, a death carried by the epilogue; retirement is sound); then four additions the round pointed at, a non-chrome path to the drift line, the posting's brief naming the route a network with no perimeter wants, the fence and the demonstrator introducing themselves through the work, and the README's counts held to the modules by `validate` so they cannot drift silently again. A regression of all nine personas on the fixed build is clean, and the partner bond and the hunted advice both visibly work now. `test.py` green at **19,011**.
+> **State as of 2026-09-04, end of the session.** D133 to D143 landed today on top of the combat layer, all from the author's briefs and three rounds of play-testing, and the plan is current through all of them. First, the rest of the game met the fight (D133 to D136): street conditions, chem and traits that read a fighter, a clinic that patches a cut, the pit at Carrion's with a wall of names and a fixer's muscle work, and then the deck as a thing you live with in the city (mail, search, watch, message, ads) and a thing with a body (condition, reach, sweep, route, tune). Then the same method as D86 to D89 turned on all of it (D137 to D139): three play-tests of everything since D128 (a brawler, a netrunner who never throws a punch, a first-timer who does what `now` says), then three aimed at the deck and four at the fight and the pit, no crashes anywhere, nineteen fixes, and a balance simulation across the fighting routes with the measured take per shift written into `test_the_fight_under_pressure`. Then the story caught up with the street (D140, D141): rules that can read a skill, a rank in the pit, a habit, what you carry and what you have fought, eight new threads and three new people so that every gate in the game has fiction behind it, and `test_a_thread_for_every_way_of_working`, which fails the build if a system ships without a story. Last, against the Bartle axes, the two kinds of player the game had nothing for (D142, D143): `record`, twenty-four lines across the work, the city, the people and the floor that count things the engine actually writes, each crossing earning a name shown on `char`; and the main line paying off, the Deepwater palette gated behind finishing it, the city settling the water once and differently per ending, and *Afterwards*, the thread that hands the city back. Then the same method again (D144): an achiever playing for the record, the ending played three ways, and a fighter who ends on the main line; five campaigns, no crashes, every ending reached by play, and seven fixes, the largest being the posting that outlived its own ending and an afterwards that opened in the same breath as the offer. `validate.py` clean, `test.py` green at **18,991 checks**. Counts (read off the code on 2026-09-04): 15 skills / 30 techniques, 33 traits, 12 origins, 14 icons, 58 implants, 13 weapons and 3 things to wear, 70 programs, 34 components, 14 drugs, 25 one of a kind, 28 ICE, 49 threads / 147 scenes / 154 decisions, 32 named people with 129 topics, 7 rivals, 204 events, 12 factions, 12 districts / 72 quarters / 60 places, 24 street encounters, 5 names on the wall, 8 run conditions and 6 street nights, 25 record lines, 7 ambitions, 46 manual topics, 152 commands, 91 pieces of terminal across 9 axes. **The next thing worth doing is unchanged:** play it three ways with fresh briefs and fix what the players say. Nobody has yet played the under ending (read the log, consent to the archive, keep Lark alive), a chem habit through *Ninety*, or a campaign that lives on the deck's search and watches; and every play-test harness from here must set `XDG_DATA_HOME`. Then two more rounds the same day (D145, D146): six personas on the three corners nobody had reached by play (the fourth ending, retirement, a bond with another runner), no crashes, three fixes (a loadout dead-end that looped on a duplicate program, a partner bond that could not form, `market chrome`) and two confirmations (the under ending is complete, a death carried by the epilogue; retirement is sound); then four additions the round pointed at, a non-chrome path to the drift line, the posting's brief naming the route a network with no perimeter wants, the fence and the demonstrator introducing themselves through the work, and the README's counts held to the modules by `validate` so they cannot drift silently again. A regression of all nine personas on the fixed build is clean, and the partner bond and the hunted advice both visibly work now. `test.py` green at **19,011**.
 >
 > **State as of 2026-09-01.** D86 to D89 landed in one session, from three play-tests run in parallel with three different briefs (a first-timer who does what `now` says, an explorer who ignores it, and a run specialist who types every verb by hand). What they found, in order of size: the story layer was gated on meeting people and nothing ever said to meet anyone, and forty-two scenes declared a district that nothing read; the advice could recommend the same severed run five nights running and never once name Intrusion; a credential warden was an unanswerable wall for the Chromed origin and the board could not see it; and D6's severed-connection cooldown had never been implemented. All fixed, with `test_people_are_the_story`, `test_night_before`, `test_wall_and_clock` and `test_remembered_inside` holding them. Two things were added rather than fixed: the construct that cut you loose is on the route next time, awake and named, and the other runners can turn up inside a network with consequences that read their opinion of you. `validate.py` clean, `test.py` green at **18,941 checks** (D90 to D114 followed on 2026-09-02 and 2026-09-03: the visual layer, from pictures and the drawn instrument through the schematic map, player icons, more palettes and prompts, the portrait, reveal styles, seen ICE with screen disruption, a glyph per host type across the scan, the map, and the node header, a full-colour city that the boot now comes up on, and the player icons redrawn as a bestiary of creatures and characters with four more to buy, and a story/quest play-test that fixed the first-runs signposting, and a cold-open first job, sharper run beats, an ambitions ladder, a blank-prompt lifeline for newcomers, a nemesis reckoning that gives the rival arc a payoff, the nemesis as a felt in-run obstacle racing you for the objective, and its mirror the partner who helps in the run offers to crew for good, and three ways into every job that make a build matter for the run itself, and a plantable backdoor that turns an in-run choice into an easier run later, and a faction-power layer with a `world` dashboard so a campaign visibly reshapes the city, and a swagger/legend layer that lets the player be good at it, and origin lifepath openings so who you started as reaches into your story, and two tactic tools, Shroud and Sledge, that each buy a verb the deck could not do before, and, unlocking the founding no-combat rule at the author's call, a street that can be fought (D128 to D132, 2026-09-03 and 2026-09-04): a fifteenth skill, an exchange in rounds with a netrunner's route through their chrome, a play-test that found the overworld safe by construction and gave districts danger of their own, twelve weapons in four styles, armour worn and fitted, chrome that fights, loot, a fighter's living in muscle work and fights that teach, a balance simulation across eight builds, and every help topic brought up to date with all of it). The next thing worth doing is another round of the same method: play it three ways and fix what the players say, because every one of the fourteen decisions since D75 came out of somebody playing rather than somebody guessing.
 >
@@ -5158,6 +5158,93 @@ and no story. `test_the_walking_answered` holds the count rules, both
 threads opening on the right thresholds and closing on their payoffs, and the
 walking surviving a save. `validate.py` clean, `test.py` green.
 
+### D148: The hunt made visible
+
+The explorer got a story in D147 and still could barely reach the far half
+of it: the one-of-a-kind things gate on meeting a specific person at a
+specific hour, and a persona that walked the whole city found one of fifteen.
+The material was the best in the game, each thing with a rumour and a person
+and a place, and it was nearly invisible.
+
+**The rumour leads now.** It surfaced only once all of a find's rules held,
+including the `met:` rule for the person who hands the thing over, which is
+backwards: the rumour is the thing that is supposed to point you at that
+person. It surfaces on the rest of the rules now (the runs, the standing, the
+drift) and names the place, so it can send you to where the person is.
+
+**Standing where a thing is makes you aware of it.** Visit a place that has
+something to be found whose conditions you nearly meet, and you sense it,
+even at the wrong hour or before you have met whoever hands it over. The
+walking populates the board instead of relying on catching a line in
+passing.
+
+**`rumours` is the board.** The one-of-a-kind things you have found, checked
+off with where they were; the ones you have heard of and not yet found, with
+the place, the hour, and a nudge at who would know, without naming them; and
+a count of the ones you have not heard of, because hearing of a thing is the
+first half of finding it and the view keeps that. It is the explorer's hunt
+made a thing you can see, the way the record is the achiever's.
+
+`test_the_hunt_made_visible` holds the empty board reading as a hunt, a
+runs-gated thing found by standing where it is at its hour, a thing sensed
+without being given at the wrong hour, the board showing where and when, and
+the rumour surfacing before the person is met. `validate.py` clean, `test.py`
+green.
+
+### D149: What only your line can open
+
+The deck specialist, past the point of just running jobs, had two threads:
+one that wants Daemonology, one that wants Stealth. Cryptography,
+Architecture, Signal, Sabotage, Intrusion, Hardware and Forensics had none
+between them. The specialist got all the run-gated content like everyone,
+and nothing that was about being specifically, deeply good at the one thing
+they had poured a career into.
+
+Two threads, each about the thing only that specialist can do. **The Sealed
+Thing** wants Cryptography three: Osei, behind the bar that has no front,
+has kept a drive a dead runner paid a year to leave with him, locked in a
+way that has beaten everybody he has shown it to, and you are the one who
+can open it, and what is under the lock is a letter and a key and a name that
+still drinks there Thursdays, and the choice is whether to deliver it, read
+the file first because you are the one who can, or wipe it and tell Osei it
+was nothing. **The Names on the Big Dish** wants Signal three: Pip catches
+names on the big dish, between the channels where there is not supposed to be
+a channel, and you are the one who can find where nowhere is, and the
+arithmetic keeps returning the water, the harbour at Freeport, on no power
+anybody pays for, carrying the names of runners, one of them yours. Each
+closes on what it is to be the one who can open what is shut, or hear what
+is not on a channel: the specialist's version of the thing the fighter and
+the face already had.
+
+`validate.py` clean, `test.py` green.
+
+### D150: The unit
+
+The achiever, the player who does a great deal of everything and reads the
+record, had one thread that touched them and the record itself, which is a
+scoreboard. Against the same measure the fighter had five threads and the
+face eight, the completionist had the numbers going up and almost no story
+about the going up.
+
+**The record opens a story now.** A new rule, `record:<n>`, is how many of
+the record's twenty-five lines this character has earned, live, so a thread
+can gate on having done the lot rather than on any one thing. **The Unit**
+opens at fifteen lines: you hear it in Marrow, two people who do not know you
+are behind them, one describing a job and using your handle to say how much
+of it there was, not as a person, as a unit, "half a" you, and the other
+knows exactly how much that is. At twenty lines somebody who keeps the count
+on purpose finds you, with a book, and you are most of it, and they want
+nothing except to have got yours down right before the city closes over you
+the way it closes over everybody, and the choice is whether to sit with them
+and put it right or leave the book to say what it says. It is the quietest
+achievement in the game and the one that lasts longest, which is the
+register the record was always in.
+
+`test_the_specialist_and_the_reckoner` holds the two specialist threads
+opening on their skills and the right people, the `record:<n>` rule counting
+earned lines, and the reckoner opening on a full record. `validate.py`
+clean, `test.py` green.
+
 ### D17: The finish line
 
 **Phase 4 is a legitimate stopping point.** At the end of Phase 4 the game has: a full character build, procedural networks with real ICE, the noise/trace/residue triangle, a persistent city with factions that react, and consequences that carry between runs. That is a complete game that can sit indefinitely without being unfinished.
@@ -6901,3 +6988,14 @@ walking, against face 8 / fighter 5 / street 4 / drift 3. New engine rules
 `places:<n>` and `finds:<n>`, two explorer threads (*The Edges* on places
 stood in, *Kept Back* on things found), and the coverage test extended to
 enforce them. `test_the_walking_answered`.
+
+### 2026-09-04 (u): the hunt, the specialist, the unit
+
+D148, D149, D150. The explorer's finds made a visible hunt: the rumour leads
+on the non-met rules, standing where a thing is senses it, and `rumours` is
+the board (found / heard-not-found with where and when / unheard count). Two
+deck-specialist threads, *The Sealed Thing* (cryptography, Osei) and *The
+Names on the Big Dish* (signal, Pip). And the achiever's *The Unit*, gated on
+a new `record:<n>` rule (lines of the record earned), about your name
+becoming the city's unit of measurement. `test_the_hunt_made_visible`,
+`test_the_specialist_and_the_reckoner`.
