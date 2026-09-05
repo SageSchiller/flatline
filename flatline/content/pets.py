@@ -334,6 +334,8 @@ FAMILIARS: tuple[Familiar, ...] = (
                      'and is judging your pace.',),
             'dormant': ('The pixel cat is a still frame in the corner. It has '
                         'not run in a while and it shows.',),
+            'done': ('The pixel cat, on the objective, does a slow turn in the render and sits on it, which is how it claims things.',),
+            'home': ('The pixel cat is asleep on the deck when you get in, or renders as asleep, which for it is the same thing.',),
         }),
     Familiar(
         'chatterbird', 'a chatter-bird', 'bird', 'wry', 1, 10,
@@ -370,6 +372,8 @@ FAMILIARS: tuple[Familiar, ...] = (
             'dormant': ('The chatter-bird is quiet, which is unlike it, '
                         'because you have not run it in long enough that it '
                         'has run down.',),
+            'done': ('"That was the bit they pay for," says the chatter-bird, "and I was here for it, so."',),
+            'home': ('"You live here?" says the chatter-bird, every time, from the top of the deck, in the tone of a bird that lives there too.',),
         }),
     Familiar(
         'goodboy', 'a good boy', 'dog', 'warm', 2, 12,
@@ -412,6 +416,8 @@ FAMILIARS: tuple[Familiar, ...] = (
             'dormant': ('The good boy has gone quiet in a folder you do not '
                         'open. It is fine in there. Load it and it will not '
                         'have minded.',),
+            'done': ('The good boy sits, the way he was taught, and looks at the objective and then at you, and his whole render wags.',),
+            'home': ('The good boy is at the door of the render before you are through the real one, and stays there until you say something to him.',),
         }),
     Familiar(
         'tally', 'the tally', 'thing', 'grim', 1, 5,
@@ -451,6 +457,8 @@ FAMILIARS: tuple[Familiar, ...] = (
             'dormant': ('The tally has gone quiet, and the quiet is louder '
                         'than the counting was, and you find yourself loading '
                         'it again just to make the counting come back.',),
+            'done': ('The tally shows the number and then a second number under it, smaller, which is what it thinks the first one cost.',),
+            'home': ('The tally shows the shift, and under it the number of shifts it has shown you the shift, and does not say why.',),
         }),
     Familiar(
         'wormwood', 'wormwood', 'thing', 'unsettling', 2, 3,
@@ -492,6 +500,8 @@ FAMILIARS: tuple[Familiar, ...] = (
             'dormant': ('Wormwood has gone dormant, or is pretending to, and '
                         'you cannot tell which, and you have decided that not '
                         'being able to tell is the same as it being fine.',),
+            'done': ('"Done," says wormwood, in the voice that is almost yours, before you have decided it is.',),
+            'home': ('"You came back," says wormwood, when you get in, and it is not clear whether that is a greeting or a note.',),
         }),
 )
 

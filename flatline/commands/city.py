@@ -3875,6 +3875,13 @@ def cmd_rest(sess, args) -> None:
         if line:
             c.blank()
             c.say(f'[dim]{line}[/]')
+    # And the familiar, which rides the deck home (D164). One line, the
+    # 'home' beat, deterministic in the shift; it reads nothing.
+    if game.city.safehouse and game.city.where == game.city.safehouse.get('district'):
+        line = _familiar_home_line(game)
+        if line:
+            c.blank()
+            c.say(f'[dim]{line}[/]')
 
 
 # --------------------------------------------------------------------------
@@ -5131,7 +5138,9 @@ def cmd_who(sess, args) -> None:
             ('thinks of you', f'{rival.disposition:+d} [dim]{rival.band}[/]'
              + ({'nemesis': '  [err]your nemesis[/]',
                  'partner': '  [ok]your partner[/]'}.get(rival.bond, ''))),
-        ])
+        ] + ([('holds', '[err]the paper on your name[/] [dim](D164: they '
+                        'took the bounty, and collect in person)[/]')]
+             if game.city.paper == rival.key else []))
         if not rival.alive:
             c.blank()
             c.err(f'Dead. Shift {rival.died}.')
@@ -6419,6 +6428,23 @@ def _since(shifts: int) -> str:
         return 'newly yours'
     days = shifts
     return f'{days} shift{"s" if days != 1 else ""} yours'
+
+
+def _familiar_home_line(game) -> str:
+    """The familiar's line for being home (D164), or ''. Cosmetic: it is
+    the 'home' beat, picked by the shift so the same night says the same
+    thing, and it reads nothing but the shift."""
+    from ..content import pets as pet_content
+    fam_state = game.char.deck.familiar
+    if not fam_state:
+        return ''
+    fam = pet_content.FAMILIAR_BY_KEY.get(fam_state.get('key', ''))
+    if fam is None or int(fam_state.get('charge', pet_content.FAMILIAR_FULL)) <= 0:
+        return ''
+    lines = fam.says.get('home') or ()
+    if not lines:
+        return ''
+    return lines[int(game.city.shift) % len(lines)]
 
 
 def _pet_toy(sess, args, pet: dict, animal, name: str) -> None:

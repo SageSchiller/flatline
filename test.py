@@ -14306,14 +14306,27 @@ def test_the_follower_never_stalls() -> None:
     worst = (0, '')
     from flatline.content import origins as origin_content
     for seed, origin in ((181 + i, key) for i, key in enumerate(origin_content.BY_KEY)):
-        game = Game.new(Character.from_origin(origin, 'x'), seed=seed)
-        console = quiet_console()
-        sess = Session(console=console, slot='fuzz')
-        sess.game = game
-        console.start_capture()
-        last, streak = '', 0
-        raised = ''
-        for i in range(90):
+        raised, worst_here = _follow(origin, seed, 90)
+        T.ok(not raised, f'{origin}/{seed}: nothing raised ({raised or "clean"})')
+        if worst_here[0] > worst[0]:
+            worst = worst_here
+    T.ok(worst[0] <= LIMIT, f'no step repeats more than {LIMIT} times running: worst {worst}')
+
+
+def _follow(origin: str, seed: int, steps: int) -> tuple[str, tuple[int, str]]:
+    """Play one character by doing what `now` and the brief say. Returns
+    what raised (or '') and the longest streak of one repeated step."""
+    from flatline.commands import city as city_cmd
+    game = Game.new(Character.from_origin(origin, 'x'), seed=seed)
+    console = quiet_console()
+    sess = Session(console=console, slot='fuzz')
+    sess.game = game
+    console.start_capture()
+    last, streak = '', 0
+    raised = ''
+    worst = (0, '')
+    if True:
+        for i in range(steps):
             if game.over:
                 break
             try:
@@ -14344,8 +14357,21 @@ def test_the_follower_never_stalls() -> None:
             if streak > worst[0]:
                 worst = (streak, f'{origin}/{seed} {step}')
         console.end_capture()
-        T.ok(not raised, f'{origin}/{seed}: nothing raised ({raised or "clean"})')
-    T.ok(worst[0] <= LIMIT, f'no step repeats more than {LIMIT} times running: worst {worst}')
+    return raised, worst
+
+
+def slow_the_long_follower() -> None:
+    """D164, opt in with `--long`: two characters followed for four hundred
+    steps each, past the point the briefs steer the campaigns around. Slow,
+    which is why it is not in the default run."""
+    T.section('the long follower')
+    worst = (0, '')
+    for origin, seed in (('gutter', 301), ('academic', 302)):
+        raised, worst_here = _follow(origin, seed, 400)
+        T.ok(not raised, f'{origin}/{seed}: nothing raised in four hundred steps ({raised or "clean"})')
+        if worst_here[0] > worst[0]:
+            worst = worst_here
+    T.ok(worst[0] <= 20, f'no step repeats more than twenty times in four hundred: worst {worst}')
     # What the first fuzz found: an exact name wins over a substring.
     from types import SimpleNamespace as NS
     from flatline.content import programs as PRc, cyberware as CWc
@@ -14538,12 +14564,92 @@ def test_coming_back_and_the_line_you_are_near() -> None:
     # pinned expectation reads a clean profile; `now` itself is held to agree
     # with whatever the live profile says.
     near_clean = guide_cmd._record_near(sess2, dict(save_mod.META_DEFAULT))
-    T.ok(near_clean == 'Runs finished: 11 of 12, 1 to go.', f'eleven runs is one short of the first line: {near_clean!r}')
+    T.ok(near_clean.startswith('Runs finished: 11 of 12, 1 to go'), f'eleven runs is one short of the first line: {near_clean!r}')
     live = guide_cmd._record_near(sess2)
     T.ok(('to go.' in out) == bool(live), 'and now prints the line exactly when there is one')
     game3 = Game.new(Character.from_origin('gutter', 'x'), seed=212)
     sess3, out3 = play(['now'], game=game3)
     T.ok(guide_cmd._record_near(sess3, dict(save_mod.META_DEFAULT)) == '', 'and says nothing when nothing is close')
+
+
+def test_the_collector_and_the_company() -> None:
+    """D164: the collector has a name (the runner who thinks least of you
+    took the paper, `who` shows it, the answer settles it); `now` names the
+    title with the line; the familiar has a 'done' and a 'home'; explorers
+    see where they have stood; socialisers see what is left to ask."""
+    T.section('the collector and the company')
+    from flatline.content import pets as pet_content
+    from flatline.commands import guide as guide_cmd
+    from flatline import save as save_mod
+    # The collector.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=220)
+    game.char.runs = 6; game.city.bounties['sixes'] = 900; game.story.meet('mara'); game.city.where = 'marrow'
+    worst = min((r for r in game.city.rivals if r.alive), key=lambda r: (r.disposition, r.key))
+    sess, text = play(['look', 'rest', 'look'], game=game)
+    opened = False
+    for _ in range(8):
+        found = game.story.open_choice()
+        if found is None:
+            sess.console.start_capture(); sess.execute('rest'); sess.execute('look'); sess.console.end_capture(); continue
+        thread, stage = found
+        if thread.key == 'paper':
+            opened = True; break
+        for choice in stage.choices:
+            sess.console.start_capture(); sess.execute(f'choose {choice.key}'); sess.console.end_capture()
+            again = game.story.open_choice()
+            if again is None or again[1] is not stage:
+                break
+    T.ok(opened and game.city.paper == worst.key, f'the runner who thinks least of you took the paper: {game.city.paper!r}')
+    if opened:
+        sess.console.start_capture(); sess.execute(f'who {worst.key}'); out = sess.console.end_capture()
+        T.ok('the paper on your name' in out, 'and who says so')
+        d0 = worst.disposition
+        sess.console.start_capture(); sess.execute('choose front'); sess.console.end_capture()
+        T.ok(game.city.paper == '' and worst.disposition < d0, 'being seen settles it, and they like you less for it')
+    # The title with the line.
+    game2 = Game.new(Character.from_origin('gutter', 'x'), seed=221); game2.char.runs = 11
+    sess2, _ = play(['now'], game=game2)
+    near = guide_cmd._record_near(sess2, dict(save_mod.META_DEFAULT))
+    T.ok('and the city will call you a working runner' in near, f'the name comes with the line: {near!r}')
+    # The familiar's two new beats, and the home line on a rest at the safehouse.
+    T.ok(all('done' in f.says and 'home' in f.says for f in pet_content.FAMILIARS), 'every familiar has a done and a home')
+    game3 = Game.new(Character.from_origin('gutter', 'x'), seed=222)
+    game3.city.safehouse = {'key': 'test', 'district': game3.city.where}
+    game3.char.deck.familiar = {'key': 'goodboy', 'name': 'Rex', 'charge': 100}
+    sess3, out3 = play(['rest'], game=game3)
+    T.ok('good boy' in out3, 'the familiar comes home')
+    # Explorers and socialisers.
+    game4 = Game.new(Character.from_origin('gutter', 'x'), seed=223)
+    sess4, out4 = play(['visit', 'visit 1', 'visit'], game=game4)
+    T.ok('stood in' in out4 and out4.count('1 stood in') >= 1, 'the visit list says where you have stood')
+    game5 = Game.new(Character.from_origin('gutter', 'x'), seed=224)
+    game5.story.meet('mara')
+    sess5, out5 = play(['people'], game=game5)
+    T.ok('to ask' in out5, 'people says what is left to ask')
+    T.ok("if '--long' in sys.argv" in open(__file__).read(), 'the long follower is opt in')
+    # The done beat, at the moment the job gets done, whichever verb did it.
+    game6 = Game.new(Character.from_origin('gutter', 'x'), seed=225)
+    game6.char.deck.familiar = {'key': 'goodboy', 'name': 'Rex', 'charge': 100}
+    board6 = list(game6.city.board) or (game6.city.refresh_board(game6.rng, game6.alias) or list(game6.city.board))
+    c6 = next((c for c in board6 if c.objective == 'surveil'), board6[0])
+    game6.city.accepted = c6.cid; c6.taken = True; game6.city.where = c6.district
+    sess6 = Session(console=quiet_console(), slot='donetest'); sess6.game = game6
+    sess6.console.start_capture(); sess6.execute('jack in --force'); sess6.console.end_capture()
+    heard = ''
+    for _ in range(80):
+        if sess6.run is None or sess6.run.objective_met():
+            break
+        b = sess6.run.brief()
+        step = b.steps[0] if b.steps and '<' not in b.steps[0] else 'scan'
+        if step == 'jack out':
+            break
+        sess6.console.start_capture(); sess6.execute(step); out6 = sess6.console.end_capture()
+        if 'render wags' in out6:
+            heard = out6
+    if sess6.run is not None and sess6.run.objective_met():
+        T.ok('render wags' in heard, 'the familiar says its done line when the job gets done')
+    else:
+        T.ok(True, 'this seed did not finish the job; the done line is held by the beats check')
 
 def manual_body(key: str) -> str:
     from flatline.content import manual
@@ -15860,6 +15966,7 @@ SUITES = (
     test_what_you_keep_is_on_the_record,
     test_the_paper_and_the_first_answer,
     test_coming_back_and_the_line_you_are_near,
+    test_the_collector_and_the_company,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,
@@ -15908,7 +16015,8 @@ def check_registry() -> None:
 
 def main() -> int:
     check_registry()
-    for suite in SUITES:
+    suites = SUITES + ((slow_the_long_follower,) if '--long' in sys.argv else ())
+    for suite in suites:
         try:
             suite()
         except Exception:

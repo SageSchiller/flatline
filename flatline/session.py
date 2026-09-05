@@ -586,7 +586,9 @@ class Session:
         had no answer to.
         """
         if self.pending is not None:
+            was_done = self._objective_state()
             self.answer(line)
+            self._objective_turned(was_done)
             return
         if not line.strip():
             self.what_now()
@@ -600,7 +602,28 @@ class Session:
                 if str(e):
                     self.console.err(str(e))
                 continue
+            was_done = self._objective_state()
             self.invoke(inv)
+            self._objective_turned(was_done)
+
+    def _objective_state(self):
+        """Whether the run's objective is met, or None outside a run."""
+        run = self.run
+        if run is None:
+            return None
+        try:
+            return bool(run.objective_met())
+        except Exception:  # noqa: BLE001
+            return None
+
+    def _objective_turned(self, was_done) -> None:
+        """The one moment the job gets done (D164): whichever verb did it,
+        the familiar riding the deck has a line for it. Cosmetic; it reads
+        the flip and nothing else."""
+        if was_done is not False or self.run is None:
+            return
+        if self._objective_state():
+            self.run.familiar_say('done')
 
     def what_now(self) -> None:
         """What an empty line means: the next move, and the verbs that matter.

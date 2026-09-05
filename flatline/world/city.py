@@ -178,6 +178,8 @@ class City:
     #: Lives here because the safehouse is here and a pet lives at the
     #: safehouse; part of the save, part of the ending.
     pet: dict = field(default_factory=dict)
+    #: The runner holding the paper on your name (D164), by key, or ''.
+    paper: str = ''
     #: NPC keys whose private counter you have opened. Re-applied after every
     #: restock: a person's cabinet not rotating is the one promise it makes
     #: that a market does not, and `refresh_stock` rebuilds the shelves from
@@ -1308,6 +1310,7 @@ class City:
             'counters': sorted(self.counters),
             'safehouse': dict(self.safehouse),
             'pet': dict(self.pet),
+            'paper': self.paper,
             'crew': dict(self.crew),
             'tables': dict(self.tables),
             'tabs': {k: list(v) for k, v in self.tabs.items()},
@@ -1351,6 +1354,7 @@ class City:
             counters=set(d.get('counters') or ()),
             safehouse=dict(d.get('safehouse') or {}),
             pet=dict(d.get('pet') or {}),
+            paper=str(d.get('paper') or ''),
             crew=dict(d.get('crew') or {}),
             tables={k: int(v) for k, v in (d.get('tables') or {}).items()},
             tabs={k: [int(v[0]), int(v[1])]

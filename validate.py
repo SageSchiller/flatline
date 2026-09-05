@@ -4437,7 +4437,7 @@ def check_pets(rep: Report) -> None:
     rep.check(len(fam_tones) >= 3
               and ('unsettling' in fam_tones or 'grim' in fam_tones),
               'pets/familiar', 'the familiars are all one register')
-    beats = ('connect', 'amber', 'red', 'lockdown', 'blackice', 'clean',
+    beats = ('connect', 'amber', 'red', 'lockdown', 'blackice', 'clean', 'done', 'home',
              'burned', 'idle', 'low', 'dormant')
     for f in pet_content.FAMILIARS:
         where = f'pets/familiar/{f.key}'

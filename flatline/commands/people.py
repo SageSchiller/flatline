@@ -137,12 +137,17 @@ def cmd_people(sess, args) -> None:
     c.header('People', f'{len(met)} met, {len(unmet)} not')
     if met:
         rows = []
+        flags = game.story.flags
         for n in sorted(met, key=lambda n: (n.where or '~', n.name)):
             where = (districts.BY_KEY[n.where].name if n.where in districts.BY_KEY
                      else 'moves around')
-            rows.append((n.name, n.epithet, where, npc_content.hours_label(n)))
-        c.table(('name', 'who', 'keeps to', 'hours'), rows,
-                roles=('accent', 'dim', 'info', 'dim'))
+            # What is left to ask them (D164): the list used to be the same
+            # whether you had asked everything or nothing.
+            left = sum(1 for t in n.topics if f'asked:{n.key}:{t}' not in flags)
+            rows.append((n.name, n.epithet, where, npc_content.hours_label(n),
+                         f'{left} to ask' if left else 'asked out'))
+        c.table(('name', 'who', 'keeps to', 'hours', 'topics'), rows,
+                roles=('accent', 'dim', 'info', 'dim', 'dim'))
     else:
         c.say('[dim]Nobody yet. `look` around wherever you are.[/]')
     # The rest, counted by district and never named: meeting them is the
@@ -398,14 +403,19 @@ def cmd_visit(sess, args) -> None:
         raise CommandError('nowhere in particular to stand here. `look` for '
                            'who is about.')
     if not len(args):
-        c.header(district.name, f'{len(places)} places')
+        stood = [sp for sp in places if f'visited:{sp.key}' in game.story.flags]
+        c.header(district.name, f'{len(places)} places, {len(stood)} stood in')
         sess.remember('spots', [s.key for s in places])
         here = {n.key for n in story_mod.present(game, game.story)}
         for n, spot in enumerate(places, 1):
             who = [npc_content.BY_KEY[k].name for k in spot.who
                    if k in npc_content.BY_KEY and k in here]
             tail = f'  [dim]{", ".join(who)}[/]' if who else ''
-            c.raw(f'  [accent]{n}[/]  [fg]{spot.name}[/]{tail}')
+            # Where you have stood, marked (D164): an explorer reads the
+            # list for what is left, and the list used to keep that to itself.
+            mark = (f'[ok]{c.caps.g("check")}[/]' if f'visited:{spot.key}' in game.story.flags
+                    else '[dim]·[/]')
+            c.raw(f'  [accent]{n}[/] {mark} [fg]{spot.name}[/]{tail}')
         c.blank()
         c.say('[dim]`visit <place>` or `visit <row number>`. It costs '
               'nothing.[/]')
@@ -1304,6 +1314,7 @@ def cmd_choose(sess, args) -> None:
         before = game.char.dissonance
         game.char.dissonance = max(0, min(100, before + choice.drift))
         c.say(f'[accent2]Dissonance {before} to {game.char.dissonance}.[/]')
+    _settle_paper(sess, choice)
     sess.autosave()
     if choice.ends:
         # The third exit. The choice has already said what happened; this
@@ -1364,6 +1375,40 @@ def _find(sess, query: str):
 SCENES_AT_ONCE = 3
 
 
+def _take_paper(sess) -> None:
+    """The collector has a name (D164): the runner who thinks least of you
+    is the one who took the paper. Mara does not say it; the book does.
+    `who` shows it until the thing is settled."""
+    game, c = sess.game, sess.console
+    living = [r for r in game.city.rivals if r.alive]
+    if not living:
+        return
+    worst = min(living, key=lambda r: (r.disposition, r.key))
+    game.city.paper = worst.key
+    c.say(f'[dim]Mara does not say the name. The book does, upside down '
+          f'across the counter: [/][accent]{worst.name}[/][dim].[/]')
+    c.blank()
+
+
+def _settle_paper(sess, choice) -> None:
+    """What the answer did to the runner holding the paper (D164)."""
+    game = sess.game
+    if not game.city.paper:
+        return
+    rival = game.city.rival(game.city.paper)
+    if rival is not None and rival.alive:
+        if 'paper_bought' in choice.sets:
+            # Paid, in cash, more than the paper promised: that is a
+            # relationship of a kind.
+            rival.adjust_disposition(6)
+        elif 'paper_faced' in choice.sets:
+            # Seen seeing them. Nobody likes that.
+            rival.adjust_disposition(-4)
+    if choice.sets and any(f.startswith('paper_') for f in choice.sets):
+        game.city.paper = ''
+
+
+
 def _check_story(sess) -> None:
     """Surface any scene that has become available.
 
@@ -1407,6 +1452,8 @@ def _check_story(sess) -> None:
         for para in stage.text.split('\n\n'):
             c.say(para)
             c.blank()
+        if 'paper_taken' in stage.sets:
+            _take_paper(sess)
         if stage.posts is not None:
             # The scene put something on the board. Said in the board's own
             # terms, because the next thing the player types is `board`.

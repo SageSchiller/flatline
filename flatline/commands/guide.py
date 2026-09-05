@@ -124,7 +124,8 @@ def _record_near(sess, meta: dict | None = None) -> str:
     if best is None:
         return ''
     left, e = best
-    return f'{e.name}: {int(counts.get(e.counter, 0))} of {e.target}, {left} to go.'
+    return (f'{e.name}: {int(counts.get(e.counter, 0))} of {e.target}, {left} to go'
+            + (f', and the city will call you {e.title}.' if e.title else '.'))
 
 
 
