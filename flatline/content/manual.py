@@ -598,9 +598,13 @@ TOPICS: tuple[Topic, ...] = (
         'It happens before you jack in, and the loadout is fixed once you are '
         'inside.\n\n'
         'A deck that is good at everything does not exist at any price.\n\n'
+        'One more thing can eat that memory, if you let it: a digital '
+        '[fg]familiar[/], a pet that rides the deck and talks on a run '
+        'and does nothing else. It costs a slot a program could have '
+        'had, which is the whole price of company. See [fg]pets[/].\n\n'
         '[warn]The decision:[/] do legwork first. Knowing what is in there is '
         'what turns the loadout from a guess into a choice.',
-        see=('bench', 'programs', 'contracts'),
+        see=('bench', 'programs', 'contracts', 'pets'),
         commands=('deck', 'load', 'unload', 'fit', 'buy', 'repair', 'inspect'),
         covers=('hardware',),
         terms=('rig', 'computer',),
@@ -1254,9 +1258,21 @@ TOPICS: tuple[Topic, ...] = (
         'back, doorways held for somebody, and the top of the street\'s '
         'ladder survived.\n\n'
         '[warn]It is not a badge.[/] Crossing a line earns a [ul]name[/]: '
-        'something the city starts calling you, which shows on `char` and '
-        'changes as you pass better ones. Finish a whole section and it has '
-        'a name for that too.\n\n'
+        'something the city starts calling you, which shows on `char`. '
+        'Finish a whole section and it has a name for that too. By '
+        'default the city uses the newest one you earned, but a quiet '
+        'later name can land after a loud one, so [fg]called[/] lists '
+        'every name you have earned and lets you pin the one you want '
+        'to wear; [fg]called auto[/] goes back to newest. What you pin '
+        'is kept in the profile, so it survives the character.\n\n'
+        '[warn]And there are names for a single deed, not just a count.[/] '
+        'The city keeps a person in three registers, and gives a name '
+        'for each: what it admires (paying for somebody else\'s life, '
+        'handing back the one offer nobody hands back), what it will not '
+        'forgive (a killing, a runner sold, a dead friend left to '
+        'drown), and what it finds funny (asking the vending machine '
+        'about the war after the sign told you not to). They turn up in '
+        '[fg]called[/] with the rest, to wear or not.\n\n'
         '[warn]It survives you.[/] The counts live in the profile beside the '
         'terminal you have been earning, not in the save, because they are '
         '"has this player ever" questions. A flatline takes the character, '
@@ -1267,7 +1283,7 @@ TOPICS: tuple[Topic, ...] = (
         'and the record is the only thing in the game that will tell you how '
         'much of it you have actually seen.',
         see=('city', 'reading', 'shell', 'legacy', 'thedeck'),
-        commands=('record', 'char', 'journal', 'visit'),
+        commands=('record', 'called', 'char', 'journal', 'visit'),
         covers=('record',),
         terms=('achievement', 'achievements', 'completion', 'progress',
                'trophies', 'titles', 'called', 'what is left'),
