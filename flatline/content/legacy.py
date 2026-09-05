@@ -720,6 +720,23 @@ EPILOGUE: tuple[tuple[str, str], ...] = (
     ('reckoner_left',
      'Somebody keeps a book of the runners who did the lot, and you are '
      'most of a page of it, and you never asked to see what it says.'),
+    # More of the deck specialist (D155)
+    ('stack_told',
+     'You read the true shape of the Vertical for the woman who fits it, '
+     'four floors below the lobby on a car that only goes down, and she '
+     'wrote the number on her wrist.'),
+    ('stack_kept',
+     'You read the four hidden floors of the Vertical and told the tailor '
+     'the sums closed, and kept the real shape of the building to '
+     'yourself.'),
+    ('unmade_rest',
+     'You unmade the Green\'s record of the patients who stopped coming, '
+     'properly, so the dead were finally dead in Aoyama\'s books as '
+     'well.'),
+    ('unmade_kept',
+     'You took the names of everybody the Green stopped counting before '
+     'you unmade the file, and never did decide what the list was '
+     'for.'),
 
 )
 

@@ -12727,7 +12727,8 @@ def test_a_thread_for_every_way_of_working() -> None:
                  # The explorer, who had material and no story (D147).
                  'places', 'finds'):
         T.ok(gates[kind] > 0, f'something is written for {kind}')
-    for skill in ('stealth', 'subterfuge', 'daemonology', 'warfare', 'violence'):
+    for skill in ('stealth', 'subterfuge', 'daemonology', 'warfare', 'violence',
+                  'cryptography', 'signal', 'architecture', 'sabotage'):
         T.ok(skills[skill] > 0, f'a thread wants somebody good at {skill}')
 
     # No faction is left without decisions that move standing with them.
@@ -13538,12 +13539,12 @@ def test_the_specialist_and_the_reckoner() -> None:
 
     # The cryptographer's thread wants a cryptographer, and Osei.
     sess, con, game = fresh(where='marrow', cryptography=3)
-    game.story.meet('osei')
+    game.story.meet('bartender')
     story(sess, con)
     T.ok('kept' in game.story.reached.get('sealed', []),
          'crypto three and Osei opens the sealed thing')
     sess, con, game = fresh(where='marrow', cryptography=2)
-    game.story.meet('osei')
+    game.story.meet('bartender')
     story(sess, con)
     T.ok('sealed' not in game.story.reached, 'crypto two does not')
 

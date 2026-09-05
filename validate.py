@@ -2462,6 +2462,11 @@ def check_threads(rep: Report) -> None:
                     kind = rule.split(':')[0]
                     rep.check(kind in thread_content.CONDITIONS, sw,
                               f'unknown condition {kind!r}')
+                    if kind == 'met':
+                        who = rule.split(':', 1)[1]
+                        rep.check(who in npc_content.BY_KEY, sw,
+                                  f'waits on met:{who}, who is nobody '
+                                  f'(the thread can never open by play)')
                     if kind == 'asked':
                         _, who, _, topic = rule.split(':', 3)[0:1] + \
                             [rule.split(':', 2)[1], '', rule.split(':', 2)[2]]

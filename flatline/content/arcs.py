@@ -1419,7 +1419,7 @@ MORE_THREADS: tuple[Thread, ...] = (
                   'locked in a way that has beaten everybody I have shown it '
                   'to. You are supposed to be good at that. I would like to '
                   'know what I have been keeping."',
-                  requires=('met:osei', 'skill:cryptography:3'),
+                  requires=('met:bartender', 'skill:cryptography:3'),
                   sets=('sealed_shown',),
                   where='marrow'),
             Stage('open', 'What was under the lock',
@@ -1616,6 +1616,141 @@ MORE_THREADS: tuple[Thread, ...] = (
                   requires=(),
                   any_of=('reckoner_corrected', 'reckoner_left'),
                   sets=('reckoner_done',)),
+        )),
+
+    # -- more of the deck specialist (D155) -----------------------------------
+    Thread(
+        'stack', 'The Shape of the Vertical',
+        'Mrs Achterberg fits the building, and knows it is not the shape it '
+        'shows. You are the one who can read what is actually there.',
+        crosses=(),
+        stages=(
+            Stage('measured', 'She has measured most of it',
+                  'She fits you the way she fits everybody, once, up and down, '
+                  'and then does not let go of your sleeve.\n\n'
+                  '"Ninety floors and one box, and everybody who matters has '
+                  'stood on the box, and the box remembers them. But the '
+                  'building is not ninety floors. It says ninety. I have '
+                  'measured most of it and the sums do not close." She lets '
+                  'the sleeve go. "You read the shape of a thing for a living. '
+                  'I would like to know what is in the floors that are not on '
+                  'the board in the lobby."',
+                  requires=('met:tailor', 'skill:architecture:3'),
+                  sets=('stack_asked',),
+                  where='vertical'),
+            Stage('read', 'What the sums do not close on',
+                  'You take a night and read the Vertical the way it is built '
+                  'rather than the way it is addressed, the risers and the '
+                  'plant runs and the dead voids where a floor is declared and '
+                  'nothing is wired to it, and the architecture resolves into '
+                  'a building four floors taller than it admits, below the '
+                  'lobby, not above it, on no lift the public box will '
+                  'call.\n\n'
+                  'Whatever is on those four floors is reached by a car that '
+                  'only goes down, from a lobby that only goes up, and the '
+                  'seam between the two is the cleanest piece of architecture '
+                  'you have ever read, which is the thing that stays with you.',
+                  requires=('stack_asked',),
+                  sets=('stack_read',),
+                  choices=(
+                      Choice('tell', 'Tell her what is under the lobby',
+                             'You tell Mrs Achterberg there are four floors '
+                             'below the box, reached by a car that only '
+                             'descends, and she nods as though you have '
+                             'confirmed a measurement, and writes the number '
+                             'four on the inside of her wrist in tailor\'s '
+                             'chalk, and says, "Then I have been fitting them '
+                             'for the wrong height," which you do not ask her '
+                             'to explain.',
+                             sets=('stack_told',)),
+                      Choice('keep', 'Keep the shape to yourself',
+                             'You tell her the sums close after all, that she '
+                             'has miscounted a mezzanine, and she looks at you '
+                             'for a long moment with the eyes of a woman who '
+                             'has never once miscounted anything, and lets you '
+                             'have the lie, because a person who keeps a shape '
+                             'like that is a person who has understood what it '
+                             'is, which was the whole of what she wanted to '
+                             'know about you.',
+                             sets=('stack_kept',)),
+                  )),
+            Stage('under', 'A car that only goes down',
+                  'You know the shape of the Vertical now, the real one, and '
+                  'it is a building that goes down as far as it goes up and '
+                  'admits to neither, and you find that once you have read a '
+                  'thing that cleanly you cannot stop reading it, in every '
+                  'network after, the seam where the declared shape and the '
+                  'wired one come apart. It is the specialist\'s reward and '
+                  'the specialist\'s tax, and they are the same thing.',
+                  requires=(),
+                  any_of=('stack_told', 'stack_kept'),
+                  sets=('stack_done',)),
+        )),
+
+    Thread(
+        'unmade', 'What the Green Keeps',
+        'The Green keeps records of patients who stopped coming, and they do '
+        'not stay deleted. You are the one who can unmake a thing instead of '
+        'removing it.',
+        crosses=(),
+        stages=(
+            Stage('schedule', 'The door\'s schedule',
+                  'The Orderly is at the aftercare door at the moment it '
+                  'opens, holding the schedule, and this time turns it so you '
+                  'can see it.\n\n'
+                  '"Everybody here is well. I check twice a shift. The trouble '
+                  'is the ones who stopped coming: the record says aftercare '
+                  'is ongoing, because aftercare is never recorded as ended, '
+                  'because ended is a word the architecture does not have. So '
+                  'they are all still in care, all of them, for ever, and the '
+                  'file grows, and I delete them, and by the next door they '
+                  'are back." A pause. "You do the other thing. Not delete. '
+                  'Unmake."',
+                  requires=('met:orderly', 'skill:sabotage:3'),
+                  sets=('unmade_asked',),
+                  where='green'),
+            Stage('undone', 'Not deleted, unmade',
+                  'A deletion is a promise the system makes to itself and can '
+                  'break; an unmaking is a wound in the schema that will not '
+                  'heal into the old shape, and doing it properly means '
+                  'corrupting not the records but the rule that regenerates '
+                  'them, which is the load-bearing part of the architecture, '
+                  'which is why nobody has.\n\n'
+                  'You take the rule apart. The patients who stopped coming '
+                  'stop being in care, all at once, for the first time since '
+                  'they stopped, and the file stops growing, and the Orderly '
+                  'watches the number go still and does not say anything for '
+                  'a while.',
+                  requires=('unmade_asked',),
+                  sets=('unmade_done_it',),
+                  choices=(
+                      Choice('rest', 'Let them be gone',
+                             'You leave it unmade, and the dead are dead in '
+                             'the Green\'s books now as well as everywhere '
+                             'else, which is a smaller thing than it sounds '
+                             'and a larger thing than the Orderly will say, '
+                             'and they thank you the way somebody thanks you '
+                             'for a thing they cannot be seen to have wanted.',
+                             sets=('unmade_rest',)),
+                      Choice('keep', 'Keep the names first',
+                             'Before you unmake it you take the names, all of '
+                             'them, the ones who stopped coming, because a '
+                             'thing being wrong to keep is not the same as it '
+                             'being right to lose, and you do not know yet '
+                             'what you will do with a list of everybody Aoyama '
+                             'stopped counting, and you know you were not going '
+                             'to let it go unread.',
+                             sets=('unmade_kept',)),
+                  )),
+            Stage('after', 'The word the architecture does not have',
+                  'You can unmake a thing, not just remove it, which most '
+                  'runners cannot and most systems are not built to survive, '
+                  'and the Green found that out, once, from you, and the file '
+                  'that could not stop growing stopped. It is a quiet thing to '
+                  'be good at. It is quiet the way a thing is quiet after.',
+                  requires=(),
+                  any_of=('unmade_rest', 'unmade_kept'),
+                  sets=('unmade_over',)),
         )),
 )
 
