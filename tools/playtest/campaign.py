@@ -12,7 +12,7 @@ from flatline.content import (districts, npcs as NPC, hardware, mods as MODS,
 from flatline.commands import city as city_cmd
 import spine
 
-SAFE = ('give', 'pay', 'run', 'talk', 'bolt', 'yes', 'take', 'careful', 'break')
+SAFE = ('give', 'talk', 'run', 'pay', 'bolt', 'yes', 'take', 'careful', 'break')
 
 
 def act(p, fn, *a, **kw):

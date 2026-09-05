@@ -99,3 +99,15 @@ twenty shifts, staying first) and in the harness (never an ending the brief
 did not name). Second pass: six clean, 0 crashes, refused/employed/refused
 by play, a partner bond by play, five offered the berth and staying (the
 `stayed` title), coverage 84 to 111.
+
+## Round four, 2026-09-05 (D166, D167): the long life
+
+`q7_long.py`, two hundred shifts. First life: dead in the street at 81,
+broke and hunted; the money went on two breakers `now` advised that never
+fit beside the payload (fixed: the advice reads the plan's room), street
+pay-offs, and an arrangement the harness bought. Second life: shift 201,
+40 runs, employed ending at 75, 34 of 53 threads, 3 finds, record 14 of
+28, `now` still naming real moves at the end, 0 crashes, coverage 96.
+The freight line was offered and refused by brief; the door stayed shut
+on the stake (45,000c), which a courier who never keeps more than 8,000c
+was never going to have.

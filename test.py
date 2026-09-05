@@ -14749,6 +14749,25 @@ def test_the_five_corners() -> None:
         sess4b.console.start_capture(); sess4b.execute('jack out --anyway'); sess4b.console.end_capture()
     from flatline.world import city as city_world
     T.ok(0 < city_world.POACH_CHANCE < 0.5, 'and it happens now and then, not every night')
+    # A breaker that fits the plan (D167): the room a breaker may take is
+    # the bank less the familiar less what the plan wants that is not one.
+    from flatline.commands import city as city_cmd2
+    from flatline.content import programs as PRx
+    game6 = Game.new(Character.from_origin('gutter', 'x'), seed=255)
+    d6 = game6.char.deck
+    small_pay = min((q for q in PRx.BY_KEY.values() if q.category == 'payload'), key=lambda q: q.memory)
+    if small_pay.key not in game6.char.library:
+        game6.char.library.append(small_pay.key)
+    board6 = list(game6.city.board) or (game6.city.refresh_board(game6.rng, game6.alias) or list(game6.city.board))
+    c6 = board6[0]; c6.objective = 'exfiltrate'; game6.city.accepted = c6.cid
+    room = city_cmd2._breaker_room(game6)
+    plan6 = city_cmd2._loadout_plan(game6)
+    others = sum(q.memory for q in plan6 if q.category != 'breaker')
+    T.ok(room == max(0, d6.memory - others), f'the breaker\'s room is the bank less the plan: {room} of {d6.memory}')
+    T.ok(any(q.category == 'payload' for q in plan6) and room < d6.memory,
+         'and the payload the job needs is part of what is subtracted')
+    import inspect as _insp
+    T.ok('p.memory <= room' in _insp.getsource(city_cmd2.city_steps), 'the buy advice reads it')
     # The top of the wall does not stay empty.
     game5 = Game.new(Character.from_origin('expolice', 'x'), seed=254)
     game5.city.where = pit_content.WHERE

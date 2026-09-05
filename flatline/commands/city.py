@@ -2444,6 +2444,24 @@ LOADOUT_WHY = {
 }
 
 
+def _breaker_room(game) -> int:
+    """The memory a breaker may take on this deck: the bank, less the
+    familiar riding it, less everything the loadout plan wants that is not
+    the breaker. A breaker that fits the bank but not the plan is a
+    purchase, not an upgrade (D167)."""
+    deck = game.char.deck
+    room = deck.memory
+    if deck.familiar:
+        from ..content import pets as pet_content
+        fam = pet_content.FAMILIAR_BY_KEY.get(deck.familiar.get('key', ''))
+        room -= fam.memory if fam is not None else 0
+    for p in _loadout_plan(game):
+        if p.category != 'breaker':
+            room -= p.memory
+    return max(0, room)
+
+
+
 def _loadout_step(game):
     """One move toward the deck `_loadout_plan` describes, or None."""
     deck = game.char.deck
@@ -2819,12 +2837,17 @@ def city_steps(game) -> list[tuple[str, str]]:
             # "nothing here matches 'drillbit'" (D83).
             for_sale = {l.key for l in game.city.listings('program')}
             rank = game.char.skill('intrusion')
+            # A better breaker is only better if it fits beside the rest
+            # of the deck the plan wants (D167): the long life was told to
+            # buy a Lattice that could never sit next to its Siphon, then a
+            # Sable to replace it, four thousand credits in a week.
+            room = _breaker_room(game)
             better = min((p for p in programs.by_category('breaker')
                           if not p.unique
                           and programs.held(p, rank) > programs.held(on_deck,
                                                                      rank)
                           and p.key in for_sale
-                          and p.memory <= game.char.deck.memory
+                          and p.memory <= room
                           and game.char.credits >= (_shelf_price(game, p.key)
                                                     or 10 ** 9)),
                          key=lambda p: p.price, default=None)
@@ -2931,7 +2954,7 @@ def city_steps(game) -> list[tuple[str, str]]:
             hurt = ('the deck is badly hurt ('
                     + ', '.join(f'{s} {deck.damage[s]}/3'
                                 for s in deck.damage if deck.damage[s])
-                    + (f', memory {deck.memory_used}/{deck.memory}'
+                    + (f', carrying {deck.memory_used} of {deck.memory} memory'
                        if deck.memory_used > deck.memory else '')
                     + ')')
             # The street has a say in which workshop is nearest (D165):
