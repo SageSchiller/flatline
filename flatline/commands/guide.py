@@ -57,6 +57,13 @@ def cmd_now(sess, args) -> None:
         bullet = c.caps.g('bullet')
         c.say('[dim]also[/]  ' + f' [dim]{bullet}[/] '.join(
             f'[fg]{a}[/]' for a in also), indent='  ', subsequent='        ')
+    # The record line you are closest to crossing (D163): one line, only
+    # in the city, only when it is close. An achiever reads `record` for
+    # this; everybody else finds out here that the city keeps count.
+    if sess.game is not None and sess.run is None and not sess.game.over:
+        near = _record_near(sess)
+        if near:
+            c.say(f'[dim]record[/]  [dim]{near}[/]', indent='  ', subsequent='  ')
 
 
 @command('ambitions', 'The next things worth wanting.',
@@ -86,6 +93,39 @@ def cmd_ambitions(sess, args) -> None:
     if nxt is None:
         c.say('[dim]All of them. The city is out of names for what you are.'
               '[/]', indent='  ')
+
+
+def _record_near(sess, meta: dict | None = None) -> str:
+    """The unearned record line with the least left to cross, when that is
+    a quarter of the target or less, as one dim line. Empty otherwise. The
+    record is the profile's (D142), so the profile is what is read."""
+    from .. import save as save_mod
+    from ..content import record as record_content
+    from ..world import record as record_world
+    if meta is None:
+        try:
+            meta = save_mod.read_meta()
+        except Exception:  # noqa: BLE001
+            meta = dict(save_mod.META_DEFAULT)
+    try:
+        counts = record_world.counts(sess.game, meta)
+    except Exception:  # noqa: BLE001
+        return ''
+    best = None
+    for e in record_content.ENTRIES:
+        have = int(counts.get(e.counter, 0))
+        if have >= e.target or have <= 0:
+            continue
+        left = e.target - have
+        if left > max(1, e.target // 4):
+            continue
+        if best is None or left < best[0]:
+            best = (left, e)
+    if best is None:
+        return ''
+    left, e = best
+    return f'{e.name}: {int(counts.get(e.counter, 0))} of {e.target}, {left} to go.'
+
 
 
 def what_now(sess) -> tuple[str, list[tuple[str, str]], list[str]]:

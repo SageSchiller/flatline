@@ -6738,6 +6738,9 @@ def cmd_familiar(sess, args) -> None:
                 'ok' if charge > pet_content.FAMILIAR_LOW else
                 'warn' if charge > 0 else 'err', cells=10)
     c.raw(f'  {bar} [fg]charge[/]')
+    runs_together = int(fam_state.get('runs', 0))
+    if runs_together:
+        c.raw(f'  [dim]{runs_together} run{"s" if runs_together != 1 else ""} together, and it has said something on most of them.[/]')
     c.blank()
     if dormant:
         line = fam.says.get('dormant')

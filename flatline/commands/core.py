@@ -842,6 +842,45 @@ def cmd_restore(sess, args) -> None:
                     f'{game.city.district.name}.')
     if game.over:
         sess.console.warn(f'This character is finished: {game.over}')
+        return
+    _coming_back(sess)
+
+
+def _coming_back(sess) -> None:
+    """What a player who has been away needs to know before `now` (D163):
+    the job they are on and when it dies, the money somebody is coming
+    for, the animal, the construct, the crew. `restore` used to say the
+    time and the district and leave the rest to be found out the hard way."""
+    from ..content import pets as pet_content
+    game, c = sess.game, sess.console
+    lines: list[str] = []
+    cur = game.city.current
+    if cur is not None:
+        left = int(cur.expires) - int(game.city.shift)
+        lines.append(f'On {cur.title}, in {districts.BY_KEY[cur.district].name}, '
+                     + (f'{left} shift{"s" if left != 1 else ""} left on it.'
+                        if left > 0 else 'and it has expired.'))
+    if game.debt.owed:
+        lines.append(f'{fac_short(game.debt.lender)} are owed '
+                     f'{game.debt.amount:,}c, and they collect.')
+    if game.city.pet:
+        animal = pet_content.BY_KEY.get(game.city.pet.get('key', ''))
+        name = game.city.pet.get('name', animal.name if animal else 'it')
+        m = pet_content.mood(game.city.pet)
+        need = pet_content.worst_need(game.city.pet)
+        lines.append(f'{name} is '
+                     + ('fine.' if m in ('content', 'ok')
+                        else f'not fine: it needs {need}.'))
+    fam = game.char.deck.familiar or {}
+    if fam and int(fam.get('charge', pet_content.FAMILIAR_FULL)) <= 0:
+        lines.append(f'{fam.get("name", "The familiar")} is dormant. `familiar tend`.')
+    if game.city.crew:
+        lines.append(f'{game.city.crew.get("name", "Somebody")} is crewed with you.')
+    if lines:
+        c.blank()
+        for line in lines:
+            c.say(f'[dim]{line}[/]', indent='  ', subsequent='  ')
+    c.say('[dim]`now` for the next move, `journal` for where the stories stand.[/]')
 
 
 # --------------------------------------------------------------------------

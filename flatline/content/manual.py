@@ -176,6 +176,7 @@ TOPICS: tuple[Topic, ...] = (
     Topic(
         'saves', 'Saves, and keeping one',
         'Where a character lives, and how to make sure they survive.',
+        'Coming back, `restore` says what you were on and what is left on it, who is owed, and how the animal is, before `now` says the next move.\n\n'
         'You can have as many characters as you like and they do not '
         'interact. Each one is filed under their own handle, so making a '
         'second never touches the first.\n\n'
@@ -1241,6 +1242,7 @@ TOPICS: tuple[Topic, ...] = (
     Topic(
         'record', 'The record',
         'What the city can say about you, and what is left.',
+        '`now` names the line you are closest to crossing, when it is close; `record` is the whole of it.\n\n'
         'A city with twelve districts, seventy-two quarters, sixty places '
         'worth standing in and twenty-five things there is one of owes you '
         'an answer to [ul]what is left[/]. [fg]record[/] is that answer.\n\n'

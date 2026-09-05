@@ -437,9 +437,13 @@ def record_and_titles(p):
 
 def save_restore(p, slot='camp'):
     p.mark('save it, restore it, is everything still there')
-    before = (p.g.city.shift, bool(p.g.city.pet), bool(p.g.char.deck.familiar), p.g.char.runs)
+    def snap():
+        g = p.g
+        return (g.city.shift, bool(g.city.pet), (g.city.pet or {}).get('toy', ''),
+                bool(g.char.deck.familiar), (g.char.deck.familiar or {}).get('runs', 0), g.char.runs)
+    before = snap()
     p.do(f'save {slot}'); p.do('characters'); p.do(f'restore {slot}'); p.settle(prefer=('yes',))
-    after = (p.g.city.shift, bool(p.g.city.pet), bool(p.g.char.deck.familiar), p.g.char.runs)
+    after = snap()
     p.mark(f'save/restore: before {before} after {after} {"SAME" if before == after else "DIFFERENT"}')
 
 

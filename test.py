@@ -14511,6 +14511,40 @@ def test_the_paper_and_the_first_answer() -> None:
         sess.console.start_capture(); sess.execute('choose front'); out = sess.console.end_capture()
         T.ok('paper_faced' in game.story.flags and 'Hall' in out, 'being seen is free and reads the Hall')
 
+
+def test_coming_back_and_the_line_you_are_near() -> None:
+    """D163: `restore` says what a player who has been away needs before
+    `now` (the job and its deadline, the money owed, the animal); and `now`
+    names the record line you are closest to crossing, when it is close."""
+    T.section('coming back, and the line you are near')
+    from flatline.world import pets as pet_world
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=210)
+    board = list(game.city.board) or (game.city.refresh_board(game.rng, game.alias) or list(game.city.board))
+    c0 = board[0]; game.city.accepted = c0.cid; c0.taken = True
+    game.city.safehouse = {'key': 'test', 'district': game.city.where}
+    pet_world.adopt(game.city, 'dog', 'Sarge')
+    game.debt.amount = 1200; game.debt.lender = 'sixes'
+    sess, text = play(['save comeback', 'restore comeback'], game=game)
+    T.ok(c0.title in text and 'left on it' in text, 'the job and what is left on it')
+    T.ok('Sarge is' in text, 'and the animal')
+    T.ok('are owed' in text and '1,200c' in text, 'and the money somebody is coming for')
+    T.ok('`now` for the next move' in text, 'and where to go from there')
+    game2 = Game.new(Character.from_origin('gutter', 'x'), seed=211)
+    game2.char.runs = 11
+    sess2, out = play(['now'], game=game2)
+    from flatline.commands import guide as guide_cmd
+    from flatline import save as save_mod
+    # The record is the profile's, and the suite shares one profile, so the
+    # pinned expectation reads a clean profile; `now` itself is held to agree
+    # with whatever the live profile says.
+    near_clean = guide_cmd._record_near(sess2, dict(save_mod.META_DEFAULT))
+    T.ok(near_clean == 'Runs finished: 11 of 12, 1 to go.', f'eleven runs is one short of the first line: {near_clean!r}')
+    live = guide_cmd._record_near(sess2)
+    T.ok(('to go.' in out) == bool(live), 'and now prints the line exactly when there is one')
+    game3 = Game.new(Character.from_origin('gutter', 'x'), seed=212)
+    sess3, out3 = play(['now'], game=game3)
+    T.ok(guide_cmd._record_near(sess3, dict(save_mod.META_DEFAULT)) == '', 'and says nothing when nothing is close')
+
 def manual_body(key: str) -> str:
     from flatline.content import manual
     return manual.BY_KEY[key].body
@@ -15825,6 +15859,7 @@ SUITES = (
     test_every_origin_has_its_verb,
     test_what_you_keep_is_on_the_record,
     test_the_paper_and_the_first_answer,
+    test_coming_back_and_the_line_you_are_near,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,
