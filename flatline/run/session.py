@@ -601,8 +601,9 @@ class RunState:
         if fam is None:
             return
         if event == 'connect':
-            dormant = int(fam_state.get('idle', 0)) >= pet_content.FAMILIAR_DORMANT_AFTER
-            fam_state['idle'] = 0
+            # A run is what feeds a familiar (D154): it wakes and charges.
+            dormant = int(fam_state.get('charge', 100)) <= 0
+            fam_state['charge'] = pet_content.FAMILIAR_FULL
             key = 'dormant' if dormant else 'connect'
         else:
             key = event

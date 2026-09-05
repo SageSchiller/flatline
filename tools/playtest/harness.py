@@ -109,6 +109,81 @@ class Play:
         if self.sess.run is not None:
             self.do('jack out'); self.settle()
 
+    def drive_run(self, cap=60):
+        """Play a run toward its objective the way a competent runner would:
+        scan, enumerate reachable hosts, crack what is closed, move toward the
+        objective node, and do the objective verb when standing on it. Bails
+        out when the trace is high or nothing can be done. Returns True if the
+        objective was met."""
+        run = self.sess.run
+        if run is None:
+            return False
+        for _ in range(cap):
+            run = self.sess.run
+            if run is None:
+                break
+            if run.objective_met():
+                self.do('jack out'); self.settle(); return True
+            # too hot to continue
+            if getattr(run, 'trace_pct', 0) > 0.85:
+                self.do('jack out'); self.settle(); break
+            b = run.brief()
+            # follow a concrete brief step if it names a real move
+            if b.steps:
+                step = b.steps[0]
+                head = step.split()[0]
+                if head in ('observe', 'pull', 'push', 'wipe', 'brace',
+                            'mask', 'scrub', 'jack') and '<' not in step:
+                    self.do(step); self.settle()
+                    continue
+                if head == 'jack':
+                    self.do('jack out'); self.settle(); break
+            # otherwise, open the network up
+            self.do('scan')
+            run = self.sess.run
+            if run is None:
+                break
+            here = run.here
+            obj = run.net.objective_node
+            moved = False
+            for uid, node in list(run.net.nodes.items()):
+                if self.sess.run is None:
+                    break
+                if not getattr(node, 'known', False):
+                    continue
+                if uid == here:
+                    continue
+                if uid not in run.node.edges:
+                    continue
+                if not getattr(node, 'mapped', False):
+                    self.do(f'probe {uid}')
+                if self.sess.run is None:
+                    break
+                closed = [sv for sv in getattr(node, 'services', [])
+                          if not getattr(sv, 'cracked', False)]
+                if closed:
+                    self.do(f'crack {uid} {closed[0].key}')
+                if self.sess.run is None:
+                    break
+                if getattr(node, 'open', False) and (uid == obj or not moved):
+                    self.do(f'connect {uid}')
+                    moved = True
+                    break
+            if not moved and self.sess.run is not None:
+                # on the objective with the door open: do the job
+                if run.here == obj:
+                    b = self.sess.run.brief()
+                    if b.steps and '<' not in b.steps[0]:
+                        self.do(b.steps[0]); self.settle()
+                    else:
+                        self.do('observe'); self.settle()
+                else:
+                    self.do('scan')
+            self.settle()
+        if self.sess.run is not None:
+            self.do('jack out'); self.settle()
+        return False
+
     def auto_city(self, k=1, stop_at_run=True):
         """Outside a run: do the first thing `now` says, k times."""
         done = []
@@ -135,7 +210,7 @@ class Play:
             if self.g.over:
                 return False
             if self.sess.run is not None:
-                self.auto_run()
+                self.drive_run()
                 break
             steps = city_cmd.city_steps(self.g)
             if not steps:

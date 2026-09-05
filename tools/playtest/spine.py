@@ -50,7 +50,7 @@ def run_contract(p, cid):
             break
         p.do(steps[0][0], note=f'now says: {steps[0][1][:70]}'); p.settle()
     if p.sess.run is not None:
-        p.auto_run()
+        p.drive_run()
 
 def facts(p):
     """Act two: the Archivist (fence, afternoon/night, runs 5) and Remnant

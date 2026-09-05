@@ -4426,10 +4426,11 @@ def check_pets(rep: Report) -> None:
               and ('unsettling' in fam_tones or 'grim' in fam_tones),
               'pets/familiar', 'the familiars are all one register')
     beats = ('connect', 'amber', 'red', 'lockdown', 'blackice', 'clean',
-             'burned', 'idle', 'dormant')
+             'burned', 'idle', 'low', 'dormant')
     for f in pet_content.FAMILIARS:
         where = f'pets/familiar/{f.key}'
         rep.check(f.memory >= 1, where, 'costs no memory: not a real choice')
+        rep.check(f.drain >= 1, where, 'has no upkeep: charge would never run down')
         rep.check(f.tone in pet_content.TONES, where, f'tone {f.tone!r}')
         for beat in beats:
             lines = f.says.get(beat)

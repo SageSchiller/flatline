@@ -1353,7 +1353,10 @@ TOPICS: tuple[Topic, ...] = (
         'of, which is the whole price of it, and it rides into a run with '
         'you and says what it makes of what is happening, and some of '
         'them are a comfort and some of them are not. `familiar get` '
-        'loads one; it does nothing to the run but talk.\n\n'
+        'loads one; it does nothing to the run but talk. It is fed by '
+        'being run, and left in a folder too long it winds down and goes '
+        'quiet, the needy kinds faster than the patient ones; '
+        '`familiar tend` gives it a charge between runs.\n\n'
         '[warn]The decision:[/] whether to take one on at all, in a city that '
         'is hard on everything, and then whether to come home.',
         see=('city', 'basics', 'death'),

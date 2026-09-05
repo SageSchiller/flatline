@@ -283,6 +283,10 @@ class Familiar:
     tone: str
     #: Memory it eats on the deck, which is memory a program cannot have.
     memory: int
+    #: How fast its charge runs down per idle shift (D154). A construct
+    #: is fed by being run; left in a folder it winds down, faster if it
+    #: is the needy kind, slower if it is the patient kind.
+    drain: int
     #: What it is.
     blurb: str
     #: What it says, keyed to what the run is doing. Each is a tuple and the
@@ -293,7 +297,7 @@ class Familiar:
 
 FAMILIARS: tuple[Familiar, ...] = (
     Familiar(
-        'pixelcat', 'a pixel cat', 'cat', 'absurd', 1,
+        'pixelcat', 'a pixel cat', 'cat', 'absurd', 1, 8,
         'Eight pixels of cat that somebody drew in an afternoon and gave a '
         'purr to and then, apparently, a soul, or the part of one that fits '
         'in a kilobyte. It sits in the corner of the render and reacts to '
@@ -323,13 +327,16 @@ FAMILIARS: tuple[Familiar, ...] = (
             'burned': ('The pixel cat comes out with you, unbothered, having '
                        'enjoyed the whole thing on a level you cannot '
                        'access.',),
+            'low': ('The pixel cat is smaller than it was, and dimmer, and '
+                    'still trying to purr, which at this resolution is mostly '
+                    'a suggestion of a purr. It needs running.',),
             'idle': ('The pixel cat has moved to a warmer part of the render '
                      'and is judging your pace.',),
             'dormant': ('The pixel cat is a still frame in the corner. It has '
                         'not run in a while and it shows.',),
         }),
     Familiar(
-        'chatterbird', 'a chatter-bird', 'bird', 'wry', 1,
+        'chatterbird', 'a chatter-bird', 'bird', 'wry', 1, 10,
         'A little talking construct in the shape of a bird that a runner '
         'writes to keep themselves company and regrets within a week and '
         'keeps for years. It comments. It is always commenting. It is not '
@@ -355,6 +362,9 @@ FAMILIARS: tuple[Familiar, ...] = (
                       'at this."',),
             'burned': ('"We do not talk about this one," says the chatter-'
                        'bird, already talking about this one.',),
+            'low': ('The chatter-bird has gone hoarse, which should not be '
+                    'possible, and is repeating itself, which should not be '
+                    'either. Take it on a run before it forgets the words.',),
             'idle': ('"Are we doing anything? We could be doing anything," '
                      'says the chatter-bird.',),
             'dormant': ('The chatter-bird is quiet, which is unlike it, '
@@ -362,7 +372,7 @@ FAMILIARS: tuple[Familiar, ...] = (
                         'has run down.',),
         }),
     Familiar(
-        'goodboy', 'a good boy', 'dog', 'warm', 2,
+        'goodboy', 'a good boy', 'dog', 'warm', 2, 12,
         'A loyal-dog construct, big and slow and simple, that a runner made '
         'for a kid who does not run any more, and could never bring itself to '
         'delete. It cannot do anything. It just comes with you, and is glad '
@@ -392,6 +402,10 @@ FAMILIARS: tuple[Familiar, ...] = (
             'burned': ('The good boy comes out with you and is not '
                        'disappointed, has never once been disappointed, would '
                        'not know how to start.',),
+            'low': ('The good boy has not run in too long and it shows: it '
+                    'is slower to render, and it looks at the jack, and then '
+                    'at you, and it does not understand, and that is worse '
+                    'than if it did.',),
             'idle': ('The good boy is waiting by the jack. It has been '
                      'waiting by the jack. It is always waiting by the '
                      'jack.',),
@@ -400,7 +414,7 @@ FAMILIARS: tuple[Familiar, ...] = (
                         'have minded.',),
         }),
     Familiar(
-        'tally', 'the tally', 'thing', 'grim', 1,
+        'tally', 'the tally', 'thing', 'grim', 1, 5,
         'Not a pet. A runner who did not come back left a counting daemon '
         'behind, and it attached to your deck the way a stray does, and now '
         'it counts. You do not know what it counts. It knows. It is content, '
@@ -428,6 +442,9 @@ FAMILIARS: tuple[Familiar, ...] = (
             'burned': ('The tally notes the outcome in whatever ledger a '
                        'thing like the tally keeps, and does not judge, and '
                        'that is worse.',),
+            'low': ('The tally has slowed, the count dragging, the intervals '
+                    'stretching, and you find that a slow tally is worse to '
+                    'have in the room than a fast one. Run it.',),
             'idle': ('The tally is counting the shifts, you think. You have '
                      'not run it in a while. It has noticed. It counts that '
                      'too.',),
@@ -436,7 +453,7 @@ FAMILIARS: tuple[Familiar, ...] = (
                         'it again just to make the counting come back.',),
         }),
     Familiar(
-        'wormwood', 'wormwood', 'thing', 'unsettling', 2,
+        'wormwood', 'wormwood', 'thing', 'unsettling', 2, 3,
         'You did not write this and you did not buy it and you cannot '
         'remember when it started riding your deck. It is small and it is '
         'patient and it says things it should not be able to know, in a voice '
@@ -466,6 +483,9 @@ FAMILIARS: tuple[Familiar, ...] = (
             'burned': ('"Next time," says wormwood, and it is not a threat, '
                        'and it is not a comfort, and it is patient, and it '
                        'will wait.',),
+            'low': ('Wormwood says, from very far down, in a voice with the '
+                    'edges worn off it, that it is cold, and that you know '
+                    'what it needs, and that you always did.',),
             'idle': ('Wormwood has not spoken in some shifts. You have '
                      'checked, twice, that it is still loaded. It is still '
                      'loaded.',),
@@ -477,6 +497,11 @@ FAMILIARS: tuple[Familiar, ...] = (
 
 FAMILIAR_BY_KEY: dict[str, Familiar] = {f.key: f for f in FAMILIARS}
 
-#: Shifts a familiar can go unrun before it goes dormant (quiet until you
-#: take it on a run again). It is software; it does not die, it waits.
-FAMILIAR_DORMANT_AFTER = 8
+#: A familiar's charge runs 0..100 (D154). A run fills it; idle shifts
+#: drain it at the familiar's own rate. At nothing it is dormant, quiet
+#: until you run it or tend it; it is software, it does not die, it waits.
+FAMILIAR_FULL = 100
+FAMILIAR_LOW = 30
+#: What `familiar tend` gives back: a moment out of a run, worth less
+#: than a run but enough to keep a patient one going.
+FAMILIAR_TEND = 35

@@ -13826,7 +13826,7 @@ def test_the_other_kind_of_pet() -> None:
     # A spread of familiars, each with a line for every beat, and one of them
     # is meant to be a bad idea.
     beats = ('connect', 'amber', 'red', 'lockdown', 'blackice', 'clean',
-             'burned', 'idle', 'dormant')
+             'burned', 'idle', 'low', 'dormant')
     T.ok(len(pet_content.FAMILIARS) >= 4, 'at least four to run with')
     tones = {f.tone for f in pet_content.FAMILIARS}
     T.ok('unsettling' in tones or 'grim' in tones,
@@ -13878,10 +13878,23 @@ def test_the_other_kind_of_pet() -> None:
     sess, con, game = fresh()
     game.char.deck.loaded = game.char.deck.loaded[:1]
     do(sess, con, 'familiar get tally')
-    game.char.deck.familiar['idle'] = pet_content.FAMILIAR_DORMANT_AFTER + 1
+    game.char.deck.familiar['charge'] = 0
     status = do(sess, con, 'familiar')
-    T.ok('dormant' in status.lower(), 'left unrun it goes dormant')
+    T.ok('dormant' in status.lower(), 'at no charge it goes dormant')
     T.ok(game.char.deck.familiar, 'but it is not gone: software waits')
+    # A run charges it back up; and `familiar tend` gives it some
+    # between runs. It is fed by being used (D154).
+    do(sess, con, 'familiar tend')
+    T.ok(game.char.deck.familiar['charge'] == pet_content.FAMILIAR_TEND,
+         'tending gives it a charge out of a run')
+    sess2b, con2b, gameb = fresh()
+    gameb.char.deck.loaded = gameb.char.deck.loaded[:1]
+    do(sess2b, con2b, 'familiar get goodboy') if gameb.char.deck.memory_free >= 2 else do(sess2b, con2b, 'familiar get tally')
+    start_charge = gameb.char.deck.familiar['charge']
+    from flatline.commands.city import _pet
+    con2b.start_capture(); _pet(sess2b, 1); con2b.end_capture()
+    T.ok(gameb.char.deck.familiar['charge'] < start_charge,
+         'and an idle shift drains it, at the familiar\'s own rate')
 
     # It survives the save.
     sess, con, game = fresh()

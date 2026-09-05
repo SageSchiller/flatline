@@ -4545,10 +4545,21 @@ def _pet(sess, shifts: int) -> None:
     for line in pet_world.advance(sess.game.city, shifts):
         sess.console.blank()
         sess.console.say(line)
-    # A digital familiar left unrun drifts toward dormant (D153).
+    # A digital familiar is fed by being run; left unrun its charge
+    # winds down toward dormant (D154), faster if it is the needy kind.
     fam = sess.game.char.deck.familiar
     if fam:
-        fam['idle'] = int(fam.get('idle', 0)) + max(1, shifts)
+        from ..content import pets as pet_content
+        animal = pet_content.FAMILIAR_BY_KEY.get(fam.get('key', ''))
+        drain = animal.drain if animal is not None else 8
+        was = int(fam.get('charge', pet_content.FAMILIAR_FULL))
+        fam['charge'] = max(0, was - drain * max(1, shifts))
+        # A word when it first crosses into wanting a run, once.
+        if (animal is not None and was > pet_content.FAMILIAR_LOW
+                and fam['charge'] <= pet_content.FAMILIAR_LOW
+                and animal.says.get('low')):
+            sess.console.blank()
+            sess.console.say(f'[dim]{animal.says["low"][0]}[/]')
 
 
 def _advance(sess, shifts: int, story: bool = True) -> None:
@@ -6306,7 +6317,7 @@ def _pets_here(game):
 
 @command('familiar', 'A digital pet that rides the deck and talks on runs.',
          contexts=('city',), group='character', aliases=('construct',),
-         usage='familiar [get <name>|drop|name <name>]',
+         usage='familiar [get <name>|tend|drop|name <name>]',
          detail=(
                 'The other kind of pet (D153): a small construct you let run '
                 'on the deck for no reason but company. It costs memory, the '
@@ -6351,7 +6362,8 @@ def cmd_familiar(sess, args) -> None:
                                f'deck has {deck.memory_free + freed} it could '
                                f'give a familiar. Carry less, or a bigger '
                                f'bank.')
-        deck.familiar = {'key': fam.key, 'name': fam.name, 'idle': 0}
+        deck.familiar = {'key': fam.key, 'name': fam.name,
+                         'charge': pet_content.FAMILIAR_FULL}
         sess.autosave()
         c.blank()
         c.rule('on the deck', role='accent2')
@@ -6370,6 +6382,21 @@ def cmd_familiar(sess, args) -> None:
         sess.autosave()
         c.ok(f'{name} is off the deck. The memory is yours again. It is not '
              f'gone, it is just not riding along.')
+        return
+
+    if verb in ('tend', 'run', 'play', 'cycle'):
+        if not fam_state:
+            raise CommandError('no familiar to tend. `familiar get` first.')
+        fam = pet_content.FAMILIAR_BY_KEY.get(fam_state.get('key', ''))
+        name = fam_state.get('name', fam.name if fam else 'it')
+        fam_state['charge'] = min(pet_content.FAMILIAR_FULL,
+                                  int(fam_state.get('charge', 0))
+                                  + pet_content.FAMILIAR_TEND)
+        sess.autosave()
+        c.ok(f'You give {name} a while of your attention out of a run, '
+             f'which is not what it is for and is better than nothing, '
+             f'and it takes the charge and does not ask where the rest '
+             f'of you is.')
         return
 
     if verb == 'name':
@@ -6397,19 +6424,29 @@ def cmd_familiar(sess, args) -> None:
               'It is gone.[/]')
         return
     name = fam_state.get('name', fam.name)
-    idle = int(fam_state.get('idle', 0))
-    dormant = idle >= pet_content.FAMILIAR_DORMANT_AFTER
+    charge = int(fam_state.get('charge', pet_content.FAMILIAR_FULL))
+    dormant = charge <= 0
     c.header(name, f'{fam.species}, {fam.memory}mem'
                    + ('  dormant' if dormant else ''))
     c.say(f'[dim]{fam.blurb}[/]')
     c.blank()
-    idle_line = fam.says.get('dormant' if dormant else 'idle')
-    if idle_line:
-        c.say(f'[dim]{idle_line[0]}[/]')
+    bar = c.bar(charge / pet_content.FAMILIAR_FULL,
+                'ok' if charge > pet_content.FAMILIAR_LOW else
+                'warn' if charge > 0 else 'err', cells=10)
+    c.raw(f'  {bar} [fg]charge[/]')
     c.blank()
-    c.say('[dim]It rides in when you `jack in` and says what it makes of the '
-          'run. `familiar drop` to take it off, `familiar name <name>` to '
-          'name it.[/]')
+    if dormant:
+        line = fam.says.get('dormant')
+    elif charge <= pet_content.FAMILIAR_LOW:
+        line = fam.says.get('low')
+    else:
+        line = fam.says.get('idle')
+    if line:
+        c.say(f'[dim]{line[0]}[/]')
+    c.blank()
+    c.say('[dim]It rides in when you `jack in`, which is what feeds it, '
+          'and says what it makes of the run. `familiar tend` gives it a '
+          'charge between runs; `familiar drop` takes it off.[/]')
 
 
 @command('safehouse', 'Somewhere of your own to keep things.',
