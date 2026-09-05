@@ -5586,7 +5586,8 @@ price of a default; the freight line has a third scene now, *The number
 came off*, for somebody who stayed and then turned the bounty, and the
 title reads that. And every campaign typed `message` to a runner and got
 one of two lines a band; there are four a band now, in the same voices,
-so the same runner does not answer the same way every time.
+so the same runner does not answer the same way every time. And the
+toy shows where the animal does: on `pet` and on `home`.
 `test.py` green at **19,417**.
 
 ### D17: The finish line
@@ -7441,4 +7442,5 @@ staying first, and the harness never takes an ending by default.
 
 D161. The freight line's third scene (stayed, then the bounty turned),
 and the `stayed` title reads it instead of the refusal. Four message
-replies a band instead of two. `test.py` green at 19,417.
+replies a band instead of two; the toy shows on `pet` and `home`.
+`test.py` green at 19,417.

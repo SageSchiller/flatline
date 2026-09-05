@@ -6407,8 +6407,11 @@ def cmd_pet(sess, args) -> None:
               + '.[/]')
     feed = int(pet.get('feed', 0))
     c.blank()
-    c.say(f'[dim]{feed} feed in the flat. `pet feed`, `pet water`, `pet play`; '
-          f'`pet name <name>`.[/]')
+    toy = pet_content.TOYS.get(pet['key'])
+    has_toy = (f'{pet["toy"]} in the flat' if pet.get('toy')
+               else (f'no {toy[0].split(" ", 1)[1]} yet, `pet toy`' if toy else ''))
+    c.say(f'[dim]{feed} feed in the flat{", " + has_toy if has_toy else ""}. '
+          f'`pet feed`, `pet water`, `pet play`; `pet name <name>`.[/]')
 
 
 def _since(shifts: int) -> str:
@@ -6566,8 +6569,9 @@ def cmd_home(sess, args) -> None:
         need = ''
         if mood in ('low', 'failing'):
             need = f'  [warn]needs {pet_content.worst_need(city.pet)}[/]'
+        toy = f', has {city.pet["toy"]}' if city.pet.get('toy') else ''
         c.raw(f'  [accent]pet[/]       [fg]{name}[/] [dim]({animal.species if animal else "?"}, '
-              f'{word})[/]{need}')
+              f'{word}{toy})[/]{need}')
     else:
         c.raw('  [accent]pet[/]       [dim]none. `pet get` where strays are[/]')
 
