@@ -1228,7 +1228,7 @@ def _title_line(sess) -> str:
     from .. import save as save_mod
     meta = save_mod.read_meta()
     title = record_world.title_of(record_world.counts(sess.game, meta),
-                                  meta.get('recorded'))
+                                  meta.get('recorded'), meta)
     return f'[accent2]{title}[/]' if title else '[dim]nothing yet. `record`[/]'
 
 
@@ -5423,6 +5423,8 @@ def cmd_sell_out(sess, args) -> None:
     c.say(f'[dim]{stream.pick(rival_content.SALE_FALLOUT)}[/]')
     game.city.news.append(f'You sold {rival.name} to '
                           f'{factions.BY_KEY[match].short}.')
+    game.story.flags.add('betrayed')
+    sess.record_progress()
     sess.autosave()
 
 

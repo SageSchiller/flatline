@@ -415,6 +415,12 @@ META_DEFAULT = {
     'spine_finished': 0,
     #: Record lines earned, so each is said once and stays said.
     'recorded': [],
+    #: Extra titles earned by deeds (D151): keys from content.record.
+    #: Snapshotted here when the deed is done, so a title a dead
+    #: character earned is still one the next can wear.
+    'titles': [],
+    #: The title the player has pinned, or '' for newest-earned.
+    'called': '',
     #: `kind:key` for everything earned, so a new unlock can be announced once.
     'unlocked': [],
     #: What the shell currently looks like. See `content/rice.py`.

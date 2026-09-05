@@ -415,6 +415,33 @@ class Session:
                       f'{record_content.BY_SECTION[key][0].section}. '
                       f'{record_content.SECTION_TITLE[key].capitalize()}.[/]')
         self.announce(say)
+        self.announce_titles()
+
+    def announce_titles(self) -> None:
+        """Earn and say a flavoured title once, when the deed is done
+        (D151). Recorded to the profile so a dead runner's title is
+        still one the next can wear."""
+        from .world import record as record_world
+        meta = save_mod.read_meta()
+        have = set(meta.get('titles') or ())
+        fresh = [t for t in record_world.extra_earned(self.game)
+                 if t.key not in have]
+        if not fresh:
+            return
+        meta['titles'] = sorted(have | {t.key for t in fresh})
+        save_mod.write_meta(meta)
+        register = {'heroic': 'a name to keep', 'vile': 'a name to carry',
+                    'amusing': 'a name, anyway'}
+
+        def say(c=self.console, fresh=fresh, register=register):
+            for t in fresh:
+                c.blank()
+                c.rule(register.get(t.register, 'a name'), role='accent2')
+                c.say(t.earned)
+                c.say(f'[dim]The city has a name for you now: [accent2]'
+                      f'{t.name}[/][dim]. `called` to wear it, or one of '
+                      f'the others.[/]')
+        self.announce(say)
 
     def announce_unlocks(self) -> None:
         """Tell the player about anything they have just earned, once."""

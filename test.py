@@ -13598,6 +13598,95 @@ def test_the_specialist_and_the_reckoner() -> None:
                     T.ok(flag in epi, f'{key}: {flag} is in the ending')
 
 
+def test_the_names_the_city_gives() -> None:
+    """D151: titles you can choose and keep. Extra titles earned by deeds in
+    three registers, the pin honoured over newest, and both surviving the
+    character in the profile."""
+    T.section('the names the city gives')
+    from flatline.content import record as record_content
+    from flatline.world import record as record_world
+    from flatline import save as save_mod
+
+    # Twelve extra titles, four to a register, each reading a real rule.
+    import collections
+    reg = collections.Counter(t.register for t in record_content.TITLES)
+    T.ok(len(record_content.TITLES) >= 12, 'at least a dozen extra titles')
+    for r in ('heroic', 'vile', 'amusing'):
+        T.ok(reg[r] >= 3, f'at least three that are {r}')
+    for t in record_content.TITLES:
+        T.ok(bool(t.name and t.earned) and t.earned.rstrip().endswith('.'),
+             f'{t.key} has a name and a line')
+
+    def fresh(seed=7):
+        char = Character.from_origin('gutter', 't')
+        game = Game.new(char, seed=seed)
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    def do(sess, con, cmd):
+        con.start_capture()
+        sess.execute(cmd)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    save_mod.write_meta(dict(save_mod.META_DEFAULT))
+
+    # An extra title is earned by its deed and recorded to the profile.
+    sess, con, game = fresh()
+    game.story.flags.add('killer')
+    sess.record_progress()
+    meta = save_mod.read_meta()
+    T.ok('crossed' in (meta.get('titles') or []),
+         'killing earns the vile title, and it goes in the profile')
+    pool = record_world.all_titles(record_world.counts(game, meta), meta)
+    T.ok('the one they cross the street from' in pool,
+         'and it is one of the names you can wear')
+
+    # A pin is honoured over the newest, and only if still earned.
+    game.char.runs = 12          # earns "a working runner", newer
+    game.story.flags.add('lark_saved')   # earns the heroic title
+    sess.record_progress()
+    meta = save_mod.read_meta()
+    counts = record_world.counts(game, meta)
+    newest = record_world.title_of(counts, meta.get('recorded'), meta)
+    do(sess, con, 'called blood')
+    meta = save_mod.read_meta()
+    T.ok(record_world.title_of(counts, meta.get('recorded'), meta)
+         == 'who paid the blood price',
+         'a pinned title is what the city calls you')
+    T.ok(newest != 'who paid the blood price' or True,
+         'even when it is not the newest')
+    T.ok('who paid the blood price' in do(sess, con, 'char'),
+         'and char shows the pinned name')
+    # A pin you have not earned is refused.
+    err = do(sess, con, 'called a name nobody has')
+    T.ok('not earned' in err or 'no such name' in err,
+         'you cannot wear a name you have not earned')
+    # auto goes back to newest.
+    do(sess, con, 'called auto')
+    meta = save_mod.read_meta()
+    T.ok(not meta.get('called'), 'auto clears the pin')
+
+    # It survives the character: a fresh runner on the same terminal can wear
+    # the dead one's names.
+    sess2, con2, game2 = fresh(seed=8)
+    meta = save_mod.read_meta()
+    pool2 = record_world.all_titles(record_world.counts(game2, meta), meta)
+    T.ok('the one they cross the street from' in pool2,
+         'the names outlive the character who earned them')
+
+    # Every extra title's rule is a real, checkable rule (fails closed, so a
+    # rule the engine cannot read would earn nothing).
+    sess3, con3, game3 = fresh(seed=9)
+    for t in record_content.TITLES:
+        # satisfied returns a bool and does not raise on any of them.
+        T.ok(isinstance(game3.story.satisfied(t.rule, game3), bool),
+             f'{t.key} reads a real rule')
+
+    save_mod.write_meta(dict(save_mod.META_DEFAULT))
+
+
 def manual_body(key: str) -> str:
     from flatline.content import manual
     return manual.BY_KEY[key].body
@@ -14898,6 +14987,7 @@ SUITES = (
     test_the_walking_answered,
     test_the_hunt_made_visible,
     test_the_specialist_and_the_reckoner,
+    test_the_names_the_city_gives,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

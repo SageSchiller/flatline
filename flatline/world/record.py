@@ -86,6 +86,37 @@ def titles(counts_now: dict, recorded=None) -> list[str]:
     return out
 
 
-def title_of(counts_now: dict, recorded=None) -> str:
-    got = titles(counts_now, recorded)
-    return got[-1] if got else ''
+def extra_earned(game) -> list:
+    """The flavoured titles (D151) whose deed has been done: read against the
+    live game, since they are earned by doing one thing rather than by a
+    count the profile keeps."""
+    if game is None:
+        return []
+    return [t for t in record_content.TITLES
+            if game.story.satisfied(t.rule, game)]
+
+
+def all_titles(counts_now: dict, meta: dict) -> list[str]:
+    """Every title this profile can wear: the record\'s, newest last, then
+    the extra titles it has earned (D151). Used by `called` and by the pin,
+    so both draw on the same pool."""
+    out = list(titles(counts_now, (meta or {}).get('recorded')))
+    for key in (meta or {}).get('titles') or ():
+        entry = record_content.TITLE_BY_KEY.get(key)
+        if entry is not None and entry.name not in out:
+            out.append(entry.name)
+    return out
+
+
+def title_of(counts_now: dict, recorded=None, meta=None) -> str:
+    """What the city calls you now: the one you have pinned if it is still
+    earned, otherwise the newest (D151). `meta` carries the pin and the
+    earned extra titles; `recorded` is kept for the callers that have only
+    that."""
+    pool = all_titles(counts_now, meta if meta is not None
+                      else {'recorded': recorded})
+    if meta:
+        chosen = meta.get('called') or ''
+        if chosen and chosen in pool:
+            return chosen
+    return pool[-1] if pool else ''

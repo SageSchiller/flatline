@@ -310,6 +310,90 @@ def cmd_tune(sess, args) -> None:
         c.say(line)
 
 
+@command('called', 'What the city calls you: choose which earned name to wear.',
+         group='info', contexts=('any',), aliases=('title-me', 'name'),
+         usage='called [name|auto]',
+         detail=(
+                'The city gives you names (D142, D151): for crossing the '
+                'record\'s lines, and for single deeds it admires, will not '
+                'forgive, or finds funny. By default it calls you the newest '
+                'one, which can feel like a downgrade when a quiet later line '
+                'lands after a loud one. `called <name>` pins the one you '
+                'want; `called auto` goes back to newest. What you pin is '
+                'kept in the profile, so it survives the character, like the '
+                'names themselves and the terminal you read them on.'))
+def cmd_called(sess, args) -> None:
+    from ..content import record as record_content
+    from ..world import record as record_world
+    from .. import save as save_mod
+    c = sess.console
+    game = sess.game
+    meta = save_mod.read_meta()
+    counts = record_world.counts(game, meta)
+    pool = record_world.all_titles(counts, meta)
+    arg = args.rest().strip()
+
+    if arg.lower() in ('auto', 'newest', 'none', 'clear', '--auto'):
+        meta['called'] = ''
+        save_mod.write_meta(meta)
+        newest = pool[-1] if pool else ''
+        c.ok('The city calls you the newest name again'
+             + (f': [accent2]{newest}[/].' if newest else '.'))
+        return
+
+    if arg:
+        low = arg.lower()
+        match = next((t for t in pool if t.lower() == low), None) \
+            or next((t for t in pool if low in t.lower()), None)
+        if match is None:
+            raise CommandError('you have not earned that one, or there is no '
+                               'such name. `called` lists what you can wear.')
+        meta['called'] = match
+        save_mod.write_meta(meta)
+        c.ok(f'The city calls you [accent2]{match}[/] now, until you say '
+             f'otherwise.')
+        return
+
+    if not pool:
+        c.header('Called', 'nothing yet')
+        c.say('[dim]The city has no name for you yet. Cross a line of the '
+              '`record`, or do something it admires, will not forgive, or '
+              'finds funny.[/]')
+        return
+
+    chosen = meta.get('called') or ''
+    shown = record_world.title_of(counts, meta.get('recorded'), meta)
+    # Which of the pool are record names and which are the flavoured ones.
+    extras = {record_content.TITLE_BY_KEY[k].name:
+              record_content.TITLE_BY_KEY[k].register
+              for k in (meta.get('titles') or ())
+              if k in record_content.TITLE_BY_KEY}
+    c.header('Called', f'{len(pool)} earned')
+    c.say(f'[dim]The city calls you [accent2]{shown}[/][dim] right now'
+          + ('' if chosen else ', which is the newest one') + '.[/]')
+    record_names = [t for t in pool if t not in extras]
+    if record_names:
+        c.blank()
+        c.rule('for the record', role='muted')
+        for t in record_names:
+            mark = c.caps.g('check') if t == shown else ' '
+            c.raw(f'  [{"accent2" if t == shown else "fg"}]{mark}[/] {t}')
+    for register, label in (('heroic', 'for what it admires'),
+                            ('vile', 'for what it will not forgive'),
+                            ('amusing', 'for what it finds funny')):
+        names = [t for t, r in extras.items() if r == register]
+        if not names:
+            continue
+        c.blank()
+        c.rule(label, role='muted')
+        for t in names:
+            mark = c.caps.g('check') if t == shown else ' '
+            c.raw(f'  [{"accent2" if t == shown else "fg"}]{mark}[/] {t}')
+    c.blank()
+    c.say('[dim]`called <name>` to wear one, `called auto` for the newest. '
+          'It stays yours whatever happens to this character.[/]')
+
+
 @command('record', 'What the city can say about you: the work, the city, the people, the floor.',
          group='info', contexts=('any',), usage='record [work|city|people|floor]',
          aliases=('records',),
@@ -337,7 +421,7 @@ def cmd_record(sess, args) -> None:
     if not shown:
         raise CommandError('the sections are: '
                            + ', '.join(record_content.SECTION_KEYS))
-    title = record_world.title_of(counts, meta.get('recorded'))
+    title = record_world.title_of(counts, meta.get('recorded'), meta)
     c.header('The record', f'{len(done)} of {len(record_content.ENTRIES)}'
                            + (f'  {title}' if title else ''))
     for key, name, blurb in record_content.SECTIONS:

@@ -3958,6 +3958,28 @@ def check_record(rep: Report) -> None:
                   'a section with no name for finishing it')
     titled = sum(1 for e in record_content.ENTRIES if e.title)
     rep.check(titled >= 8, 'record', f'only {titled} lines earn a name')
+    # The flavoured titles (D151): each reads a rule the world layer
+    # can evaluate, and the three registers are all represented.
+    import collections
+    reg = collections.Counter(t.register for t in record_content.TITLES)
+    for register in record_content.REGISTERS:
+        rep.check(reg[register] >= 3, 'record/titles',
+                  f'fewer than three {register} titles')
+    seen_t = set()
+    for t in record_content.TITLES:
+        where = f'record/title/{t.key}'
+        rep.check(t.key not in seen_t, where, 'duplicate key')
+        seen_t.add(t.key)
+        rep.check(t.register in record_content.REGISTERS, where,
+                  f'unknown register {t.register!r}')
+        rep.check(bool(t.name and t.earned)
+                  and t.earned.rstrip().endswith('.'), where,
+                  'has no name or no line')
+        # The rule is a real one: a flag, a `not:`, or a known kind.
+        inner = t.rule[4:] if t.rule.startswith('not:') else t.rule
+        kind = inner.split(':')[0] if ':' in inner else ''
+        rep.check(not kind or kind in thread_content.CONDITIONS, where,
+                  f'reads unknown condition {kind!r}')
 
 
 def check_feed(rep: Report) -> None:

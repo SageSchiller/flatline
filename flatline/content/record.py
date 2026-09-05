@@ -150,6 +150,73 @@ ENTRIES: tuple[Entry, ...] = (
                  'back, and it left something in how you stand.'),
 )
 
+#: Titles the city gives you for a deed rather than for a count (D151). Where
+#: a record line is crossed by doing enough of a thing, these are earned by
+#: doing one particular thing, and they come in three registers because a
+#: city has more than one opinion of a person: what it admires, what it will
+#: not forgive, and what it finds funny. Each reads a flag the engine already
+#: sets; earned once, they are kept in the profile like everything else here,
+#: so a title a dead runner earned is still one the next can choose to wear.
+@dataclass(frozen=True, slots=True)
+class Title:
+    key: str
+    #: What the city calls you.
+    name: str
+    #: 'heroic' | 'vile' | 'amusing'. Read by `validate` to hold the spread.
+    register: str
+    #: `Story.satisfied` syntax: the one deed that earns it.
+    rule: str
+    #: One line, said once, when it lands.
+    earned: str
+
+
+TITLES: tuple[Title, ...] = (
+    # -- what the city admires ---------------------------------------------
+    Title('bloodprice', 'who paid the blood price', 'heroic', 'lark_saved',
+          'You paid, in money you needed, for somebody else\'s life, and the '
+          'city has a name for that and does not use it often.'),
+    Title('unbought', 'who could not be bought', 'heroic', 'dw_refused',
+          'You handed back the one offer nobody hands back, and nothing came '
+          'for you, and the not-coming is how you know it was real.'),
+    Title('witness', 'the witness', 'heroic', 'dw_published',
+          'You put the nine logs where everybody could read them, for a day, '
+          'which is longer than most true things get.'),
+    Title('steadfast', 'who said no to the water', 'heroic', 'dw_stayed',
+          'It asked, the way it asks once, and you said no, plainly, and it '
+          'did not ask again, and you are still here to be called this.'),
+    # -- what the city will not forgive ------------------------------------
+    Title('crossed', 'the one they cross the street from', 'vile', 'killer',
+          'You have killed somebody with your hands on this street, and the '
+          'street is small, and it knows.'),
+    Title('judas', 'who sells names', 'vile', 'betrayed',
+          'You sold a runner\'s name to somebody who wanted it, and the other '
+          'runners heard, the way they always hear, and decided.'),
+    Title('ghoul', 'who reads the dead\'s post', 'vile', 'sealed_read',
+          'You opened a dead runner\'s last locked thing and read what was in '
+          'it before you passed it on, because you were the one who could.'),
+    Title('driftwood', 'who lets them go under', 'vile', 'lark_dead',
+          'Somebody your age drowned in their own chrome while you had the '
+          'price of the surgeon in your pocket, and you kept the pocket.'),
+    # -- what the city finds funny -----------------------------------------
+    Title('veteran', 'who asked about the war', 'amusing', 'asked:vending:war',
+          'The sign on the machine says DO NOT ASK HIM ABOUT THE WAR, and you '
+          'asked him about the war, and now you know, and now you are this.'),
+    Title('magpie', 'the magpie', 'amusing', 'finds:3',
+          'You have gone and got three things there is one of, off no shelf, '
+          'for no reason but that they were there and you were looking.'),
+    Title('regular', 'a regular at a bar with no front', 'amusing', 'met:osei',
+          'Osei pours yours before you sit down now, which is either a '
+          'compliment or a diagnosis, and he will not say which.'),
+    Title('birdwatcher', 'who talks to children on towers', 'amusing',
+          'carrier_told',
+          'You climbed a tank on legs to help an eleven-year-old point a dish '
+          'at the sea, and told them what it was hearing, and meant it.'),
+)
+
+TITLE_BY_KEY: dict[str, Title] = {t.key: t for t in TITLES}
+REGISTERS: tuple[str, ...] = ('heroic', 'vile', 'amusing')
+
+
 BY_KEY: dict[str, Entry] = {e.key: e for e in ENTRIES}
 BY_SECTION: dict[str, list[Entry]] = {
     k: [e for e in ENTRIES if e.section == k] for k in SECTION_KEYS}
