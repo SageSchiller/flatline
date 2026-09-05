@@ -14311,7 +14311,24 @@ def test_the_follower_never_stalls() -> None:
         if worst_here[0] > worst[0]:
             worst = worst_here
     T.ok(worst[0] <= LIMIT, f'no step repeats more than {LIMIT} times running: worst {worst}')
-
+    # What the first fuzz found: an exact name wins over a substring.
+    from types import SimpleNamespace as NS
+    from flatline.content import programs as PRc, cyberware as CWc
+    lat = next(p for p in PRc.BY_KEY.values() if p.name.lower() == 'lattice')
+    optic = next((w for w in CWc.BY_KEY.values() if 'lattice' in w.name.lower()), None)
+    if optic is not None:
+        listings = [NS(key=lat.key, kind='program'), NS(key=optic.key, kind='ware')]
+        real_item = city_cmd._item
+        def fake_item(l):
+            return lat if l.key == lat.key else optic
+        city_cmd._item = fake_item
+        try:
+            got = city_cmd.match_listings('lattice', listings)
+            T.ok(len(got) == 1 and got[0][1] is lat, 'buy lattice buys the Lattice, not the optic')
+            got2 = city_cmd.match_listings('latt', listings)
+            T.ok(len(got2) == 2, 'and a fragment still asks which one')
+        finally:
+            city_cmd._item = real_item
 
 def _follow(origin: str, seed: int, steps: int) -> tuple[str, tuple[int, str]]:
     """Play one character by doing what `now` and the brief say. Returns
@@ -14354,8 +14371,11 @@ def _follow(origin: str, seed: int, steps: int) -> tuple[str, tuple[int, str]]:
                 break
             streak = streak + 1 if step == last else 1
             last = step
-            if streak > worst[0]:
-                worst = (streak, f'{origin}/{seed} {step}')
+            # An escort is mostly waiting, and every wait moves the clock:
+            # that is the one step a long streak of is not a stall.
+            counted = streak if step != 'run:wait' else max(0, streak - 40)
+            if counted > worst[0]:
+                worst = (counted, f'{origin}/{seed} {step}')
         console.end_capture()
     return raised, worst
 
@@ -14372,24 +14392,7 @@ def slow_the_long_follower() -> None:
         if worst_here[0] > worst[0]:
             worst = worst_here
     T.ok(worst[0] <= 20, f'no step repeats more than twenty times in four hundred: worst {worst}')
-    # What the first fuzz found: an exact name wins over a substring.
-    from types import SimpleNamespace as NS
-    from flatline.content import programs as PRc, cyberware as CWc
-    lat = next(p for p in PRc.BY_KEY.values() if p.name.lower() == 'lattice')
-    optic = next((w for w in CWc.BY_KEY.values() if 'lattice' in w.name.lower()), None)
-    if optic is not None:
-        listings = [NS(key=lat.key, kind='program'), NS(key=optic.key, kind='ware')]
-        real_item = city_cmd._item
-        def fake_item(l):
-            return lat if l.key == lat.key else optic
-        city_cmd._item = fake_item
-        try:
-            got = city_cmd.match_listings('lattice', listings)
-            T.ok(len(got) == 1 and got[0][1] is lat, 'buy lattice buys the Lattice, not the optic')
-            got2 = city_cmd.match_listings('latt', listings)
-            T.ok(len(got2) == 2, 'and a fragment still asks which one')
-        finally:
-            city_cmd._item = real_item
+
 
 
 def test_every_origin_has_its_verb() -> None:
@@ -14627,6 +14630,29 @@ def test_the_collector_and_the_company() -> None:
     sess5, out5 = play(['people'], game=game5)
     T.ok('to ask' in out5, 'people says what is left to ask')
     T.ok("if '--long' in sys.argv" in open(__file__).read(), 'the long follower is opt in')
+    # The street has a say in the nearest workshop (D165): a wrecked deck and
+    # a number on the name in the nearest workshop's district does not get
+    # the same refused walk for ever.
+    from flatline.commands import city as city_cmd
+    from flatline.content import districts as district_content
+    game8 = Game.new(Character.from_origin('gutter', 'x'), seed=227)
+    game8.char.credits = 20000  # not the broke branch: this is about the walk
+    game8.char.deck.damage['cooling'] = 3  # destroyed: the deck is wrecked
+    nearest = city_cmd.nearest_workshop(game8)
+    ctrl = district_content.BY_KEY[nearest].controller
+    if ctrl:
+        game8.city.bounties[ctrl] = 60
+        steps8 = city_cmd.city_steps(game8)
+        shop_steps = [(v, why) for v, why in steps8 if 'workshop' in why]
+        T.ok(bool(shop_steps), f'a wrecked deck is a step: {[v for v, _ in steps8][:4]}')
+        if shop_steps:
+            v = shop_steps[0][0]
+            T.ok('--anyway' in v or nearest not in v,
+                 f'and the walk named is one the street allows, or is priced: {v!r}')
+    game7 = Game.new(Character.from_origin('gutter', 'x'), seed=226); game7.char.runs = 9
+    sess7, out7 = play(['who'], game=game7)
+    T.ok(game7.char.handle in out7 and ('ahead of the field' in out7 or 'behind the best' in out7 or 'level with' in out7),
+         'the runners list has you on it, against the field')
     # The done beat, at the moment the job gets done, whichever verb did it.
     game6 = Game.new(Character.from_origin('gutter', 'x'), seed=225)
     game6.char.deck.familiar = {'key': 'goodboy', 'name': 'Rex', 'charge': 100}

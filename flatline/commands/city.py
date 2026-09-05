@@ -2193,6 +2193,31 @@ def _hunted_on_route(game, target: str) -> tuple[str, str]:
     return '', ''
 
 
+
+def _hot_walk(game, target: str) -> str:
+    """The faction whose people would refuse the walk to `target` the way
+    `walk` refuses it (same terms), as its short name, or ''."""
+    if target == game.city.where:
+        return ''
+    try:
+        danger, who = game.city.danger(game.alias, target, game.rng,
+                                       flags=game.story.flags,
+                                       riders=game.char.riders())
+    except Exception:  # noqa: BLE001
+        return ''
+    if (who and danger >= fallout.INCIDENT_FLOOR
+            and who not in game.city.arrangements
+            and who in factions.BY_KEY):
+        return factions.BY_KEY[who].short
+    return ''
+
+
+def workshops_by_distance(game) -> list[str]:
+    """Every district with a workshop, nearest first."""
+    shops = [d.key for d in districts.DISTRICTS if 'workshop' in d.services]
+    return sorted(shops, key=lambda k: (game.city.shifts_to(k), k))
+
+
 def nearest_workshop(game) -> str:
     """The district key of the closest workshop, or ''."""
     shops = [d for d in districts.DISTRICTS if 'workshop' in d.services]
@@ -2885,14 +2910,34 @@ def city_steps(game) -> list[tuple[str, str]]:
         # (D88).
         shop = nearest_workshop(game)
         if shop:
-            steps.append((game.city.walk_to(shop),
-                          f'the deck is badly hurt ('
-                          + ', '.join(f'{s} {deck.damage[s]}/3'
-                                      for s in deck.damage if deck.damage[s])
-                          + (f', memory {deck.memory_used}/{deck.memory}'
-                             if deck.memory_used > deck.memory else '')
-                          + f') and the nearest workshop is in '
-                          f'{districts.BY_KEY[shop].name}'))
+            hurt = ('the deck is badly hurt ('
+                    + ', '.join(f'{s} {deck.damage[s]}/3'
+                                for s in deck.damage if deck.damage[s])
+                    + (f', memory {deck.memory_used}/{deck.memory}'
+                       if deck.memory_used > deck.memory else '')
+                    + ')')
+            # The street has a say in which workshop is nearest (D165):
+            # the long follower was sent to the Ninth seventy-six times
+            # while Carrion had a number on the name and the walk refused
+            # every one. A workshop the street lets you reach first; the
+            # priced walk, named, when none will.
+            hot = _hot_walk(game, shop)
+            if hot:
+                for other in workshops_by_distance(game):
+                    if other != shop and not _hot_walk(game, other):
+                        shop, hot = other, ''
+                        break
+            if hot:
+                steps.append((f'{game.city.walk_to(shop)} --anyway',
+                              f'{hurt} and the nearest workshop is in '
+                              f'{districts.BY_KEY[shop].name}, where {hot} '
+                              f'have a number on your name: the walk is '
+                              f'priced, or `arrange`, or `burn`'))
+            else:
+                steps.append((game.city.walk_to(shop),
+                              f'{hurt} and the nearest workshop the street '
+                              f'will let you reach is in '
+                              f'{districts.BY_KEY[shop].name}'))
     if 'payload' not in owned:
         cheapest = min((p for p in programs.by_category('payload')
                         if not p.unique), key=lambda p: p.price, default=None)
@@ -5156,7 +5201,13 @@ def cmd_who(sess, args) -> None:
 
     living = [r for r in pool if r.alive]
     c.header('Runners', f'{len(living)} still working')
-    rows = []
+    # You, first, against the field (D164): a runner who plays to be the
+    # best on the board wants to see the board with themselves on it.
+    best = max((r.jobs for r in living), default=0)
+    rows = [(game.char.handle, 'you', str(game.char.runs),
+             ('ahead of the field' if game.char.runs > best
+              else 'level with the field' if game.char.runs == best
+              else f'{best - game.char.runs} behind the best'))]
     for rival in pool:
         data = rival.data
         rows.append((
