@@ -765,7 +765,7 @@ TOPICS: tuple[Topic, ...] = (
         'is what is in front of you this hour; district is the place '
         'itself. Crossing between two of them takes a shift, and says '
         'what you went through to get there.',
-        see=('heat', 'rivals', 'contracts', 'reading', 'clock', 'relics'),
+        see=('heat', 'rivals', 'contracts', 'reading', 'clock', 'relics', 'pets'),
         commands=('travel', 'walk', 'map', 'district', 'rest', 'board',
                   'look', 'visit', 'news'),
         covers=('districts', 'shifts', 'spots'),
@@ -1305,6 +1305,38 @@ TOPICS: tuple[Topic, ...] = (
         see=('city', 'threads', 'programs'),
         commands=('visit', 'inspect', 'look', 'rumours'),
         terms=('unique', 'rare', 'special', 'artifact', 'artefact', 'legendary'),
+        group='city'),
+    Topic(
+        'pets', 'A pet, and keeping it alive',
+        'The one thing you keep that is not for the work.',
+        'A netrunner\'s life is a chair, a trace, and a bill the city sends '
+        'later. A pet is the part of it that is none of those. You can take '
+        'one on once you have a [fg]safehouse[/], because you cannot keep a '
+        'thing alive out of a chair: a stray from the Ninth or the Shambles, '
+        'a rat or a gecko for a few credits, or the thing that came out of '
+        'Building Nine in somebody\'s pocket, which is a cat the way a thing '
+        'Aoyama made is ever only mostly the animal it started as.\n\n'
+        'It has food, water and play, and they run down at a rate the animal '
+        'decides: a dog needs walking and a gecko needs almost nothing and a '
+        'cat needs you to believe it needs nothing. You keep them up with '
+        '[fg]pet feed[/], [fg]pet water[/] and [fg]pet play[/]; feed comes in '
+        'bags from [fg]pet feed buy[/]. [fg]pet[/] on its own is how it is, '
+        'and [fg]pet name[/] names it.\n\n'
+        'None of it helps you on a run or in a fight. That is the point of '
+        'it, and it is the only thing in the game that is. But the care is '
+        'real, and so is the loss: an animal nobody feeds tells you so, for a '
+        'long time, in the state it is in and the things it does, and then '
+        'one shift it is not there. It is telegraphed all the way down, the '
+        'way the only real death in the net is, because it is the same city '
+        'and the same rule. It belongs to the character, and when they go it '
+        'is in the ending, because a thing that depended on you is the truest '
+        'account of what you were.\n\n'
+        '[warn]The decision:[/] whether to take one on at all, in a city that '
+        'is hard on everything, and then whether to come home.',
+        see=('city', 'basics', 'death'),
+        commands=('pet', 'safehouse'),
+        covers=('pets',),
+        terms=('pet', 'animal', 'cat', 'dog', 'companion', 'feed'),
         group='city'),
     Topic(
         'chemistry', 'Drugs, tolerance, and habit',

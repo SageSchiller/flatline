@@ -639,6 +639,13 @@ def _epilogue(sess) -> None:
         c.blank()
         c.rule('and in nights', role='accent2')
         c.bullets(career, role='dim')
+    # And the one thing that was not for the work (D152).
+    from ..world import pets as pet_world
+    coda = pet_world.ending_coda(game.city)
+    if coda:
+        c.blank()
+        c.rule('and in the one that was not for the work', role='accent2')
+        c.say(f'[dim]{coda}[/]')
 
 
 def career_lines(game) -> list[str]:

@@ -3696,6 +3696,14 @@ def cmd_rest(sess, args) -> None:
         c.info('You heal the way you have healed since the table.')
     elif 'poor_rest' in game.char.riders():
         c.info('Three hours, like every night.')
+    # Home to the pet, if this is where it lives (D152).
+    if (game.city.pet
+            and game.city.where == game.city.safehouse.get('district')):
+        from ..world import pets as pet_world
+        line = pet_world.greeting(game.city)
+        if line:
+            c.blank()
+            c.say(f'[dim]{line}[/]')
 
 
 # --------------------------------------------------------------------------
@@ -4529,6 +4537,16 @@ def _legwork_result(net, gives: str, bonus: int, game) -> str:
 # --------------------------------------------------------------------------
 
 
+def _pet(sess, shifts: int) -> None:
+    """Age the character's pet and say what a shift did to it (D152).
+    Routed through `_advance` like the rest of the fallout, so no way
+    of spending time can quietly skip feeding the cat."""
+    from ..world import pets as pet_world
+    for line in pet_world.advance(sess.game.city, shifts):
+        sess.console.blank()
+        sess.console.say(line)
+
+
 def _advance(sess, shifts: int, story: bool = True) -> None:
     """Move time and report what the world did. Every shift-spending command
     routes through here so nothing can silently skip fallout."""
@@ -4552,6 +4570,7 @@ def _advance(sess, shifts: int, story: bool = True) -> None:
         sess.console.say(line)
     _rot(sess, shifts)
     _drift(sess)
+    _pet(sess, shifts)
     # The world moved, so any scene whose moment has come arrives now rather
     # than the next time you happen to look at somebody (D52). Travel asks
     # for it after the arrival instead (D91).
@@ -6073,6 +6092,212 @@ def _thing_name(key: str) -> str:
         if key in table:
             return table[key].name
     return key
+
+
+@command('pet', 'The one thing you keep that is not for the work.',
+         contexts=('city',), group='character', aliases=('pets',),
+         usage='pet [feed|water|play|name <name>|feed buy|get <animal>|let go]',
+         detail=(
+                'A pet lives at your safehouse (D152), because you cannot keep '
+                'a thing alive out of a chair, and it has food, water and play '
+                'that run down at a rate the animal decides. You keep them up '
+                'or you do not, and if you do not it tells you, for a long '
+                'time, before it stops being yours. It does nothing for a run '
+                'or a fight. That is the point of it. `pet` on its own is how '
+                'it is; `pet get` is what you can take on where you are; '
+                '`pet feed`, `pet water`, `pet play` are the keeping of it; '
+                '`pet name <name>` names it; `pet feed buy` buys a bag of '
+                'feed.'))
+def cmd_pet(sess, args) -> None:
+    game, c = sess.require_game(), sess.console
+    from ..content import pets as pet_content
+    from ..world import pets as pet_world
+    city = game.city
+    verb = (args.get(0) or '').lower()
+
+    if not pet_world.has_pet(city):
+        if verb in ('get', 'adopt', 'take'):
+            _pet_get(sess, args)
+            return
+        c.header('Pet', 'none')
+        c.say('[dim]You keep nothing alive but yourself, and barely. A pet '
+              'needs a safehouse to live in and somebody to come home. '
+              '`pet get` for what you could take on where you are.[/]')
+        return
+
+    pet = city.pet
+    animal = pet_content.BY_KEY[pet['key']]
+    name = pet.get('name', animal.name)
+
+    if verb in ('feed', 'water', 'play', 'name', 'let', 'get', 'adopt', 'take'):
+        if verb == 'get' or verb == 'adopt' or verb == 'take':
+            raise CommandError(f'you already have {name}. `pet let go` first, '
+                               f'if it has come to that.')
+        if verb == 'name':
+            new = args.rest(1).strip()
+            if not new:
+                raise CommandError('name it what? `pet name <name>`.')
+            pet['name'] = new[:24]
+            sess.autosave()
+            c.ok(f'{new[:24]}. It does not answer to it yet. It will not '
+                 f'admit to answering to it ever.')
+            return
+        if verb == 'let':
+            if (args.get(1) or '').lower() != 'go':
+                raise CommandError('`pet let go`, if you mean it. It is not '
+                                   'reversible and it is not nothing.')
+            if not args.has('confirm'):
+                c.say(f'[warn]Let {name} go?[/] [dim]Somebody will take it on, '
+                      f'or it will take the street on; either way it stops '
+                      f'being yours. `pet let go --confirm`.[/]')
+                return
+            coda = pet_world.ending_coda(city).replace('outlived you', 'went on')
+            city.pet = {}
+            sess.autosave()
+            c.blank()
+            c.say(f'[dim]{coda}[/]')
+            return
+        if verb == 'feed' and (args.get(1) or '').lower() == 'buy':
+            _feed_buy(sess)
+            return
+        if verb == 'feed':
+            if int(pet.get('feed', 0)) <= 0:
+                raise CommandError('no feed in the flat. `pet feed buy` for a '
+                                   'bag.')
+            pet['feed'] = int(pet['feed']) - 1
+            pet_world.care(city, 'food')
+            sess.autosave()
+            c.ok(f'{name} eats {animal.eats}, with the single-mindedness of a '
+                 f'thing that has decided this is the best part of the day, '
+                 f'which it may be, for both of you.')
+            return
+        if verb == 'water':
+            pet_world.care(city, 'water')
+            sess.autosave()
+            c.ok(f'Fresh water. {name} drinks, or ignores it and drinks later, '
+                 f'on its own schedule, which is the only schedule.')
+            return
+        if verb == 'play':
+            pet_world.care(city, 'play')
+            _advance(sess, 0)  # play is time, but a small kind; no shift lost
+            sess.autosave()
+            c.ok(f'You spend a while on {name} and nothing else, which is the '
+                 f'whole of what it wanted and more than you meant to give and '
+                 f'exactly right.')
+            return
+
+    # Status.
+    c.header(name, f'{animal.species}, {_since(city.shift - int(pet.get("since", city.shift)))}')
+    c.say(f'[dim]{animal.blurb}[/]')
+    c.blank()
+    for stat in ('food', 'water', 'play'):
+        val = int(pet.get(stat, 0))
+        bar = c.bar(val / pet_content.FULL,
+                    'ok' if val >= pet_content.CONTENT_AT else
+                    'warn' if val >= pet_content.LOW_AT else 'err', cells=10)
+        c.raw(f'  {bar} [fg]{stat}[/]')
+    c.blank()
+    line = pet_world.greeting(city)
+    if line:
+        c.say(line)
+    m = pet_content.mood(pet)
+    if m in ('low', 'failing'):
+        need = pet_content.worst_need(pet)
+        verb2 = {'food': 'feed', 'water': 'water', 'play': 'play'}[need]
+        c.blank()
+        c.say(f'[warn]It needs {need}.[/] [dim]`pet {verb2}`'
+              + (' ` pet feed buy` if the flat is out' if need == 'food' else '')
+              + '.[/]')
+    feed = int(pet.get('feed', 0))
+    c.blank()
+    c.say(f'[dim]{feed} feed in the flat. `pet feed`, `pet water`, `pet play`; '
+          f'`pet name <name>`.[/]')
+
+
+def _since(shifts: int) -> str:
+    if shifts <= 0:
+        return 'newly yours'
+    days = shifts
+    return f'{days} shift{"s" if days != 1 else ""} yours'
+
+
+def _feed_buy(sess) -> None:
+    from ..content import pets as pet_content
+    game, c = sess.game, sess.console
+    if game.char.credits < pet_content.FEED_PRICE:
+        raise CommandError(f'a bag of feed is {pet_content.FEED_PRICE:,}c and '
+                           f'you have {game.char.credits:,}c.')
+    game.char.credits -= pet_content.FEED_PRICE
+    game.city.pet['feed'] = int(game.city.pet.get('feed', 0)) + pet_content.FEED_PER_BAG
+    sess.autosave()
+    c.ok(f'A bag of feed, {pet_content.FEED_PER_BAG} in it. '
+         f'[credit]{pet_content.FEED_PRICE:,}c[/]. `pet feed` when it is time.')
+
+
+def _pet_get(sess, args) -> None:
+    """Take an animal on, if there is somewhere to keep it and it is here."""
+    from ..content import pets as pet_content
+    from ..world import pets as pet_world
+    game, c = sess.require_game(), sess.console
+    city = game.city
+    if not city.safehouse:
+        raise CommandError('you have nowhere to keep a thing alive. A pet '
+                           'needs a safehouse. `safehouse` for how.')
+    available = _pets_here(game)
+    want = args.rest(1).strip()
+    if not want:
+        c.header('To take on', game.city.district.name)
+        if not available:
+            c.say('[dim]Nothing here to take on. The strays are in the Ninth, '
+                  'and the Green sells things it should not.[/]')
+            return
+        for a in available:
+            cost = ('free' if a.price == 0 else f'{a.price:,}c')
+            c.raw(f'  [accent]{a.key}[/]  [fg]{a.name}[/] [dim]({cost})[/]')
+            c.say(f'[dim]{a.blurb.split(".")[0]}.[/]', indent='    ',
+                  subsequent='    ')
+        c.blank()
+        c.say('[dim]`pet get <name>`. It lives at your safehouse and it is '
+              'yours until it is not.[/]')
+        return
+    animal = next((a for a in available if a.key == want.lower()
+                   or want.lower() in a.name.lower()), None)
+    if animal is None:
+        raise CommandError('not something you can take on here. `pet get` '
+                           'lists what is about.')
+    if game.char.credits < animal.price:
+        raise CommandError(f'{animal.name} is {animal.price:,}c and you have '
+                           f'{game.char.credits:,}c.')
+    game.char.credits -= animal.price
+    pet_world.adopt(city, animal.key)
+    sess.autosave()
+    c.blank()
+    c.rule('yours now', role='accent2')
+    c.say(animal.blurb)
+    c.blank()
+    c.say('[dim]It is fed and watered for now. It will not stay that way on '
+          'its own. `pet` for how it is, `pet name <name>` to name it.[/]')
+
+
+def _pets_here(game):
+    """Which animals can be taken on in this district. Strays in the Ninth,
+    the Shambles and the Terraces; the thing from the Green in the Green;
+    the odd one bought at a market."""
+    from ..content import pets as pet_content
+    here = game.city.where
+    out = []
+    strays = {'ninth': ('cat', 'rat', 'pigeon'),
+              'shambles': ('dog', 'rat'),
+              'terraces': ('cat', 'pigeon'),
+              'stacks': ('pigeon', 'rat'),
+              'green': ('chimera',),
+              'marrow': ('cat', 'gecko'),
+              'freeport': ('dog', 'gecko')}
+    for key in strays.get(here, ()):  # noqa
+        a = pet_content.BY_KEY.get(key)
+        if a is not None and a not in out:
+            out.append(a)
+    return out
 
 
 @command('safehouse', 'Somewhere of your own to keep things.',

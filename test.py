@@ -13687,6 +13687,122 @@ def test_the_names_the_city_gives() -> None:
     save_mod.write_meta(dict(save_mod.META_DEFAULT))
 
 
+def test_the_one_that_is_not_for_the_work() -> None:
+    """D152: a pet, kept alive. Needs a safehouse, cares for by hand, decays
+    by the animal's own rate, is lost only when nobody feeds it and only
+    after warnings, survives the save, and never touches a run."""
+    T.section('the one that is not for the work')
+    from flatline.content import pets as pet_content
+    from flatline.world import pets as pet_world
+
+    def fresh(where='ninth', seed=7):
+        char = Character.from_origin('gutter', 't')
+        char.credits = 5000
+        game = Game.new(char, seed=seed)
+        game.city.where = where
+        con = quiet_console()
+        sess = Session(console=con, slot='t')
+        sess.game = game
+        return sess, con, game
+
+    def do(sess, con, cmd):
+        con.start_capture()
+        sess.execute(cmd)
+        return ' '.join(strip_ansi(con.end_capture()).split())
+
+    # A pet needs a safehouse: you cannot keep a thing alive out of a chair.
+    sess, con, game = fresh()
+    out = do(sess, con, 'pet get cat')
+    T.ok('safehouse' in out.lower() and not game.city.pet,
+         'no safehouse, no pet')
+    game.city.safehouse = {'key': 'x', 'district': 'ninth'}
+
+    # Adopt, name, and it starts full.
+    do(sess, con, 'pet get cat')
+    T.ok(game.city.pet.get('key') == 'cat', 'the cat is yours')
+    T.ok(min(game.city.pet['food'], game.city.pet['water'],
+             game.city.pet['play']) == pet_content.FULL,
+         'and it is not already neglected')
+    do(sess, con, 'pet name Biggles')
+    T.ok(game.city.pet['name'] == 'Biggles', 'you can name it')
+    T.ok('Biggles' in do(sess, con, 'pet'), 'and the name is what it goes by')
+
+    # Feed comes in bags and feeding uses one.
+    out = do(sess, con, 'pet feed')
+    T.ok('no feed' in out, 'you cannot feed it with nothing')
+    do(sess, con, 'pet feed buy')
+    T.ok(game.city.pet['feed'] == pet_content.FEED_PER_BAG, 'a bag is feed')
+    game.city.pet['food'] = 20
+    do(sess, con, 'pet feed')
+    T.ok(game.city.pet['food'] > 20 and game.city.pet['feed'] == pet_content.FEED_PER_BAG - 1,
+         'feeding fills food and spends a feed')
+
+    # Vital needs lose the pet; play only makes it unhappy. A cat fed and
+    # watered but never played with does not die of it.
+    sess, con, game = fresh()
+    game.city.safehouse = {'key': 'x', 'district': 'ninth'}
+    pet_world.adopt(game.city, 'cat')
+    for _ in range(40):
+        pet_world.care(game.city, 'food')
+        pet_world.care(game.city, 'water')
+        pet_world.advance(game.city, 1)
+    T.ok(game.city.pet, 'fed and watered, it lives however bored it is')
+    T.ok(game.city.pet['play'] < pet_content.LOW_AT,
+         'and it is bored, which is a real state and not a fatal one')
+
+    # Nobody feeds it: it is lost, but only after it has told you, and only
+    # after a run of shifts at nothing.
+    sess, con, game = fresh()
+    game.city.safehouse = {'key': 'x', 'district': 'ninth'}
+    pet_world.adopt(game.city, 'cat')
+    warned, lost_at = 0, None
+    for i in range(40):
+        told = pet_world.advance(game.city, 1)
+        warned += sum(1 for t in told if 'warn' in t)
+        if not game.city.pet:
+            lost_at = i
+            break
+    T.ok(lost_at is not None, 'never fed, it is eventually lost')
+    T.ok(warned >= 2, 'and it warned you more than once before it went')
+    T.ok(lost_at > pet_content.LOST_AFTER, 'and it was not sudden')
+
+    # Feeding it back from the brink saves it: neglect is forgiven by care.
+    sess, con, game = fresh()
+    game.city.safehouse = {'key': 'x', 'district': 'ninth'}
+    pet_world.adopt(game.city, 'cat')
+    game.city.pet['food'] = 0
+    game.city.pet['water'] = 0
+    pet_world.advance(game.city, 1)
+    pet_world.advance(game.city, 1)
+    T.ok(game.city.pet and game.city.pet['neglect'] >= 1, 'it is failing')
+    pet_world.care(game.city, 'food')
+    pet_world.care(game.city, 'water')
+    T.ok(game.city.pet['neglect'] == 0, 'and feeding it forgives the neglect')
+
+    # It survives the save.
+    sess, con, game = fresh()
+    game.city.safehouse = {'key': 'x', 'district': 'ninth'}
+    pet_world.adopt(game.city, 'dog', 'Rex')
+    game.city.pet['food'] = 42
+    game.save('pettest')
+    back = Game.load('pettest')
+    T.eq(back.city.pet.get('name'), 'Rex', 'the pet is in the save')
+    T.eq(back.city.pet.get('food'), 42, 'stats and all')
+    from flatline import save as save_mod
+    save_mod.delete('pettest')
+
+    # The ending speaks of it: a kept pet has a coda.
+    T.ok(bool(pet_world.ending_coda(game.city)),
+         'and the ending says what became of it')
+
+    # The one rule: no run, no fight, no advantage. check_pets holds the
+    # source side; here, the animals carry no mechanical field at all.
+    for a in pet_content.ANIMALS:
+        T.ok(not any(hasattr(a, f) for f in ('bonus', 'effect', 'buff',
+                                             'skill', 'combat')),
+             f'{a.key} does nothing for the work')
+
+
 def manual_body(key: str) -> str:
     from flatline.content import manual
     return manual.BY_KEY[key].body
@@ -14988,6 +15104,7 @@ SUITES = (
     test_the_hunt_made_visible,
     test_the_specialist_and_the_reckoner,
     test_the_names_the_city_gives,
+    test_the_one_that_is_not_for_the_work,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

@@ -4371,6 +4371,38 @@ def check_readme(rep: Report) -> None:
                   f'says something other than "{needle}" (the count moved; '
                   f'run `python3 tools/counts.py --write` or fix the wording)')
 
+def check_pets(rep: Report) -> None:
+    """Pets (D152): a spread of animals, each with the care profile and the
+    lines the keeping of it needs, and none of it reaching the work."""
+    from flatline.content import pets as pet_content
+    rep.check(len(pet_content.ANIMALS) >= 5, 'pets', 'fewer than five animals')
+    tones = {a.tone for a in pet_content.ANIMALS}
+    rep.check('unsettling' in tones or 'grim' in tones, 'pets',
+              'nothing here is a bad idea you love anyway')
+    rep.check(len(tones) >= 3, 'pets', 'the animals are all one register')
+    seen = set()
+    for a in pet_content.ANIMALS:
+        where = f'pets/{a.key}'
+        rep.check(a.key not in seen, where, 'duplicate key')
+        seen.add(a.key)
+        rep.check(a.tone in pet_content.TONES, where, f'tone {a.tone!r}')
+        rep.check(bool(a.name and a.species and a.blurb), where, 'is thin')
+        rep.check(a.price >= 0, where, 'costs less than nothing')
+        for stat in ('food', 'water', 'play'):
+            rep.check(a.decay.get(stat, 0) > 0, where,
+                      f'does not lose {stat} at all')
+        rep.check(bool(a.happy and a.low and a.failing), where,
+                  'has no lines for how it is')
+        rep.check(bool(a.kept_coda and a.lost_coda)
+                  and a.kept_coda.rstrip().endswith('.'), where,
+                  'has no ending')
+    # The one rule that matters: a pet is never read by a run or a fight.
+    for mod in ('run/session.py', 'commands/run.py', 'world/fight.py',
+                'world/street.py'):
+        src = pathlib.Path('flatline/' + mod).read_text(encoding='utf-8')
+        rep.check('.pet' not in src and 'import pets' not in src,
+                  f'pets/{mod}', 'the work reads the pet: it must not')
+
 CHECKS = (
     check_effects, check_cyberware, check_programs, check_hardware,
     check_guide, check_consequences, check_spine, check_city_texture,
@@ -4382,6 +4414,7 @@ CHECKS = (
     check_manual, check_tutorial, check_theme, check_palette_separation, check_markup, check_balance,
     check_heat, check_guile, check_roster, check_reads, check_relics, check_street,
     check_weapons, check_pit, check_feed, check_record, check_readme,
+    check_pets,
 )
 
 
