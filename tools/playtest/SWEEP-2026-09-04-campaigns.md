@@ -145,4 +145,4 @@ the tenth log". The long life: shift 184, 66 runs, 42 of 59 threads.
 
 `q8_origins.py`: twelve characters, twenty shifts each, each following its
 origin's thread by play (meeting who it asks for, running what it asks for,
-taking the thread's own posting). 10 of twelve end to end, 0 crashes.
+taking the thread's own posting). 11 of twelve end to end, 0 crashes.

@@ -63,7 +63,11 @@ for okey in ORI.BY_KEY:
     start = g.city.shift
     reached = lambda: list(g.story.reached.get(thread.key, []))
     for i in range(60):
-        if g.over or g.city.shift - start > 20: break
+        if g.over or g.city.shift - start > 30: break
+        # Stand where the next scene happens, if it happens somewhere.
+        nxt = next((st for st in thread.stages if st.key not in reached()), None)
+        if nxt is not None and nxt.where and g.city.where != nxt.where and g.city.current is None:
+            C.go(p, nxt.where)
         p.do('look'); p.settle(prefer=C.SAFE)
         found = g.story.open_choice()
         if found is not None:
@@ -77,7 +81,10 @@ for okey in ORI.BY_KEY:
         posting = next((c for c in g.city.board if (c.story or '').startswith(thread.key + '.')), None)
         cur = g.city.current
         if cur is not None and (cur.story or '').startswith(thread.key + '.'):
-            spine.run_contract(p, cur.cid)  # accepted and not yet done: again
+            # accepted and not yet done: again, and the second time as an inside job
+            if not (cur.approach or {}).get('kind'):
+                p.do('approach inside --confirm'); p.settle(prefer=('yes',))
+            spine.run_contract(p, cur.cid)
         elif posting is not None and g.city.current is None:
             spine.run_contract(p, posting.cid)
         elif i % 3 == 2:

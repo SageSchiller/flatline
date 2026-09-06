@@ -5875,7 +5875,7 @@ prints, instead of a line appended after it. The record marks the one
 line only the profile keeps ("the profile's") beside its count. And
 `q8_origins.py`: twelve characters, twenty shifts each, each following
 the thread only their origin has, meeting who it asks for, running what
-it asks for, taking its own posting, answering it. 10 of the twelve
+it asks for, taking its own posting, answering it. 11 of the twelve
 played end to end by play, the rest of the way to the audit's
 "verified by state". `test.py` green at **19,877**.
 
@@ -7827,5 +7827,5 @@ street, by its own choice). `test.py` green at 19,875.
 
 D175. The collector named inside the paper's scene; the record marks the
 profile's own line; `q8_origins.py` plays the origin threads by play
-(10 of twelve end to end); the street already showed its odds.
+(11 of twelve end to end); the street already showed its odds.
 `test.py` green at 19,877.
