@@ -15077,7 +15077,7 @@ def test_the_old_threads_read_the_new() -> None:
     for key, stage in (('lark', 'after_lark'), ('ninety', 'clean'), ('weight', 'rail')):
         th = next(t for t in thread_content.THREADS if t.key == key)
         st = next(s for s in th.stages if s.key == stage)
-        T.ok('{Partner}' in st.text and '{called}' in st.text, f'{key}.{stage} reads the partner and the name')
+        T.ok('{Partner_or}' in st.text and '{called}' in st.text, f'{key}.{stage} reads the partner and the name')
     game = Game.new(Character.from_origin('gutter', 'x'), seed=330)
     out = people_cmd.story_fill(game, '{Partner} asks. {called}. {Pet} sleeps.')
     T.ok(out.startswith('Nobody asks.') and '{' not in out and 'Nothing sleeps.' in out,

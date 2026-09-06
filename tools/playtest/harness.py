@@ -88,8 +88,11 @@ class Play:
             # A player keeps a reserve: the street's pay-off is not the
             # answer when it would leave nothing for the clinic or the feed.
             g = self.sess.game
-            if g is not None and 'pay' in ch and g.char.credits < 1500:
-                prefer = tuple(p for p in prefer if p != 'pay')
+            if g is not None and g.char.credits < 1500:
+                # The long life paid the street forty thousand of the
+                # fifty-seven it earned; a player keeps a reserve for both
+                # answers that cost money.
+                prefer = tuple(p for p in prefer if p not in ('pay', 'give'))
             pick = next((p for p in prefer if p in ch), None)
             if pick is None:
                 pick = ch[0] if ch else ''

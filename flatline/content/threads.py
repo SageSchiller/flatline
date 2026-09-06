@@ -436,12 +436,11 @@ THREADS: tuple[Thread, ...] = (
                              disposition={'moth': -8}),
                   )),
             Stage('after_lark', 'Who asks after Lark',
-                  'Somebody asks after Lark, weeks on: {Partner}, or the '
-                  'surgeon, or nobody, which is also an answer. You tell '
-                  'them what there is to tell. The city has a name for you '
-                  'by now, or it does not ({called}), and whichever it is, '
-                  'the name does not have Lark in it, and you find that you '
-                  'mind.',
+                  '{Partner_or} asks after Lark, weeks on, and so does the '
+                  'surgeon, once, and you tell them what there is to tell. '
+                  'The city has a name for you by now, or it does not '
+                  '({called}), and whichever it is, the name does not have '
+                  'Lark in it, and you find that you mind.',
                   requires=('lark_resolved',),
                   sets=('lark_asked_after',),
                   after=3),
@@ -823,8 +822,8 @@ THREADS: tuple[Thread, ...] = (
                   any_of=('weight_dived', 'weight_straight', 'weight_told'),
                   sets=('weight_closed',), where='shambles', after=4),
             Stage('rail', 'Who was at the rail',
-                  'At the rail, the night the book was open at your line: '
-                  '{Partner}. The kid with the ledger writes the names of '
+                  '{Partner_or} was at the rail the night the book was open '
+                  'at your line. The kid with the ledger writes the names of '
                   'the people at the rail now, because Hollis did, and one '
                   'night the name he writes next to yours is the one the '
                   'city calls you ({called}), which is the first time you '
@@ -900,11 +899,11 @@ THREADS: tuple[Thread, ...] = (
                   any_of=('ninety_took', 'ninety_stopped', 'ninety_reported'),
                   sets=('ninety_closed',), where='shambles', after=5),
             Stage('clean', 'What the envelope was',
-                  'Somebody who knows you asks whether you are clean: '
-                  '{Partner}, or the clinic at the front, or nobody, which '
-                  'is the answer you give the mirror. The city\'s name for '
-                  'you ({called}) does not mention the envelope. Names never '
-                  'do. They mention what you did with your hands after.',
+                  '{Partner_or} asks whether you are clean, and the clinic '
+                  'at the front asks, and the mirror asks, which is the one '
+                  'you answer. The city\'s name for you ({called}) does not '
+                  'mention the envelope. Names never do. They mention what '
+                  'you did with your hands after.',
                   requires=('ninety_closed',),
                   sets=('ninety_clean',),
                   after=3,

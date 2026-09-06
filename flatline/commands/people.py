@@ -1381,7 +1381,8 @@ SCENES_AT_ONCE = 3
 #: Tokens a scene may carry (D171): the world fills them at print time, so
 #: a thread can be about whichever runner the city chose.
 FILL_TOKENS = ('{runner}', '{runner_handle}', '{partner}', '{pet}', '{familiar}',
-               '{Runner}', '{Partner}', '{Pet}', '{Familiar}', '{called}')
+               '{Runner}', '{Partner}', '{Pet}', '{Familiar}', '{called}',
+               '{partner_or}', '{Partner_or}')
 
 
 def story_fill(game, text: str) -> str:
@@ -1410,8 +1411,12 @@ def story_fill(game, text: str) -> str:
         fill['called'] = record_world.title_of(counts, meta.get('recorded'), meta) or 'no name yet'
     except Exception:  # noqa: BLE001
         fill['called'] = 'no name yet'
+    # A partner as a clause (D174): a name that was beside you, or the lack
+    # of one, so a sentence reads either way.
+    fill['partner_or'] = (f'{partner.name}, who was beside you,' if partner is not None
+                          else 'nobody who was beside you')
     for key, value in list(fill.items()):
-        if key in ('runner', 'partner', 'pet', 'familiar'):
+        if key in ('runner', 'partner', 'pet', 'familiar', 'partner_or'):
             fill[key[0].upper() + key[1:]] = value[0].upper() + value[1:]
     for key, value in fill.items():
         text = text.replace('{' + key + '}', value)
