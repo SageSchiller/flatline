@@ -143,7 +143,9 @@ class Story:
             if value == 'alive':
                 return bool(rival.alive)
             if value == 'dead':
-                return not rival.alive
+                return not rival.alive and not rival.gone
+            if value == 'gone':
+                return not rival.alive and bool(rival.gone)
             if value in ('partner', 'nemesis'):
                 return rival.alive and rival.bond == value
             if value == 'crew':

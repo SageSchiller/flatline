@@ -5269,7 +5269,10 @@ def cmd_who(sess, args) -> None:
           + ([('the ninth', '[accent2]their log is the ninth[/] [dim](the '
                              'Archivist has it; it has not ended)[/]')]
              if game.city.ninth == rival.key else []))
-        if not rival.alive:
+        if not rival.alive and rival.gone:
+            c.blank()
+            c.warn(f'Gone. {rival.gone}')
+        elif not rival.alive:
             c.blank()
             c.err(f'Dead. Shift {rival.died}.')
         if rival.last:
@@ -5298,7 +5301,7 @@ def cmd_who(sess, args) -> None:
             data.style,
             str(rival.jobs),
             f'{rival.disposition:+d} {rival.band}' if rival.alive
-            else f'[err]dead, shift {rival.died}[/]',
+            else (f'[warn]gone[/]' if rival.gone else f'[err]dead, shift {rival.died}[/]'),
         ))
     c.table(('who', 'style', 'jobs', 'about you'), rows,
             roles=('accent', 'dim', 'dim', None))
@@ -5729,7 +5732,8 @@ def cmd_sell_out(sess, args) -> None:
         raise CommandError(f'nobody called {query!r}. `who` for the list, '
                            f'and `sell` if you meant a program.')
     if not rival.alive:
-        raise CommandError(f'{rival.name} is already dead. Nobody is paying.')
+        raise CommandError(f'{rival.name} is ' + ('gone. ' + rival.gone if rival.gone else 'already dead.')
+                           + ' Nobody is paying.')
 
     buyers = rival_world.bounty_buyers(rival)
     if not buyers:

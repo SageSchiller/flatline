@@ -45,6 +45,9 @@ class Rival:
     alive: bool = True
     #: Shift they died on, for the memorial in `who`.
     died: int = -1
+    #: Why they are off the board without being dead (D176): filed to a
+    #: client, or left. '' while they are working or dead.
+    gone: str = ''
     #: One line of what they were last seen doing.
     last: str = ''
     #: '' | 'nemesis' | 'partner'. Latched: see `content/rivals.py`. A bond
@@ -80,7 +83,7 @@ class Rival:
         return {'key': self.key, 'disposition': self.disposition,
                 'bond': self.bond,
                 'rep': {k: v for k, v in self.rep.items() if v},
-                'jobs': self.jobs, 'alive': self.alive, 'died': self.died,
+                'jobs': self.jobs, 'alive': self.alive, 'died': self.died, 'gone': self.gone,
                 'last': self.last}
 
     @classmethod
@@ -90,7 +93,7 @@ class Rival:
                    rep={k: int(v) for k, v in (d.get('rep') or {}).items()},
                    jobs=int(d.get('jobs', 0)),
                    alive=bool(d.get('alive', True)),
-                   died=int(d.get('died', -1)), last=d.get('last', ''))
+                   died=int(d.get('died', -1)), gone=str(d.get('gone') or ''), last=d.get('last', ''))
 
 
 def seed_pool() -> list[Rival]:

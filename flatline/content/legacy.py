@@ -178,6 +178,23 @@ def ending(dissonance: int, flags=()) -> tuple[str, str]:
 #: fails the build on a decision this forgets, because an ending that does
 #: not mention what you did to Lark is an ending to somebody else's game.
 EPILOGUE: tuple[tuple[str, str], ...] = (
+    # The city at leisure (D177)
+    ('towers_told', 'You asked the Man With The Board where the valve house was, and he painted an arrow so they would know somebody had.'),
+    ('towers_moved', 'You moved the Man With The Board on before Kagawa\'s crowd did, and he thanked you, technically.'),
+    ('towers_opened', 'You opened the hill\'s water back up to level forty, and the Sixes were pleased and Kagawa were not.'),
+    ('towers_sold', 'You sold the hill\'s metering schedule to Meridian, who filed it, and the planters on forty went on dying.'),
+    ('towers_returned', 'You gave Kagawa their schedule back with the fault fixed, and the pressure on forty improved by exactly what the arithmetic said.'),
+    ('val_owned', 'You bought your own line in the Row\'s ledger, and for once the two columns matched.'),
+    ('val_let', 'You let your valuation stand in the Row\'s ledger, and checked it sometimes on the way past.'),
+    ('val_wipe', 'You found the network the Row\'s ledger lives on and took your own line out of it, for Static.'),
+    ('ed_climbed', 'You went up the outside of a tower behind an eleven-year-old to see which dish carried the second edition of you.'),
+    ('ed_paid', 'You paid Pip to say which dish carried the second edition of you, and got the Vertical\'s hour for free.'),
+    ('ed_corrected', 'You corrected the second edition of yourself and left the true paragraph in, and it printed true.'),
+    ('ed_killed', 'You pulled the plate on the second edition of yourself, and Ines Vale printed a blank page where it would have been.'),
+    ('ed_printed', 'You changed the one paragraph the Sixes paid for and let the second edition of yourself run, mostly true.'),
+    ('crane_kept', 'You kept the dead runner\'s name on the Freeport crane, and the quay decided about you.'),
+    ('crane_yours', 'The docks painted the city\'s name for you on a crane, a metre high, facing the water.'),
+    ('crane_pike_named', 'You gave the Freeport crane to the man who built the lock on it, and Old Pike watched it lift.'),
     # The new systems' subplots (D172)
     ('stray_given', 'A kid from the wet end said the animal was theirs, and you carried it down to them yourself.'),
     ('stray_kept', 'A kid from the wet end said the animal was theirs, and you kept it, and they slept outside somebody else\'s door.'),

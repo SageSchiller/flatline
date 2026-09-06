@@ -14984,7 +14984,20 @@ def test_the_ninth_log() -> None:
     d1 = best.disposition
     game.city.hired = ''; game.city.crew = {}
     sess.console.start_capture(); sess.execute('choose together'); sess.console.end_capture()
-    T.ok(best.disposition == d1 + 40 and game.city.hired == best.key, 'running the next one together lands on them, and they are in on it')
+    from flatline.content import rivals as rival_content
+    T.ok(best.disposition >= rival_content.PARTNER_AT and game.city.hired == best.key, 'running the next one together makes a partner of them, and they are in on it')
+    for key in ('tenth_together', 'tenth_alone', 'tenth_handed', 'tenth_found'):
+        T.ok(any(st.key == key for st in nine.stages), f'the arc closes on its own branch: {key}')
+    T.ok(not any(st.key == 'tenth' for st in nine.stages), 'and not on a generic one')
+    # Handing them over files them: gone, not dead, and the closing reads it.
+    game5 = Game.new(Character.from_origin('gutter', 'x'), seed=303)
+    riv5 = next(r for r in game5.city.rivals if r.alive); game5.city.ninth = riv5.key
+    game5.story.flags.update({'nine_named', 'nine_told', 'nine_posted'})
+    game5.story.reached['nine'] = ['named', 'ask', 'posted_read']
+    handed = next(c for st in nine.stages if st.key == 'table' for c in st.choices if c.key == 'handed')
+    people_cmd._settle_nine(sess if False else type('S', (), {'game': game5})(), handed)
+    T.ok(not riv5.alive and riv5.gone and game5.story.satisfied('ninth:gone', game5) and not game5.story.satisfied('ninth:dead', game5),
+         'handed over, the runner is gone and not dead')
     # The runner dying ends it the way the eight did.
     game2 = Game.new(Character.from_origin('gutter', 'x'), seed=301)
     game2.story.flags.update({'dw_heard', 'dw_logs', 'dw_posting', 'asked:archivist:logs', 'did:deepwater.posting', 'nine_named'}); game2.story.meet('archivist')
@@ -15110,6 +15123,37 @@ def test_the_old_threads_read_the_new() -> None:
     from flatline.content import npcs as npc_content
     T.ok('construct' in npc_content.BY_KEY['remnant'].topics, 'Remnant has something to say about the construct')
 
+
+def test_the_city_at_leisure() -> None:
+    """D177: four long threads for after the main arcs, on people the story
+    had barely used, each with a job in the middle and a decision the
+    district remembers; each opens on a career or on the water settled."""
+    T.section('the city at leisure')
+    from flatline.content import threads as thread_content, legacy, record as record_content, npcs as npc_content
+    for key, who, district in (('towers', 'widow', 'terraces'), ('valuation', 'notary', 'row'),
+                               ('edition', 'printer', 'stacks'), ('crane', 'crane', 'freeport')):
+        th = next(t for t in thread_content.THREADS if t.key == key)
+        first = th.stages[0]
+        T.ok(f'met:{who}' in first.requires and 'runs:12' in first.any_of and 'after_settled' in first.any_of,
+             f'{key} opens on {who}, a career or the water settled')
+        T.ok(len(th.stages) >= 6, f'{key} is long: {len(th.stages)} scenes')
+        T.ok(any(st.posts is not None for st in th.stages), f'{key} has a job in the middle of it')
+        T.ok(sum(len(st.choices) for st in th.stages) >= 3, f'{key} has a decision the district remembers')
+        for st in th.stages:
+            for c in st.choices:
+                for f in c.sets:
+                    T.ok(f in legacy.EPILOGUE_BY_FLAG, f'{key}.{st.key}.{c.key}: {f} reads back')
+        T.ok(all((not st.where) or st.where == district for st in th.stages), f'{key} stays in {district}')
+    T.ok('crane' in record_content.TITLE_BY_KEY, 'and one of them can put your name on a crane')
+    # The postings name real factions and objectives a payload can do.
+    from flatline.content import factions as fac_content
+    from flatline.world.contracts import OBJECTIVE_PROGRAM
+    for th in thread_content.THREADS:
+        for st in th.stages:
+            if st.posts is not None:
+                T.ok(st.posts.patron in fac_content.BY_KEY and st.posts.target in fac_content.BY_KEY,
+                     f'{th.key}.{st.key}: the posting names real factions')
+
 def _life_for(rules, seed=280):
     """A character built for a set of story rules (D169, D170): the origin,
     the people, the runs, the rank, the rung, the habit, the mark, the
@@ -15185,6 +15229,8 @@ def _life_for(rules, seed=280):
             game.city.ninth = r.key
             if value == 'dead':
                 r.alive = False
+            elif value == 'gone':
+                r.alive = False; r.gone = 'Filed to Deepwater.'
             elif value in ('partner', 'nemesis'):
                 r.bond = value
             elif value == 'crew':
@@ -16580,6 +16626,7 @@ SUITES = (
     test_the_ninth_log,
     test_the_systems_have_stories,
     test_the_old_threads_read_the_new,
+    test_the_city_at_leisure,
     test_every_thread_opens_for_the_right_life,
     test_every_closing_stage_opens,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,

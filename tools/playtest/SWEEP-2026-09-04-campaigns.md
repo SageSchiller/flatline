@@ -146,3 +146,11 @@ the tenth log". The long life: shift 184, 66 runs, 42 of 59 threads.
 `q8_origins.py`: twelve characters, twenty shifts each, each following its
 origin's thread by play (meeting who it asks for, running what it asks for,
 taking the thread's own posting). 11 of twelve end to end, 0 crashes.
+
+## Round nine, 2026-09-05 (D176, D177): the arc closed, the city at leisure
+
+Six campaigns and the long life on the build with the ninth log's four
+closings and the four long threads. 0 crashes. All four long threads reached
+by play on the first run (the Terraces, the Row, the Stacks, Freeport); the
+ninth log closed on "Ten, with two handles" by play. The long life: shift
+182, 55 runs, 45 of 63 threads.

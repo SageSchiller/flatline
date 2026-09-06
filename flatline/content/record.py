@@ -227,6 +227,10 @@ TITLES: tuple[Title, ...] = (
           'carrier_told',
           'You climbed a tank on legs to help an eleven-year-old point a dish '
           'at the sea, and told them what it was hearing, and meant it.'),
+    # The crane (D177)
+    Title('crane', 'who has a crane', 'amusing', 'crane_yours',
+          'A metre high, facing the water, where the ships see it first. You '
+          'will never be able to leave the docks. You will never have to.'),
     # The names (D172)
     Title('osei', 'what Osei calls you', 'amusing', 'names_own',
           'You asked, and he told you, and it was shorter and worse and more '

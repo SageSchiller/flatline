@@ -1449,15 +1449,29 @@ def _settle_nine(sess, choice) -> None:
     rival = game.city.rival(game.city.ninth) if game.city.ninth else None
     if rival is None or not rival.alive:
         return
-    deltas = {'nine_told': 12, 'nine_sold': -10, 'nine_together': 40,
-              'nine_alone': -5, 'nine_handed': -80}
+    from ..content import rivals as rival_content
+    deltas = {'nine_told': 12, 'nine_sold': -10, 'nine_alone': -5}
     for flag, delta in deltas.items():
         if flag in choice.sets:
             rival.adjust_disposition(delta)
-    if 'nine_together' in choice.sets and not game.city.crew and not game.city.hired:
-        # They are in on your next one, their idea this time.
-        game.city.hired = rival.key
-        game.city.asked_in = rival.key
+    if 'nine_together' in choice.sets:
+        # Two handles in one header is a partner, whatever the number was:
+        # the bond latches on the next turn, in their own words (D176).
+        rival.disposition = max(rival.disposition, rival_content.PARTNER_AT)
+        if not game.city.crew and not game.city.hired:
+            game.city.hired = rival.key
+            game.city.asked_in = rival.key
+    if 'nine_handed' in choice.sets:
+        # Filed to the client that wrote their log: off the board, not
+        # dead, and `who` says which (D176).
+        rival.alive = False
+        rival.died = int(game.city.shift)
+        rival.gone = ('Filed to Deepwater. Their next posting had no name in the '
+                      'header, and nobody has read one since.')
+        if game.city.crew.get('key') == rival.key:
+            game.city.crew = {}
+        if game.city.hired == rival.key:
+            game.city.hired = ''
 
 
 def _settle_systems(sess, choice) -> None:
@@ -1522,6 +1536,11 @@ def _scene_asides(sess, stage) -> None:
         rival = game.city.rival(game.city.ninth) if game.city.ninth else None
         if rival is not None and rival.alive:
             rival.adjust_disposition(-25)
+    if 'after_rest' in stage.sets and 'nine_tenth' in game.story.flags:
+        c.say('[dim]Somewhere a tenth log is being kept, and you know what is '
+              'in the header, and the city does not, and that is the one '
+              'thing about the water that is yours.[/]')
+        c.blank()
 
 
 def _take_paper(sess) -> None:

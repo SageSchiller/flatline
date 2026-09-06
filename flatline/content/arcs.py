@@ -1101,6 +1101,503 @@ BUYOFF = 2500
 #: Threads that sit beside a district's own (D65 depth): a second story in
 #: a place that already has one. Merged into `threads.THREADS` with the rest.
 MORE_THREADS: tuple[Thread, ...] = (
+    # -- The city at leisure (D177) ------------------------------------------
+    # Four long threads for after the main arcs, or instead of them: the
+    # Terraces, the Row, the Stacks and Freeport, each on people the story
+    # had barely used, each with a job in the middle of it and a decision
+    # that the district remembers. They open on a career (twelve runs) or
+    # on the water being settled, whichever comes first.
+    Thread(
+        'towers', 'The Water Towers',
+        'The hill drinks by gravity, and Kagawa has started counting it.',
+        stages=(
+            Stage('cans', 'The third can',
+                  'The Widow at the water point has two cans and a third she '
+                  'is filling for somebody else, as always, and today the '
+                  'third one takes longer, because the pressure on the '
+                  'upper levels is a thing Kagawa has started to meter. She '
+                  'says so without complaint, which is how she says '
+                  'everything. "It used to come down the hill because that '
+                  'is what water does. Now it comes down the hill because '
+                  'somebody in the Vertical has decided how much."',
+                  requires=('met:widow',),
+                  any_of=('runs:12', 'after_settled'),
+                  sets=('towers_cans',),
+                  where='terraces'),
+            Stage('planters', 'Level forty',
+                  'Mrs Adeyemi is watering the far end of her walkway from '
+                  'a jug she has carried up forty levels, because the tap '
+                  'on forty gives a cupful an hour now and the planters at '
+                  'the far end are the ones her grandchildren planted. She '
+                  'does not ask you for anything. She tells you which ones '
+                  'are dying, by name, and then says good evening.',
+                  requires=('towers_cans', 'met:gardener'),
+                  sets=('towers_planters',),
+                  after=1,
+                  where='terraces'),
+            Stage('board', 'The board has changed',
+                  'The Man With The Board has repainted it. It reads THE '
+                  'WATER IS A PLACE AND YOU ARE IN IT, which is, for once, '
+                  'not technically correct so much as correct. He tells the '
+                  'shift-change crowd that the valve house under the towers '
+                  'has a network in it now, Kagawa\'s, and that a network '
+                  'is a door, and that a door is a thing somebody opens. '
+                  'The crowd does not listen. You do.',
+                  requires=('towers_planters', 'met:preacher'),
+                  sets=('towers_board',),
+                  after=1,
+                  where='terraces',
+                  choices=(
+                      Choice('listen', 'Ask him where the valve house is',
+                             'He tells you, precisely, with the air of a man '
+                             'who has been waiting years for somebody to ask '
+                             'a follow-up question, and then paints a small '
+                             'arrow on the board. "So they know somebody '
+                             'asked," he says. "It helps them to know."',
+                             sets=('towers_told',)),
+                      Choice('move', 'Move him on',
+                             'You tell him the crowd is Kagawa\'s crowd and '
+                             'the board is going to get him hurt, and he '
+                             'folds it under his arm and thanks you, '
+                             'technically, and goes. Somebody in a Kagawa '
+                             'lanyard nods at you from across the square. '
+                             'You had not known they were there.',
+                             sets=('towers_moved',),
+                             rep={'kagawa': 4}),
+                  )),
+            Stage('meter', 'The metering schedule',
+                  'The Sixes want it. Of course they do: the Terraces are '
+                  'Kagawa\'s roof and the Sixes\' street, and a schedule '
+                  'that says who gets water when is a schedule that says '
+                  'who is owed what. It comes through the board as a job '
+                  'like any other, against the valve house, and the pay is '
+                  'the kind that tells you somebody has priced the hill.',
+                  requires=('towers_board',),
+                  any_of=('towers_told', 'towers_moved'),
+                  sets=('towers_meter',),
+                  after=1,
+                  where='terraces',
+                  posts=Posting('sixes', 'kagawa', 'corrupt', 'The Meter',
+                                'The valve house under the water towers. Kagawa put a '
+                                'network in it and a schedule on the network. The Sixes '
+                                'want the schedule changed, and do not much mind how.',
+                                label='the metering schedule', pay=2200)),
+            Stage('valve', 'What the schedule is for',
+                  'You have it: the schedule, the valves, the whole slow '
+                  'arithmetic of the hill\'s water, in a file you could '
+                  'change with one line. The Sixes are paying for the line '
+                  'they want. Kagawa would pay for it back. Meridian would '
+                  'pay for the file, because Meridian pay for anything '
+                  'that says who owes whom. And the far end of level forty '
+                  'is a cupful an hour.',
+                  requires=('did:towers.meter',),
+                  sets=('towers_valve',),
+                  where='terraces',
+                  choices=(
+                      Choice('open', 'Open the hill',
+                             'You change the line the Sixes did not ask for: '
+                             'the one that meters level forty. The pressure '
+                             'comes back to the upper levels the way it used '
+                             'to, because that is what water does, and '
+                             'Kagawa notice in about four shifts, and the '
+                             'Sixes notice in one, and are pleased, and do '
+                             'not ask what else you changed.',
+                             sets=('towers_opened',),
+                             rep={'sixes': 8, 'kagawa': -10}),
+                      Choice('sell', 'Sell the file to Meridian',
+                             'The Row pays what the Row pays, which is more '
+                             'than the job, and asks nothing, and files it. '
+                             'Somewhere a ledger has the hill\'s water in '
+                             'it now, priced, and the metering does not '
+                             'change, and the planters do not either.',
+                             sets=('towers_sold',),
+                             credits=3500,
+                             rep={'meridian': 6}),
+                      Choice('return', 'Give it back to Kagawa, fixed',
+                             'You return it with the fault they did not know '
+                             'they had corrected: the schedule had forty '
+                             'levels in it and the towers only ever fed '
+                             'thirty-eight. A compliance officer thanks you '
+                             'with profound apology. The pressure on forty '
+                             'improves by the exact amount the arithmetic '
+                             'says, which is some.',
+                             sets=('towers_returned',),
+                             rep={'kagawa': 10}),
+                  )),
+            Stage('forty', 'The far end of the walkway',
+                  'Mrs Adeyemi is on the walkway with the jug, or without '
+                  'it, depending on what you did with the file, and the '
+                  'planters at the far end are alive or are not, and she '
+                  'says good evening to you the same way in either case, '
+                  'because that is who she is. She names the ones her '
+                  'grandchildren planted. Some of the names have changed.',
+                  requires=('towers_valve',),
+                  any_of=('towers_opened', 'towers_sold', 'towers_returned'),
+                  sets=('towers_forty',),
+                  after=4,
+                  where='terraces'),
+            Stage('third_can', 'The third can',
+                  'The Widow is at the water point with two cans and a '
+                  'third, and the third one fills at whatever speed the '
+                  'hill\'s water comes down at now, and she does not say '
+                  'what it was like before, because she never does. She '
+                  'looks at you the way she looks at somebody who might '
+                  'carry something, and this time you do: the third can, '
+                  'up forty levels, to a door you do not knock on.',
+                  requires=('towers_forty',),
+                  sets=('towers_done',),
+                  after=3,
+                  where='terraces'),
+        )),
+    Thread(
+        'valuation', 'The Valuation',
+        'The Row has a line with your name in it, and the number is not a bounty.',
+        stages=(
+            Stage('line', 'A line in the ledger',
+                  'The Notary does not look up when you come in and does '
+                  'not look up when you ask, and turns the ledger round so '
+                  'you can read it, which is a thing the Row does not do. '
+                  'Your name. A number beside it that is not a bounty, '
+                  'because a bounty is what somebody will pay to find you, '
+                  'and this is what somebody would pay to have you. "A '
+                  'valuation," the Notary says, to the ledger. "Everybody '
+                  'who has run twelve jobs has one. Most of them never '
+                  'ask."',
+                  requires=('met:notary',),
+                  any_of=('runs:12', 'after_settled', 'credits:8000'),
+                  sets=('val_line',),
+                  where='row'),
+            Stage('sold', 'Vig has sold it',
+                  'Marek Vig, under the colonnade, greets you by the '
+                  'number. He has sold it three times this week, to three '
+                  'people who wanted to know what you would cost, and he '
+                  'says so with the openness of a man who does not think '
+                  'of it as yours. "It is a fact about the city," he says. '
+                  '"I sell facts about the city. The fact that you exist '
+                  'was mine before it was yours."',
+                  requires=('val_line', 'met:vig'),
+                  sets=('val_vig',),
+                  after=1,
+                  where='row'),
+            Stage('sunday', 'Mr Sunday makes an offer',
+                  'Mr Sunday has the stool next to yours and has been '
+                  'talking for a while, and the talk is about your line. '
+                  'He will buy it. Not you: the line, the number, the '
+                  'right to be the one who sells the fact of you. He names '
+                  'a figure that is exactly the valuation, which is either '
+                  'a joke or the most honest thing anybody has said to you '
+                  'on the Row.',
+                  requires=('val_vig', 'met:broker'),
+                  sets=('val_sunday',),
+                  after=1,
+                  choices=(
+                      Choice('buy', 'Buy your own line',
+                             'You buy it. The Notary writes your name in the '
+                             'column for who holds the line, beside the '
+                             'column for whose name is on it, and for the '
+                             'first time in the Row\'s history the two '
+                             'columns match. Vig cannot sell it any more. '
+                             'He seems to find that funny.',
+                             sets=('val_owned',),
+                             credits=-4000),
+                      Choice('let', 'Let it stand',
+                             'You let it stand. Somebody holds your line and '
+                             'it is not you and it never was, and Vig goes '
+                             'on selling the fact of you at a fair price, '
+                             'and you go on being worth what the ledger '
+                             'says, which changes a little every shift, and '
+                             'which you check, now, sometimes, on the way '
+                             'past.',
+                             sets=('val_let',)),
+                      Choice('wipe', 'Find the network the ledger lives on',
+                             'The Row is stone and glass and silence, and '
+                             'somewhere under it a network holds the ledger, '
+                             'because nothing this century is held anywhere '
+                             'else. Static know where. Static would very '
+                             'much like a line in Meridian\'s ledger to go '
+                             'missing, and do not mind that the first one '
+                             'is yours.',
+                             sets=('val_wipe',)),
+                  )),
+            Stage('ledger', 'The line, from the inside',
+                  'It comes through the board with Static\'s name on it '
+                  'and Meridian\'s as the target, which is a thing you '
+                  'have not seen before, and the pay is real, because '
+                  'Static have decided that a line that can be wiped is a '
+                  'ledger that can be doubted, and doubt is what they '
+                  'publish.',
+                  requires=('val_wipe',),
+                  sets=('val_posting',),
+                  after=1,
+                  where='row',
+                  posts=Posting('static', 'meridian', 'wipe', 'The Line',
+                                'The Row\'s ledger, on the Row\'s own network. Static '
+                                'want one line gone, and they want it to be yours, '
+                                'so that the next person who asks finds nothing.',
+                                label='your valuation', pay=3000)),
+            Stage('cleared', 'The Notary looks up',
+                  'The Notary looks up. Nobody has told you what that '
+                  'costs the Row, but the Notary looks up, at you, for '
+                  'about a second, and then turns the ledger round, and '
+                  'your line is not in it. "There is a column for people '
+                  'who are not in the ledger," the Notary says. "It is '
+                  'shorter than you would think. It is not empty."',
+                  requires=('did:valuation.ledger',),
+                  sets=('val_cleared',),
+                  after=1,
+                  where='row'),
+            Stage('worth', 'What you are worth',
+                  'A valuation is what somebody would pay to have you, and '
+                  'the Row keeps one for everybody who has run twelve '
+                  'jobs, and most people never ask, and you did. Whether '
+                  'you hold it, or let it stand, or took it out of the '
+                  'book, the number went on changing a little every shift, '
+                  'because that is what a number does in a city. What '
+                  'changed is that you know it is there, and Vig knows you '
+                  'know, and greets you by the handle now.',
+                  requires=('val_sunday',),
+                  any_of=('val_owned', 'val_let', 'val_cleared'),
+                  sets=('val_worth',),
+                  after=4,
+                  where='row'),
+        )),
+    Thread(
+        'edition', 'The Second Edition',
+        'Everything in the Stacks is printed twice. The second edition is you.',
+        stages=(
+            Stage('proof', 'A proof, with your name in the headline',
+                  'Ines Vale has ink to the elbow and a proof on the '
+                  'stone, and she turns it so you can read it, and it is '
+                  'you. Not the handle. The other name, the one the city '
+                  'uses ({called}), in the headline, and under it four '
+                  'columns of everything you have done that anybody saw. '
+                  '"Second edition," she says. "Everybody who runs long '
+                  'enough gets one. The first was the one the city told '
+                  'itself. This is the one it will keep."',
+                  requires=('met:printer',),
+                  any_of=('runs:12', 'after_settled'),
+                  sets=('ed_proof',),
+                  where='stacks'),
+            Stage('dishes', 'Pip reads the dishes',
+                  'Pip comes down a ladder with no bottom rungs and tells '
+                  'you which dish the galley file went out on, because Pip '
+                  'reads the dishes the way other children read weather. '
+                  'Static keep the file on a relay in a tower, and the '
+                  'tower has a network, and Pip has a route up the outside '
+                  'of it that does not involve the network at all.',
+                  requires=('ed_proof', 'met:pip'),
+                  sets=('ed_dishes',),
+                  after=1,
+                  where='stacks',
+                  choices=(
+                      Choice('climb', 'Let Pip take you up',
+                             'You go up the outside of the tower behind an '
+                             'eleven-year-old, forty metres, in wind, and at '
+                             'the top Pip points at a dish and says "that '
+                             'one" with enormous satisfaction, and you can '
+                             'see the whole Vertical, and you are not going '
+                             'to be able to explain this to anybody.',
+                             sets=('ed_climbed',)),
+                      Choice('pay', 'Pay Pip to say which',
+                             'Pip takes the money seriously, counts it, and '
+                             'says which dish, and which relay, and what '
+                             'hour the file goes out, and then, unprompted, '
+                             'what the Vertical is doing this hour, because '
+                             'that comes free.',
+                             sets=('ed_paid',),
+                             credits=-200),
+                  )),
+            Stage('relay', 'The galley file',
+                  'The Sixes want the second edition changed before it '
+                  'prints, because it has a paragraph about the Ninth in '
+                  'it that is true, and it comes through the board as a '
+                  'job against the relay, and the pay is what the Sixes '
+                  'pay for the truth, which is generous.',
+                  requires=('ed_dishes',),
+                  any_of=('ed_climbed', 'ed_paid'),
+                  sets=('ed_relay',),
+                  after=1,
+                  where='stacks',
+                  posts=Posting('sixes', 'static', 'corrupt', 'The Second Edition',
+                                'Static\'s relay in the Stacks, and the galley file on it: '
+                                'the second edition of you, set and waiting. The Sixes '
+                                'want a paragraph changed. Which one is yours to find out.',
+                                label='the galley file', pay=2600)),
+            Stage('galley', 'Set in type',
+                  'You have the galley: your second edition, in type, '
+                  'every line of it, and the cursor where the Sixes want '
+                  'the paragraph about the Ninth to say something else. '
+                  'Ines Vale would print whatever comes back. That is her '
+                  'whole ethic. What comes back is yours to decide, and it '
+                  'is the only time you will ever get to.',
+                  requires=('did:edition.relay',),
+                  sets=('ed_galley',),
+                  where='stacks',
+                  choices=(
+                      Choice('correct', 'Correct it, and only it',
+                             'You fix the three things that were wrong, and '
+                             'leave the paragraph about the Ninth, and leave '
+                             'everything else, and it prints, and it is '
+                             'true, and the Sixes are not pleased and do not '
+                             'say so, because it is true.',
+                             sets=('ed_corrected',),
+                             rep={'static': 8, 'sixes': -6}),
+                      Choice('kill', 'Pull the plate',
+                             'You corrupt the file the way the job says, '
+                             'and then a little more, and the second '
+                             'edition does not print, and somebody who did '
+                             'not want it to pays you for that in an '
+                             'envelope with no name on it. Ines Vale prints '
+                             'a blank page where it would have been. She '
+                             'does that on purpose.',
+                             sets=('ed_killed',),
+                             credits=1500,
+                             rep={'static': -10}),
+                      Choice('print', 'Let it run as it is',
+                             'You change the one paragraph the Sixes are '
+                             'paying for and nothing else, and it prints, '
+                             'and it is mostly true, and you are the one '
+                             'person in the city who knows which paragraph '
+                             'is not, and that is a kind of authorship.',
+                             sets=('ed_printed',),
+                             rep={'static': 4, 'sixes': 4}),
+                  )),
+            Stage('printed', 'Off the presses',
+                  'It comes off the presses in the morning, or a blank page '
+                  'does, and either way the Stacks read it, because the '
+                  'Stacks read everything twice and believe it once. Ines '
+                  'Vale does not comment. Pip reads it aloud from a tower '
+                  'to nobody. Somewhere in it or not in it is the name the '
+                  'city uses for you ({called}), in type, which is a '
+                  'thing you cannot take back.',
+                  requires=('ed_galley',),
+                  any_of=('ed_corrected', 'ed_killed', 'ed_printed'),
+                  sets=('ed_done',),
+                  after=3,
+                  where='stacks'),
+            Stage('shelf', 'A copy in Marrow',
+                  'There is a copy on a shelf in the back bar in Marrow, '
+                  'or there is a blank page there, folded, which Osei keeps '
+                  'for the same reason. People who have read it look at '
+                  'you a certain way. People who have not, do not. You can '
+                  'tell which is which now, from the door, which is a '
+                  'thing the second edition gave you that the first one '
+                  'did not.',
+                  requires=('ed_done',),
+                  sets=('ed_shelf',),
+                  after=4),
+        )),
+    Thread(
+        'crane', 'The Crane\'s Name',
+        'The newest crane was named by a vote, and the name that won was a runner\'s.',
+        stages=(
+            Stage('lunch', 'The name that won',
+                  'Teku eats lunch on the base of the newest crane with '
+                  'her back against the name that won the vote, and tells '
+                  'you whose it was: a runner, dead, who had never been to '
+                  'the docks, whose name the dockers knew from a story '
+                  'about a job that went wrong in a way that helped them. '
+                  '"We do not name cranes after people who help us," she '
+                  'says. "We named one. Carrion locked its control the '
+                  'week after, out of spite, and it has not lifted since."',
+                  requires=('met:crane',),
+                  any_of=('runs:12', 'after_settled'),
+                  sets=('crane_lunch',),
+                  where='freeport'),
+            Stage('bollard', 'Old Pike on the lock',
+                  'Old Pike sits on his bollard and watches the crane not '
+                  'lift, and when you ask, he tells you what is on the '
+                  'lock: his. The ICE they named after him, the one he '
+                  'built for Sendai before Sendai sold it on, sitting on a '
+                  'crane\'s control network because Carrion bought it '
+                  'second-hand. "It thinks the way I thought," he says. "I '
+                  'can tell you how I thought. I am not sure that helps."',
+                  requires=('crane_lunch', 'met:pike_sr'),
+                  sets=('crane_pike',),
+                  after=1,
+                  where='freeport'),
+            Stage('lock', 'The lock',
+                  'Freeport post it themselves, which the docks never do: '
+                  'a job against Carrion, on their own board, in their own '
+                  'name, to wipe the lock off a crane that has a dead '
+                  'runner\'s name on it. The pay is a collective\'s pay, '
+                  'which is fair and no more, and everybody on the quay '
+                  'knows you took it before you have.',
+                  requires=('crane_pike',),
+                  sets=('crane_lock',),
+                  after=1,
+                  where='freeport',
+                  posts=Posting('freeport', 'carrion', 'wipe', 'The Lock',
+                                'A crane\'s control network on the Freeport quay, with '
+                                'Carrion\'s lock on it and Old Pike\'s ICE on the lock. '
+                                'The docks want it lifting again.',
+                                label='the lock on the crane', pay=3000)),
+            Stage('name', 'Whose name',
+                  'The crane lifts. Teku drives it the first time with the '
+                  'whole quay watching and nobody saying anything, which '
+                  'is how the docks cheer. Afterwards the quartermaster '
+                  'says, in the tone of a motion, that a crane that has '
+                  'been unlocked could be renamed, if the docks wanted, '
+                  'and that the docks had been discussing it, and looks at '
+                  'you.',
+                  requires=('did:crane.lock',),
+                  sets=('crane_name',),
+                  where='freeport',
+                  choices=(
+                      Choice('keep', 'Keep the dead runner\'s name',
+                             'You say the name that won is the name, and '
+                             'the quay agrees in the way it agrees, by not '
+                             'disagreeing, and Teku eats her lunch against '
+                             'it the next day with her back to it, as '
+                             'before. Something on the quay has decided '
+                             'about you. It is not the crane.',
+                             sets=('crane_kept',),
+                             rep={'freeport': 6}),
+                      Choice('yours', 'Your own',
+                             'They paint it in the night, the way the docks '
+                             'do things they are not sure about: the name '
+                             'the city uses for you ({called}), on a crane, '
+                             'in letters a metre high, facing the water. '
+                             'You will never be able to leave. You will '
+                             'never have to.',
+                             sets=('crane_yours',),
+                             rep={'freeport': 2}),
+                      Choice('pike', 'Old Pike\'s',
+                             'You say the man who built the lock should have '
+                             'the crane, and the quay is quiet for long '
+                             'enough that you think you have misjudged it, '
+                             'and then Teku says "yes" from the cab, once, '
+                             'and it is done. Old Pike does not watch the '
+                             'painting. He watches the crane lift.',
+                             sets=('crane_pike_named',),
+                             rep={'freeport': 4}),
+                  )),
+            Stage('painted', 'A metre high, facing the water',
+                  'The name is on the crane, whichever name, in letters a '
+                  'metre high facing the water, where the ships see it '
+                  'first. The docks do not talk about it. The docks talk '
+                  'about the crane, which lifts, and about the lock, which '
+                  'is gone, and about Carrion, who have noticed, and have '
+                  'people on the quay again, and are not lifting anything.',
+                  requires=('crane_name',),
+                  any_of=('crane_kept', 'crane_yours', 'crane_pike_named'),
+                  sets=('crane_painted',),
+                  after=3,
+                  where='freeport'),
+            Stage('harness', 'Lunch on the base',
+                  'Teku eats lunch on the base of the crane with her back '
+                  'against the name, and nods at you the way she did the '
+                  'first time, and says nothing, and the crane lifts '
+                  'something over the two of you that weighs more than '
+                  'the building you live in, and neither of you looks up. '
+                  'That is what the docks are. You have stopped noticing '
+                  'that you belong to them.',
+                  requires=('crane_painted',),
+                  sets=('crane_done',),
+                  after=4,
+                  where='freeport'),
+        )),
+
     # -- Subplots for the systems the story predates (D172) ------------------
     # The animal, the construct, the names and the door all arrived after
     # the threads were written. Each of these reads one of them through a
@@ -1539,17 +2036,50 @@ MORE_THREADS: tuple[Thread, ...] = (
                   any_of=('nine_kept', 'nine_sold'),
                   sets=('nine_found',),
                   after=2),
-            Stage('tenth', 'Ten',
-                  'There are ten logs now, wherever the tenth is kept, and '
-                  'the Archivist has stopped saying nine. The city does not '
-                  'notice; it has a client it has never met and four hundred '
-                  'contracts and it goes on placing them. What has changed '
-                  'is smaller than that and it is yours: you know what the '
-                  'eight had in common, and you know what you did about the '
-                  'ninth, and somewhere below the resolution something that '
-                  'knows both your names has written it down.',
-                  requires=('nine_posted',),
-                  any_of=('nine_together', 'nine_alone', 'nine_handed', 'nine_found'),
+            Stage('tenth_together', 'Ten, with two handles',
+                  'There are ten logs now, and the tenth has two handles in '
+                  'the header, and the Archivist has stopped saying nine. '
+                  '{runner} is at the door before you are on the nights you '
+                  'work, and on the nights you do not they are somewhere '
+                  'else, working, which is what a partner is: somebody '
+                  'whose log you are in. Somewhere below the resolution '
+                  'something that knows both your names has written down '
+                  'that it has never seen this, and it has not.',
+                  requires=('nine_posted', 'nine_together', 'ninth:alive'),
+                  sets=('nine_tenth',),
+                  after=3),
+            Stage('tenth_alone', 'Ten, in two bags',
+                  'There are ten logs now, in two bags, and the Archivist '
+                  'has stopped saying nine. {runner} nods on the board and '
+                  'you nod back, and you both know what the eight had in '
+                  'common and you both decided it was not the being alone, '
+                  'and you both work alone, and that is not a contradiction. '
+                  'It is the city. Somewhere below the resolution something '
+                  'that knows both your names has written down two logs '
+                  'that go on not ending, separately.',
+                  requires=('nine_posted', 'nine_alone', 'ninth:alive'),
+                  sets=('nine_tenth',),
+                  after=3),
+            Stage('tenth_handed', 'Nine, and a line cleared',
+                  'The Archivist has nine logs again. They put the ninth '
+                  'with the eight the shift the money cleared, and they '
+                  'did not turn the chair round, and they have not since. '
+                  'The largest sum you have ever seen in one line is in '
+                  'your account and it is smaller every shift, the way '
+                  'money is. {runner} is not on the board. Nobody has read '
+                  'a posting with their name in it since, and you know '
+                  'why, and you are the only one who does.',
+                  requires=('nine_posted', 'nine_handed', 'ninth:gone'),
+                  sets=('nine_tenth',),
+                  after=3),
+            Stage('tenth_found', 'Ten, and one of them knows',
+                  'There are ten logs now and {runner} keeps theirs where '
+                  'you cannot see it, which is fair, because you kept what '
+                  'you knew where they could not. They take the jobs you '
+                  'were going to take. You take the ones they leave. The '
+                  'Archivist has stopped saying nine and has started saying '
+                  'nothing, which from the Archivist is a review.',
+                  requires=('nine_posted', 'nine_found', 'ninth:alive'),
                   sets=('nine_tenth',),
                   after=3),
             Stage('ended', 'The ninth ends the way the eight did',
