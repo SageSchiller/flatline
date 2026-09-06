@@ -111,3 +111,14 @@ pay-offs, and an arrangement the harness bought. Second life: shift 201,
 The freight line was offered and refused by brief; the door stayed shut
 on the stake (45,000c), which a courier who never keeps more than 8,000c
 was never going to have.
+
+## Round five, 2026-09-05 (D168): what the harness had to learn
+
+Three deaths in a row across the runs of this round were the harness, not
+the street: it paid every pay-off until broke, gambled when poor, and
+walked `--anyway` into a street with a number on its name while hurt. It
+keeps a reserve, does not gamble under 2,000c, and declines the hostile
+walk when broke or hurt now. With that: seven campaigns alive, 0 crashes,
+three endings and a partner bond by play, the long life to shift 211 (it
+declined 3,978 hostile walks and ran less for it, which is the honest
+cost of caution). The ask-in fired in four campaigns.

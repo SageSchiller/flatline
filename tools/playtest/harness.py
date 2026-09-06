@@ -85,6 +85,11 @@ class Play:
         while self.sess.pending is not None and n < limit:
             n += 1
             ch = list(self.sess.pending.choices)
+            # A player keeps a reserve: the street's pay-off is not the
+            # answer when it would leave nothing for the clinic or the feed.
+            g = self.sess.game
+            if g is not None and 'pay' in ch and g.char.credits < 1500:
+                prefer = tuple(p for p in prefer if p != 'pay')
             pick = next((p for p in prefer if p in ch), None)
             if pick is None:
                 pick = ch[0] if ch else ''
@@ -176,8 +181,13 @@ class Play:
                     if '\u2717' not in out:
                         return out
             m = re.search(r'`(travel \w+ --anyway)`', out)
-            if m:
+            g = self.sess.game
+            broke_or_hurt = (g is not None and (g.char.credits < 500
+                                                or g.char.integrity < g.char.integrity_max // 2))
+            if m and not broke_or_hurt:
                 out = self.do(m.group(1), note='heat: going anyway'); self.settle()
+            elif m:
+                self.log.write('    (not going anyway: broke or hurt; a player would not)\n')
         return out
 
     def play_job(self, city_cap=14):

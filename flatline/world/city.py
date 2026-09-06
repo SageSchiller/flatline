@@ -43,6 +43,12 @@ NEWS_KEPT = 40
 #: A runner's loan: how often they mention it, and what a mention costs.
 #: A nemesis buys your crew for a night about this often (D166).
 POACH_CHANCE = 0.12
+#: A runner who thinks well of you asks you in on a job about this often
+#: (D168): the bond a solo player could never start.
+ASK_IN_CHANCE = 0.05
+ASK_IN_EVERY = 12
+ASK_IN_AT = 12
+ASK_IN_JOBS = 3
 
 TAB_NAG = 9
 TAB_NAG_COST = 3
@@ -183,6 +189,8 @@ class City:
     pet: dict = field(default_factory=dict)
     #: The runner holding the paper on your name (D164), by key, or ''.
     paper: str = ''
+    #: The runner who asked you in on the next job (D168), by key, or ''.
+    asked_in: str = ''
     #: NPC keys whose private counter you have opened. Re-applied after every
     #: restock: a person's cabinet not rotating is the one promise it makes
     #: that a market does not, and `refresh_stock` rebuilds the shelves from
@@ -631,6 +639,25 @@ class City:
         if alias is not None:
             told.extend(rival_mod.bond_turn(rng('rivals'), self.rivals, alias,
                                             flags or ()))
+        # Somebody who thinks well of you asks you in (D168): the next job
+        # you take, they are in it, on their cut, and it was their idea.
+        # A runner who never hires or crews used to be somebody nobody could
+        # decide about.
+        if not self.hired and not self.crew:
+            warm = [r for r in self.rivals if r.alive and not r.bond
+                    and r.disposition >= ASK_IN_AT and r.jobs >= ASK_IN_JOBS]
+            last_ask = int(self.messaged.get('ask_in_at', -99))
+            if (warm and self.shift - last_ask >= ASK_IN_EVERY
+                    and rng('rivals').chance(ASK_IN_CHANCE)):
+                who = max(warm, key=lambda r: (r.disposition, r.key))
+                self.hired = who.key
+                self.asked_in = who.key
+                self.messaged['ask_in_at'] = self.shift
+                line = (f'[ok]{who.name} asks if you want them in on your next '
+                        f'job. Their cut, their idea. The next thing you take, '
+                        f'they are in it.[/]')
+                told.append(line)
+                self.news.append(line)
         # A nemesis hires your crew out from under you for a night (D166):
         # the people who decided about you decide about each other.
         if self.crew and self.crew.get('key'):
@@ -641,6 +668,7 @@ class City:
                     and int(self.crew.get('away', -1)) < self.shift:
                 nem = nemeses[0]
                 self.crew['away'] = self.shift + 1
+                self.crew['poached_by'] = nem.key
                 crew_rival = self.rival(self.crew.get('key', ''))
                 crew_name = crew_rival.name if crew_rival is not None else 'your crew'
                 line = (f'[warn]{nem.name} hired {crew_name} '
@@ -1331,6 +1359,7 @@ class City:
             'safehouse': dict(self.safehouse),
             'pet': dict(self.pet),
             'paper': self.paper,
+            'asked_in': self.asked_in,
             'crew': dict(self.crew),
             'tables': dict(self.tables),
             'tabs': {k: list(v) for k, v in self.tabs.items()},
@@ -1375,6 +1404,7 @@ class City:
             safehouse=dict(d.get('safehouse') or {}),
             pet=dict(d.get('pet') or {}),
             paper=str(d.get('paper') or ''),
+            asked_in=str(d.get('asked_in') or ''),
             crew=dict(d.get('crew') or {}),
             tables={k: int(v) for k, v in (d.get('tables') or {}).items()},
             tabs={k: [int(v[0]), int(v[1])]

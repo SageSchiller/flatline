@@ -12,7 +12,7 @@ from flatline.content import (districts, npcs as NPC, hardware, mods as MODS,
 from flatline.commands import city as city_cmd
 import spine
 
-SAFE = ('give', 'talk', 'run', 'pay', 'bolt', 'yes', 'take', 'careful', 'break')
+SAFE = ('give', 'pay', 'run', 'talk', 'bolt', 'yes', 'take', 'careful', 'break')
 
 
 def act(p, fn, *a, **kw):
@@ -329,8 +329,10 @@ def money(p):
     p.mark('money: the lender, the tables, the fence, the stash')
     p.do('debt'); p.do('borrow'); p.do('borrow 800'); p.do('borrow 800 --confirm'); p.settle(prefer=('yes',))
     p.do('debt'); p.do('debt pay 200'); p.do('debt pay all'); p.settle(prefer=('yes',)); p.do('debt')
-    p.do('cards'); p.do('cards 50'); p.settle(prefer=SAFE)
-    p.do('dice'); p.do('dice 50 high'); p.settle(prefer=SAFE); p.do('dice 50 seven'); p.settle(prefer=SAFE)
+    p.do('cards'); p.do('dice')
+    if p.g.char.credits > 2000:
+        p.do('cards 50'); p.settle(prefer=SAFE)
+        p.do('dice 50 high'); p.settle(prefer=SAFE); p.do('dice 50 seven'); p.settle(prefer=SAFE)
     spare = [k for k in p.g.char.library if k not in p.g.char.deck.loaded]
     if spare:
         p.do(f'sell {spare[0]}'); p.settle(prefer=('yes',))

@@ -45,7 +45,10 @@ from dataclasses import dataclass
 #: between about 1,200 and 6,000, so this is somewhere between ten and thirty
 #: successful runs of everything going right, and nothing in this city lets
 #: everything go right for thirty runs in a row.
-STAKE = 45000
+#: What getting out costs (D168). Forty-five thousand was a number no working
+#: runner in two hundred shifts ever held; fifteen is a few good contracts
+#: kept whole, which is a decision rather than an accident.
+STAKE = 15000
 
 #: The gates, in the order they are checked and reported. Each is a key the
 #: command implements, a one-line description of what it wants, and the line

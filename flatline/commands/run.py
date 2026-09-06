@@ -231,6 +231,21 @@ def cmd_jack_in(sess, args) -> None:
     # Somebody on a retainer is in on every run without being asked, which is
     # the whole difference between a crew and a hire.
     crew = game.city.crew
+    if crew and crew.get('poached_by') and int(crew.get('away', -1)) < game.city.shift:
+        # Back from the night somebody bought (D168). They say what it
+        # was worth, which was not the job.
+        nem = game.city.rival(crew.get('poached_by', ''))
+        me = game.city.rival(crew.get('key', ''))
+        if nem is not None and me is not None:
+            c.blank()
+            c.rule(f'{me.name}, back', role='accent2')
+            c.say(f'{me.name} is at the door before you are, and says what '
+                  f'{nem.name} paid, which was twice the job, and says what '
+                  f'{nem.name} asked for, which was where you drink and '
+                  f'which door you use. "I took the money," {me.name} says. '
+                  f'"I told them the wrong door."')
+            c.blank()
+        crew['poached_by'] = ''
     if crew and int(crew.get('away', -1)) >= game.city.shift:
         # Bought for the night by somebody who dislikes you (D166).
         away = game.city.rival(crew.get('key', ''))

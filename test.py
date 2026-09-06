@@ -8495,7 +8495,7 @@ def test_economy() -> None:
          'the advice says to buy a payload once it is affordable')
 
     # And the stake is what the design says it is, against the board.
-    T.eq(legacy.STAKE, 45000, 'the stake is unchanged')
+    T.eq(legacy.STAKE, 15000, 'the stake is unchanged')
     # Across boards, not one board: a single board's gang work can pay a
     # fifth either side of the median and the assertion would be about
     # the seed rather than about the economy.
@@ -8505,8 +8505,8 @@ def test_economy() -> None:
         gang.extend(c.pay for c in board.city.board if int(c.posture) <= 30)
     T.ok(gang, 'gang work exists to price the stake against')
     runs = legacy.STAKE / (sum(gang) / len(gang))
-    T.ok(10 <= runs <= 40,
-         f'and the stake is worth between ten and forty gang contracts '
+    T.ok(4 <= runs <= 40,
+         f'and the stake is worth between four and forty gang contracts '
          f'({runs:.0f})')
 
 
@@ -14734,7 +14734,7 @@ def test_the_five_corners() -> None:
     game4.char.credits = 50000
     d0 = partner.disposition
     sess4, out4 = play([f'crew take {other.key} --confirm'], game=game4)
-    T.ok(game4.city.crew.get('key') == other.key and partner.disposition < d0 and 'says nothing' in out4,
+    T.ok(game4.city.crew.get('key') == other.key and partner.disposition < d0 and 'say nothing' in ' '.join(out4.split()),
          'the partner hears who you took on')
     # A nemesis buys the crew for a night.
     nem = rivals[2]; nem.bond = 'nemesis'; nem.disposition = -70
@@ -14779,6 +14779,64 @@ def test_the_five_corners() -> None:
     T.ok(game5.city.pit.get('usurper') == top.key and top.key not in game5.city.pit['beaten'],
          f'{top.name} is back on the wall when you stop')
     T.ok('holds the top now' in out5, 'and the wall says so')
+
+
+def test_the_stake_the_ask_and_the_watch() -> None:
+    """D168: the stake is practical; a runner who thinks well of you asks
+    you in on a job on their own initiative; `now` says to watch the thing
+    you are short of; the poach and the grudge are scenes, not lines."""
+    T.section('the stake, the ask and the watch')
+    from flatline.content import legacy
+    from flatline.world import city as city_world
+    T.ok(legacy.STAKE <= 15000, f'the stake is a good month kept whole: {legacy.STAKE:,}')
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=260)
+    game.char.credits = legacy.STAKE
+    sess, out = play(['retire'], game=game)
+    T.ok('enough put away' in out, 'and the door reads it')
+    # The ask: a warm runner with jobs behind them asks you in, sometimes.
+    game2 = Game.new(Character.from_origin('gutter', 'x'), seed=261)
+    warm = next(r for r in game2.city.rivals if r.alive)
+    warm.disposition = city_world.ASK_IN_AT + 5; warm.jobs = city_world.ASK_IN_JOBS + 1
+    asked = False
+    for i in range(300):
+        game2.city.hired = ''; game2.city.accepted = ''
+        game2.city._rival_turn(game2.rng, game2.alias, game2.story.flags)
+        if game2.city.hired == warm.key and game2.city.asked_in == warm.key:
+            asked = True; break
+    T.ok(asked, f'{warm.name} asks you in within three hundred shifts')
+    T.ok(any('asks if you want them in' in n for n in game2.city.news), 'and the wire says so')
+    # The watch nudge: no payload owned, none on this shelf, no watches.
+    from flatline.commands import city as city_cmd
+    from flatline.content import programs as PRw
+    game3 = Game.new(Character.from_origin('gutter', 'x'), seed=262)
+    for k in list(game3.char.library):
+        if PRw.BY_KEY.get(k) and PRw.BY_KEY[k].category == 'payload':
+            game3.char.library.remove(k)
+    for k in list(game3.char.deck.loaded):
+        if PRw.BY_KEY.get(k) and PRw.BY_KEY[k].category == 'payload':
+            game3.char.deck.unload(k)
+    game3.city.watches = []
+    cheapest = min((p for p in PRw.by_category('payload') if not p.unique), key=lambda p: p.price)
+    here = {l.key for l in game3.city.listings('program')}
+    steps3 = city_cmd.city_steps(game3)
+    verbs3 = [v for v, _ in steps3]
+    if 'market' in game3.city.district.services and cheapest.key not in here:
+        T.ok(f'watch {cheapest.key}' in verbs3, f'now says to watch the payload nobody sells here: {verbs3[:5]}')
+    else:
+        T.ok(f'watch {cheapest.key}' not in verbs3, 'and not when the shelf has it')
+    # The poach scene, when the crew comes back.
+    game4 = Game.new(Character.from_origin('gutter', 'x'), seed=263)
+    rivals = [r for r in game4.city.rivals if r.alive]
+    crew, nem = rivals[0], rivals[1]
+    game4.city.crew = {'key': crew.key, 'runs': 2, 'away': game4.city.shift - 1, 'poached_by': nem.key}
+    board4 = list(game4.city.board) or (game4.city.refresh_board(game4.rng, game4.alias) or list(game4.city.board))
+    c4 = board4[0]; game4.city.accepted = c4.cid; c4.taken = True; game4.city.where = c4.district
+    s4 = Session(console=quiet_console(), slot='poach2'); s4.game = game4
+    s4.console.start_capture(); s4.execute('jack in --force'); out4 = s4.console.end_capture()
+    T.ok('I told them the wrong door' in ' '.join(out4.split()) and game4.city.crew.get('poached_by') == '',
+         'the crew comes back and says what it was paid, once')
+    if s4.run is not None:
+        s4.console.start_capture(); s4.execute('jack out --anyway'); s4.console.end_capture()
 
 def manual_body(key: str) -> str:
     from flatline.content import manual
@@ -16097,6 +16155,7 @@ SUITES = (
     test_coming_back_and_the_line_you_are_near,
     test_the_collector_and_the_company,
     test_the_five_corners,
+    test_the_stake_the_ask_and_the_watch,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

@@ -1962,10 +1962,12 @@ def check_legacy(rep: Report) -> None:
               'legacy', 'two gates share a key')
 
     # The stake has to be a real target: reachable, and not reachable by
-    # accident. Priced against what the board pays.
+    # accident. Priced against what the board pays. Four top contracts kept
+    # whole (D168): five was a number no working runner held in two hundred
+    # shifts, and a door nobody reaches is a wall.
     from flatline.world import contracts as contract_mod
     top = 900 + 75 * 34
-    rep.check(legacy.STAKE > top * 5, 'legacy',
+    rep.check(legacy.STAKE > top * 4, 'legacy',
               f'the stake is {legacy.STAKE:,}c, which is a few good contracts '
               f'rather than a career')
     rep.check(legacy.STAKE < top * 40, 'legacy',

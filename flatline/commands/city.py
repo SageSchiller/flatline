@@ -2979,6 +2979,20 @@ def city_steps(game) -> list[tuple[str, str]]:
                               f'{hurt} and the nearest workshop the street '
                               f'will let you reach is in '
                               f'{districts.BY_KEY[shop].name}'))
+    # A watch on the thing you are short of (D168): the deck says when it
+    # lands on a shelf and where, and nobody had ever set one on anything
+    # a shelf sells, so the line on the record never moved.
+    if 'payload' not in owned and 'market' in game.city.district.services:
+        want_watch = min((p for p in programs.by_category('payload')
+                          if not p.unique), key=lambda p: p.price, default=None)
+        if (want_watch is not None
+                and want_watch.key not in {l.key for l in game.city.listings('program')}
+                and want_watch.key not in game.city.watches
+                and not game.city.watches):
+            steps.append((f'watch {want_watch.key}',
+                          f'nothing here does the job and the deck can look '
+                          f'for you: a watch says when {want_watch.name} lands '
+                          f'on a shelf, and where'))
     if 'payload' not in owned:
         cheapest = min((p for p in programs.by_category('payload')
                         if not p.unique), key=lambda p: p.price, default=None)
@@ -5631,8 +5645,14 @@ def _crew_take(sess, args) -> None:
     partner = _rw.active_partner(game.city.rivals)
     if partner is not None and partner.key != rival.key:
         partner.adjust_disposition(-8)
-        c.say(f'[warn]{partner.name} hears who you took on, and says '
-          f'nothing, which is how {partner.name} says it.[/]')
+        c.blank()
+        c.rule(partner.name, role='accent2')
+        c.say(f'{partner.name} hears who you took on before you have told '
+              f'anybody, because that is the kind of thing that travels, '
+              f'and finds you, and does not ask why not them. They ask how '
+              f'{rival.name} is on a door. They listen to the answer. Then '
+              f'they say nothing, which is how {partner.name} says it.')
+        c.blank()
     game.city.hired = ''
     line = rival_content.CREW_JOINED.get(rival.data.style, '{name} agrees.')
     c.blank()
