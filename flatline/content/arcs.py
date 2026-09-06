@@ -17,7 +17,7 @@ carries them with everything else.
 
 from __future__ import annotations
 
-from .threads import Choice, Posting, Stage, Thread
+from .story_types import Choice, Posting, Stage, Thread
 
 DISTRICT_THREADS: tuple[Thread, ...] = (
 

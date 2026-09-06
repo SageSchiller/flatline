@@ -2627,6 +2627,9 @@ NOT_PLAYER_FACING = {
     'effects': 'the modifier vocabulary: an implementation detail of every '
                'other system, and named by none of them in play',
     'manual': 'the manual itself',
+    'story_types': 'the shapes a storyline is built from; the threads topic '
+                   'explains what a stage and a decision are, and nobody in '
+                   'play meets the dataclass',
 }
 
 
