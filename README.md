@@ -26,7 +26,7 @@ written out as text by `tools/shots.py`; nothing is mocked up.
 
 <p align="center">
 <img src="docs/shot-city.svg" alt="map: the twelve districts drawn, you and the job marked, the walk to anywhere" width="49%">
-<img src="docs/shot-char.svg" alt="char: the portrait, what you are called, what you read as, the attributes" width="49%">
+<img src="docs/shot-char.svg" alt="char: what you are called, what you read as, the attributes and what each one is for" width="49%">
 </p>
 
 <p align="center">
@@ -84,7 +84,7 @@ with a line of the verbs that district makes possible.
 
 At the prompt, `tutorial` walks you through a first run one instruction at a
 time. `help` is one screen: what to read first, the verbs that answer "what
-now", and where the rest lives. `help commands` is all 156 verbs, `help
+now", and where the rest lives. `help commands` is all 157 verbs, `help
 topics` is all 47 explanations, and `help <anything>` finds a verb, a system,
 or searches both, including every proper noun in the game.
 
@@ -118,8 +118,11 @@ Thank you. The game has been played to its endings by scripts a few hundred
 times; what it has not had is you. Three things are worth an evening each:
 
 1. **The first hour, cold.** Start with `begin` and do what the screen says.
-   If at any point you do not know what to type, that is the bug; note what
-   was on the screen.
+   Your first runner turns the tutorial on by itself; it watches what you
+   do and says the next thing, and Enter on an empty line repeats the step.
+   `legend` says what the colours mean, `char` says what every number is
+   for, and `help colours` says why. If at any point you do not know what
+   to type, that is the bug; note what was on the screen.
 2. **A life.** `new`, pick an origin, and play until something ends: the
    main line (*What Deepwater Is*, which starts when somebody mentions the
    name and stops), a retirement, or a flatline. After the main line there
@@ -254,9 +257,9 @@ The three ideas everything else hangs off:
 15 skills with 30 techniques, 6 of them for the street · 33 traits · 12 origins, each with a signature
 verb nobody else can use and its own starting face · 14 icons · 58 implants · 13 weapons and 3 things to wear · 70 programs
 · 34 deck components · 25 of all of those one of a kind, never sold, found at a place at an hour or handed over by a decision, each with a history · 28 countermeasures · 9 pieces of bench work · 12 factions, each with a mark on the district it holds · 7 rival runners who decide about you, and one you can keep · 32 named characters who keep hours, hand out work, keep private stock and do favours on a tab · 63 storylines across 215 scenes and 208 decisions, every one of them read back by the world and every scene played where it is set, with a spine through the middle that has four endings and one of them is a door ·
-102 appearance features · 12 districts, drawn, each with what it is built of, what it works at, its named quarters and what is past its edge, 72 quarters in all, a scene for every hour, 151 things to see in the street, 20 written crossings between them, and 60 places to go and stand · 204 ambient city events, 91 of them consequences of something you decided and 15 of them rumours that stop when the thing is found · 47 manual topics · networks in six shapes · the street in four tiers and 24 ways it stops you, six of them written for one street only ·
+102 appearance features · 12 districts, drawn, each with what it is built of, what it works at, its named quarters and what is past its edge, 72 quarters in all, a scene for every hour, 151 things to see in the street, 20 written crossings between them, and 60 places to go and stand · 204 ambient city events, 91 of them consequences of something you decided and 15 of them rumours that stop when the thing is found · 48 manual topics · networks in six shapes · the street in four tiers and 24 ways it stops you, six of them written for one street only ·
 14 drugs · 3 lenders · 2 games of chance in 5 rooms · 6 animals to keep and 5 constructs to run with, none of them any help at all · a pit with 5 names on the wall · 8 conditions a network can be under tonight, and 6 the street can · a record of 28 lines in 4 sections and 18 more titles the city gives for a deed, all of them pinnable, and 7 ambitions on the way to it ·
-156 commands · 91 pieces of terminal across 9 axes.
+157 commands · 91 pieces of terminal across 9 axes.
 
 Every number on every one of those is read by the engine, and `validate.py`
 holds it to that: every modifier key and every rider string in the content

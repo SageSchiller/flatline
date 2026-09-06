@@ -32,6 +32,13 @@ MIN_ROWS = 24
 #: need to sit visually inside the same column that paragraphs do.
 TEXT_WIDTH = 76
 
+#: The widest a table may grow on a terminal that has the room (D182). Prose
+#: stays at TEXT_WIDTH, because sixty to eighty characters a line is the
+#: readable range and a wider paragraph reads worse, not better. A table is
+#: columns, columns truncate at eighty, and they get whatever the terminal
+#: has, up to this.
+TABLE_WIDTH = 120
+
 #: D3: the world seed is user-facing. Sixteen bits keeps it typeable and
 #: shareable; the RNG stretches it internally so the small space costs nothing.
 SEED_MAX = 65535

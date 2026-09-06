@@ -30,7 +30,7 @@ from . import anim
 from . import prompt as prompt_mod
 from .shell import (AFTER_THE_END, REGISTRY, Args, CommandError, Invocation,
                     Quit, resolve, split_line)
-from .ui import Caps, Console
+from .ui import Caps, Console, prompt_render
 
 
 @dataclass(slots=True)
@@ -101,6 +101,9 @@ class Session:
     _announce_queue: list = field(default_factory=list)
     #: Index of the current tutorial step, or -1 when it is not running.
     tutorial_step: int = -1
+    #: Set while the first runner on this profile is being made (D182), so
+    #: creation ends by turning the tutorial on. Nothing else reads it.
+    teach: bool = False
     #: How many times the blank-prompt lifeline has been shown (D118). It
     #: fades after a few, and stops the moment `now` is used.
     lifelines: int = 0
@@ -114,7 +117,7 @@ class Session:
     hud: str = 'line'
     #: How a faction's cyberspace is shown on connect (D102): one of
     #: `rice.RENDER_MODES`.
-    render_mode: str = 'picture'
+    render_mode: str = 'mark'
     #: How a picture arrives on screen (D109): one of `rice.REVEAL_STYLES`.
     reveal_style: str = 'dissolve'
     #: The last list of each kind the player was shown, as the keys that were
@@ -204,7 +207,9 @@ class Session:
         a question is never asked inside a run.
         """
         if self.pending is not None:
-            return self.pending.prompt
+            # Rendered like anything else (D182): a question's prompt is the
+            # one prompt that may carry markup, and it used to print it raw.
+            return prompt_render(self.pending.prompt, self.console.caps)
         return prompt_mod.render(self, self.prompt_style)
 
     # ------------------------------------------------------------------
@@ -495,7 +500,7 @@ class Session:
         look = self.shell
         self.prompt_style = look.get('prompt', prompt_mod.DEFAULT)
         self.hud = look.get('hud', 'line')
-        self.render_mode = look.get('render', 'picture')
+        self.render_mode = look.get('render', 'mark')
         self.reveal_style = look.get('reveal', 'dissolve')
         caps = self.console.caps
         self.console.caps = Caps(

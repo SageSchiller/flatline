@@ -218,7 +218,7 @@ class RunState:
     #: How the run draws its pictures (D105/D110), copied off the session so
     #: the engine can draw a construct at the tell without reaching for the
     #: shell. 'none' turns off both the pictures and the screen effects.
-    render_mode: str = 'picture'
+    render_mode: str = 'mark'
     #: Ticks remaining on Nullsig and Impersonate.
     nullsig: int = 0
     impersonating: int = 0

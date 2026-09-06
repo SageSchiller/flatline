@@ -1302,6 +1302,31 @@ def cmd_techniques(sess, args) -> None:
         c.say(f'[dim]{tech.detail}[/]', indent='  ')
 
 
+@command('legend', 'What the colours mean.',
+         group='info', bare=True, usage='legend',
+         detail='One idea is one colour everywhere (D182): the trace is '
+                'always the trace colour, money is always the money colour, '
+                'and anything in the accent is a thing you can type or a '
+                'name that matters. This prints each in its own colour with '
+                'what it means. Free, and safe to ask at any point. `help '
+                'colours` says why it is arranged this way.')
+def cmd_legend(sess, args) -> None:
+    c = sess.console
+    c.header('Legend', 'what the colours mean')
+    if c.caps.color is ui.ColorLevel.NONE:
+        c.say('[dim]Colour is off in this terminal (NO_COLOR, --no-color, or '
+              'output that is not a terminal), so every number says what it '
+              'is in words instead. The names below are what the colours '
+              'would have been.[/]')
+        c.blank()
+    c.kv([(f'[{role}]{label}[/]', meaning)
+          for role, label, meaning in theme.MEANINGS], role=None)
+    c.blank()
+    c.say('[dim]Words in backticks, like `now`, are things to type. A '
+          'raised number is an aside, printed under the block that raised '
+          'it. `help colours` for the reasoning.[/]')
+
+
 @command('tutorial', 'A guided first run, one instruction at a time.',
          group='session', bare=True, usage='tutorial [stop|skip|again]',
          detail='Optional and interruptible. It watches what you do rather '

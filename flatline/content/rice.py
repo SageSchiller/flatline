@@ -500,7 +500,10 @@ COSMETICS: tuple[Cosmetic, ...] = (
     # ----------------------------------------------------------------- render
     Cosmetic('picture', 'render', 'Picture',
              'Their cyberspace as a picture, two pixels a cell, in their '
-             'own colours, arriving row by row. Forty cells by eight.'),
+             'own colours, arriving row by row. Forty cells by eight. Also '
+             'the portrait on `char`, the icon you wear, and the ICE as '
+             'it wakes. Off unless you turn it on: the words were always '
+             'the real render.'),
     Cosmetic('wide', 'render', 'Wide',
              'The same picture at half again the width and height, for a '
              'terminal with the room.',
@@ -508,8 +511,9 @@ COSMETICS: tuple[Cosmetic, ...] = (
              hint='Five contracts. Somebody\'s render is worth a bigger '
                   'window by then.'),
     Cosmetic('mark', 'render', 'Mark',
-             'The eleven-by-four mark and nothing else. What every terminal '
-             'gets when it cannot do the picture.'),
+             'The eleven-by-four mark beside the name, and the words. The '
+             'default, and what every terminal gets when it cannot do the '
+             'picture.'),
     Cosmetic('none', 'render', 'Bare',
              'No picture and no mark. The name, the doctrine, and the job.'),
 
@@ -545,7 +549,7 @@ BY_KIND: dict[str, tuple[Cosmetic, ...]] = {
 DEFAULTS: dict[str, str] = {
     'palette': 'cyberpunk-neon', 'prompt': 'classic', 'frame': 'single',
     'bars': 'blocks', 'marks': 'plain', 'banner': 'block', 'hud': 'line',
-    'render': 'picture',
+    'render': 'mark',
     'reveal': 'dissolve',
 }
 

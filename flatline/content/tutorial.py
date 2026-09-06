@@ -66,13 +66,29 @@ STEPS: tuple[Step, ...] = (
     Step(
         'sheet',
         'Type `char` to read the build.',
-        'Five attributes, and four numbers derived from them. Bandwidth is '
-        'how much chrome fits in you, Focus is precision actions per run, '
-        'Tempo banks free actions as you work, and Integrity is how much damage you '
-        'absorb before a run ends badly.',
+        'Read it top to bottom, because every screen in the game is built '
+        'the same way. The first line is the title, with the context on the '
+        'right. Under the rule, a grid: names on the left, values to the '
+        'right of the bar. Then the five attributes, a bar each, with what '
+        'each one is for beside the number, and under them the numbers '
+        'worked out from those: Bandwidth, Focus, Tempo, Composure, Cover, '
+        'and Integrity near the top. The prompt at the bottom says where '
+        'you are, the time, and your money; in a run it says which node, '
+        'the tick, and the trace.',
         done=lambda s: bool(_char(s)) and 'char' in getattr(s, 'seen', set()),
         payoff='Those numbers are what every check in the game is built on.',
         topic='attributes'),
+    Step(
+        'colours',
+        'Type `legend`.',
+        'Every colour here is a meaning, and one meaning is one colour '
+        'everywhere: the trace is always the trace colour, money is always '
+        'the money colour, and a word that changes colour in the middle of '
+        'a sentence is the sentence telling you which number it means. '
+        '`legend` prints the key in the colours themselves, and it is free.',
+        done=lambda s: 'legend' in getattr(s, 'seen', set()),
+        payoff='Whenever a colour means nothing to you, that.',
+        topic='colours'),
     Step(
         'spend',
         'Spend a point with `boost <attribute>`, and an experience with '
@@ -345,6 +361,7 @@ CLOSING = (
     'That is the loop, and you have now done all of it once, and seen what '
     'the city does with it.\n\n'
     'What the tutorial did not cover, and what to read when you want it:\n'
+    '  [fg]legend[/]          the colours, again\n'
     '  [fg]help triangle[/]   the three numbers, properly\n'
     '  [fg]help heat[/]       what the residue you left is about to become\n'
     '  [fg]help skills[/]     where your experience should go\n'
@@ -360,4 +377,4 @@ CLOSING = (
 #: Commands whose mere use satisfies a step. Tracked because "did they look at
 #: it" is a legitimate teaching goal and is not otherwise visible in state.
 WATCHED = ('char', 'board', 'deck', 'odds', 'status', 'rep', 'look',
-           'talk', 'visit', 'journal', 'now', 'retire', 'errands')
+           'talk', 'visit', 'journal', 'now', 'retire', 'errands', 'legend')

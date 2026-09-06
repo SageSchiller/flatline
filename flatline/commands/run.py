@@ -1225,12 +1225,13 @@ def cmd_map(sess, args) -> None:
 
 @command('render', 'A faction\'s cyberspace, as a picture.',
          group='info', usage='render [faction]',
-         detail='D102. What their network looks like from inside, drawn two '
-                'pixels to a cell in their own colours on a terminal that '
-                'can do it, and as the eleven-by-four mark on one that '
-                'cannot. Alone it lists the twelve; with a name it draws '
-                'one. `rice render` decides how it arrives on connect. '
-                'Nothing here touches a number.')
+         detail='D102. What their cyberspace is made of, in words, with the '
+                'eleven-by-four mark beside the name, and what they know '
+                'about you. `rice render picture` draws it instead, two '
+                'pixels to a cell in their own colours, on a terminal that '
+                'can; the words are the default (D182). Alone it lists the '
+                'twelve; with a name it shows one. Nothing here touches a '
+                'number.')
 def cmd_render(sess, args) -> None:
     c = sess.console
     from .. import pixels

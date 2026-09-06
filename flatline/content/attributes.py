@@ -32,36 +32,58 @@ class Attribute:
     #: player choosing between five nouns needs to know what they are buying
     #: out of, not just what they are buying.
     failure: str
+    #: Three or four words beside the number on the sheet (D182). A sheet
+    #: that prints five nouns and five numbers and nothing else is a form
+    #: for somebody who already knows the game; this is for everybody else.
+    gloss: str
 
 
 ATTRIBUTES: tuple[Attribute, ...] = (
     Attribute(
         'logic', 'Logic', 'LOG',
         'Exploit construction, cryptanalysis, understanding what you are looking at.',
-        'You cannot break what you do not understand. Services read as noise.'),
+        'You cannot break what you do not understand. Services read as noise.',
+        'breaking in, and reading what you see'),
     Attribute(
         'reflex', 'Reflex', 'REF',
         'Free actions banked as you work, slipping a lock-on, reacting to ICE '
         'that has already noticed you.',
-        'Everything happens to you before you happen to it.'),
+        'Everything happens to you before you happen to it.',
+        'speed, and free actions'),
     Attribute(
         'nerve', 'Nerve', 'NRV',
         'Holding function under trace pressure, and surviving black ICE.',
-        'You fold at exactly the moment folding is fatal.'),
+        'You fold at exactly the moment folding is fatal.',
+        'holding on under pressure'),
     Attribute(
         'guile', 'Guile', 'GUI',
         'Pretexting, forged credentials, passing as somebody with a badge, '
         'what you get charged, and how fast your name cools.',
         'Every door has to be broken, every price is the asking price, and '
-        'nobody ever forgets you.'),
+        'nobody ever forgets you.',
+        'talking, prices, staying forgotten'),
     Attribute(
         'grit', 'Grit', 'GRT',
         'Stamina across a long run, recovery, absorbing damage to deck and body.',
-        'You are fine right up until you are not, and then the run is over.'),
+        'You are fine right up until you are not, and then the run is over.',
+        'taking damage, carrying chrome'),
 )
 
 ATTR_KEYS: tuple[str, ...] = tuple(a.key for a in ATTRIBUTES)
 BY_KEY: dict[str, Attribute] = {a.key: a for a in ATTRIBUTES}
+
+#: The derived numbers, glossed the same way (D182): what each one is for
+#: and which attribute feeds it, in a clause short enough to sit beside the
+#: number on `char`. The formulas below are the authority; this is the
+#: caption. `validate.py` holds every key here to a formula in this file.
+DERIVED_GLOSS: dict[str, str] = {
+    'bandwidth': 'chrome you can carry (Grit)',
+    'integrity': 'damage before a run ends badly (Grit)',
+    'focus': 'careful actions a run (Logic)',
+    'tempo': 'free actions banked as you work (Reflex)',
+    'composure': 'against black ICE and panic (Nerve)',
+    'cover': 'how fast your name cools (Guile)',
+}
 
 
 # --------------------------------------------------------------------------

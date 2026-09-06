@@ -215,7 +215,7 @@ def create_character(sess, handle: str, origin_key: str, seed: int) -> None:
     c.say(f'[dim]`{origin.signature}`, once a run. Nobody else in this city '
           f'can do it.[/]')
     c.blank()
-    c.say(f'[err]{origin.complication}[/]')
+    c.say(f'[warn]What follows you:[/] {origin.complication}')
     c.blank()
     c.kv([('handle', f'[accent]{handle}[/]'),
           ('running as', f'[accent]{sess.game.alias.name}[/]'),
@@ -331,7 +331,8 @@ def cmd_char(sess, args) -> None:
                         f'[dim]({game.alias.runs} run'
                         f'{"s" if game.alias.runs != 1 else ""})[/]')),
         ('credits', f'[credit]{char.credits:,}c[/]'),
-        ('integrity', f'{char.integrity}/{char.integrity_max}'
+        ('integrity', f'{char.integrity}/{char.integrity_max}  '
+                      f'[dim]{attr_content.DERIVED_GLOSS["integrity"]}[/]'
                       + _warned_line(game)),
         ('called', _title_line(sess)),
         ('carrying', _carrying_line(char)),
@@ -383,21 +384,27 @@ def cmd_char(sess, args) -> None:
     # A bar beside each number (D62), scaled to the ceiling, the way the
     # skills screen has always done it: five numbers read faster as five
     # lengths.
+    # And what each one is for, beside the number (D182): a sheet that
+    # prints five nouns and five numbers is a form for somebody who already
+    # knows the game.
     rows = [(name, c.bar(char.base_attrs.get(a.key, 0) / attr_content.ATTR_MAX,
-                         'accent', 9) + f' {value}')
+                         'accent', 9) + f' {value}  [dim]{a.gloss}[/]')
             for (name, value), a in zip(rows, attr_content.ATTRIBUTES)]
     c.kv(rows)
+    c.say('[dim]`char --attributes` says what each one governs, in full.[/]')
 
     c.blank()
     c.say(f'[accent2]{origin.signature_name}[/] '
           f'[dim]`{origin.signature}`, once a run.[/]')
 
     c.blank()
-    c.kv([('Bandwidth', f'{char.bandwidth_used}/{char.bandwidth}'),
-          ('Focus', str(char.focus)),
-          ('Tempo', str(char.tempo)),
-          ('Composure', str(char.composure)),
-          ('Cover', str(char.cover))])
+    gloss = attr_content.DERIVED_GLOSS
+    c.kv([('Bandwidth', f'{char.bandwidth_used}/{char.bandwidth}  '
+                        f'[dim]{gloss["bandwidth"]}[/]'),
+          ('Focus', f'{char.focus}  [dim]{gloss["focus"]}[/]'),
+          ('Tempo', f'{char.tempo}  [dim]{gloss["tempo"]}[/]'),
+          ('Composure', f'{char.composure}  [dim]{gloss["composure"]}[/]'),
+          ('Cover', f'{char.cover}  [dim]{gloss["cover"]}[/]')])
 
     if char.points or char.xp:
         c.blank()

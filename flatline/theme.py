@@ -82,6 +82,31 @@ class Color:
         return _to_256(self.hex)
 
 
+#: What each colour is for, in the order `legend` prints them (D182). One
+#: idea is one colour everywhere, and this is the one place that says which
+#: idea is which. `validate.py` holds every role here to a Palette field, and
+#: the six game concepts to being here at all.
+MEANINGS: tuple[tuple[str, str, str], ...] = (
+    ('trace', 'trace',
+     'the clock inside a run. It only rises, and at 100 you are cut loose.'),
+    ('noise', 'noise',
+     'suspicion on the node you are standing in. It fades if you wait.'),
+    ('residue', 'residue',
+     'the evidence you leave behind. It follows you home as heat.'),
+    ('ice', 'ICE',
+     'countermeasures, and anything about their side of the wire.'),
+    ('credit', 'credits', 'money, and what things cost.'),
+    ('heat', 'heat',
+     'a faction\'s attention on you. Enough of it is a bounty.'),
+    ('ok', 'done', 'it worked.'),
+    ('warn', 'careful', 'a cost, a limit, or a thing to decide.'),
+    ('err', 'danger', 'it failed, or it can kill you.'),
+    ('accent', 'a word', 'a thing you can type, or a name that matters.'),
+    ('accent2', 'a scene', 'a heading, or something the city is doing.'),
+    ('dim', 'an aside', 'context. Safe to skim.'),
+)
+
+
 @dataclass(frozen=True, slots=True)
 class Palette:
     """Semantic roles, never raw colours at the call site.

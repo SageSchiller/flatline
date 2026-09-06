@@ -76,6 +76,7 @@ ORIENTATION = (
     ('map', 'the shape of where you are, city or network'),
     ('status', 'where you stand, and how fast'),
     ('chem', 'what is in you and what it is about to do'),
+    ('legend', 'the colours, and what each one means'),
 )
 
 
@@ -98,9 +99,41 @@ TOPICS: tuple[Topic, ...] = (
         'exploit to use. It is whether to spend time covering your tracks, '
         'knowing the trace advances while you do it.'
         '\n\n[warn]The other half.[/] The street, with the deck in the bag, can hurt you and at the top of its ladder kill you, and it can be fought, though it never has to be: every encounter offers a way out that is not a fight. `help street` for all of it.',
-        see=('triangle', 'firstrun', 'checks', 'saves', 'reading', 'shell'),
+        see=('triangle', 'firstrun', 'checks', 'saves', 'reading', 'shell',
+             'colours'),
         commands=('board', 'take', 'jack in'),
         terms=('what is this', 'premise', 'overview',),
+        group='start'),
+
+    Topic(
+        'colours', 'What the colours mean',
+        'One idea is one colour, everywhere. `legend` prints the key.',
+        'Every colour in this game is a meaning, and one meaning is one '
+        'colour wherever it appears. [trace]Trace[/] is always this colour, '
+        'whether it is a number in the prompt, a bar in `status`, or a word '
+        'in a sentence, and the same goes for [noise]noise[/], '
+        '[residue]residue[/], [ice]ICE[/], [credit]credits[/] and '
+        '[heat]heat[/]. That is why a word in the middle of a sentence '
+        'changes colour: it is not decoration, it is the sentence telling '
+        'you which of the six numbers it is talking about.\n\n'
+        'Three more carry a verdict rather than a thing: [ok]it worked[/], '
+        '[warn]careful[/], [err]it failed, or it can kill you[/]. Two carry '
+        'emphasis: [accent]a thing you can type, or a name that '
+        'matters[/], and [accent2]a heading, or something the city is '
+        'doing[/]. Everything [dim]dimmed[/] is context and safe to '
+        'skim. Words in backticks are things to type, and a raised number '
+        'is an aside, printed under the block that raised it.\n\n'
+        '`legend` prints all of this in the colours themselves, and it is '
+        'free to ask at any point. If colour is off, or the terminal cannot '
+        'do it, nothing is lost: every number says what it is in words as '
+        'well. `rice` changes which colours, never what they mean.\n\n'
+        'The decision it is there to serve: in a wall of scrollback, the '
+        'one number to find at a glance is the trace, and it is the one '
+        'colour nothing else ever uses. When you see it climbing past '
+        'seventy, the question is no longer what to take but when to leave.',
+        see=('reading', 'triangle', 'basics', 'shell'),
+        commands=('legend', 'status', 'rice'),
+        terms=('color', 'colors', 'key', 'pink', 'yellow', 'cyan', 'red'),
         group='start'),
     Topic(
         'firstrun', 'Your first run, step by step',
@@ -1641,7 +1674,7 @@ TOPICS: tuple[Topic, ...] = (
         'mentioned, which matters more than it sounds in a game whose whole '
         'tension is one rising number that you need to find at a glance in a '
         'wall of scrollback.',
-        see=('triangle', 'city', 'basics', 'clock'),
+        see=('triangle', 'city', 'basics', 'clock', 'colours'),
         commands=('look', 'rest', 'log'),
         covers=('events', 'cyberspace',),
         terms=('footnotes', 'flavour',),
@@ -1842,7 +1875,7 @@ TOPICS: tuple[Topic, ...] = (
         see=('saves', 'basics', 'death'),
         commands=('rice', 'title', 'career'),
         covers=('rice',),
-        terms=('ricing', 'theme', 'colours', 'colors', 'customise', 'customize',),
+        terms=('ricing', 'theme', 'customise', 'customize',),
         group='start'),
 )
 

@@ -80,9 +80,9 @@ def play(sess) -> None:
           'either any more. A voice you paid for waits on the line. It calls '
           'itself Switchboard.[/]')
     c.blank()
-    if pixels.can_render(c.caps):
-        # A face for the target, drawn, so the first thing a newcomer sees is
-        # the thing a terminal is not supposed to do.
+    if sess.render_mode in ('picture', 'wide') and pixels.can_render(c.caps):
+        # A face for the target, drawn, where the player has asked for
+        # pictures (D182: the words are the default).
         pix = pixels.render('sixes', 34, 14)
         if pix:
             anim.reveal(c, pix, 'their network, from the outside', quick=True)

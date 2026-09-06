@@ -4,7 +4,7 @@ tags:
   - project-plan
   - game
 created: 2026-08-12
-updated: 2026-09-04
+updated: 2026-09-06
 ---
 
 # flatline: Build Plan and Progress Log
@@ -12,6 +12,8 @@ updated: 2026-09-04
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
+> **State as of 2026-09-06: D182, the testers' first hour.** The first strangers played 1.0.1 and could not read it: nothing explained the sheet, the screen or the colours, the key/value lists read as wrapped prose, the prologue's last prompt printed its own markup, and the pixel pictures were ugly. D182 answers all of it on the release build: `legend` and `help colours`, a rule down every key/value grid, a gloss beside every number on `char`, question prompts rendered and fenced for readline, the tutorial turning itself on for the first runner on a profile with the step repeated under `now`, the words in place of the pictures (`rice render picture` brings them back), and tables allowed a hundred and twenty columns while prose stays at seventy-six. `validate.py` clean, `test.py` green at **20,356 checks** (`test_the_first_hour`, forty-five of them), the six campaigns clean. Counts that moved: 48 manual topics, 157 commands, 26 tutorial steps. **What is next:** the rest of the testers' notes as they come; the two follow-ups below are unchanged. The paragraph below is the state this was built on.
+>
 > **State as of 2026-09-05: version 1.0, tagged `v1.0` and public at github.com/SageSchiller/flatline under MIT, with `dist/flatline.pyz` on the release.** D1 to D181 are locked and the plan is current through all of them. `validate.py` clean, `test.py` green at **20,120 checks**, six campaigns and the two-hundred-shift life clean, every ending and both arcs reached by play. Counts (read off the code on 2026-09-05): 15 skills / 30 techniques, 33 traits, 12 origins, 14 icons, 58 implants, 13 weapons and 3 things to wear, 70 programs, 34 components, 14 drugs, 25 one of a kind, 28 ICE, 63 threads / 215 scenes / 208 decisions, 32 named people, 7 rivals, 204 events, 12 factions, 12 districts / 72 quarters / 60 places, 6 animals and 5 familiars, 28 record lines and 18 titles, 7 ambitions, 47 manual topics, 156 commands, 91 pieces of terminal across 9 axes. **What is next:** the author's own read-through of the prose, and the testers' notes; those become a fix pass and a `v1.0.1`. Two follow-ups are known and unbuilt: techniques that decide outcomes (a technique a network has not seen worth more than one it has), and the brief letting go of the verb after the tenth run against a target that remembers you. The paragraph below is the long day that got here.
 >
 > **State as of 2026-09-04, the long session (D133 to D179).** D133 to D143 landed first on top of the combat layer, all from the author's briefs and three rounds of play-testing, and the plan is current through all of them. First, the rest of the game met the fight (D133 to D136): street conditions, chem and traits that read a fighter, a clinic that patches a cut, the pit at Carrion's with a wall of names and a fixer's muscle work, and then the deck as a thing you live with in the city (mail, search, watch, message, ads) and a thing with a body (condition, reach, sweep, route, tune). Then the same method as D86 to D89 turned on all of it (D137 to D139): three play-tests of everything since D128 (a brawler, a netrunner who never throws a punch, a first-timer who does what `now` says), then three aimed at the deck and four at the fight and the pit, no crashes anywhere, nineteen fixes, and a balance simulation across the fighting routes with the measured take per shift written into `test_the_fight_under_pressure`. Then the story caught up with the street (D140, D141): rules that can read a skill, a rank in the pit, a habit, what you carry and what you have fought, eight new threads and three new people so that every gate in the game has fiction behind it, and `test_a_thread_for_every_way_of_working`, which fails the build if a system ships without a story. Last, against the Bartle axes, the two kinds of player the game had nothing for (D142, D143): `record`, twenty-four lines across the work, the city, the people and the floor that count things the engine actually writes, each crossing earning a name shown on `char`; and the main line paying off, the Deepwater palette gated behind finishing it, the city settling the water once and differently per ending, and *Afterwards*, the thread that hands the city back. Then the same method again (D144): an achiever playing for the record, the ending played three ways, and a fighter who ends on the main line; five campaigns, no crashes, every ending reached by play, and seven fixes, the largest being the posting that outlived its own ending and an afterwards that opened in the same breath as the offer. `validate.py` clean, `test.py` green at **18,991 checks**. Counts (read off the code on 2026-09-04): 15 skills / 30 techniques, 33 traits, 12 origins, 14 icons, 58 implants, 13 weapons and 3 things to wear, 70 programs, 34 components, 14 drugs, 25 one of a kind, 28 ICE, 63 threads / 215 scenes / 208 decisions, 32 named people with 129 topics, 7 rivals, 204 events, 12 factions, 12 districts / 72 quarters / 60 places, 24 street encounters, 5 names on the wall, 8 run conditions and 6 street nights, 28 record lines, 7 ambitions, 47 manual topics, 156 commands, 91 pieces of terminal across 9 axes. **The next thing worth doing is unchanged:** play it three ways with fresh briefs and fix what the players say. Nobody has yet played the under ending (read the log, consent to the archive, keep Lark alive), a chem habit through *Ninety*, or a campaign that lives on the deck's search and watches; and every play-test harness from here must set `XDG_DATA_HOME`. Then two more rounds the same day (D145, D146): six personas on the three corners nobody had reached by play (the fourth ending, retirement, a bond with another runner), no crashes, three fixes (a loadout dead-end that looped on a duplicate program, a partner bond that could not form, `market chrome`) and two confirmations (the under ending is complete, a death carried by the epilogue; retirement is sound); then four additions the round pointed at, a non-chrome path to the drift line, the posting's brief naming the route a network with no perimeter wants, the fence and the demonstrator introducing themselves through the work, and the README's counts held to the modules by `validate` so they cannot drift silently again. A regression of all nine personas on the fixed build is clean, and the partner bond and the hunted advice both visibly work now. Then the day kept going (D147 to D157): the walking answered (places and the district log), the hunt made visible (`rumours`, finds that sense), threads for the deck specialist and the reckoner, eighteen flavoured titles the player can pin with `called`, both kinds of pet (an animal kept at the safehouse that can be lost, a familiar that rides the deck and talks in runs, neither touching the work), `home`, and one more honest sweep that fixed five spine-shaped walls, the largest being `now` advising `drop` on the posting; and then five whole lives played through `campaign.py` (D158), which found the advice wrong in eight places, every one a loop a follower could not leave, and left four endings and a partner bond reached by play; then the five suggestions that round ended with, all built (D159): the street takes the money first, a quiet door out for a hunted runner with nothing, a follower fuzz in the suite that found its first stall on its first run, a run-craft persona that typed every technique and every origin verb, and three small text things; then (D160) the fuzz over every origin, each origin's verb held by state, toys for the animals, record lines for what you keep, and the quiet door caught by the regression opening too early and fixed; and (D161) the title for staying earned by turning the number, and four replies a band when you message a runner; then (D162) an ending never a stage's first answer, held by `validate`, *The Paper* on the other side of a bounty, and the six-campaign regression as one line; and (D163) `restore` recapping what matters and `now` naming the record line you are nearest; and (D164) the paper's collector named, the familiar's `done` and `home`, a `--long` follower, and the explorer's and socialiser's lists saying what is left; and (D165) the long follower's first two findings fixed and `who` with you on it; then the five design calls built (D166): told where to look, runners deciding about each other, the usurper on the wall, this life beside the profile, and a two-hundred-shift persona, which found (D167) the breaker advice buying what could never fit, fixed, and then lived to two hundred with the late game still deciding; then (D168) the stake brought down to fifteen thousand, a runner who asks you in, a watch `now` sets, and two scenes for the rivals' triangle; then (D169) the long wash, a bounty worked off, and the audit that holds every one of fifty-four threads open for the life it asks for; then (D170) the release checks a script can do: the 3.11 floor held, the pyz through a pty at three widths, every closing stage held, the door a distance on `home`; then the second arc (D171), *The Ninth Log*, about whichever runner the city chooses, with the first arc read back through the systems that came after it, and (D172) four subplots for the animal, the construct, the names and the door on three new rule kinds; then (D173) the retrofit the other way, three old threads closing on the partner and the name, a crew branch for the ninth log, the toy's scene and the wash's middle; and (D174) the partner as a clause the sentence can take either way; then (D175) the collector named inside the paper's scene, the record marking the profile's own line, and the origin threads played by play; then the second arc finishing clean on every branch (D176) and four long threads for the city at leisure (D177); and (D178) second scenes for the animal and the construct; then the one thing (D179): networks with memory, doors that stay cracked until patched, trails that teach them your techniques, routes and planted ways that persist and age, and a dossier on `render`. Tagged **v1.0** and made public on 2026-09-05. `test.py` green at **20,120**.
@@ -6297,6 +6299,73 @@ exit code zero), never on a crash. Tested the way the boot is: every rung,
 every width, every banner style, no rng touched, nothing of the report
 under the last frame.
 
+### D182: The first hour, read back by strangers
+
+The first testers on 1.0.1 said, in one line, that they were not certain
+what was going on. Unpacked from their notes: almost nothing was
+explained, not even the stats; the layout and the colours were confusing,
+with colour "breaking mid-sentence"; the key/value lists read as text that
+happened to wrap, and it took a while to see they were a grid ("background
+colours on the keys, or a unicode line"); dense scrolling text felt clumsy
+next to menus; somebody suggested a hundred and twenty columns instead of
+eighty; and the pixel icons and network pictures were ugly, and good
+descriptions would be better.
+
+**What was true, checked against the code before anything moved.** `begin`
+ran the prologue, handed the player to creation, and dropped them at `now`,
+which said "buy siphon, take c007" with no framing; the tutorial that
+explains all of it existed, twenty-five watching steps, and nothing started
+it. `char` printed five attributes and five derived numbers with no gloss
+anywhere on screen, and the tutorial's own step for it was stale (four
+derived numbers, Integrity named, Composure and Cover not). Six colours
+meant six things, and one paragraph of one manual topic said so. The
+"breaking mid-sentence" was inline colour by meaning, which wrapping
+preserves correctly, plus a few overuses (a whole warning paragraph on the
+origin card in red). One real bug: a question's prompt bypassed the
+renderer, so the prologue's last prompt arrived as `[err]it is coming[/]
+>` in every mode, and readline was never told about escapes in a prompt.
+`Console.kv` was a muted key, two spaces, and a plain value.
+
+**What changed.**
+
+1. **`legend`, and `help colours`.** `theme.MEANINGS` is the one place
+   that says which idea is which colour, `legend` prints each in its own
+   colour with what it means (and says so, in words, when colour is off),
+   and it is on the lost-right-now list. `validate` holds every role in
+   it to a palette field and the six game concepts to being in it.
+2. **The grid.** A rule in the border colour between every key and value,
+   carried down wrapped values. One change in `Console.kv`, so every
+   screen has it, colour or not.
+3. **The sheet says what every number is for.** `Attribute.gloss`, three
+   or four words beside each attribute, and `DERIVED_GLOSS` beside each
+   derived number with the attribute that feeds it; `validate` holds both
+   sets complete and short.
+4. **Question prompts rendered.** `ui.prompt_render`: the same rendering
+   as everything else, with every escape fenced in `\001` and `\002` so
+   readline does not count it.
+5. **The tutorial turns itself on.** The first runner on a profile gets
+   it at the end of creation, said plainly, with `tutorial stop` named.
+   The sheet step teaches the screen (title, rule, grid, prompt) and the
+   ten numbers correctly; a new step teaches `legend`; the current step
+   is repeated as the first line of `now`, because a screenful of
+   scrollback later that is where a newcomer looks. Twenty-six steps.
+6. **Words where the pictures were.** The render mode defaults to the
+   mark: the arrival paragraph on connect, the render string for the icon,
+   the looks line on the sheet, the ICE's text mark, and no pixel art
+   anywhere, the prologue's included. `rice render picture` brings all of
+   it back; nothing was deleted. The origin card's complication is a
+   warning lead and plain text rather than a red paragraph.
+7. **Columns wider than prose.** `TABLE_WIDTH` is a hundred and twenty and
+   `Caps.table_width` lets a table take it when the terminal has it;
+   prose stays at seventy-six. Sixty to eighty characters a line is the
+   readable range, and the tester's complaint was density, which width
+   makes worse. The map's district list already used the full width.
+
+**Not done, and why.** Menus: D2 stands, the shell is the game. Prose at a
+hundred and twenty: declined, above. The title skyline: kept, it is the
+title card and not an in-game picture. Held by `test_the_first_hour` and
+the six-campaign regression.
+
 ## Session log
 
 ### 2026-08-12 (a): project created
@@ -8008,3 +8077,12 @@ five more sentences from this week in the same place (rivals, threads,
 street, record, relics), all moved into their bodies with a guard in
 `validate`; and D181, the shutdown, because the author asked for an exit
 worth watching. Release `v1.0.1` carries all of it.
+
+### 2026-09-06 (a): the testers' first hour
+
+D182. The first strangers' notes on 1.0.1, sorted into what was true and
+answered on the build: the legend, the grid, the glossed sheet, the
+rendered prompt, the tutorial that turns itself on and stays under `now`,
+the words in place of the pictures, and tables allowed a hundred and
+twenty columns while prose stays at seventy-six. The README's screenshots
+regenerated on the new default. `test.py` green at 20,356.

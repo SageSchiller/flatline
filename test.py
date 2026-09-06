@@ -1072,6 +1072,105 @@ def _drive_run(sess):
 # --------------------------------------------------------------------------
 
 
+def test_the_first_hour() -> None:
+    """D182: what the testers could not read. The legend, the grid, the
+    glossed sheet, the rendered question prompt, the tutorial that turns
+    itself on for a first runner and stays visible under `now`, the words
+    where the pictures were, and columns wider than prose."""
+    T.section('the first hour')
+    import tempfile
+    from flatline import theme, ui
+    from flatline.content import manual, rice
+    from flatline.content import tutorial as tut
+    from flatline.content import attributes as attr_content
+    from flatline.session import Question
+    from flatline.ui import Caps, ColorLevel, GlyphLevel
+
+    # The legend: every meaning, in words, and honest about colour being off.
+    _, out = play(['legend'])
+    for _, label, meaning in theme.MEANINGS:
+        T.ok(label in out and meaning.split('.')[0] in out,
+             f'legend explains {label!r}')
+    T.ok('Colour is off' in out, 'and says so when the terminal has none')
+    T.eq(REGISTRY.lookup('legend').ticks, 0, 'legend is free')
+    T.ok('legend' in [n for n, _ in manual.ORIENTATION],
+         'and is on the lost-right-now list')
+    T.ok('colours' in manual.BY_KEY, 'help colours exists')
+
+    # The grid: a rule between key and value, carried down a wrapped value.
+    con = quiet_console(); con.start_capture()
+    con.kv([('credits', '2,400c'),
+            ('looks', ' '.join(['word'] * 30))])
+    out = con.end_capture()
+    lines = [l for l in out.split('\n') if l.strip()]
+    T.ok(lines[0].startswith('credits │ 2,400c'), 'a rule between key and value')
+    T.ok(all('│' in l for l in lines[1:]), 'and down every wrapped line')
+
+    # The sheet says what every number is for.
+    sess, out = play(['new Glossed --origin gutter --seed 3', 'char'])
+    flat = ' '.join(out.split())
+    for a in attr_content.ATTRIBUTES:
+        T.ok(a.gloss in flat, f'{a.name} is glossed on the sheet')
+    for key, gloss in attr_content.DERIVED_GLOSS.items():
+        T.ok(gloss in flat, f'{key} is glossed on the sheet')
+    T.ok('char --attributes' in flat, 'and points at the long form')
+    save_mod.delete(sess.slot)
+
+    # A question's prompt is rendered, and wrapped for readline in colour.
+    none = Caps(ColorLevel.NONE, GlyphLevel.UNICODE, 80, theme.NEUTRAL)
+    true = Caps(ColorLevel.TRUE, GlyphLevel.UNICODE, 80, theme.NEUTRAL)
+    T.eq(ui.prompt_render('[err]it is coming[/] > ', none), 'it is coming > ',
+         'a markup prompt is plain text without colour')
+    coloured = ui.prompt_render('[err]it is coming[/] > ', true)
+    T.ok(coloured.startswith('\001\033[') and '\002it is coming\001' in coloured,
+         'and its escapes are fenced for readline in colour')
+    sess = Session(console=quiet_console(), slot='pr')
+    sess.pending = Question(prompt='[err]it is coming[/] > ',
+                            handler=lambda s, l: None)
+    T.eq(sess.prompt(), 'it is coming > ', 'the session renders it')
+
+    # Pictures are off unless asked for; the words were always the render.
+    sess = Session(console=quiet_console(), slot='pm')
+    T.eq(sess.render_mode, 'mark', 'the render mode defaults to the mark')
+    T.eq(rice.DEFAULTS['render'], 'mark', 'and the catalogue agrees')
+
+    # Columns may use more than prose.
+    wide = Caps(ColorLevel.NONE, GlyphLevel.UNICODE, 140, theme.NEUTRAL)
+    T.eq(wide.text_width, 76, 'prose stays at seventy-six')
+    T.eq(wide.table_width, 120, 'tables may take a hundred and twenty')
+    T.eq(none.table_width, 80, 'and never more than the terminal has')
+
+    # The first runner on a profile gets the tutorial without asking, the
+    # second does not, and the step stays visible under `now`.
+    old_home = os.environ.get('XDG_DATA_HOME')
+    os.environ['XDG_DATA_HOME'] = tempfile.mkdtemp()
+    try:
+        sess, out = play(['new', '2', 'First', '1'])
+        T.ok('The tutorial is on' in out, 'a first runner gets the tutorial')
+        T.ok(0 <= sess.tutorial_step < len(tut.STEPS)
+             and tut.STEPS[sess.tutorial_step].key == 'sheet',
+             'and it stands at the sheet, the making being done')
+        T.eq(out.count('step 2 of'), 2,
+             'the step prints once, and once more under what now')
+        sess.console.start_capture(); sess.execute('now')
+        out = sess.console.end_capture()
+        T.ok('tutorial' in out and 'Type `char`' in out,
+             'now leads with the current step')
+        sess.console.start_capture(); sess.execute('char'); sess.execute('legend')
+        out = sess.console.end_capture()
+        T.ok('Type `legend`' in out, 'the sheet step hands on to the colours')
+        T.ok('Whenever a colour means nothing to you' in out,
+             'and legend completes it')
+        sess, out = play(['new', '2', 'Second', '1'])
+        T.ok('The tutorial is on' not in out and sess.tutorial_step < 0,
+             'a second runner is left alone')
+    finally:
+        if old_home is None:
+            del os.environ['XDG_DATA_HOME']
+        else:
+            os.environ['XDG_DATA_HOME'] = old_home
+
+
 def test_ui() -> None:
     T.section('ui')
     # Markup parses, measures, and renders without leaking codes into widths.
@@ -16243,6 +16342,7 @@ def test_player_icons() -> None:
     game.city.where = contract.district
     con = Console(true_caps, stream=io.StringIO())
     sess = Session(console=con, slot='ic'); sess.game = game
+    sess.render_mode = 'picture'      # D182: the words are the default
     con.start_capture()
     sess.execute(f'take {contract.cid}')
     sess.execute('jack in --force')
@@ -16407,6 +16507,9 @@ def test_the_portrait() -> None:
     game = Game.new(Character.from_origin('chromed', 'pt'), seed=5150)
     con = Console(true_caps, stream=io.StringIO())
     sess = Session(console=con, slot='pt'); sess.game = game
+    con.start_capture(); sess.execute('char'); out = con.end_capture()
+    T.ok('▀' not in out, 'char draws no portrait unless asked (D182)')
+    sess.render_mode = 'picture'
     con.start_capture(); sess.execute('char'); out = con.end_capture()
     T.ok('▀' in out, 'char draws the portrait in truecolour')
     con.start_capture(); sess.execute('self'); out = con.end_capture()
@@ -16824,7 +16927,7 @@ SUITES = (
     test_net_signatures, test_breadth, test_new_origins,
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
-    test_playthrough, test_ui,
+    test_playthrough, test_ui, test_the_first_hour,
 )
 
 

@@ -44,6 +44,15 @@ def cmd_now(sess, args) -> None:
     line, steps, also = what_now(sess)
     c.blank()
     c.rule('what now', role='accent2')
+    # The tutorial's current step, first, while it is on (D182): the step
+    # prints once when reached, and a screenful of scrollback later the one
+    # place a newcomer looks for it is here.
+    from ..content import tutorial
+    if 0 <= sess.tutorial_step < len(tutorial.STEPS):
+        step = tutorial.STEPS[sess.tutorial_step]
+        c.say(f'[accent2]tutorial[/]  [dim]step {sess.tutorial_step + 1} of '
+              f'{len(tutorial.STEPS)}:[/] [accent]{step.instruction}[/]',
+              indent='  ', subsequent='            ')
     if line:
         c.say(f'[dim]{line}[/]', indent='  ', subsequent='  ')
     width = max((len(cmd) for cmd, _ in steps), default=0)
@@ -548,6 +557,12 @@ def start_creation(sess, handle: str | None = None) -> None:
         problem = handle_problem(handle)
         if problem:
             raise CommandError(problem)
+    # The first runner on this profile gets the tutorial without asking
+    # (D182). Testers who were told `begin` teaches itself found that it
+    # taught the prologue and then stopped; nothing explained the sheet,
+    # the screen, or the colours, and the tutorial that does was one word
+    # nobody knew to type.
+    sess.teach = not [e for e in save_mod.roster() if not e.broken]
     origin_table(sess)
     _ask_origin(sess, handle)
 
@@ -737,6 +752,17 @@ def _close(sess) -> None:
     c.say('[dim]That is a runner. `char` is the sheet, `self` is the face, '
           '`trait` is who they are. Enter on an empty line, at any point, '
           'says what to do next:[/]')
+    if sess.teach and sess.tutorial_step < 0:
+        sess.teach = False
+        c.blank()
+        c.say('[accent]The tutorial is on[/][dim], because this is your '
+              'first runner here. It watches what you do and says the next '
+              'thing; `tutorial stop` turns it off, `tutorial` brings it '
+              'back, and Enter on an empty line repeats the step.[/]')
+        sess.tutorial_step = 0
+        # Having a character completes the first step; advancing here shows
+        # the second, so the advice below arrives with the step above it.
+        sess.tutorial_advance()
     sess.what_now()
 
 

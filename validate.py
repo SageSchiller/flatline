@@ -1147,6 +1147,18 @@ def check_debt(rep: Report) -> None:
 
 
 def check_skills(rep: Report) -> None:
+    # D182: every attribute and every derived number carries the gloss the
+    # sheet prints beside it, and every gloss names a number that exists.
+    for a in attr_content.ATTRIBUTES:
+        rep.check(bool(a.gloss) and len(a.gloss) <= 40, f'attributes/{a.key}',
+                  'gloss missing, or too long to sit beside the number')
+    for key in attr_content.DERIVED_GLOSS:
+        rep.check(callable(getattr(attr_content, key, None)),
+                  f'attributes/{key}', 'glossed number has no formula')
+    for name in ('bandwidth', 'integrity', 'focus', 'tempo', 'cover',
+                 'composure'):
+        rep.check(name in attr_content.DERIVED_GLOSS, f'attributes/{name}',
+                  'derived number has no gloss on the sheet')
     seen: set[str] = set()
     for s in skills.SKILLS:
         where = f'skills/{s.key}'
@@ -2907,6 +2919,22 @@ def check_theme(rep: Report) -> None:
                 int(colour.hex.lstrip('#'), 16)
             except ValueError:
                 rep.error(f'theme/{name}/{role}', f'bad hex {colour.hex!r}')
+
+    # D182: the legend names roles that exist, once each, and every game
+    # concept is in it. A colour with a meaning nobody wrote down is
+    # decoration.
+    roles = [r for r, _, _ in theme.MEANINGS]
+    for role in roles:
+        rep.check(role in theme.ROLES, 'theme/legend',
+                  f'legend names unknown role {role!r}')
+    for concept in ('trace', 'noise', 'residue', 'ice', 'credit', 'heat'):
+        rep.check(concept in roles, 'theme/legend',
+                  f'legend does not explain {concept!r}')
+    rep.check(len(roles) == len(set(roles)), 'theme/legend',
+              'a role is explained twice')
+    for role, label, meaning in theme.MEANINGS:
+        rep.check(bool(label) and bool(meaning) and len(label) <= 10,
+                  f'theme/legend/{role}', 'label or meaning is missing or long')
 
     # D16: the ASCII rung must actually be ASCII.
     for name, (uni, ascii_form) in ui.GLYPHS.items():

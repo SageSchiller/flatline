@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from enum import IntEnum
 
 from . import theme
-from .config import MIN_COLS, TEXT_WIDTH
+from .config import MIN_COLS, TABLE_WIDTH, TEXT_WIDTH
 from .theme import Palette
 
 # --------------------------------------------------------------------------
@@ -220,6 +220,13 @@ class Caps:
     @property
     def text_width(self) -> int:
         return min(TEXT_WIDTH, self.width)
+
+    @property
+    def table_width(self) -> int:
+        """Columns may use more than prose (D182): a table truncated at the
+        prose width loses its last column, and a paragraph set to the table
+        width is unreadable. Same terminal, two limits."""
+        return min(TABLE_WIDTH, self.width)
 
 
 def detect_caps(theme_name: str | None = None, ascii_only: bool = False,
@@ -510,6 +517,20 @@ def render(s: str, caps: Caps) -> str:
     return ''.join(out)
 
 
+def prompt_render(s: str, caps: Caps) -> str:
+    """Markup to a prompt string for `input()`.
+
+    The same rendering as everything else, with every escape wrapped in the
+    \\001 and \\002 that tell readline not to count it, or the cursor lands in
+    the wrong column the first time somebody presses backspace. A question's
+    prompt used to bypass rendering entirely and print its own markup, so the
+    prologue's last question arrived as `[err]it is coming[/] >` (D182).
+    """
+    if caps.color is ColorLevel.NONE:
+        return plain(s)
+    return _ANSI.sub(lambda m: '\001' + m.group(0) + '\002', render(s, caps))
+
+
 def wrap(s: str, cols: int, indent: str = '', subsequent: str | None = None) -> list[str]:
     """Word-wrap a markup string, preserving styling across line breaks.
 
@@ -700,19 +721,36 @@ class Console:
         self.raw(line)
         self.rule()
 
-    def kv(self, pairs, key_width: int | None = None, role: str = 'muted') -> None:
-        """Aligned label/value rows. The workhorse of every inspection command."""
+    def kv(self, pairs, key_width: int | None = None,
+           role: str | None = 'muted') -> None:
+        """Aligned label/value rows. The workhorse of every inspection command.
+
+        A rule between the label and the value (D182). Two columns of text
+        with a gap between them read as a paragraph that happened to wrap,
+        and the first thing a tester asked of the sheet was whether it was a
+        grid at all. It is, and now it looks like one on every terminal and
+        in every mode, colour or not.
+        """
         pairs = [(k, v) for k, v in pairs]
         if not pairs:
             return
         kw = key_width or max(width(k) for k, _ in pairs)
-        hang = ' ' * (kw + 2)
+        bar = self.caps.g('vline')
+        hang = ' ' * (kw + 3)
         for k, v in pairs:
             pad = ' ' * max(0, kw - width(k))
+            # A role of None means the key arrives styled: the legend colours
+            # each of its keys in the colour it is explaining.
+            key = k if role is None else f'[{role}]{k}[/]'
             # Values wrap under themselves rather than off the edge: several
-            # of these carry a whole sentence of faction doctrine.
-            for line in wrap(f'[{role}]{k}[/]{pad}  {v}',
-                             self.caps.text_width, subsequent=hang):
+            # of these carry a whole sentence of faction doctrine. The rule
+            # runs down the wrapped lines too, so a long value is still one
+            # row of the grid rather than a row and a paragraph.
+            lines = wrap(f'{key}{pad} [border]{bar}[/] {v}',
+                         self.caps.text_width, subsequent=hang)
+            for n, line in enumerate(lines):
+                if n:
+                    line = ' ' * kw + f' [border]{bar}[/] ' + line[len(hang):]
                 self.raw(line)
 
     def table(self, headers, rows, roles=None) -> None:
@@ -729,7 +767,7 @@ class Console:
         for row in rows:
             for i in range(cols):
                 widths[i] = max(widths[i], width(str(row[i])))
-        avail = self.caps.text_width - 2 * (cols - 1)
+        avail = self.caps.table_width - 2 * (cols - 1)
         while sum(widths) > avail:
             widths[widths.index(max(widths))] -= 1
 
