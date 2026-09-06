@@ -182,8 +182,11 @@ class Play:
                         return out
             m = re.search(r'`(travel \w+ --anyway)`', out)
             g = self.sess.game
-            broke_or_hurt = (g is not None and (g.char.credits < 500
-                                                or g.char.integrity < g.char.integrity_max // 2))
+            # A player who works takes the priced walk to a job they hold;
+            # a hurt one does not, and a broke one without a job does not.
+            broke_or_hurt = (g is not None and (
+                g.char.integrity < g.char.integrity_max // 2
+                or (g.char.credits < 500 and g.city.current is None)))
             if m and not broke_or_hurt:
                 out = self.do(m.group(1), note='heat: going anyway'); self.settle()
             elif m:

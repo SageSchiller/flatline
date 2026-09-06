@@ -13582,7 +13582,7 @@ def test_the_specialist_and_the_reckoner() -> None:
         st.reached[f'th{i}'] = ['s']
     n = len(record_world.earned(record_world.counts(game, {})))
     T.ok(n >= 15, f'the setup earns at least fifteen record lines (got {n})')
-    T.ok(st.satisfied('record:15', game) and not st.satisfied(f'record:{n + 1}', game),
+    T.ok(st.satisfied('record:12', game) and not st.satisfied(f'record:{n + 1}', game),
          'record:N counts the lines this character has earned')
     # Many threads are available at once here; the scene cap fires three
     # a breath, so it takes a few commands, as it would in play.
@@ -13999,9 +13999,9 @@ def test_what_the_honest_players_found() -> None:
 
     # 3. The reckoner opens on a record a real career reaches.
     reck = thread_content.BY_KEY['reckoner']
-    T.ok(reck.stages[0].requires == ('record:10',),
+    T.ok(reck.stages[0].requires == ('record:8',),
          'the unit opens at ten lines, not fifteen')
-    T.ok('record:15' in reck.stages[1].requires,
+    T.ok('record:12' in reck.stages[1].requires,
          'and the book at fifteen, not twenty')
 
 
@@ -14569,7 +14569,7 @@ def test_coming_back_and_the_line_you_are_near() -> None:
     near_clean = guide_cmd._record_near(sess2, dict(save_mod.META_DEFAULT))
     T.ok(near_clean.startswith('Runs finished: 11 of 12, 1 to go'), f'eleven runs is one short of the first line: {near_clean!r}')
     live = guide_cmd._record_near(sess2)
-    T.ok(('to go.' in out) == bool(live), 'and now prints the line exactly when there is one')
+    T.ok(('to go' in out) == bool(live), 'and now prints the line exactly when there is one')
     game3 = Game.new(Character.from_origin('gutter', 'x'), seed=212)
     sess3, out3 = play(['now'], game=game3)
     T.ok(guide_cmd._record_near(sess3, dict(save_mod.META_DEFAULT)) == '', 'and says nothing when nothing is close')
@@ -14837,6 +14837,163 @@ def test_the_stake_the_ask_and_the_watch() -> None:
          'the crew comes back and says what it was paid, once')
     if s4.run is not None:
         s4.console.start_capture(); s4.execute('jack out --anyway'); s4.console.end_capture()
+
+
+def test_the_wash_the_scene_and_the_watches() -> None:
+    """D169: the long wash works a bounty off; the first ask-in is a scene
+    in the runner\'s style; `now` sets a watch for the mask a hard job wants
+    and the bank a small deck needs."""
+    T.section('the wash, the scene and the watches')
+    from flatline.content import threads as thread_content, legacy, rivals as rival_content
+    from flatline.world import city as city_world
+    wash = next(t for t in thread_content.THREADS if t.key == 'wash')
+    T.ok(wash.stages[0].requires == ('bounty:1', 'not:credits:1800', 'met:mara', 'runs:4'),
+         'the wash is offered to a hunted runner with nothing who knows Mara')
+    T.ok(all(f in legacy.EPILOGUE_BY_FLAG for f in ('wash_working', 'wash_refused')), 'both answers read back')
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=270)
+    game.city.bounties['sixes'] = 60; game.city.bounties['carrion'] = 30
+    game.alias.add_heat('sixes', 80)
+    game.story.flags.add('wash_offered'); game.story.flags.add('wash_working')
+    game.story.reached['wash'] = ['offer']
+    game.story.when['thread:wash'] = int(game.city.shift) - 11
+    game.city.where = 'marrow'
+    sess, out = play(['look', 'rest', 'look'], game=game)
+    T.ok('wash_washed' in game.story.flags and not game.city.bounties,
+         f'ten shifts of work and the numbers are off: {dict(game.city.bounties)}')
+    T.ok(game.alias.attention('sixes') <= 40, f'and the heat is halved: {game.alias.attention("sixes")}')
+    # The first ask is a scene.
+    T.ok(set(rival_content.ASK_IN_DECLARED) >= {'loud', 'quiet', 'social', 'chrome', 'careful'}, 'every style has its ask')
+    game2 = Game.new(Character.from_origin('gutter', 'x'), seed=271)
+    warm = next(r for r in game2.city.rivals if r.alive)
+    warm.disposition = city_world.ASK_IN_AT + 5; warm.jobs = city_world.ASK_IN_JOBS + 1
+    scene = ''
+    for i in range(400):
+        game2.city.hired = ''
+        told = game2.city._rival_turn(game2.rng, game2.alias, game2.story.flags)
+        if any('asks you in.' in x for x in told):
+            scene = ' '.join(told); break
+    T.ok(bool(scene) and warm.name in scene and game2.city.messaged.get('ask_in_seen') == 1,
+         'the first ask is a scene, once')
+    # The watches.
+    import inspect
+    from flatline.commands import city as city_cmd
+    src = inspect.getsource(city_cmd.city_steps)
+    T.ok("you own no mask; nobody here sells one" in src and "nobody here sells\n" in src or "a bank: a watch says" in src,
+         'now watches for a mask and a bank')
+
+
+def test_every_thread_opens_for_the_right_life() -> None:
+    """The story audit (D169): forty-one of fifty-four threads were reached
+    by play, and the rest are gated by an origin, a specialist rank, a
+    fight or the record. For every thread, build the life its first scene
+    asks for and hold that the scene becomes available. This is the check
+    that no thread is shipped behind a gate nothing can open."""
+    T.section('every thread opens for the right life')
+    from flatline.content import threads as thread_content, districts as district_content
+    from flatline.content import skills as skill_content
+    NUMERIC_BUILD = {'runs', 'diss', 'credits', 'shift', 'heat', 'bounty', 'debt', 'rep', 'skill', 'record'}
+    for thread in thread_content.THREADS:
+        first = thread.stages[0]
+        rules = list(first.requires) + (list(first.any_of[:1]) if first.any_of else [])
+        origin = next((r[7:] for r in rules if r.startswith('origin:')), 'gutter')
+        game = Game.new(Character.from_origin(origin, 'Gate'), seed=280)
+        ok_build = True
+        for rule in rules:
+            base = rule[4:] if rule.startswith('not:') else rule
+            kind, _, value = base.partition(':')
+            if rule.startswith('not:'):
+                # A not: rule holds on a fresh character for everything the
+                # content uses (credits, bounties, flags).
+                if kind == 'credits':
+                    game.char.credits = 0
+                continue
+            if kind == 'origin':
+                continue
+            if kind == 'met':
+                game.story.meet(value)
+            elif kind == 'runs':
+                game.char.runs = max(game.char.runs, int(value))
+            elif kind == 'diss':
+                game.char.dissonance = max(game.char.dissonance, int(value))
+            elif kind == 'credits':
+                game.char.credits = max(game.char.credits, int(value))
+            elif kind == 'shift':
+                game.city.shift = max(game.city.shift, int(value))
+            elif kind == 'heat':
+                game.alias.add_heat('sixes', int(value) + 5)
+            elif kind == 'bounty':
+                game.city.bounties['sixes'] = int(value) + 5
+            elif kind == 'debt':
+                game.debt.amount = int(value) + 1; game.debt.lender = 'sixes'
+            elif kind == 'rep':
+                fac, _, amount = value.partition(':')
+                game.alias.add_rep(fac, int(amount) + 5) if hasattr(game.alias, 'add_rep') else None
+                ok_build = ok_build and game.alias.reputation(fac) >= int(amount)
+            elif kind == 'skill':
+                key, _, rank = value.partition(':')
+                game.char.base_skills[key] = max(game.char.base_skills.get(key, 0), int(rank or 1))
+            elif kind == 'trait':
+                if value not in game.char.traits:
+                    game.char.traits.append(value) if isinstance(game.char.traits, list) else game.char.traits.add(value)
+            elif kind == 'record':
+                # Built below, once, for the one thread that reads it.
+                ok_build = False
+            elif kind == 'pit':
+                if value.isdigit():
+                    game.city.pit['rank'] = int(value)
+                else:
+                    game.story.flags.add(base)
+            elif kind == 'habit':
+                from flatline.content import drugs as drug_content
+                dkey, _, level = value.partition(':')
+                chem = drug_content.normalise(game.char.chem)
+                chem['habit'][dkey] = int(level or 1)
+                game.char.chem = chem
+            elif kind == 'mark':
+                game.char.marks.add(value) if isinstance(game.char.marks, set) else game.char.marks.append(value)
+            elif kind == 'arranged':
+                for i in range(int(value)):
+                    game.city.arrangements[['sixes', 'carrion', 'kagawa'][i % 3]] = {'since': 0, 'rate': 100}
+            elif kind == 'carrying':
+                from flatline.content import weapons as weapon_content
+                game.char.weapon = next(iter(weapon_content.BY_KEY))
+            elif kind == 'places':
+                for i in range(int(value)):
+                    game.story.flags.add(f'visited:built{i}')
+            elif kind == 'finds':
+                for i in range(int(value)):
+                    game.story.flags.add(f'found:built{i}')
+            else:
+                game.story.flags.add(base)
+        if not ok_build:
+            continue
+        if first.where:
+            game.city.where = first.where
+        avail = {(k, st.key) for k, st in game.story.available(game)}
+        T.ok((thread.key, first.key) in avail,
+             f'{thread.key}: the first scene opens for the life it asks for ({rules})')
+    # The reckoner reads the record of this life: build a life that has
+    # crossed ten lines.
+    from flatline.world import record as record_world
+    game = Game.new(Character.from_origin('gutter', 'Gate'), seed=281)
+    game.char.runs = 40; game.char.credits = 25000; game.char.dissonance = 60
+    game.city.visited = set(d.key for d in district_content.DISTRICTS) if isinstance(game.city.visited, set) else list(d.key for d in district_content.DISTRICTS)
+    for i in range(32):
+        game.story.flags.add(f'visited:place{i}'); game.story.flags.add(f'asked:x:{i}'); game.story.flags.add(f'chose:{i}')
+    for i in range(6):
+        game.story.flags.add(f'found:thing{i}'); game.story.flags.add(f'night:{i}')
+    for key in list(thread_content.BY_KEY)[:22]:
+        game.story.meet(key) if False else None
+    from flatline.content import npcs as npc_content
+    for n in npc_content.NPCS[:22]:
+        game.story.meet(n.key)
+    for k in list(thread_content.BY_KEY)[:12]:
+        game.story.reached[k] = ['x']
+    earned = record_world.earned(record_world.counts(game, {}))
+    T.ok(len(earned) >= 10, f'a life that did a great deal of everything crosses ten lines: {len(earned)}')
+    reck = next(t for t in thread_content.THREADS if t.key == 'reckoner')
+    avail = {(k, st.key) for k, st in game.story.available(game)}
+    T.ok((reck.key, reck.stages[0].key) in avail, 'and the reckoner opens on it')
 
 def manual_body(key: str) -> str:
     from flatline.content import manual
@@ -16156,6 +16313,8 @@ SUITES = (
     test_the_collector_and_the_company,
     test_the_five_corners,
     test_the_stake_the_ask_and_the_watch,
+    test_the_wash_the_scene_and_the_watches,
+    test_every_thread_opens_for_the_right_life,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

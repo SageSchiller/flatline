@@ -1101,6 +1101,58 @@ BUYOFF = 2500
 #: Threads that sit beside a district's own (D65 depth): a second story in
 #: a place that already has one. Merged into `threads.THREADS` with the rest.
 MORE_THREADS: tuple[Thread, ...] = (
+    # -- The long wash (D169) ------------------------------------------------
+    # The third way out from under a number, for the runner who cannot pay
+    # for a name and will not take the box: work. Mara launders the name
+    # over ten shifts of Switchboard work, and at the end of it nobody is
+    # paying to find you, and the heat is half what it was.
+    Thread(
+        'wash', 'The Long Wash',
+        'Mara will launder the name, for work rather than money, over ten shifts.',
+        stages=(
+            Stage('offer', 'Work it off',
+                  'Mara closes the book, which she does not do. "There is a '
+                  'number on you and there is nothing in your account and '
+                  'you have not taken the box out, which I would have heard '
+                  'about. So." She opens the book again to a page you have '
+                  'not seen. "Ten shifts. You work what I give you, you take '
+                  'what it pays, and at the end of it the name is clean, '
+                  'because I will have made it clean, slowly, the way it is '
+                  'done when nobody is paying for it fast."'
+                  '\n\nIt is not a favour. She says that too.',
+                  requires=('bounty:1', 'not:credits:1800', 'met:mara', 'runs:4'),
+                  sets=('wash_offered',),
+                  choices=(
+                      Choice('work', 'Work it off',
+                             'You say yes, and she writes something, and '
+                             'from then on the jobs that come through her '
+                             'come with a second line under them that you '
+                             'are not shown. Ten shifts. The city does not '
+                             'notice you doing it, which is the whole of '
+                             'what she is selling.',
+                             sets=('wash_working',)),
+                      Choice('no', 'Keep the name as it is',
+                             'You say no. She does not ask why, and she '
+                             'writes nothing, and the number on your name '
+                             'stays the number it was, and the book stays '
+                             'open at the old page.',
+                             sets=('wash_refused',)),
+                  ),
+                  where='marrow'),
+            Stage('washed', 'The name comes clean',
+                  'Ten shifts, and Mara says nothing about it, and then '
+                  'says one thing: "Done." The number is off. Nobody is '
+                  'paying for you this week, and the ones who were angry '
+                  'are half as angry, which is the most that can be done '
+                  'for anger by paperwork. She does not say what it cost '
+                  'her. It cost her something.',
+                  requires=('wash_working',),
+                  any_of=('wash_working', 'wash_refused'),
+                  sets=('wash_washed',),
+                  after=10,
+                  where='marrow'),
+        )),
+
     # -- The paper (D162) ----------------------------------------------------
     # The other side of a bounty: the freight line is the way out, this is
     # the thing coming in. Somebody has taken the paper on your name, and
@@ -1701,7 +1753,7 @@ MORE_THREADS: tuple[Thread, ...] = (
                   'Nobody decided to do this. It is what a city does with a '
                   'name it has heard attached to enough things: it stops being '
                   'a person and becomes a way of measuring the thing they did.',
-                  requires=('record:10',),
+                  requires=('record:8',),
                   sets=('reckoner_heard',)),
             Stage('meet', 'Somebody has been keeping the count',
                   'It turns out somebody has been keeping the actual count, on '
@@ -1714,7 +1766,7 @@ MORE_THREADS: tuple[Thread, ...] = (
                   'are not many and none of them lasted, and I would like to '
                   'have got yours down right before the same thing happens to '
                   'you. Tell me if I have any of it wrong."',
-                  requires=('reckoner_heard', 'record:15'),
+                  requires=('reckoner_heard', 'record:12'),
                   sets=('reckoner_met',),
                   choices=(
                       Choice('correct', 'Put them right where they are wrong',

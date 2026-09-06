@@ -1486,6 +1486,14 @@ def _check_story(sess) -> None:
             c.blank()
         if 'paper_taken' in stage.sets:
             _take_paper(sess)
+        if 'wash_washed' in stage.sets:
+            # The name comes clean (D169): the numbers come off, and the
+            # heat that put them there is halved.
+            game.city.bounties.clear()
+            for fac_key in list(factions.BY_KEY):
+                hot = int(game.alias.attention(fac_key))
+                if hot > 0:
+                    game.alias.add_heat(fac_key, -(hot // 2))
         if stage.posts is not None:
             # The scene put something on the board. Said in the board's own
             # terms, because the next thing the player types is `board`.

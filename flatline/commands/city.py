@@ -2993,6 +2993,31 @@ def city_steps(game) -> list[tuple[str, str]]:
                           f'nothing here does the job and the deck can look '
                           f'for you: a watch says when {want_watch.name} lands '
                           f'on a shelf, and where'))
+    # The same for the mask a hard job wants and the bank a small deck
+    # needs (D169), so the deck works for you all game, not only for the
+    # payload.
+    if ('market' in game.city.district.services and not game.city.watches
+            and contract is not None):
+        for_sale_now = {l.key for l in game.city.listings('program')} \
+            | {l.key for l in game.city.listings('component')}
+        if (int(contract.posture) >= MASK_POSTURE and 'mask' not in owned):
+            want_mask = min((p for p in programs.by_category('mask') if not p.unique),
+                            key=lambda p: p.price, default=None)
+            if want_mask is not None and want_mask.key not in for_sale_now:
+                steps.append((f'watch {want_mask.key}',
+                              f'this job is posture {int(contract.posture)} and '
+                              f'you own no mask; nobody here sells one, and a '
+                              f'watch says when {want_mask.name} lands, and where'))
+        plan_memory = sum(p.memory for p in _loadout_plan(game))
+        need_payload = OBJECTIVE_PROGRAM.get(contract.objective, '')
+        if need_payload and not any(p.category == need_payload for p in _loadout_plan(game)):
+            bank = min((h for h in hardware.BY_KEY.values() if h.slot == 'memory'),
+                       key=lambda h: h.price, default=None)
+            if bank is not None and bank.key not in for_sale_now:
+                steps.append((f'watch {bank.key}',
+                              f'the deck cannot hold the breaker and the '
+                              f'{need_payload} together, and nobody here sells '
+                              f'a bank: a watch says when {bank.name} lands, and where'))
     if 'payload' not in owned:
         cheapest = min((p for p in programs.by_category('payload')
                         if not p.unique), key=lambda p: p.price, default=None)

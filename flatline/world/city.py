@@ -25,6 +25,7 @@ from . import contracts as contract_mod
 from . import debt as debt_mod
 from . import fallout as fallout_mod
 from . import rivals as rival_mod
+from ..content import rivals as rival_content
 from . import market as market_mod
 from .contracts import Contract
 from .market import Listing
@@ -656,6 +657,14 @@ class City:
                 line = (f'[ok]{who.name} asks if you want them in on your next '
                         f'job. Their cut, their idea. The next thing you take, '
                         f'they are in it.[/]')
+                if not self.messaged.get('ask_in_seen'):
+                    # The first time is a scene, in their own style (D169).
+                    self.messaged['ask_in_seen'] = 1
+                    table = rival_content.ASK_IN_DECLARED
+                    said = table.get(who.data.style) or next(iter(table.values()))
+                    told.append('')
+                    told.append(f'[accent2]{who.name} asks you in.[/]')
+                    told.append(said.format(name=who.name))
                 told.append(line)
                 self.news.append(line)
         # A nemesis hires your crew out from under you for a night (D166):

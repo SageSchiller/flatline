@@ -339,6 +339,31 @@ NEMESIS_DECLARED = {
               'with the same evenness they carry out everything.',
 }
 
+#: The first time somebody asks you in on a job (D169), by style. Once.
+ASK_IN_DECLARED = {
+    'loud': '{name} does not ask so much as announce it, in a bar, to the '
+            'bar: "I am working with them next. Their job, my cut, and if '
+            'anybody has an opinion about it I am right here." Nobody has '
+            'an opinion. That was the point of saying it there.',
+    'quiet': '{name} is beside you before you have seen them arrive, which '
+             'is their whole style, and says the job, the door and the cut '
+             'in one sentence, and then, "If you want." You had not known '
+             'they knew your jobs. They know your jobs.',
+    'social': '{name} buys the drink first and asks second, and the asking '
+              'is shaped so that saying no would be a small unkindness to '
+              'somebody who has just bought you a drink. It is a good '
+              'shape. They are good at shapes.',
+    'chrome': '{name} says it flat, the way the chrome says everything: '
+              '"Your next one. I am in. My cut." A pause while something '
+              'behind their eyes finishes a calculation. "You are worth '
+              'working beside. That is the whole message."',
+    'careful': '{name} has thought about it for longer than you have known '
+               'them, and says so, and then says the job, the cut and the '
+               'one condition, which is that you do not tell anybody they '
+               'asked. They are careful about whom they are seen deciding '
+               'about.',
+}
+
 PARTNER_DECLARED = {
     'loud': '{name} tells somebody, loudly, in front of you, that you are '
             'the only person in this city who has never once let them down. '

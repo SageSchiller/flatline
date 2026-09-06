@@ -122,3 +122,14 @@ walk when broke or hurt now. With that: seven campaigns alive, 0 crashes,
 three endings and a partner bond by play, the long life to shift 211 (it
 declined 3,978 hostile walks and ran less for it, which is the honest
 cost of caution). The ask-in fired in four campaigns.
+
+## Round six, 2026-09-05 (D169): the audit
+
+Union of every campaign's save: 41 of 54 threads reached by play. Never
+reached: seven origin threads (the campaigns use five origins), three
+specialist-rank threads, the demonstration (a fight flag), the reckoner
+(the record). All twelve open for the life they ask for, held by
+`test_every_thread_opens_for_the_right_life`. The reckoner's gate moved to
+eight lines because the long life's own record was eight after two
+hundred shifts. Seven campaigns alive; the long life to shift 201, 36 runs,
+employed at 92, four names.

@@ -178,6 +178,13 @@ def ending(dissonance: int, flags=()) -> tuple[str, str]:
 #: fails the build on a decision this forgets, because an ending that does
 #: not mention what you did to Lark is an ending to somebody else's game.
 EPILOGUE: tuple[tuple[str, str], ...] = (
+    # The long wash (D169)
+    ('wash_working',
+     'You worked the number off your name through Mara, ten shifts of work '
+     'she never showed you the second line of, and came out clean.'),
+    ('wash_refused',
+     'Mara offered to launder the name for work and you kept it as it was, '
+     'number and all, which is a kind of pride the city has a word for.'),
     # The paper (D162)
     ('paper_ground',
      'When somebody took the paper on your name you went to ground and let '
