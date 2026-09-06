@@ -14,9 +14,11 @@ deliberate, so they are reported and do not fail.
 from __future__ import annotations
 
 import pathlib
+import re
 import sys
 
 from flatline import commands  # noqa: F401  (registers the command table)
+from flatline.commands import people as people_cmd
 from flatline import script as script_mod
 from flatline import theme, ui
 from flatline.content import appearance
@@ -2494,6 +2496,12 @@ def check_threads(rep: Report) -> None:
                                and len(st.choices) > 1),
                           f'{sw}/{choice.key}',
                           'ends the character and is the first answer')
+                for tok in re.findall(r'\{(\w+)\}', choice.text):
+                    rep.check('{' + tok + '}' in people_cmd.FILL_TOKENS, f'{sw}/{choice.key}',
+                              f'carries a token the world does not fill: {{{tok}}}')
+            for tok in re.findall(r'\{(\w+)\}', st.text + st.headline):
+                rep.check('{' + tok + '}' in people_cmd.FILL_TOKENS, sw,
+                          f'carries a token the world does not fill: {{{tok}}}')
                 for faction in choice.rep:
                     rep.check(faction in factions.BY_KEY, f'{sw}/{choice.key}',
                               f'unknown faction {faction!r}')
@@ -4453,7 +4461,7 @@ def check_pets(rep: Report) -> None:
     rep.check(len(fam_tones) >= 3
               and ('unsettling' in fam_tones or 'grim' in fam_tones),
               'pets/familiar', 'the familiars are all one register')
-    beats = ('connect', 'amber', 'red', 'lockdown', 'blackice', 'clean', 'done', 'home',
+    beats = ('connect', 'amber', 'red', 'lockdown', 'blackice', 'clean', 'done', 'home', 'log',
              'burned', 'idle', 'low', 'dormant')
     for f in pet_content.FAMILIARS:
         where = f'pets/familiar/{f.key}'

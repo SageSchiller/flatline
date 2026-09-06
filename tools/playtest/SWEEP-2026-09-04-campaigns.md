@@ -133,3 +133,10 @@ specialist-rank threads, the demonstration (a fight flag), the reckoner
 eight lines because the long life's own record was eight after two
 hundred shifts. Seven campaigns alive; the long life to shift 201, 36 runs,
 employed at 92, four names.
+
+## Round seven, 2026-09-05 (D171, D172): the second arc and the four subplots
+
+Six campaigns and the long life on the build with *The Ninth Log* and the
+four system subplots. 0 crashes. All five new threads reached by play on the
+first run; the fighter took the ninth log to the table and earned "who wrote
+the tenth log". The long life: shift 184, 66 runs, 42 of 59 threads.

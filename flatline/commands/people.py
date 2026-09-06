@@ -1130,7 +1130,7 @@ def cmd_journal(sess, args) -> None:
                 continue
             c.blank()
             c.rule(stage.headline)
-            for para in stage.text.split('\n\n'):
+            for para in story_fill(game, stage.text).split('\n\n'):
                 c.say(para)
                 c.blank()
             # What you decided, and what it cost, under the scene it
@@ -1235,7 +1235,7 @@ def cmd_choose(sess, args) -> None:
 
     if not len(args):
         c.header(thread.name, stage.headline)
-        for para in stage.text.split('\n\n'):
+        for para in story_fill(game, stage.text).split('\n\n'):
             c.say(para)
             c.blank()
         c.rule('what you do')
@@ -1269,7 +1269,7 @@ def cmd_choose(sess, args) -> None:
                           f'{choice.label.lower()}.')
     c.blank()
     c.rule(choice.label, role='accent2')
-    for para in choice.text.split('\n\n'):
+    for para in story_fill(game, choice.text).split('\n\n'):
         c.say(para)
         c.blank()
     if set(choice.sets) & thread_content.SPINE_ENDINGS:
@@ -1316,6 +1316,8 @@ def cmd_choose(sess, args) -> None:
         game.char.dissonance = max(0, min(100, before + choice.drift))
         c.say(f'[accent2]Dissonance {before} to {game.char.dissonance}.[/]')
     _settle_paper(sess, choice)
+    _settle_nine(sess, choice)
+    _settle_systems(sess, choice)
     sess.autosave()
     if choice.ends:
         # The third exit. The choice has already said what happened; this
@@ -1374,6 +1376,131 @@ def _find(sess, query: str):
 
 #: How many scenes fire on one command. See `_check_story`.
 SCENES_AT_ONCE = 3
+
+
+#: Tokens a scene may carry (D171): the world fills them at print time, so
+#: a thread can be about whichever runner the city chose.
+FILL_TOKENS = ('{runner}', '{runner_handle}', '{partner}', '{pet}', '{familiar}')
+
+
+def story_fill(game, text: str) -> str:
+    """The scene with the city\'s names in it."""
+    if '{' not in text:
+        return text
+    ninth = game.city.rival(game.city.ninth) if game.city.ninth else None
+    from ..world import rivals as rival_world
+    partner = rival_world.active_partner(game.city.rivals)
+    pet = game.city.pet or {}
+    fam = game.char.deck.familiar or {}
+    fill = {
+        'runner': ninth.name if ninth is not None else 'the ninth runner',
+        'runner_handle': ninth.data.handle if ninth is not None else 'the ninth',
+        'partner': partner.name if partner is not None else 'nobody',
+        'pet': pet.get('name') or 'nothing',
+        'familiar': fam.get('name') or 'nothing',
+    }
+    for key, value in fill.items():
+        text = text.replace('{' + key + '}', value)
+    return text
+
+
+def _name_the_ninth(sess) -> None:
+    """The ninth log has a name (D171): the runner the city chooses is the
+    one you are bound to if you are bound to anybody, else the one with the
+    most work behind them, alive. Chosen before the scene prints, because
+    the scene says the name."""
+    game = sess.game
+    if game.city.ninth and game.city.rival(game.city.ninth) is not None:
+        return
+    living = [r for r in game.city.rivals if r.alive]
+    if not living:
+        return
+    bonded = [r for r in living if r.bond in ('partner', 'nemesis')]
+    pool = bonded or living
+    game.city.ninth = max(pool, key=lambda r: (r.jobs, r.disposition, r.key)).key
+
+
+def _settle_nine(sess, choice) -> None:
+    """What the answers about the ninth log do to the runner it belongs to
+    (D171). The runner is whoever the city chose, so this is code, not a
+    static `disposition=` on the choice."""
+    game = sess.game
+    rival = game.city.rival(game.city.ninth) if game.city.ninth else None
+    if rival is None or not rival.alive:
+        return
+    deltas = {'nine_told': 12, 'nine_sold': -10, 'nine_together': 40,
+              'nine_alone': -5, 'nine_handed': -80}
+    for flag, delta in deltas.items():
+        if flag in choice.sets:
+            rival.adjust_disposition(delta)
+    if 'nine_together' in choice.sets and not game.city.crew and not game.city.hired:
+        # They are in on your next one, their idea this time.
+        game.city.hired = rival.key
+        game.city.asked_in = rival.key
+
+
+def _settle_systems(sess, choice) -> None:
+    """What the subplots for the new systems do to those systems (D172):
+    the animal goes, the construct is dropped or handed over, the name is
+    worn or thrown back."""
+    from .. import save as save_mod
+    game, c = sess.game, sess.console
+    if 'stray_given' in choice.sets and game.city.pet:
+        game.city.pet = {}
+    if ('construct_wiped' in choice.sets or 'construct_given' in choice.sets) and game.char.deck.familiar:
+        game.char.deck.familiar = {}
+    if 'names_worn' in choice.sets or 'names_refused' in choice.sets:
+        try:
+            meta = save_mod.read_meta()
+            if 'names_worn' in choice.sets:
+                from ..content import record as record_content
+                earned = [t for t in record_content.TITLES if game.story.satisfied(t.rule, game)]
+                if earned:
+                    meta['called'] = earned[0].name
+                    c.say(f'[dim]The city calls you [/][accent2]{earned[0].name}[/][dim] now. `called` to change it.[/]')
+            else:
+                meta['called'] = ''
+            save_mod.write_meta(meta)
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def _scene_asides(sess, stage) -> None:
+    """The systems that arrived after the main line was written, reading
+    it (D171): the familiar on the deck when your own log comes out, the
+    partner when the offer does, the animal and the construct when the
+    city is handed back."""
+    from ..content import pets as pet_content
+    from ..world import pets as pet_world, rivals as rival_world
+    game, c = sess.game, sess.console
+    if 'dw_carried' in stage.sets:
+        fam_state = game.char.deck.familiar or {}
+        fam = pet_content.FAMILIAR_BY_KEY.get(fam_state.get('key', '')) if fam_state else None
+        if fam is not None and fam.says.get('log'):
+            c.say(f'[dim]{fam.says["log"][0]}[/]')
+            c.blank()
+    if 'dw_offer' in stage.sets:
+        partner = rival_world.active_partner(game.city.rivals)
+        if partner is not None:
+            c.say(f'[dim]{partner.name} reads it over your shoulder, which they '
+                  f'do not do, and asks what it pays, and then, after a while, '
+                  f'what it costs.[/]')
+            c.blank()
+    if 'after_rest' in stage.sets:
+        if game.city.pet:
+            line = pet_world.greeting(game.city)
+            if line:
+                c.say(f'[dim]{line}[/]')
+                c.blank()
+        fam_state = game.char.deck.familiar or {}
+        fam = pet_content.FAMILIAR_BY_KEY.get(fam_state.get('key', '')) if fam_state else None
+        if fam is not None and fam.says.get('home'):
+            c.say(f'[dim]{fam.says["home"][0]}[/]')
+            c.blank()
+    if 'nine_found' in stage.sets:
+        rival = game.city.rival(game.city.ninth) if game.city.ninth else None
+        if rival is not None and rival.alive:
+            rival.adjust_disposition(-25)
 
 
 def _take_paper(sess) -> None:
@@ -1473,6 +1600,8 @@ def _check_story(sess) -> None:
             held.append(pair)
     for thread_key, stage in firing:
         thread = thread_content.BY_KEY[thread_key]
+        if 'nine_named' in stage.sets:
+            _name_the_ninth(sess)
         game.story.reach(thread_key, stage, game.city.shift)
         # The wire carries the story too (D56): a scene is something the
         # city did, and `news` is where what the city did goes.
@@ -1481,9 +1610,10 @@ def _check_story(sess) -> None:
         c.rule(thread.name, role='accent2')
         c.say(f'[dim]{stage.headline}[/]')
         c.blank()
-        for para in stage.text.split('\n\n'):
+        for para in story_fill(game, stage.text).split('\n\n'):
             c.say(para)
             c.blank()
+        _scene_asides(sess, stage)
         if 'paper_taken' in stage.sets:
             _take_paper(sess)
         if 'wash_washed' in stage.sets:

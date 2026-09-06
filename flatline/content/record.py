@@ -227,6 +227,17 @@ TITLES: tuple[Title, ...] = (
           'carrier_told',
           'You climbed a tank on legs to help an eleven-year-old point a dish '
           'at the sea, and told them what it was hearing, and meant it.'),
+    # The names (D172)
+    Title('osei', 'what Osei calls you', 'amusing', 'names_own',
+          'You asked, and he told you, and it was shorter and worse and more '
+          'accurate than any of the others, and you cannot un-know it.'),
+    # The ninth log (D171)
+    Title('tenth', 'who wrote the tenth log', 'heroic', 'nine_together',
+          'Two handles in one header, which had never happened, and the eight '
+          'who did it alone would have understood why you did not.'),
+    Title('ninthsold', 'who handed over the ninth', 'vile', 'nine_handed',
+          'A runner with a log longer than their career, filed to the client '
+          'that wrote it, for a sum. The Archivist did not turn their chair.'),
     # The quiet door (D160)
     Title('freight', 'who left on the freight line', 'amusing', 'left_quietly',
           'You went out in a box that smelled of what it carried before, and '

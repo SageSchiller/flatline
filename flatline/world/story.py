@@ -101,6 +101,52 @@ class Story:
             return game.city.shift >= int(value)
         if kind == 'heat':
             return game.alias.hottest[1] >= int(value)
+        if kind == 'pet':
+            # The animal at the safehouse (D172): `pet:any`, `pet:kept:N`
+            # (shifts it has been yours), `pet:<species>`.
+            pet = game.city.pet or {}
+            what, _, amount = value.partition(':')
+            if not pet:
+                return False
+            if what in ('any', ''):
+                return True
+            if what == 'kept':
+                return int(game.city.shift) - int(pet.get('since', game.city.shift)) >= int(amount or 1)
+            return pet.get('key') == what
+        if kind == 'familiar':
+            # The construct on the deck (D172): `familiar:any`, `familiar:N`
+            # (runs it has ridden), `familiar:dormant`, `familiar:<key>`.
+            fam = game.char.deck.familiar or {}
+            if not fam:
+                return False
+            if value in ('any', ''):
+                return True
+            if value.isdigit():
+                return int(fam.get('runs', 0)) >= int(value)
+            if value == 'dormant':
+                return int(fam.get('charge', 1)) <= 0
+            return fam.get('key') == value
+        if kind == 'titles':
+            # How many of the flavoured names this life has earned (D172),
+            # live, the way `record:` is live.
+            from ..content import record as record_content
+            return sum(1 for t in record_content.TITLES
+                       if self.satisfied(t.rule, game)) >= int(value)
+        if kind == 'ninth':
+            # The runner whose log was the ninth (D171): whether they are
+            # still working, and what they are to you now.
+            rival = game.city.rival(game.city.ninth) if game.city.ninth else None
+            if rival is None:
+                return False
+            if value == 'alive':
+                return bool(rival.alive)
+            if value == 'dead':
+                return not rival.alive
+            if value in ('partner', 'nemesis'):
+                return rival.alive and rival.bond == value
+            if value == 'crew':
+                return rival.alive and game.city.crew.get('key') == rival.key
+            return False
         if kind == 'bounty':
             # Somebody paying to find this name (D159): the number, not
             # the heat, which cools; a bounty does not.

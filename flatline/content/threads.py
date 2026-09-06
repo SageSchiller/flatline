@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 #: 'runs:N', 'diss:N', 'shift:N', 'credits:N', 'heat:N', 'met:<npc>',
 #: 'rep:<faction>:N', 'ran:<faction>', 'did:<thread.stage>' (a posting
 #: finished, see `Posting`).
-CONDITIONS = ('runs', 'diss', 'shift', 'credits', 'heat', 'bounty', 'met', 'rep',
+CONDITIONS = ('runs', 'diss', 'shift', 'credits', 'heat', 'bounty', 'ninth', 'pet', 'familiar', 'titles', 'met', 'rep',
               'ran', 'origin', 'debt', 'trait', 'did', 'bond', 'found',
               'street', 'warned', 'heard', 'arranged',
               # The half of the game with the deck in the bag (D140): what

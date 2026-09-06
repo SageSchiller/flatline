@@ -192,6 +192,8 @@ class City:
     paper: str = ''
     #: The runner who asked you in on the next job (D168), by key, or ''.
     asked_in: str = ''
+    #: The runner whose Deepwater log was the ninth (D171), by key, or ''.
+    ninth: str = ''
     #: NPC keys whose private counter you have opened. Re-applied after every
     #: restock: a person's cabinet not rotating is the one promise it makes
     #: that a market does not, and `refresh_stock` rebuilds the shelves from
@@ -1369,6 +1371,7 @@ class City:
             'pet': dict(self.pet),
             'paper': self.paper,
             'asked_in': self.asked_in,
+            'ninth': self.ninth,
             'crew': dict(self.crew),
             'tables': dict(self.tables),
             'tabs': {k: list(v) for k, v in self.tabs.items()},
@@ -1414,6 +1417,7 @@ class City:
             pet=dict(d.get('pet') or {}),
             paper=str(d.get('paper') or ''),
             asked_in=str(d.get('asked_in') or ''),
+            ninth=str(d.get('ninth') or ''),
             crew=dict(d.get('crew') or {}),
             tables={k: int(v) for k, v in (d.get('tables') or {}).items()},
             tabs={k: [int(v[0]), int(v[1])]

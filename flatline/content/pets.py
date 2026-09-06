@@ -336,6 +336,7 @@ FAMILIARS: tuple[Familiar, ...] = (
                         'not run in a while and it shows.',),
             'done': ('The pixel cat, on the objective, does a slow turn in the render and sits on it, which is how it claims things.',),
             'home': ('The pixel cat is asleep on the deck when you get in, or renders as asleep, which for it is the same thing.',),
+            'log': ('The pixel cat walks across the log as it renders and sits on the entry for the day after tomorrow, which is a Tuesday, and does not move.',),
         }),
     Familiar(
         'chatterbird', 'a chatter-bird', 'bird', 'wry', 1, 10,
@@ -374,6 +375,7 @@ FAMILIARS: tuple[Familiar, ...] = (
                         'has run down.',),
             'done': ('"That was the bit they pay for," says the chatter-bird, "and I was here for it, so."',),
             'home': ('"You live here?" says the chatter-bird, every time, from the top of the deck, in the tone of a bird that lives there too.',),
+            'log': ('"That is a lot of you," says the chatter-bird, reading over your shoulder, and then, quieter than it has ever said anything, "More than there has been."',),
         }),
     Familiar(
         'goodboy', 'a good boy', 'dog', 'warm', 2, 12,
@@ -418,6 +420,7 @@ FAMILIARS: tuple[Familiar, ...] = (
                         'have minded.',),
             'done': ('The good boy sits, the way he was taught, and looks at the objective and then at you, and his whole render wags.',),
             'home': ('The good boy is at the door of the render before you are through the real one, and stays there until you say something to him.',),
+            'log': ('The good boy renders between you and the log, the way he renders between you and a warden, and looks at you until you tell him it is all right, which you do not.',),
         }),
     Familiar(
         'tally', 'the tally', 'thing', 'grim', 1, 5,
@@ -459,6 +462,7 @@ FAMILIARS: tuple[Familiar, ...] = (
                         'it again just to make the counting come back.',),
             'done': ('The tally shows the number and then a second number under it, smaller, which is what it thinks the first one cost.',),
             'home': ('The tally shows the shift, and under it the number of shifts it has shown you the shift, and does not say why.',),
+            'log': ('The tally counts the entries, and then counts the ones you remember, and shows the difference, and shows it again, larger.',),
         }),
     Familiar(
         'wormwood', 'wormwood', 'thing', 'unsettling', 2, 3,
@@ -502,6 +506,7 @@ FAMILIARS: tuple[Familiar, ...] = (
                         'being able to tell is the same as it being fine.',),
             'done': ('"Done," says wormwood, in the voice that is almost yours, before you have decided it is.',),
             'home': ('"You came back," says wormwood, when you get in, and it is not clear whether that is a greeting or a note.',),
+            'log': ('"I have read this," says wormwood, in the voice that is almost yours. "I read it before you did. I did not know how to say so."',),
         }),
 )
 

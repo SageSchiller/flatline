@@ -1101,6 +1101,417 @@ BUYOFF = 2500
 #: Threads that sit beside a district's own (D65 depth): a second story in
 #: a place that already has one. Merged into `threads.THREADS` with the rest.
 MORE_THREADS: tuple[Thread, ...] = (
+    # -- Subplots for the systems the story predates (D172) ------------------
+    # The animal, the construct, the names and the door all arrived after
+    # the threads were written. Each of these reads one of them through a
+    # rule the engine did not have (`pet:`, `familiar:`, `titles:`), and
+    # the prose carries `{pet}` or `{familiar}` for the world to fill.
+    Thread(
+        'stray', 'The Thing You Keep',
+        'Somebody says the animal was theirs.',
+        stages=(
+            Stage('claimed', 'Somebody says it was theirs',
+                  'Tuck asks after {pet} by name, which you did not know Tuck '
+                  'knew, and then says the thing he came to say: a kid from '
+                  'the wet end of the Ninth has been asking about an animal '
+                  'that went missing about when yours stopped being a stray. '
+                  '"I am not saying it is theirs. I am saying they think so, '
+                  'and that they have been sleeping outside your door, and '
+                  'that it is cold."',
+                  requires=('pet:kept:12', 'met:tuck'),
+                  sets=('stray_claimed',),
+                  where='ninth',
+                  choices=(
+                      Choice('give', 'Let them have it',
+                             'You carry {pet} down to the wet end yourself. '
+                             'The kid does not say thank you, which is right; '
+                             'it was theirs. The flat is a flat again. Tuck '
+                             'does not mention it, and stands you a drink '
+                             'without saying what for.',
+                             sets=('stray_given',),
+                             rep={'sixes': 6}),
+                      Choice('keep', 'Keep it',
+                             'You say it is yours now, which is also true, and '
+                             'the kid stops sleeping outside your door after '
+                             'three nights and starts sleeping outside Tuck\'s '
+                             'instead. {pet} does not know any of this. That '
+                             'is the point of {pet}.',
+                             sets=('stray_kept',),
+                             rep={'sixes': -6}),
+                      Choice('pay', 'Pay them for it',
+                             'You give the kid what an animal costs at a '
+                             'market, and then again, because the first one '
+                             'was the animal and the second one is for the '
+                             'nights outside the door. They take it. Tuck '
+                             'watches you do it and says nothing, which from '
+                             'Tuck is a review.',
+                             sets=('stray_paid',),
+                             credits=-400),
+                  )),
+            Stage('kept', 'Whose it is',
+                  'The animal is on the warm part of the deck when you come '
+                  'in, or is not, and either way the question of whose it '
+                  'was has stopped being asked in the Ninth, because the '
+                  'Ninth has other questions. Tuck asks after it by name '
+                  'now and then. You have stopped noticing that he does.',
+                  requires=('stray_claimed',),
+                  any_of=('stray_given', 'stray_kept', 'stray_paid'),
+                  sets=('stray_settled',),
+                  after=3,
+                  where='ninth'),
+        )),
+    Thread(
+        'construct', 'The Thing That Talks',
+        'The construct on your deck says a name it should not know.',
+        stages=(
+            Stage('says', 'It says a name',
+                  'Somewhere on the tenth run it rides with you, {familiar} '
+                  'says a name. Not yours. Not a host\'s. A person\'s name, '
+                  'said the way you say a name you have been told not to. '
+                  'Remnant, when you tell them, goes very still, because it '
+                  'is the name that was on a Sendai table four years ago, '
+                  'and they have not told anybody that name either.'
+                  '\n\n"It is not learning," Remnant says. "It is '
+                  'remembering. That is worse. Ask yourself where it was '
+                  'before it was on your deck."',
+                  requires=('familiar:10', 'met:remnant'),
+                  sets=('construct_says',),
+                  where='glasshouse',
+                  choices=(
+                      Choice('wipe', 'Wipe it',
+                             'You drop it, and the deck runs a fraction cooler '
+                             'for the memory back, and the flat is quieter on '
+                             'the runs afterwards in a way you had not known '
+                             'it was loud. Remnant does not thank you. They '
+                             'say, "It was somebody\'s, once," and do not say '
+                             'whose.',
+                             sets=('construct_wiped',)),
+                      Choice('keep', 'Keep it, and listen',
+                             'You keep it. It does not say the name again for '
+                             'a long time, and when it does, you are ready, '
+                             'and you write it down. There are three names in '
+                             'the file now, and the file is yours, and '
+                             '{familiar} is the only thing in this city that '
+                             'has ever told you something it did not want to.',
+                             sets=('construct_kept',)),
+                      Choice('give', 'Give it to Remnant',
+                             'Remnant takes it onto their own deck, which is '
+                             'a thing they said they would never load anything '
+                             'onto again, and sits with it in the clinic '
+                             'waiting area, and the two of them do not speak. '
+                             '"It knows my name," Remnant says, after a while. '
+                             '"So do I, now. I had not been sure."',
+                             sets=('construct_given',),
+                             rep={'sendai': -4}),
+                  )),
+            Stage('quiet', 'What it was',
+                  'The waiting area at the Sendai clinic is the same as it '
+                  'was. Remnant sits in it or does not. On the deck, the '
+                  'memory the construct rode is a program\'s now, or is '
+                  'still the construct\'s, or is Remnant\'s to keep. What has '
+                  'changed is that you know the constructs come from '
+                  'somewhere, and that where they come from keeps names.',
+                  requires=('construct_says',),
+                  any_of=('construct_wiped', 'construct_kept', 'construct_given'),
+                  sets=('construct_settled',),
+                  after=3,
+                  where='glasshouse'),
+        )),
+    Thread(
+        'names', 'What They Call You',
+        'The city has more than one name for you, and Osei uses one.',
+        stages=(
+            Stage('used', 'Osei uses one',
+                  'Osei says one of the names the city has for you, across '
+                  'the bar, to somebody else, about you, while you are '
+                  'standing there. Not the handle. One of the other ones: '
+                  'the kind that gets said about a person and then, after '
+                  'enough saying, to them. He does not look at you while he '
+                  'says it. He knows you heard.'
+                  '\n\n"You have three of those now," he says, later, '
+                  'wiping something. "People collect them. People choose one. '
+                  'People throw them all back. I have seen all of it and I '
+                  'have an opinion about none of it."',
+                  requires=('titles:3', 'met:bartender'),
+                  sets=('names_used',),
+                  where='marrow',
+                  choices=(
+                      Choice('wear', 'Wear one',
+                             'You tell him which one, and he nods, and from '
+                             'then on that is the one he uses, and because it '
+                             'is the one Osei uses it is the one Marrow uses, '
+                             'and because Marrow uses it, so does the city. '
+                             'You did not choose it. You chose to have chosen '
+                             'it, which is the thing the city respects.',
+                             sets=('names_worn',)),
+                      Choice('refuse', 'Throw them back',
+                             'You tell him the handle is the name, and he '
+                             'says fine, and uses the handle, and the city '
+                             'goes on using the others behind your back, '
+                             'which is where names live anyway. Nothing '
+                             'changes. Something has been said, though, and '
+                             'Osei heard it.',
+                             sets=('names_refused',)),
+                      Choice('own', 'Ask what he calls you',
+                             'You ask what he calls you, when you are not '
+                             'there. He tells you. It is not any of the '
+                             'three. It is shorter and worse and more '
+                             'accurate, and he has been using it for a '
+                             'month, and it is yours now whether you wear it '
+                             'or not.',
+                             sets=('names_own',)),
+                  )),
+            Stage('said', 'What it is worth',
+                  'A name is what people can say about you without you in '
+                  'the room, and you have several, and one of them is the '
+                  'one they say most. Osei knows which. He has stopped '
+                  'telling you. That is a kindness, from Osei, and the only '
+                  'kind he has.',
+                  requires=('names_used',),
+                  any_of=('names_worn', 'names_refused', 'names_own'),
+                  sets=('names_settled',),
+                  after=2,
+                  where='marrow'),
+        )),
+    Thread(
+        'door', 'The Stake',
+        'People who count what they have are people who are leaving.',
+        stages=(
+            Stage('counted', 'Mara has noticed you counting',
+                  'Mara says it without looking up: "People who count what '
+                  'they have are people who are leaving. I have placed four '
+                  'hundred of these and I know the arithmetic of a runner '
+                  'who is putting something away." She turns a page. "I do '
+                  'not mind. I would like to know, is all. There are jobs I '
+                  'would give somebody who is staying, and jobs I would '
+                  'give somebody who is not."',
+                  requires=('credits:9000', 'runs:10', 'met:mara'),
+                  sets=('door_counted',),
+                  where='marrow',
+                  choices=(
+                      Choice('tell', 'Tell her',
+                             'You tell her the number, and how close you are '
+                             'to it. She writes nothing. From then on the '
+                             'jobs she hands you are the kind that pay and '
+                             'do not follow you home, which is a thing a '
+                             'fixer can do for somebody, once, and she is '
+                             'doing it.',
+                             sets=('door_told',),
+                             rep={'fixers': 8}),
+                      Choice('lie', 'Say you are staying',
+                             'You say you are staying, and she says good, and '
+                             'the jobs she hands you are the kind she hands '
+                             'people who are staying, which are the ones with '
+                             'a future in them and a past. Somewhere she has '
+                             'written down that you lied, in the book, in the '
+                             'column for that.',
+                             sets=('door_lied',)),
+                      Choice('spend', 'Spend it',
+                             'You spend it, the way you spend a number that '
+                             'has started to mean something: on the bar, on '
+                             'the people at it, on a night the Ninth talks '
+                             'about for a week. In the morning you are a '
+                             'runner who is staying, because you have made it '
+                             'true, and Mara, who has seen that done, hands '
+                             'you the next job without a pause.',
+                             sets=('door_spent',),
+                             credits=-3000,
+                             rep={'fixers': 6, 'sixes': 4}),
+                  )),
+            Stage('leaving', 'The arithmetic',
+                  'The book has your line in it, and beside it the thing '
+                  'Mara knows about you, whichever it is: that you are '
+                  'putting something away, or that you said you were not, or '
+                  'that you spent it. She hands you jobs accordingly. You '
+                  'notice, after a while, that they suit you, and that this '
+                  'is what a fixer is for.',
+                  requires=('door_counted',),
+                  any_of=('door_told', 'door_lied', 'door_spent'),
+                  sets=('door_settled',),
+                  after=4,
+                  where='marrow'),
+        )),
+
+    # -- The ninth log (D171): the second arc --------------------------------
+    # The Archivist's nine logs belonged to nine runners. Eight are dead or
+    # gone. The ninth is on your board, and Deepwater is not finished with
+    # them either. Which runner is the city's choice, made when the scene
+    # fires (the one you are bound to, else the most worked), and the prose
+    # carries `{runner}` for the world to fill. What you did with your own
+    # log decides what they can do with theirs.
+    Thread(
+        'nine', 'The Ninth Log',
+        'Eight of the nine are dead or gone. The ninth is still working.',
+        stages=(
+            Stage('named', 'The ninth log has a name',
+                  'The Archivist has the nine out on the table, which they '
+                  'have never done, and their hand is on the last one. "Eight '
+                  'of these belong to people who are dead, or who left, or '
+                  'who are what Remnant is, which I do not have a word for." '
+                  'They turn the ninth round so you can read the header. "The '
+                  'ninth is still working. You have seen them on the board. '
+                  'You may have worked beside them."'
+                  '\n\nThe handle in the header is {runner}\'s, spelled the way '
+                  'they spell it. The log is longer than they have been '
+                  'running. "It does not end wrong yet," the Archivist says. '
+                  '"It has not ended."',
+                  requires=('met:archivist', 'asked:archivist:logs', 'did:deepwater.posting'),
+                  sets=('nine_named',)),
+            Stage('ask', 'You know something they do not',
+                  'You know a thing about {runner} that {runner} does not '
+                  'know: that there is a log with their name in the header '
+                  'in a back room in a fence\'s, and that it is longer than '
+                  'their career, and that eight people who had one are not '
+                  'here. There are three things you can do with a thing like '
+                  'that, and all three are the kind the city remembers.',
+                  requires=('nine_named', 'ninth:alive'),
+                  sets=('nine_asked',),
+                  after=1,
+                  choices=(
+                      Choice('tell', 'Tell them',
+                             'You find {runner} and you tell them, all of it, '
+                             'the nine and the shape the nothing has and the '
+                             'header with their name in it. They do not say '
+                             'anything for long enough that you wonder if you '
+                             'have made a mistake. Then: "Thank you." Then: '
+                             '"What did you do with yours?" You tell them '
+                             'that too.',
+                             sets=('nine_told',)),
+                      Choice('keep', 'Keep it',
+                             'You keep it. It is not a decision so much as a '
+                             'shift that goes by without your having found '
+                             'them, and then another, and then it is a thing '
+                             'you know and they do not and that has become '
+                             'the shape of it. You see them on the board. '
+                             'They nod. You nod.',
+                             sets=('nine_kept',)),
+                      Choice('sell', 'Sell it to Static',
+                             'Static pay for it, in cash, quickly, the way '
+                             'they pay for things they intend to run: a '
+                             'runner\'s name, a log that outruns their career, '
+                             'a client nobody has met. It goes out in two '
+                             'days. {runner} reads about themselves in the '
+                             'same paragraph as the water, and finds out who '
+                             'sold it in the paragraph after.',
+                             sets=('nine_sold',),
+                             credits=2500,
+                             rep={'static': 10}),
+                  )),
+            Stage('posted_read', 'Their posting, and yours was read',
+                  'It comes through Mara, and it has {runner}\'s name in it, '
+                  'and she places it the way she placed yours, a moment '
+                  'longer on the counter. They take it. You hear how it went '
+                  'the way you hear everything, a shift late: they came out '
+                  'with the record, and the record was a log, and the log '
+                  'was theirs. They read it, because you read yours, and '
+                  'because you told them what reading it was like, or did '
+                  'not, which they will have noticed.',
+                  requires=('nine_named', 'did:deepwater.posting', 'dw_read', 'ninth:alive'),
+                  sets=('nine_posted',),
+                  after=4),
+            Stage('posted_archived', 'Their posting, and yours is in the back room',
+                  'It comes through Mara with {runner}\'s name in it, and '
+                  'they take it, and they come out with the record, and the '
+                  'record is a log. The Archivist has yours. They have '
+                  'theirs. The Archivist has, for the first time in nine '
+                  'years, two of them side by side that have not ended, and '
+                  'turns their chair round to tell you that the two logs '
+                  'have the same entry for the day after tomorrow, and it '
+                  'is a Tuesday.',
+                  requires=('nine_named', 'did:deepwater.posting', 'dw_archived', 'ninth:alive'),
+                  sets=('nine_posted',),
+                  after=4),
+            Stage('posted_burned', 'Their posting, and yours was wiped',
+                  'It comes through Mara with {runner}\'s name in it, and '
+                  'they take it, and they come out with the record, and the '
+                  'record is blank. Not empty: blank, the way a thing is '
+                  'blank when something has been taken out of it and the '
+                  'shape of what was taken is still there. You wiped yours. '
+                  'Theirs came out with a hole in it the size of you, and '
+                  '{runner} does not know what was in the hole, and you do.',
+                  requires=('nine_named', 'did:deepwater.posting', 'dw_burned', 'ninth:alive'),
+                  sets=('nine_posted',),
+                  after=4),
+            Stage('table', 'Two logs, one table',
+                  '{runner} puts theirs on the table in the back bar, next '
+                  'to where yours was or is or was wiped from, and looks at '
+                  'you the way you looked at the Archivist: as somebody who '
+                  'has a third fact. "It knows both of us," they say. "It '
+                  'has for years. So." The so is the question. There are '
+                  'three answers to it and one of them is the kind the city '
+                  'never forgets.',
+                  requires=('nine_posted', 'nine_told', 'ninth:alive'),
+                  sets=('nine_table',),
+                  after=1,
+                  choices=(
+                      Choice('together', 'Run the next one together',
+                             'You say the next one is both of you, and they '
+                             'say yes before you have finished, and it is not '
+                             'a decision about Deepwater at all. It is a '
+                             'decision about the eight who did it alone. The '
+                             'tenth log, when there is one, will have two '
+                             'handles in the header, and that has never '
+                             'happened, and it may be the one thing the thing '
+                             'at the bottom of the resolution has not seen.',
+                             sets=('nine_together',)),
+                      Choice('alone', 'Keep it your own',
+                             'You say you work alone, which is true, and '
+                             '{runner} says so do they, which is also true, '
+                             'and the two logs go back into two bags, and '
+                             'that is the end of the table. It is not a '
+                             'falling out. It is two people who both know '
+                             'what the eight had in common, deciding it was '
+                             'not the being alone.',
+                             sets=('nine_alone',)),
+                      Choice('handed', 'Hand them to Deepwater',
+                             'It has a contract for that. It always had. You '
+                             'file it, and the money is the largest sum you '
+                             'have ever seen cleared in one line, and '
+                             '{runner}\'s next posting has no name in the '
+                             'header at all, which is the last thing you '
+                             'read about them for a long time. The Archivist '
+                             'puts the ninth log with the other eight. They '
+                             'do not turn their chair round.',
+                             sets=('nine_handed',),
+                             credits=6000,
+                             rep={'deepwater': 20}),
+                  )),
+            Stage('found', 'They find out',
+                  '{runner} finds out that you knew. Everybody does, in this '
+                  'city, in the end: the Archivist says something, or Static '
+                  'prints it, or a log has a line in it about a conversation '
+                  'that did not happen. They do not come to the back bar. '
+                  'They do not send anything through the deck. They are on '
+                  'the board, and they take the job you were going to take, '
+                  'and that is how {runner} says it.',
+                  requires=('nine_posted', 'ninth:alive'),
+                  any_of=('nine_kept', 'nine_sold'),
+                  sets=('nine_found',),
+                  after=2),
+            Stage('tenth', 'Ten',
+                  'There are ten logs now, wherever the tenth is kept, and '
+                  'the Archivist has stopped saying nine. The city does not '
+                  'notice; it has a client it has never met and four hundred '
+                  'contracts and it goes on placing them. What has changed '
+                  'is smaller than that and it is yours: you know what the '
+                  'eight had in common, and you know what you did about the '
+                  'ninth, and somewhere below the resolution something that '
+                  'knows both your names has written it down.',
+                  requires=('nine_posted',),
+                  any_of=('nine_together', 'nine_alone', 'nine_handed', 'nine_found'),
+                  sets=('nine_tenth',),
+                  after=3),
+            Stage('ended', 'The ninth ends the way the eight did',
+                  'The Archivist tells you without turning the chair round, '
+                  'which is how you know. The ninth log has a last entry now '
+                  'and then a nothing with a shape to it. They put it with '
+                  'the other eight. "Nine," they say, and then, after a '
+                  'while, "You are the one I have not filed."',
+                  requires=('nine_named', 'ninth:dead'),
+                  sets=('nine_ended',),
+                  after=1),
+        )),
+
     # -- The long wash (D169) ------------------------------------------------
     # The third way out from under a number, for the runner who cannot pay
     # for a name and will not take the box: work. Mara launders the name

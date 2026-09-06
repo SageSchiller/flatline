@@ -178,6 +178,38 @@ def ending(dissonance: int, flags=()) -> tuple[str, str]:
 #: fails the build on a decision this forgets, because an ending that does
 #: not mention what you did to Lark is an ending to somebody else's game.
 EPILOGUE: tuple[tuple[str, str], ...] = (
+    # The new systems' subplots (D172)
+    ('stray_given', 'A kid from the wet end said the animal was theirs, and you carried it down to them yourself.'),
+    ('stray_kept', 'A kid from the wet end said the animal was theirs, and you kept it, and they slept outside somebody else\'s door.'),
+    ('stray_paid', 'A kid from the wet end said the animal was theirs, and you paid them twice, once for it and once for the nights.'),
+    ('construct_wiped', 'The construct on your deck said a name it should not have known, and you wiped it, and the flat was quieter after.'),
+    ('construct_kept', 'The construct on your deck said a name it should not have known, and you kept it and wrote the names down.'),
+    ('construct_given', 'The construct on your deck said Remnant\'s name, and you gave it to Remnant, who sat with it and did not speak.'),
+    ('names_worn', 'Osei used one of the city\'s names for you and you chose to have chosen it, and the city used it after that.'),
+    ('names_refused', 'Osei used one of the city\'s names for you and you threw them all back and kept the handle.'),
+    ('names_own', 'You asked Osei what he called you when you were not there, and he told you, and it was shorter and worse and true.'),
+    ('door_told', 'Mara noticed you counting and you told her the number, and the jobs after that were the kind that do not follow you home.'),
+    ('door_lied', 'Mara noticed you counting and you said you were staying, and she wrote down that you lied, in the column for that.'),
+    ('door_spent', 'Mara noticed you counting and you spent it on one night the Ninth talked about for a week, and stayed.'),
+    # The ninth log (D171)
+    ('nine_told',
+     'You told the ninth runner that their log was on a fence\'s table and '
+     'longer than their career, which nobody had told the eight.'),
+    ('nine_kept',
+     'You knew whose the ninth log was and kept it, and they found out you '
+     'had, and took the next job out from under you for it.'),
+    ('nine_sold',
+     'You sold the ninth runner\'s name to Static with the water, and they '
+     'read about themselves and about you in the same paragraph.'),
+    ('nine_together',
+     'You and the ninth runner put two logs on one table and ran the next '
+     'one together, and the tenth log has two handles in the header.'),
+    ('nine_alone',
+     'You and the ninth runner agreed that what the eight had in common was '
+     'not the being alone, and went on working alone.'),
+    ('nine_handed',
+     'You handed the ninth runner to Deepwater for the largest sum you ever '
+     'saw cleared in one line, and their next posting had no name in it.'),
     # The long wash (D169)
     ('wash_working',
      'You worked the number off your name through Mara, ten shifts of work '

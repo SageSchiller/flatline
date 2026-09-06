@@ -103,6 +103,8 @@ NPCS: tuple[Npc, ...] = (
             '"Sit. I will tell you one true thing and you will not like it, '
             'and then we will talk about work."',),
         topics={
+            'wash': '"There is a slow way to get a number off a name, and it is work, mine, ten shifts of it, and nobody hurries it. People ask me why I bother. I placed four hundred of these. I bother."',
+            'paper': '"When somebody takes the paper on a name, it comes through me, because everything does. I do not sell that. I do not sell who took it either. I have been known to leave the book open."',
             'street': '"The street is the part of the job nobody puts on the board. Walk into somewhere your name is worth money and do not act surprised when somebody collects."',
             'city': '"Twelve powers, and eleven of them think they are the '
                     'one holding the leash. Do not correct anybody."',
@@ -677,6 +679,7 @@ NPCS: tuple[Npc, ...] = (
             'they keep the living. It was not a good conversation for '
             'either of us."',),
         topics={
+            'ninth': '"Nine logs. I say nine because it is the number, and I have started to hear myself say it. One of them has not ended. I have been trying to decide whether that makes it the worst one or the best."',
             'death': '"Everybody leaves a log. It is the only part of this '
                      'that is reliably permanent."',
             'deepwater': '"Nine of my four hundred and six were running '
@@ -1099,6 +1102,7 @@ NPCS: tuple[Npc, ...] = (
             '"Drink it or hold it. Holding it is fine. Holding it is what most '
             'of them do."',),
         topics={
+            'wall': '"The wall under the fence has five names on it and every one of them was somebody\'s idea of the end of the argument. It is not. The argument is the wall. Names come off it."',
             'city': '"Twelve powers and one bar they all drink in, because '
                     'nobody starts anything in Marrow, and everybody needs '
                     'somewhere to not start it."',

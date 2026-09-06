@@ -14913,6 +14913,156 @@ def test_the_wash_the_scene_and_the_watches() -> None:
          'now watches for a mask and a bank')
 
 
+
+def test_the_ninth_log() -> None:
+    """D171: the second arc. The ninth log belongs to a runner the city
+    chooses when the scene fires (bound to you if anybody is, else the most
+    worked); the prose carries the name; telling them, keeping it or
+    selling it moves them; what you did with your own log picks which of
+    their postings you see; the table\'s three answers land on the runner;
+    and the systems that came after the main line read it."""
+    T.section('the ninth log')
+    from flatline.content import threads as thread_content, legacy, record as record_content, pets as pet_content
+    from flatline.commands import people as people_cmd
+    nine = next(t for t in thread_content.THREADS if t.key == 'nine')
+    T.ok(nine.stages[0].requires == ('met:archivist', 'asked:archivist:logs', 'did:deepwater.posting'), 'it opens once you have asked about the logs and finished your own posting')
+    T.ok(all(f in legacy.EPILOGUE_BY_FLAG for f in ('nine_told', 'nine_kept', 'nine_sold', 'nine_together', 'nine_alone', 'nine_handed')), 'every answer reads back')
+    T.ok('tenth' in record_content.TITLE_BY_KEY and 'ninthsold' in record_content.TITLE_BY_KEY, 'a heroic and a vile name for it')
+    T.ok(all('log' in f.says for f in pet_content.FAMILIARS), 'every familiar reads the log')
+    # The runner is chosen, the prose carries the name.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=300)
+    game.story.flags.update({'dw_heard', 'dw_logs', 'dw_posting', 'asked:archivist:logs', 'did:deepwater.posting'}); game.story.meet('archivist')
+    best = max((r for r in game.city.rivals if r.alive), key=lambda r: (r.jobs, r.disposition, r.key))
+    sess, out = play(['look', 'rest', 'look'], game=game)
+    T.ok(game.city.ninth == best.key, f'the city chose {best.name}')
+    T.ok(best.name in out and '{runner}' not in out, 'and the scene says the name, not the token')
+    game.story.reached.setdefault('nine', [])
+    # Telling them moves them; the table opens after their posting, read.
+    game.story.when['thread:nine'] = game.city.shift - 2
+    for _ in range(6):
+        found = game.story.open_choice()
+        if found and found[0].key == 'nine':
+            break
+        if found:
+            for ch in found[1].choices:
+                sess.console.start_capture(); sess.execute(f'choose {ch.key}'); sess.console.end_capture()
+                again = game.story.open_choice()
+                if again is None or again[1] is not found[1]:
+                    break
+        else:
+            sess.console.start_capture(); sess.execute('rest'); sess.execute('look'); sess.console.end_capture()
+    found = game.story.open_choice()
+    T.ok(found is not None and found[0].key == 'nine' and found[1].key == 'ask', 'the question of what you know is asked')
+    d0 = best.disposition
+    sess.console.start_capture(); sess.execute('choose tell'); out2 = sess.console.end_capture()
+    T.ok('nine_told' in game.story.flags and best.disposition == d0 + 12 and best.name in out2, 'telling them moves them')
+    game.story.flags.update({'did:deepwater.posting', 'dw_carried', 'dw_read'})
+    game.story.when['thread:nine'] = game.city.shift - 6
+    avail = {(k, st.key) for k, st in game.story.available(game)}
+    T.ok(('nine', 'posted_read') in avail and ('nine', 'posted_burned') not in avail, 'their posting reads the way yours was read')
+    sess.console.start_capture(); sess.execute('rest'); sess.execute('look'); sess.console.end_capture()
+    game.story.when['thread:nine'] = game.city.shift - 3
+    found = None
+    for _ in range(8):
+        sess.console.start_capture(); sess.execute('rest'); sess.execute('look'); sess.console.end_capture()
+        found = game.story.open_choice()
+        if found is None:
+            continue
+        if found[0].key == 'nine':
+            break
+        for ch in found[1].choices:
+            sess.console.start_capture(); sess.execute(f'choose {ch.key}'); sess.console.end_capture()
+            again = game.story.open_choice()
+            if again is None or again[1] is not found[1]:
+                break
+        game.story.when['thread:nine'] = game.city.shift - 3
+    T.ok(found is not None and found[0].key == 'nine' and found[1].key == 'table', f'two logs, one table: {found and (found[0].key, found[1].key)}')
+    d1 = best.disposition
+    game.city.hired = ''; game.city.crew = {}
+    sess.console.start_capture(); sess.execute('choose together'); sess.console.end_capture()
+    T.ok(best.disposition == d1 + 40 and game.city.hired == best.key, 'running the next one together lands on them, and they are in on it')
+    # The runner dying ends it the way the eight did.
+    game2 = Game.new(Character.from_origin('gutter', 'x'), seed=301)
+    game2.story.flags.update({'dw_heard', 'dw_logs', 'dw_posting', 'asked:archivist:logs', 'did:deepwater.posting', 'nine_named'}); game2.story.meet('archivist')
+    game2.city.ninth = next(r for r in game2.city.rivals if r.alive).key
+    game2.city.rival(game2.city.ninth).alive = False
+    game2.story.reached['nine'] = ['named']; game2.story.when['thread:nine'] = game2.city.shift - 5
+    avail2 = {(k, st.key) for k, st in game2.story.available(game2)}
+    T.ok(('nine', 'ended') in avail2 and ('nine', 'ask') not in avail2, 'a dead ninth ends it the way the eight did')
+    # The asides: the familiar reads your log when it comes out.
+    game3 = Game.new(Character.from_origin('gutter', 'x'), seed=302)
+    game3.char.deck.familiar = {'key': 'wormwood', 'name': 'Sorrow', 'charge': 100}
+    game3.story.flags.update({'dw_heard', 'did:deepwater.posting'})
+    sess3, out3 = play(['look', 'rest', 'look'], game=game3)
+    T.ok('I have read this' in ' '.join(out3.split()) or 'dw_carried' not in game3.story.flags,
+         'the familiar reads the log when it comes out')
+    T.ok(people_cmd.story_fill(game3, 'x {pet} y {familiar} z {partner}') == 'x nothing y Sorrow z nobody', 'the fill knows the names it has and the ones it does not')
+
+
+def test_the_systems_have_stories() -> None:
+    """D172: the animal, the construct, the names and the door each have a
+    subplot, read through the new rule kinds, and their answers reach the
+    system: the animal goes, the construct is dropped, the name is worn."""
+    T.section('the systems have stories')
+    from flatline.content import threads as thread_content, record as record_content
+    from flatline.world import pets as pet_world
+    from flatline import save as save_mod
+    for key, rule in (('stray', 'pet:kept:12'), ('construct', 'familiar:10'), ('names', 'titles:3'), ('door', 'credits:9000')):
+        th = next(t for t in thread_content.THREADS if t.key == key)
+        T.ok(rule in th.stages[0].requires, f'{key} reads the system it is about ({rule})')
+    T.ok('osei' in record_content.TITLE_BY_KEY, 'and Osei has a name for you')
+    # The rules themselves.
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=310)
+    T.ok(not game.story.satisfied('pet:any', game) and not game.story.satisfied('familiar:any', game), 'nothing kept, nothing rides')
+    game.city.safehouse = {'key': 'test', 'district': game.city.where}
+    pet_world.adopt(game.city, 'dog', 'Sarge'); game.city.pet['since'] = game.city.shift - 20
+    game.char.deck.familiar = {'key': 'tally', 'name': 'Count', 'charge': 100, 'runs': 11}
+    T.ok(game.story.satisfied('pet:kept:12', game) and game.story.satisfied('pet:dog', game) and not game.story.satisfied('pet:cat', game), 'the animal rule reads the keep and the kind')
+    T.ok(game.story.satisfied('familiar:10', game) and game.story.satisfied('familiar:tally', game) and not game.story.satisfied('familiar:dormant', game), 'the construct rule reads the runs, the kind and the charge')
+    game.story.flags.update({'lark_saved', 'dw_refused', 'quiet_turned'})
+    T.ok(game.story.satisfied('titles:3', game) and not game.story.satisfied('titles:6', game), 'the names rule counts what this life has earned')
+    # The answers reach the systems.
+    game.story.meet('tuck'); game.city.where = 'ninth'
+    sess, out = play(['look', 'rest', 'look'], game=game)
+    opened = False
+    for _ in range(8):
+        found = game.story.open_choice()
+        if found is None:
+            sess.console.start_capture(); sess.execute('rest'); sess.execute('look'); sess.console.end_capture(); continue
+        if found[0].key == 'stray':
+            opened = True; break
+        for ch in found[1].choices:
+            sess.console.start_capture(); sess.execute(f'choose {ch.key}'); sess.console.end_capture()
+            again = game.story.open_choice()
+            if again is None or again[1] is not found[1]:
+                break
+    T.ok(opened, 'Tuck asks after the animal by name')
+    if opened:
+        sess.console.start_capture(); sess.execute('choose'); shown = sess.console.end_capture()
+        T.ok('Sarge' in shown and '{pet}' not in shown, 'and the scene says its name')
+        sess.console.start_capture(); sess.execute('choose give'); sess.console.end_capture()
+        T.ok(not game.city.pet and 'stray_given' in game.story.flags, 'letting them have it, the flat is a flat again')
+    game2 = Game.new(Character.from_origin('gutter', 'x'), seed=311)
+    game2.char.deck.familiar = {'key': 'wormwood', 'name': 'Sorrow', 'charge': 100, 'runs': 12}
+    game2.story.meet('remnant'); game2.city.where = 'glasshouse'
+    sess2, out2 = play(['look', 'rest', 'look'], game=game2)
+    opened2 = False
+    for _ in range(8):
+        found = game2.story.open_choice()
+        if found is None:
+            sess2.console.start_capture(); sess2.execute('rest'); sess2.execute('look'); sess2.console.end_capture(); continue
+        if found[0].key == 'construct':
+            opened2 = True; break
+        for ch in found[1].choices:
+            sess2.console.start_capture(); sess2.execute(f'choose {ch.key}'); sess2.console.end_capture()
+            again = game2.story.open_choice()
+            if again is None or again[1] is not found[1]:
+                break
+    T.ok(opened2, 'the construct says a name')
+    if opened2:
+        sess2.console.start_capture(); sess2.execute('choose wipe'); sess2.console.end_capture()
+        T.ok(not game2.char.deck.familiar and 'construct_wiped' in game2.story.flags, 'wiping it, the deck runs cooler')
+
 def _life_for(rules, seed=280):
     """A character built for a set of story rules (D169, D170): the origin,
     the people, the runs, the rank, the rung, the habit, the mark, the
@@ -14982,6 +15132,35 @@ def _life_for(rules, seed=280):
         elif kind == 'finds':
             for i in range(int(value)):
                 game.story.flags.add(f'found:built{i}')
+        elif kind == 'ninth':
+            living = [r for r in game.city.rivals if r.alive]
+            r = living[0]
+            game.city.ninth = r.key
+            if value == 'dead':
+                r.alive = False
+            elif value in ('partner', 'nemesis'):
+                r.bond = value
+            elif value == 'crew':
+                game.city.crew = {'key': r.key, 'runs': 1}
+        elif kind == 'pet':
+            from flatline.world import pets as pet_world
+            what, _, amount = value.partition(':')
+            game.city.safehouse = game.city.safehouse or {'key': 'test', 'district': game.city.where}
+            key = what if what in ('cat', 'dog', 'rat', 'pigeon', 'gecko', 'chimera') else 'cat'
+            pet_world.adopt(game.city, key, 'Built')
+            if what == 'kept' or amount:
+                game.city.pet['since'] = int(game.city.shift) - int(amount or 0)
+        elif kind == 'familiar':
+            what, _, amount = value.partition(':')
+            game.char.deck.familiar = {'key': 'pixelcat', 'name': 'Built', 'charge': 100,
+                                       'runs': int(amount or (what if what.isdigit() else 0) or 0)}
+            if what == 'dormant':
+                game.char.deck.familiar['charge'] = 0
+        elif kind == 'titles':
+            # Flavoured titles read flags; give this life that many.
+            from flatline.content import record as record_content
+            for tt in record_content.TITLES[:int(value)]:
+                game.story.flags.add(tt.rule)
         else:
             game.story.flags.add(base)
     return game, ok_build
@@ -16349,6 +16528,8 @@ SUITES = (
     test_the_five_corners,
     test_the_stake_the_ask_and_the_watch,
     test_the_wash_the_scene_and_the_watches,
+    test_the_ninth_log,
+    test_the_systems_have_stories,
     test_every_thread_opens_for_the_right_life,
     test_every_closing_stage_opens,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,

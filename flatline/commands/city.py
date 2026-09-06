@@ -5263,9 +5263,12 @@ def cmd_who(sess, args) -> None:
             ('thinks of you', f'{rival.disposition:+d} [dim]{rival.band}[/]'
              + ({'nemesis': '  [err]your nemesis[/]',
                  'partner': '  [ok]your partner[/]'}.get(rival.bond, ''))),
-        ] + ([('holds', '[err]the paper on your name[/] [dim](D164: they '
-                        'took the bounty, and collect in person)[/]')]
-             if game.city.paper == rival.key else []))
+        ] + ([('holds', '[err]the paper on your name[/] [dim](they took '
+                        'the bounty, and collect in person)[/]')]
+             if game.city.paper == rival.key else [])
+          + ([('the ninth', '[accent2]their log is the ninth[/] [dim](the '
+                             'Archivist has it; it has not ended)[/]')]
+             if game.city.ninth == rival.key else []))
         if not rival.alive:
             c.blank()
             c.err(f'Dead. Shift {rival.died}.')

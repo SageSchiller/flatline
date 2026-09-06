@@ -949,6 +949,7 @@ TOPICS: tuple[Topic, ...] = (
         group='city'),
     Topic(
         'threads', 'Storylines',
+        'The main line has a second arc: the ninth log, which belongs to a runner on your board, and what you did with your own log decides what they can do with theirs.\n\n'
         'Several at once, none of them waiting for you.',
         'There are no quest chains here. A thread is a set of scenes, each '
         'with its own condition, and a scene happens the moment its condition '
