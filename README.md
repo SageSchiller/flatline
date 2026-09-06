@@ -95,8 +95,10 @@ times; what it has not had is you. Three things are worth an evening each:
    was on the screen.
 2. **A life.** `new`, pick an origin, and play until something ends: the
    main line (*What Deepwater Is*, which starts when somebody mentions the
-   name and stops), a retirement, or a flatline. `journal` is where the
-   stories stand; `record` is what is left.
+   name and stops), a retirement, or a flatline. After the main line there
+   is a second arc, *The Ninth Log*, about whichever of the other runners
+   the city chooses for you. `journal` is where the stories stand;
+   `record` is what is left.
 3. **Something you would not normally do.** Keep an animal. Crew a runner.
    Fight for a living in the pit under the Shambles. Owe somebody. Every
    corner has its own threads.
@@ -107,9 +109,10 @@ last twenty things you typed, and `save --export` makes a file you can
 attach. Prose that lands wrong is as much a bug as a crash: the thread key
 is beside its name in `journal`.
 
-Known edges: below eighty columns the map and the tables wrap; Windows
-terminals and Python versions below 3.14 have not been tried by the author,
-only held by the build.
+Known edges: below eighty columns the map and the tables wrap. The author
+plays on Python 3.14 on Linux; 3.11 to 3.13 are held by the build's grammar
+check rather than tried by hand, and Windows terminals have not been tried
+at all. A report from any of those is worth more than most.
 
 ## Building a single file
 
@@ -222,10 +225,9 @@ The three ideas everything else hangs off:
 
 15 skills with 30 techniques, 6 of them for the street · 33 traits · 12 origins, each with a signature
 verb nobody else can use and its own starting face · 14 icons · 58 implants · 13 weapons and 3 things to wear · 70 programs
-· 34 deck components · 25 of all of those one of a kind, never sold, found at a place at an hour or handed over by a decision, each with a history · 28 countermeasures · 9 pieces of bench work · 12 districts, each with a mark for the faction that
-holds it · 12 factions · 7 rival runners who decide about you, and one you can keep · 32 named characters who keep hours, hand out work, keep private stock and do favours on a tab · 63 storylines across 215 scenes and 208 decisions, every one of them read back by the world and every scene played where it is set, with a spine through the middle that has four endings and one of them is a door ·
+· 34 deck components · 25 of all of those one of a kind, never sold, found at a place at an hour or handed over by a decision, each with a history · 28 countermeasures · 9 pieces of bench work · 12 factions, each with a mark on the district it holds · 7 rival runners who decide about you, and one you can keep · 32 named characters who keep hours, hand out work, keep private stock and do favours on a tab · 63 storylines across 215 scenes and 208 decisions, every one of them read back by the world and every scene played where it is set, with a spine through the middle that has four endings and one of them is a door ·
 102 appearance features · 12 districts, drawn, each with what it is built of, what it works at, its named quarters and what is past its edge, 72 quarters in all, a scene for every hour, 151 things to see in the street, 20 written crossings between them, and 60 places to go and stand · 204 ambient city events, 91 of them consequences of something you decided and 15 of them rumours that stop when the thing is found · 47 manual topics · networks in six shapes · the street in four tiers and 24 ways it stops you, six of them written for one street only ·
-14 drugs · 3 lenders · 2 games of chance in 5 rooms · 6 animals to keep and 5 constructs to run with, none of them any help at all · a pit with 5 names on the wall · 8 conditions a network can be under tonight, and 6 the street can · a record of 28 lines in 4 sections and 12 more titles the city gives for a deed, all of them pinnable, and 7 ambitions on the way to it ·
+14 drugs · 3 lenders · 2 games of chance in 5 rooms · 6 animals to keep and 5 constructs to run with, none of them any help at all · a pit with 5 names on the wall · 8 conditions a network can be under tonight, and 6 the street can · a record of 28 lines in 4 sections and 18 more titles the city gives for a deed, all of them pinnable, and 7 ambitions on the way to it ·
 156 commands · 91 pieces of terminal across 9 axes.
 
 Every number on every one of those is read by the engine, and `validate.py`

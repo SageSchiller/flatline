@@ -4,7 +4,7 @@ Three personas (pl_titles, pm_pet, pn_familiar) through the real dispatcher,
 each in its own data dir. No crashes in any of them. All three systems work
 and the tone holds. Details below.
 
-## Titles (pl_titles) — clean
+## Titles (pl_titles): clean
 
 - `called` with nothing earned reads as an invitation, not a blank.
 - Earned five titles across the registers (a working runner / who paid the
@@ -23,7 +23,7 @@ and the tone holds. Details below.
   NOTE for the harness: calling `record_progress()` directly queues the
   announcement but does not flush it; only a real command invocation does.
 
-## Real-world pets (pm_pet) — clean
+## Real-world pets (pm_pet): clean
 
 - Adopt (needs a safehouse first, refused without), name, and the full care
   loop (feed needs a bought bag; water and play are free) all read right.
@@ -36,7 +36,7 @@ and the tone holds. Details below.
 - The retire epilogue carries the pet: "and in the one that was not for the
   work / The cat outlived you, which cats do..."
 
-## Digital familiars (pn_familiar) — clean
+## Digital familiars (pn_familiar): clean
 
 - `familiar get` lists the five with their memory cost; a 2-memory one is
   refused on a full deck ("wants 2 memory and the deck has 1 it could give a

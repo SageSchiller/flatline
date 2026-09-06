@@ -67,7 +67,7 @@ runs under `act(p, fn, ...)`, which logs a persona-side exception as a
 `!!! PERSONA ERROR` and carries on, because the finding is in the game's
 transcript, not the script driving it.
 
-The five `q*` personas compose those acts five ways: `q1_netrunner` (the
+The `q*` personas compose those acts, one life each: `q1_netrunner` (the
 deck, in and out of the city), `q2_fighter` (the wall, a dog, a crew, the
 burn ending), `q3_face` (everybody talked to, the offer taken), `q4_explorer`
 (everything walked, the finds, save and restore, the door), `q5_drift`
@@ -77,7 +77,7 @@ line with the commands it typed out of everything the game registers
 parallel; they take a few minutes each:
 
 ```bash
-tools/playtest/run_all.sh     # all six in parallel, then the four lines that matter
+tools/playtest/run_all.sh     # q1 to q6 in parallel, then the lines that matter
 # or by hand:
 cd tools/playtest
 for f in q1_netrunner q2_fighter q3_face q4_explorer q5_drift; do python3 $f.py & done; wait
@@ -93,3 +93,14 @@ twelve runs, then the city-side commands nobody else typed (`betray`,
 `uninstall`, `script`, `bind`, `new`, `switch`, `delete`), and then becomes one
 character per origin to type the verb only that origin has. Its refusals are
 the deliverable: every one should be an honest answer, never a crash or a loop.
+
+`q7_long.py` is one life for two hundred shifts, to see whether the late game
+still decides anything; it takes a few minutes and is not in `run_all.sh`.
+`q8_origins.py` plays one short life per origin and carries each origin's own
+thread to its end. `SWEEP-2026-09-04-honest-play.md` and
+`ROUND-2026-09-04-pets.md` are the notes from the rounds before the campaigns;
+the plan's D158 to D179 entries are the version of record for everything the
+campaigns found.
+
+Run the suite (`python3 test.py`) on its own, not alongside the campaigns:
+together they take longer than a comfortable sitting.
