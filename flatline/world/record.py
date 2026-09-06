@@ -57,6 +57,10 @@ def counts(game, meta: dict) -> dict:
     return out
 
 
+#: Counters that only the profile keeps (D175): a life cannot read them.
+PROFILE_ONLY = frozenset({'titles_earned'})
+
+
 def this_life(game) -> dict:
     """The same counters read off this character alone (D166): what the
     life in front of you has done, beside what the profile has."""

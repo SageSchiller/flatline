@@ -446,7 +446,10 @@ def cmd_record(sess, args) -> None:
             # characters, and a second character used to read as having
             # done everything the first did.
             mine = int(life.get(e.counter, 0))
-            if game is not None and mine != have and e.target > 1:
+            if e.counter in record_world.PROFILE_ONLY:
+                # Counted on the profile, never on one life (D175).
+                num += "  [dim]the profile's[/]"
+            elif game is not None and mine != have and e.target > 1:
                 num += f'  [dim]this life {mine:,}[/]'
             line = f'  {bar} [{"ok" if got else "fg"}]{e.name:<32}[/] [dim]{num}[/]'
             c.raw(line + (f'  [accent2]{e.title}[/]' if got and e.title else ''))

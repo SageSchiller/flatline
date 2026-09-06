@@ -140,3 +140,9 @@ Six campaigns and the long life on the build with *The Ninth Log* and the
 four system subplots. 0 crashes. All five new threads reached by play on the
 first run; the fighter took the ninth log to the table and earned "who wrote
 the tenth log". The long life: shift 184, 66 runs, 42 of 59 threads.
+
+## Round eight, 2026-09-05 (D175): one life per origin
+
+`q8_origins.py`: twelve characters, twenty shifts each, each following its
+origin's thread by play (meeting who it asks for, running what it asks for,
+taking the thread's own posting). 10 of twelve end to end, 0 crashes.

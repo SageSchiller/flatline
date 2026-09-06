@@ -1382,7 +1382,7 @@ SCENES_AT_ONCE = 3
 #: a thread can be about whichever runner the city chose.
 FILL_TOKENS = ('{runner}', '{runner_handle}', '{partner}', '{pet}', '{familiar}',
                '{Runner}', '{Partner}', '{Pet}', '{Familiar}', '{called}',
-               '{partner_or}', '{Partner_or}')
+               '{partner_or}', '{Partner_or}', '{collector}', '{Collector}')
 
 
 def story_fill(game, text: str) -> str:
@@ -1415,8 +1415,10 @@ def story_fill(game, text: str) -> str:
     # of one, so a sentence reads either way.
     fill['partner_or'] = (f'{partner.name}, who was beside you,' if partner is not None
                           else 'nobody who was beside you')
+    collector = game.city.rival(game.city.paper) if game.city.paper else None
+    fill['collector'] = collector.name if collector is not None else 'the collector'
     for key, value in list(fill.items()):
-        if key in ('runner', 'partner', 'pet', 'familiar', 'partner_or'):
+        if key in ('runner', 'partner', 'pet', 'familiar', 'partner_or', 'collector'):
             fill[key[0].upper() + key[1:]] = value[0].upper() + value[1:]
     for key, value in fill.items():
         text = text.replace('{' + key + '}', value)
@@ -1532,9 +1534,6 @@ def _take_paper(sess) -> None:
         return
     worst = min(living, key=lambda r: (r.disposition, r.key))
     game.city.paper = worst.key
-    c.say(f'[dim]Mara does not say the name. The book does, upside down '
-          f'across the counter: [/][accent]{worst.name}[/][dim].[/]')
-    c.blank()
 
 
 def _settle_paper(sess, choice) -> None:
@@ -1621,6 +1620,8 @@ def _check_story(sess) -> None:
         thread = thread_content.BY_KEY[thread_key]
         if 'nine_named' in stage.sets:
             _name_the_ninth(sess)
+        if 'paper_taken' in stage.sets:
+            _take_paper(sess)
         game.story.reach(thread_key, stage, game.city.shift)
         # The wire carries the story too (D56): a scene is something the
         # city did, and `news` is where what the city did goes.
@@ -1633,8 +1634,6 @@ def _check_story(sess) -> None:
             c.say(para)
             c.blank()
         _scene_asides(sess, stage)
-        if 'paper_taken' in stage.sets:
-            _take_paper(sess)
         if 'wash_washed' in stage.sets:
             # The name comes clean (D169): the numbers come off, and the
             # heat that put them there is halved.

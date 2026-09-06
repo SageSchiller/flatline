@@ -14486,6 +14486,8 @@ def test_what_you_keep_is_on_the_record() -> None:
          f'{counts["pet_shifts"]}, {counts["familiar_runs"]}, {counts["titles_earned"]}')
     got = {e.key for e in record_world.earned(counts)}
     T.ok({'keeper', 'company', 'named'} <= got, f'and the three lines are earned: {sorted(got & {"keeper","company","named"})}')
+    sess_r, out_r = play(['record people'], game=game)
+    T.ok("the profile's" in out_r, 'and the line only the profile keeps says so')
     game.char.deck.familiar = {}
     T.ok(all(k in record_content.TITLE_BY_KEY for k in ('freight', 'stayed')),
          'the freight line has a title for each answer')
@@ -14604,6 +14606,8 @@ def test_the_collector_and_the_company() -> None:
                 break
     T.ok(opened and game.city.paper == worst.key, f'the runner who thinks least of you took the paper: {game.city.paper!r}')
     if opened:
+        sess.console.start_capture(); sess.execute('choose'); shown = sess.console.end_capture()
+        T.ok(worst.name in shown and '{collector}' not in shown, 'and the scene says the name in the book')
         sess.console.start_capture(); sess.execute(f'who {worst.key}'); out = sess.console.end_capture()
         T.ok('the paper on your name' in out, 'and who says so')
         d0 = worst.disposition

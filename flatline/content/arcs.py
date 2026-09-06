@@ -1641,7 +1641,8 @@ MORE_THREADS: tuple[Thread, ...] = (
                   'and not to you. "Somebody took the paper on you. A '
                   'runner, not a firm. They asked me where you drink." A '
                   'pause the length of a line being written. "I told them '
-                  'you do not."'
+                  'you do not." She does not say the name. The book does, '
+                  'upside down across the counter: {collector}.'
                   '\n\nA runner who takes a bounty collects it in person, '
                   'which means a night, a doorway, and a number that has '
                   'your face on it. There are three things people do about '
@@ -1671,10 +1672,10 @@ MORE_THREADS: tuple[Thread, ...] = (
                              'You go to the Hall and you sit where you can '
                              'be found and you let the room know you know. '
                              'A collector wants a doorway, not an audience. '
-                             'They come in, they see you seeing them, and '
-                             'they have a drink instead, because the '
-                             'number on the paper was for a surprise and '
-                             'there is not going to be one.',
+                             '{Collector} comes in, sees you seeing them, and '
+                             'has a drink instead, because the number on '
+                             'the paper was for a surprise and there is not '
+                             'going to be one.',
                              sets=('paper_faced',),
                              rep={'fixers': 6}),
                   ),
