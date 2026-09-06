@@ -505,6 +505,14 @@ class Session:
             bars=look.get('bars', 'blocks'),
             marks=look.get('marks', 'plain'))
 
+    def outro(self, quick: bool = False) -> None:
+        """The power-down on the way out (D181). Only after a clean quit:
+        never on a crash, and `--no-intro` skips it the way it skips the
+        boot."""
+        anim.shutdown(self.console,
+                      char=self.game.char if self.game else None,
+                      quick=quick, style=self.shell.get('banner', 'block'))
+
     def splash(self, quick: bool = False) -> None:
         c = self.console
         sep = f' {c.caps.g("bullet")} '

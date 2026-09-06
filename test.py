@@ -16703,6 +16703,57 @@ def test_the_regular_gets_the_call() -> None:
     _, out = play(['help networks'], game=game)
     T.ok('regular' in ' '.join(out.split()), 'the manual says a regular is a thing you can choose to be')
 
+
+def test_the_shutdown() -> None:
+    """D181: the power-down on the way out. The reverse of the boot, held
+    to the same rules: nothing above 127 at the ascii rung, no escapes
+    without colour, nothing wider than the terminal, no game entropy, and
+    the animated path leaves nothing of the report under the last frame."""
+    T.section('the shutdown')
+    import io
+    import re as _re
+    from flatline import anim
+    from flatline.ui import Caps, ColorLevel, GlyphLevel
+    a = Game.new(Character.from_origin('gutter', 'a'), seed=4343)
+    b = Game.new(Character.from_origin('gutter', 'b'), seed=4343)
+    for _ in range(3):
+        anim.shutdown(quiet_console(), char=a.char, quick=True)
+    T.eq(a.rng.getstate(), b.rng.getstate(), 'the shutdown touches no rng stream')
+    for color in ColorLevel:
+        for glyphs in GlyphLevel:
+            for width in (40, 62, 80, 120):
+                con = Console(Caps(color, glyphs, width, theme.DEFAULT), stream=io.StringIO())
+                con.start_capture()
+                anim.shutdown(con, char=a.char, quick=True)
+                out = con.end_capture()
+                T.ok('connection closed' in out, f'{color.name}/{glyphs.name}/{width}: says the connection closed')
+                for row in out.splitlines():
+                    bare = _re.sub(r'\033\[[0-9;]*m', '', row)
+                    T.ok(len(bare) <= max(width, 46), f'{color.name}/{glyphs.name}/{width}: nothing overflows')
+                if color is ColorLevel.NONE:
+                    T.ok('\033' not in out, 'no colour means no escape codes')
+                if glyphs is GlyphLevel.ASCII:
+                    T.ok(all(ord(ch) < 128 for ch in out), 'ascii mode emits nothing above 127')
+    for style in anim.BANNERS:
+        con, term = animated_console()
+        with no_pauses():
+            anim.shutdown(con, char=a.char, style=style)
+        screen = term.screen()
+        leftovers = [line for line in screen if any(label in line for label, _ in anim.SHUTDOWN)]
+        T.eq(leftovers, [], f'{style}: no line of the report survives the last frame')
+        deck_labels = [label for label, _ in anim.deck_lines(a.char)]
+        T.eq([l for l in screen if any(d in l for d in deck_labels)], [], f'{style}: nor a deck line')
+        tail = [l for l in screen if l.strip()]
+        T.ok(tail and 'connection closed' in tail[-1], f'{style}: ends on the closed connection')
+    # The session runs it, and quit still quits.
+    sess, out = play(['quit'])
+    T.ok(not sess.running, 'quit still quits')
+    con = quiet_console(); sess = Session(console=con, slot='test'); sess.game = a
+    con.start_capture(); sess.outro(quick=True); text = con.end_capture()
+    T.ok('connection closed' in text, 'the session has an outro')
+    _, out = play(['help quit'])
+    T.ok('powers down' in ' '.join(out.split()), 'help quit says what happens on the way out')
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
@@ -16756,7 +16807,7 @@ SUITES = (
     test_the_systems_have_stories,
     test_the_old_threads_read_the_new,
     test_the_city_at_leisure,
-    test_networks_with_memory, test_the_regular_gets_the_call,
+    test_networks_with_memory, test_the_regular_gets_the_call, test_the_shutdown,
     test_every_thread_opens_for_the_right_life,
     test_every_closing_stage_opens,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,

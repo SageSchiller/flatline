@@ -600,7 +600,10 @@ def deck_lines(char) -> list[tuple[str, str]]:
 
 
 _STATE_ROLE = {'ok': 'ok', 'armed': 'warn', 'degraded': 'warn',
-               'failed': 'err', 'absent': 'dim'}
+               'failed': 'err', 'absent': 'dim',
+               # the shutdown's states (D181)
+               'closed': 'warn', 'dropped': 'warn', 'flushed': 'ok',
+               'stood down': 'ok', 'cold': 'dim', 'off': 'dim'}
 
 
 def _post_line(label: str, state: str, caps: Caps, width: int) -> str:
@@ -1108,3 +1111,109 @@ def disrupt(console, frames: int = 7, height: int = 6,
             screen.draw([''])
     except KeyboardInterrupt:
         console.raw()
+
+
+# --------------------------------------------------------------------------
+# the shutdown (D181)
+# --------------------------------------------------------------------------
+
+#: The deck powering down, in the order it would actually do it: the link
+#: first, because a session left open is a session somebody reads; the
+#: nerve last, because that is the part of it that is you.
+SHUTDOWN: tuple[tuple[str, str], ...] = (
+    ('session', 'closed'),
+    ('link', 'dropped'),
+    ('cortical buffer', 'flushed'),
+    ('dead man handler', 'stood down'),
+    ('nerve interface', 'cold'),
+    ('trode net', 'cold'),
+)
+
+
+def shutdown(console, char=None, quick: bool = False,
+             style: str = 'block') -> None:
+    """The power-down: the reverse of `boot`. The deck reports itself off
+    a line at a time, the city's windows go out a bank at a time, the mark
+    decays the way it arrived, and the trace beats slower until it does
+    not, which is the name. About three seconds; prints its last frame
+    and returns where it cannot animate, and Ctrl-C at any point jumps
+    to the end of it, the same as the boot.
+    """
+    caps = console.caps
+    ascii_only = caps.glyphs is GlyphLevel.ASCII
+    palette = caps.palette
+    fits = caps.width >= MARK_WIDTH + 2
+    rows = banner_rows(style, ascii_only, fits, caps)
+    span = max((len(r) for r in rows), default=0)
+    width = min(caps.width - 1, MARK_WIDTH)
+    pad = ' ' * max(0, (min(caps.width, 80) - span) // 2)
+    traced = fits and 0 < span <= caps.width - 2
+    show_scene = fits and style not in ('none', 'small')
+
+    def final() -> list[str]:
+        out = ['']
+        if traced:
+            out.append(pad + paint(trace_row(span, 0, False, ascii_only),
+                                   'err', caps))
+        tag = ('connection closed. the city is still there.'
+               if caps.width >= 48 else 'connection closed.')
+        out.append(' ' * max(0, (min(caps.width, 80) - len(tag)) // 2)
+                   + paint(tag, 'dim', caps))
+        out.append('')
+        return out
+
+    if quick or not can_animate(console):
+        for line in final():
+            console.emit(line)
+        return
+
+    rng = random.Random(20260905)
+    report = list(SHUTDOWN) + [(label, 'off')
+                               for label, _ in reversed(deck_lines(char))]
+    try:
+        with _Screen(console) as screen:
+            # 1. The deck reports itself off, top to bottom.
+            shown: list[str] = ['']
+            for label, state in report:
+                shown.append(_post_line(label, state, caps, width))
+                screen.draw(shown)
+                screen.pause(0.05 if state in ('off', 'cold') else 0.12)
+            screen.pause(0.2)
+
+            # 2. The city and the mark, once more, whole.
+            scene_full = scene_rows(caps, palette, 1.0) if show_scene else []
+            lit = gradient(rows, palette, caps)
+            screen.draw([''] + (scene_full + [''] if scene_full else [])
+                        + [pad + r for r in lit])
+            screen.pause(0.25)
+
+            # 3. The windows go out a bank at a time.
+            if scene_full:
+                power = 8
+                for i in range(power - 1, -1, -1):
+                    screen.draw([''] + scene_rows(caps, palette, i / power)
+                                + [''] + [pad + r for r in lit])
+                    screen.pause(0.06)
+
+            # 4. The mark decays the way it arrived, from the right.
+            steps = 14
+            for i in range(steps + 1):
+                t = 1.0 - i / steps
+                frame = [scramble(r, t, rng, ascii_only) for r in rows]
+                screen.draw([''] + [pad + r for r in
+                                    gradient(frame, palette, caps)])
+                screen.pause(0.03)
+
+            # 5. And the trace beats, slower each time, until it does not.
+            if traced:
+                for i in range(22):
+                    beating = i < 12
+                    line = trace_row(span, i * 3, beating, ascii_only)
+                    screen.draw([''] + [pad + paint(
+                        line, 'ok' if beating else 'err', caps)])
+                    screen.pause((0.06 + 0.02 * (i // 4)) if beating else 0.08)
+            screen.draw(final())
+    except KeyboardInterrupt:
+        console.raw()
+        for line in final():
+            console.emit(line)

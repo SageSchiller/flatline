@@ -120,7 +120,10 @@ def main(argv: list[str] | None = None) -> int:
         # dropped somebody into a character they had not asked for.
         sess.execute('characters')
         console.blank()
-    return sess.loop()
+    code = sess.loop()
+    if code == 0:
+        sess.outro(quick=args.no_intro)
+    return code
 
 
 def _living(sess) -> list:

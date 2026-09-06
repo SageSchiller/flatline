@@ -68,7 +68,8 @@ python3 -m flatline --continue   # straight back into the last character
 
 It boots. If you are on a colour terminal you get the animated version, and
 `title` replays it; everywhere else you get the last frame and the game is
-identical. Ctrl-C during it means "get on with it", not "quit".
+identical. Ctrl-C during it means "get on with it", not "quit". `quit`
+powers it down the same way, and Ctrl-C skips that too.
 
 If you have never played a game by typing at it, three things carry you.
 **Enter on an empty line** always says what to do next: the one real move,
@@ -176,7 +177,7 @@ slow effect but no effect, and looks identical to a slow one from outside.
 
 ## The design
 
-`FLATLINE-PLAN.md` is the long version: a hundred and eighty numbered locked decisions,
+`FLATLINE-PLAN.md` is the long version: a hundred and eighty-one numbered locked decisions,
 the systems design, and a session log. **Read it first** before changing
 anything structural.
 

@@ -738,7 +738,11 @@ def _bequeath(sess, how: str) -> None:
 
 @command('quit', 'Leave. Saves first unless you say otherwise.',
          group='session', aliases=('exit',), bare=True,
-         usage='quit [--no-save]')
+         usage='quit [--no-save]',
+         detail='The deck powers down on the way out: the link dropped, the '
+                'city dark, the mark gone, the trace flat. Ctrl-C during it '
+                'skips to the end, and `--no-intro` on the command line skips '
+                'it the way it skips the boot.')
 def cmd_quit(sess, args) -> None:
     if sess.run is not None and not args.has('force'):
         raise CommandError('you are still jacked in. `jack out` first, or '
