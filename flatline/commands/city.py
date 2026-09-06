@@ -321,6 +321,7 @@ def cmd_char(sess, args) -> None:
     origin = char.origin_data
 
     c.header(char.handle, origin.name + (f', {game.over}' if game.over else ''))
+    c.say(f'[dim]world seed {game.rng.seed}. It is in every bug report.[/]')
     _portrait(sess, char)
     c.kv([
         (('ran as', f'[dim]{game.alias.name}[/] [dim]({game.alias.runs} run'

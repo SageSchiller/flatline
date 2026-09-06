@@ -1,25 +1,43 @@
 # flatline
 
-A text-based cyberpunk netrunning game, played by typing at a fake terminal.
+**Version 1.0.** A text-based cyberpunk netrunning game, played by typing at
+a fake terminal.
 
 You take contracts from people who want a corporate network interfered with,
 break into it while a trace runs against you, and leave before it finishes.
 Then the part most games in this genre skip: **the city remembers**. The
-evidence you left becomes that faction's attention on you a shift later, their
-networks harden every time you succeed against them, and the other runners in
-this city are taking the work you did not.
+evidence you left becomes that faction's attention on you a shift later, the
+other runners in this city are taking the work you did not, and the networks
+remember you too: the doors you left open are still open next time, until
+somebody patches them, and a trail you did not scrub teaches them how you
+work.
 
 Python, standard library only. No dependencies, no install, no network access
 at runtime.
 
+## Getting it
+
+You need **Python 3.11 or newer** and a terminal at least **80 columns** wide
+that can show Unicode (`--ascii` if it cannot). Then either:
+
+- download `flatline.pyz` from the
+  [latest release](https://github.com/SageSchiller/flatline/releases/latest)
+  and run `python3 flatline.pyz`, or
+- clone this repository and run `python3 -m flatline` from inside it.
+
+That is the whole install. Nothing is written anywhere but your save directory
+(below).
+
 ## Running it
 
 ```bash
-python3 -m flatline              # play
+python3 -m flatline              # play (or: python3 flatline.pyz)
 python3 -m flatline --seed 8829  # a specific world; seeds reproduce exactly
 python3 -m flatline --theme ansi # inherit your terminal's own colours
 python3 -m flatline --ascii      # no Unicode
+python3 -m flatline --no-color   # no colour at all
 python3 -m flatline --no-intro   # skip the cold start
+python3 -m flatline --continue   # straight back into the last character
 ```
 
 It boots. If you are on a colour terminal you get the animated version, and
@@ -39,8 +57,8 @@ with a line of the verbs that district makes possible.
 
 At the prompt, `tutorial` walks you through a first run one instruction at a
 time. `help` is one screen: what to read first, the verbs that answer "what
-now", and where the rest lives. `help commands` is all 151 verbs, `help
-topics` is all 46 explanations, and `help <anything>` finds a verb, a system,
+now", and where the rest lives. `help commands` is all 156 verbs, `help
+topics` is all 47 explanations, and `help <anything>` finds a verb, a system,
 or searches both, including every proper noun in the game.
 
 Two verbs are worth knowing before anything else. **`job`** says what you are
@@ -66,6 +84,32 @@ restore --import ~/backups/keeper.json   # bring it back, here or elsewhere
 
 An export is an ordinary save, migrations included: a copy made today still
 opens after the format moves on.
+
+## For testers
+
+Thank you. The game has been played to its endings by scripts a few hundred
+times; what it has not had is you. Three things are worth an evening each:
+
+1. **The first hour, cold.** Start with `begin` and do what the screen says.
+   If at any point you do not know what to type, that is the bug; note what
+   was on the screen.
+2. **A life.** `new`, pick an origin, and play until something ends: the
+   main line (*What Deepwater Is*, which starts when somebody mentions the
+   name and stops), a retirement, or a flatline. `journal` is where the
+   stories stand; `record` is what is left.
+3. **Something you would not normally do.** Keep an animal. Crew a runner.
+   Fight for a living in the pit under the Shambles. Owe somebody. Every
+   corner has its own threads.
+
+When something is wrong, the most useful report is the **seed** (it is in
+`char`), what you typed, and what the game said; `history 20` prints the
+last twenty things you typed, and `save --export` makes a file you can
+attach. Prose that lands wrong is as much a bug as a crash: the thread key
+is beside its name in `journal`.
+
+Known edges: below eighty columns the map and the tables wrap; Windows
+terminals and Python versions below 3.14 have not been tried by the author,
+only held by the build.
 
 ## Building a single file
 
@@ -102,7 +146,7 @@ slow effect but no effect, and looks identical to a slow one from outside.
 
 ## The design
 
-`FLATLINE-PLAN.md` is the long version: a hundred numbered locked decisions,
+`FLATLINE-PLAN.md` is the long version: a hundred and seventy-nine numbered locked decisions,
 the systems design, and a session log. **Read it first** before changing
 anything structural.
 
@@ -140,8 +184,8 @@ The three ideas everything else hangs off:
   somebody having a worse day than you in a way nobody records. About one
   event in six comes up for air, because unrelenting bleakness stops landing
   after an hour. The ratio is enforced by `validate.py`, not hoped for.
-- **The shell is yours and the city does not get it.** Seven axes of terminal
-  customisation, seventy-one pieces, most of them earned by playing. It is
+- **The shell is yours and the city does not get it.** Nine axes of terminal
+  customisation, ninety-one pieces, most of them earned by playing. It is
   stored outside the save, so it survives a flatline: you lose everything
   else, and the terminal you spent a week getting right is still there when
   you sit down with somebody new. None of it touches a single number.
