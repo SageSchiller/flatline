@@ -14884,9 +14884,9 @@ def test_the_wash_the_scene_and_the_watches() -> None:
     game = Game.new(Character.from_origin('gutter', 'x'), seed=270)
     game.city.bounties['sixes'] = 60; game.city.bounties['carrion'] = 30
     game.alias.add_heat('sixes', 80)
-    game.story.flags.add('wash_offered'); game.story.flags.add('wash_working')
-    game.story.reached['wash'] = ['offer']
-    game.story.when['thread:wash'] = int(game.city.shift) - 11
+    game.story.flags.update({'wash_offered', 'wash_working', 'wash_second'})
+    game.story.reached['wash'] = ['offer', 'second']
+    game.story.when['thread:wash'] = int(game.city.shift) - 7
     game.city.where = 'marrow'
     sess, out = play(['look', 'rest', 'look'], game=game)
     T.ok('wash_washed' in game.story.flags and not game.city.bounties,
@@ -15063,6 +15063,49 @@ def test_the_systems_have_stories() -> None:
         sess2.console.start_capture(); sess2.execute('choose wipe'); sess2.console.end_capture()
         T.ok(not game2.char.deck.familiar and 'construct_wiped' in game2.story.flags, 'wiping it, the deck runs cooler')
 
+
+def test_the_old_threads_read_the_new() -> None:
+    """D173: the retrofit goes both ways. Lark, Ninety and the Weight each
+    close on a line that reads the partner and the name the city uses;
+    the tokens capitalise at a sentence\'s start and say what is not there;
+    the ninth log has a branch for a runner already beside you; the toy
+    has a scene; the wash has a middle."""
+    T.section('the old threads read the new')
+    from flatline.content import threads as thread_content
+    from flatline.commands import people as people_cmd
+    from flatline.world import pets as pet_world
+    for key, stage in (('lark', 'after_lark'), ('ninety', 'clean'), ('weight', 'rail')):
+        th = next(t for t in thread_content.THREADS if t.key == key)
+        st = next(s for s in th.stages if s.key == stage)
+        T.ok('{Partner}' in st.text and '{called}' in st.text, f'{key}.{stage} reads the partner and the name')
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=330)
+    out = people_cmd.story_fill(game, '{Partner} asks. {called}. {Pet} sleeps.')
+    T.ok(out.startswith('Nobody asks.') and '{' not in out and 'Nothing sleeps.' in out,
+         f'the tokens capitalise and say what is not there: {out!r}')
+    T.ok(people_cmd.story_fill(game, '{called}') != '', 'and the name the city uses is a name or the lack of one')
+    riv = next(r for r in game.city.rivals if r.alive); riv.bond = 'partner'
+    T.ok(people_cmd.story_fill(game, '{Partner}').startswith(riv.name.split()[0]), 'and name the partner when there is one')
+    nine = next(t for t in thread_content.THREADS if t.key == 'nine')
+    table = next(s for s in nine.stages if s.key == 'table'); crew = next(s for s in nine.stages if s.key == 'table_crew')
+    T.ok('not:ninth:crew' in table.requires and 'ninth:crew' in crew.requires, 'the table has a branch for a runner already beside you')
+    T.ok({c.key for c in crew.choices} == {'stay', 'release', 'handed'} and all(
+        set(c.sets) <= {'nine_together', 'nine_alone', 'nine_handed'} for c in crew.choices), 'and its answers land on the same flags')
+    game2 = Game.new(Character.from_origin('gutter', 'x'), seed=331)
+    game2.city.safehouse = {'key': 'test', 'district': game2.city.where}
+    pet_world.adopt(game2.city, 'rat', 'Tithe')
+    T.ok(not game2.story.satisfied('pet:toy', game2), 'no toy, no scene')
+    game2.city.pet['toy'] = 'a wheel'
+    T.ok(game2.story.satisfied('pet:toy', game2), 'the toy is a thing the story can read')
+    stray = next(t for t in thread_content.THREADS if t.key == 'stray')
+    T.ok(any(s.key == 'toy' and 'pet:toy' in s.requires for s in stray.stages), 'and the animal thread has a scene for it')
+    wash = next(t for t in thread_content.THREADS if t.key == 'wash')
+    keys = [s.key for s in wash.stages]
+    second = next(s for s in wash.stages if s.key == 'second'); washed = next(s for s in wash.stages if s.key == 'washed')
+    T.ok(keys.index('second') < keys.index('washed') and second.after + washed.after == 10 and 'wash_second' in washed.requires,
+         'the wash has a middle, and still takes ten shifts')
+    from flatline.content import npcs as npc_content
+    T.ok('construct' in npc_content.BY_KEY['remnant'].topics, 'Remnant has something to say about the construct')
+
 def _life_for(rules, seed=280):
     """A character built for a set of story rules (D169, D170): the origin,
     the people, the runs, the rank, the rung, the habit, the mark, the
@@ -15150,6 +15193,8 @@ def _life_for(rules, seed=280):
             pet_world.adopt(game.city, key, 'Built')
             if what == 'kept' or amount:
                 game.city.pet['since'] = int(game.city.shift) - int(amount or 0)
+            if what == 'toy':
+                game.city.pet['toy'] = 'a thing it plays with'
         elif kind == 'familiar':
             what, _, amount = value.partition(':')
             game.char.deck.familiar = {'key': 'pixelcat', 'name': 'Built', 'charge': 100,
@@ -16530,6 +16575,7 @@ SUITES = (
     test_the_wash_the_scene_and_the_watches,
     test_the_ninth_log,
     test_the_systems_have_stories,
+    test_the_old_threads_read_the_new,
     test_every_thread_opens_for_the_right_life,
     test_every_closing_stage_opens,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,

@@ -1159,6 +1159,17 @@ MORE_THREADS: tuple[Thread, ...] = (
                   sets=('stray_settled',),
                   after=3,
                   where='ninth'),
+            Stage('toy', 'The one thing it plays with',
+                  'The kid from the wet end sees the toy through the door, '
+                  'the one thing {pet} plays with, and stands there longer '
+                  'than the cold makes sense of. Tuck, later: "They had one '
+                  'for it. Not that one. Same idea." He does not say what '
+                  'happened to it. Nobody in the Ninth ever says what '
+                  'happened to a thing; they say what it was.',
+                  requires=('stray_settled', 'pet:toy'),
+                  sets=('stray_toy',),
+                  after=2,
+                  where='ninth'),
         )),
     Thread(
         'construct', 'The Thing That Talks',
@@ -1440,7 +1451,7 @@ MORE_THREADS: tuple[Thread, ...] = (
                   'has for years. So." The so is the question. There are '
                   'three answers to it and one of them is the kind the city '
                   'never forgets.',
-                  requires=('nine_posted', 'nine_told', 'ninth:alive'),
+                  requires=('nine_posted', 'nine_told', 'ninth:alive', 'not:ninth:crew'),
                   sets=('nine_table',),
                   after=1,
                   choices=(
@@ -1472,6 +1483,46 @@ MORE_THREADS: tuple[Thread, ...] = (
                              'read about them for a long time. The Archivist '
                              'puts the ninth log with the other eight. They '
                              'do not turn their chair round.',
+                             sets=('nine_handed',),
+                             credits=6000,
+                             rep={'deepwater': 20}),
+                  )),
+            Stage('table_crew', 'Two logs, one deck',
+                  '{runner} is already beside you, which changes the table: '
+                  'it is not a proposal, it is a thing you are both already '
+                  'doing, with a log each in the bag and a client that knows '
+                  'both handles. They put theirs next to yours on the deck '
+                  'case, in the flat, where nobody else is. "It knows we '
+                  'work together," they say. "It has for a while. So." The '
+                  'so is the same question, asked by somebody who has '
+                  'already answered half of it.',
+                  requires=('nine_posted', 'nine_told', 'ninth:crew'),
+                  sets=('nine_table',),
+                  after=1,
+                  choices=(
+                      Choice('stay', 'Keep running together',
+                             'You say nothing changes, and {runner} says '
+                             'good, and it is the shortest conversation the '
+                             'two of you have had about the largest thing. '
+                             'The tenth log, when there is one, will have '
+                             'two handles in the header and the same door '
+                             'in every entry, and that has never happened.',
+                             sets=('nine_together',)),
+                      Choice('release', 'Let them go',
+                             'You say the eight had one thing in common and '
+                             'you are not going to be the ninth\'s, and you '
+                             'release them, and {runner} does not argue, '
+                             'which is how you know they had thought it too. '
+                             'The crew is one person again. The log is one '
+                             'log.',
+                             sets=('nine_alone',)),
+                      Choice('handed', 'Hand them to Deepwater',
+                             'It has a contract for that, and the contract '
+                             'does not care that they are on your crew; it '
+                             'may prefer it. You file it. The money is the '
+                             'largest sum you have ever seen cleared in one '
+                             'line, and {runner} is not beside you in the '
+                             'morning, and the deck case has one log on it.',
                              sets=('nine_handed',),
                              credits=6000,
                              rep={'deepwater': 20}),
@@ -1550,6 +1601,19 @@ MORE_THREADS: tuple[Thread, ...] = (
                              sets=('wash_refused',)),
                   ),
                   where='marrow'),
+            Stage('second', 'The second line',
+                  'The jobs that come through Mara now have a second line '
+                  'under them that you are not shown, and once, by accident '
+                  'or on purpose, the book is open at your page when you '
+                  'come in. The second line is a name. Not yours. The one '
+                  'the paper is being moved off you and onto, slowly, a '
+                  'little a shift, in a hand you recognise from the '
+                  'contracts. She closes it before you have finished '
+                  'reading. "Halfway," she says. "Do not ask whose."',
+                  requires=('wash_working',),
+                  sets=('wash_second',),
+                  after=4,
+                  where='marrow'),
             Stage('washed', 'The name comes clean',
                   'Ten shifts, and Mara says nothing about it, and then '
                   'says one thing: "Done." The number is off. Nobody is '
@@ -1557,10 +1621,10 @@ MORE_THREADS: tuple[Thread, ...] = (
                   'are half as angry, which is the most that can be done '
                   'for anger by paperwork. She does not say what it cost '
                   'her. It cost her something.',
-                  requires=('wash_working',),
+                  requires=('wash_working', 'wash_second'),
                   any_of=('wash_working', 'wash_refused'),
                   sets=('wash_washed',),
-                  after=10,
+                  after=6,
                   where='marrow'),
         )),
 

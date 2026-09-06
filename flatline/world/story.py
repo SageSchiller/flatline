@@ -112,6 +112,8 @@ class Story:
                 return True
             if what == 'kept':
                 return int(game.city.shift) - int(pet.get('since', game.city.shift)) >= int(amount or 1)
+            if what == 'toy':
+                return bool(pet.get('toy'))
             return pet.get('key') == what
         if kind == 'familiar':
             # The construct on the deck (D172): `familiar:any`, `familiar:N`

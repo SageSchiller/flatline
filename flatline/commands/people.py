@@ -1380,7 +1380,8 @@ SCENES_AT_ONCE = 3
 
 #: Tokens a scene may carry (D171): the world fills them at print time, so
 #: a thread can be about whichever runner the city chose.
-FILL_TOKENS = ('{runner}', '{runner_handle}', '{partner}', '{pet}', '{familiar}')
+FILL_TOKENS = ('{runner}', '{runner_handle}', '{partner}', '{pet}', '{familiar}',
+               '{Runner}', '{Partner}', '{Pet}', '{Familiar}', '{called}')
 
 
 def story_fill(game, text: str) -> str:
@@ -1399,6 +1400,19 @@ def story_fill(game, text: str) -> str:
         'pet': pet.get('name') or 'nothing',
         'familiar': fam.get('name') or 'nothing',
     }
+    # The name the city uses for you (D173): the pinned one, else the
+    # newest, else none yet.
+    try:
+        from .. import save as save_mod
+        from ..world import record as record_world
+        meta = save_mod.read_meta()
+        counts = record_world.counts(game, meta)
+        fill['called'] = record_world.title_of(counts, meta.get('recorded'), meta) or 'no name yet'
+    except Exception:  # noqa: BLE001
+        fill['called'] = 'no name yet'
+    for key, value in list(fill.items()):
+        if key in ('runner', 'partner', 'pet', 'familiar'):
+            fill[key[0].upper() + key[1:]] = value[0].upper() + value[1:]
     for key, value in fill.items():
         text = text.replace('{' + key + '}', value)
     return text

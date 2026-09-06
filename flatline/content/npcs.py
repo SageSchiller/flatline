@@ -447,6 +447,7 @@ NPCS: tuple[Npc, ...] = (
             'explain that and you are not going to ask."',
         ),
         topics={
+            'construct': '"The constructs people run on their decks. Where do you think they come from? Something made them out of something. Mine, if I had one, would not be learning. It would be remembering. Ask yours what it remembers."',
             'death': '"It is not dark and it is not light. It is a room you '
                      'have already been in and cannot place."',
             'deepwater': 'They are quiet for a long moment. "It knows my '
