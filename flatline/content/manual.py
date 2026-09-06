@@ -862,7 +862,6 @@ TOPICS: tuple[Topic, ...] = (
         group='city'),
     Topic(
         'rivals', 'The other runners',
-        'They decide about each other too: a partner hears who you crewed and thinks less of you for it, and a nemesis will buy your crew for a night now and then, at a price that is about you.\n\n'
         'Seven named people who are also working, and two of them will decide.',
         'Seven runners work this city and they are not scenery. They take '
         'contracts off the board while you deliberate, they harden the '
@@ -899,7 +898,8 @@ TOPICS: tuple[Topic, ...] = (
         'terms with and you cannot afford all seven, because the work you '
         'take is work somebody else wanted. Choosing who to disappoint is the '
         'whole of it, and it is much easier before anybody has decided.'
-        '\n\n[warn]On the street.[/] A partner stands beside you in a street fight and puts one down some rounds. A reckoning can be settled with [accent]fight[/] as well as faced, paid, or walked from; losing one is told about, not died of.',
+        '\n\n[warn]On the street.[/] A partner stands beside you in a street fight and puts one down some rounds. A reckoning can be settled with [accent]fight[/] as well as faced, paid, or walked from; losing one is told about, not died of.'
+        '\n\nThey decide about each other too: a partner hears who you crewed and thinks less of you for it, and a nemesis will buy your crew for a night now and then, at a price that is about you.',
         see=('contracts', 'people', 'heat', 'factions'),
         commands=('who', 'hire', 'crew', 'ask', 'betray'),
         covers=('rivals',),
@@ -949,7 +949,6 @@ TOPICS: tuple[Topic, ...] = (
         group='city'),
     Topic(
         'threads', 'Storylines',
-        'The main line has a second arc: the ninth log, which belongs to a runner on your board, and what you did with your own log decides what they can do with theirs.\n\n'
         'Several at once, none of them waiting for you.',
         'There are no quest chains here. A thread is a set of scenes, each '
         'with its own condition, and a scene happens the moment its condition '
@@ -967,7 +966,8 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] threads advance on what you were doing '
         'anyway, so the real choice is who you spend time near. Nothing here '
         'will chase you, and a thread you ignore simply resolves without you '
-        'in it.',
+        'in it.'
+        '\n\nThe main line has a second arc: the ninth log, which belongs to a runner on your board, and what you did with your own log decides what they can do with theirs.',
         see=('people', 'city'),
         commands=('journal', 'choose', 'look'),
         covers=('threads', 'arcs'),
@@ -1062,7 +1062,6 @@ TOPICS: tuple[Topic, ...] = (
         group='city'),
     Topic(
         'street', 'The street is real',
-        'A rank on the wall fades if you stop, and the top does not stay empty: the one you took it from comes back for it, and `pit` says who holds it.\n\n'
         'The half of the danger that happens with the deck in the bag.',
         'The net is half the game and the street is the other half, and the '
         'street has people in it. Walk into a district where a faction has a '
@@ -1165,7 +1164,8 @@ TOPICS: tuple[Topic, ...] = (
         '`burn`, and so is paying.'
         '\n\n[warn]Tonight, outside.[/] The run has its conditions (`help conditions`); the street has its own, drawn when the night comes in and gone by morning, said on the arrival line: a Nightwatch sweep (quieter, and a gun is heard twice), fight night (rougher, a rung worse, muscle pays half again), a curfew (nearly empty, and what is out is bad), a wake, the lights out (rougher, and what they carried is easier to walk off with), and payday (money on the street). And a clinic will patch you: [fg]clinic patch[/] puts Integrity back for money and no shift, which is how a fighter is back on the street the same night.'
         '\n\n[warn]The pit.[/] Under the fence in the Shambles, at night, Carrion\'s room: a floor with tape on it and a wall with names. [fg]pit[/] shows the card; [fg]pit next[/] fights the next name up the wall and [fg]pit <name>[/] any name above yours, with a stake on yourself at the house\'s odds (even money for the next rung, two to one for the one after, three to one past that; the house keeps a tenth). Five names, each a style, and at the top the one who has held the wall for nine years and holds a blade you can only get by taking it. The pit\'s rules are its own: hands, blades and sticks, the house holds the gun; nobody dies on the floor, whatever rung; no Nightwatch, no grudge; one bout a night; and a rank that fades if you stop. The purse rises with the night (fight night pays half again).'
-        '\n\n[warn]A fixer\'s street jobs.[/] The fixers who hand out runs also hand out the other kind of work: [fg]deal <fixer> muscle[/] lists two things a window that need doing with your hands, not the deck. Somebody needs hurting, something needs standing in front of, something needs getting back. Take one and you carry it like an errand; it happens where it is, when you arrive, as a fight at the tier they said. Real pay, and for a recovery, the thing itself. None of it is a run.',
+        '\n\n[warn]A fixer\'s street jobs.[/] The fixers who hand out runs also hand out the other kind of work: [fg]deal <fixer> muscle[/] lists two things a window that need doing with your hands, not the deck. Somebody needs hurting, something needs standing in front of, something needs getting back. Take one and you carry it like an errand; it happens where it is, when you arrive, as a fight at the tier they said. Real pay, and for a recovery, the thing itself. None of it is a run.'
+        '\n\nA rank on the wall fades if you stop, and the top does not stay empty: the one you took it from comes back for it, and `pit` says who holds it.',
         see=('death', 'heat', 'skills', 'city', 'thedeck'),
         commands=('errands', 'arrange', 'travel', 'rest', 'rep', 'carry',
                   'wear', 'pit', 'clinic'),
@@ -1244,7 +1244,6 @@ TOPICS: tuple[Topic, ...] = (
         group='city'),
     Topic(
         'record', 'The record',
-        'Where this life is behind the profile, the line says so, "this life 3" beside the count.\n\n'
         'What the city can say about you, and what is left.',
         '`now` names the line you are closest to crossing, when it is close; `record` is the whole of it.\n\n'
         'A city with twelve districts, seventy-two quarters, sixty places '
@@ -1287,7 +1286,8 @@ TOPICS: tuple[Topic, ...] = (
         'the way to anything. The main line is twelve scenes long and the '
         'other hundred and fifteen are there because you went and looked, '
         'and the record is the only thing in the game that will tell you how '
-        'much of it you have actually seen.',
+        'much of it you have actually seen.'
+        '\n\nWhere this life is behind the profile, the line says so, "this life 3" beside the count.',
         see=('city', 'reading', 'shell', 'legacy', 'thedeck'),
         commands=('record', 'called', 'char', 'journal', 'visit'),
         covers=('record',),
@@ -1296,7 +1296,6 @@ TOPICS: tuple[Topic, ...] = (
         group='city'),
     Topic(
         'relics', 'Things there is one of',
-        'There is a second way in. Somebody you have asked everything tells you where to look, once, and what they told you gets you past the career the thing would otherwise wait for.\n\n'
         'What is not for sale, where it might be, and why it is worth having.',
         'Most of what you will ever carry came off a shelf, and the shelf '
         'will have another one next week. A few things did not. They are one '
@@ -1324,7 +1323,8 @@ TOPICS: tuple[Topic, ...] = (
         'everything in this game. [fg]inspect[/] one and it tells you its '
         'history as well as its numbers.\n\n'
         '[warn]The decision:[/] whether to go and look. Standing somewhere at '
-        'the wrong hour costs nothing but the hour.',
+        'the wrong hour costs nothing but the hour.'
+        '\n\nThere is a second way in. Somebody you have asked everything tells you where to look, once, and what they told you gets you past the career the thing would otherwise wait for.',
         see=('city', 'threads', 'programs'),
         commands=('visit', 'inspect', 'look', 'rumours'),
         terms=('unique', 'rare', 'special', 'artifact', 'artefact', 'legendary'),
