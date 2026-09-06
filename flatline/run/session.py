@@ -181,6 +181,11 @@ class RunState:
     hurt: int = 0
 
     haul: list[str] = field(default_factory=list)
+    #: Techniques this network expects of you (D179), from what its owners
+    #: have seen you do here before and not scrub.
+    expected: set = field(default_factory=set)
+    #: Techniques you have used tonight, for what they learn at the end.
+    used: set = field(default_factory=set)
     #: Objective progress, keyed by objective type.
     done: dict = field(default_factory=dict)
 
@@ -3298,6 +3303,14 @@ def crack_check(state: RunState, node: Node, svc: net_mod.ServiceInstance,
                           programs.held(second, rank))
     else:
         check.add(f'no {category} loaded', -6)
+    # They have seen you work here before (D179): a technique they expect,
+    # used again tonight, reads on every door.
+    for tech in sorted(state.used & state.expected)[:1]:
+        from ..world import memory as memory_mod
+        check.add(f'they have seen you {tech} here', -memory_mod.EXPECTED_PENALTY)
+    if quiet and 'quiet' in state.expected and 'quiet' not in state.used:
+        from ..world import memory as memory_mod
+        check.add('they expect quiet work here', -memory_mod.EXPECTED_PENALTY)
     if svc.family == 'crypto':
         check.add('crypto gear', state.char.bonus('crypto_bonus'))
     else:

@@ -15175,6 +15175,77 @@ def test_the_city_at_leisure() -> None:
                 T.ok(st.posts.patron in fac_content.BY_KEY and st.posts.target in fac_content.BY_KEY,
                      f'{th.key}.{st.key}: the posting names real factions')
 
+
+def test_networks_with_memory() -> None:
+    """D179: the networks remember you. Doors left cracked come up open next
+    time until the faction patches them (news, and a watch on the faction);
+    a trail you leave teaches them the techniques you used, and one seen
+    twice reads on every door; a route you found is still there; a planted
+    way ages; `render` says what they know."""
+    T.section('networks with memory')
+    from flatline.world import memory as memory_mod
+    from flatline.run import network as net_mod
+    from flatline.rng import Rng
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=400)
+    net = net_mod.generate(Rng(9).fork('network', 'a'), 'kagawa', 40, 'exfiltrate')
+    # Crack two services somewhere, leave a trail, use a technique.
+    cracked = []
+    for node in net.nodes.values():
+        for svc in node.services:
+            if len(cracked) < 2:
+                svc.cracked = True; node.open = True; cracked.append((node, svc))
+    mem = memory_mod.remember_run(game.city, 'kagawa', net, {'chain'}, residue=3, shift=10)
+    T.ok(len(mem['doors']) == 2 and mem['runs'] == 1 and mem['last'] == 10, 'the night is remembered: two doors, one run')
+    T.ok(mem['seen'] == {'chain': 1}, 'and what they saw you do, because you left a trail')
+    mem2 = memory_mod.remember_run(game.city, 'kagawa', net, {'chain', 'ghost'}, residue=0, shift=12)
+    T.ok(mem2['seen'] == {'chain': 1} and mem2['runs'] == 2, 'a scrubbed night teaches them nothing')
+    memory_mod.remember_run(game.city, 'kagawa', net, {'chain'}, residue=1, shift=14)
+    T.ok(memory_mod.expected(game.city.memory['kagawa']) == {'chain'}, 'seen twice, chaining is expected')
+    # A fresh network of theirs comes up the way they left it.
+    fresh = net_mod.generate(Rng(9).fork('network', 'b'), 'kagawa', 40, 'exfiltrate')
+    before = sum(1 for n in fresh.nodes.values() for sv in n.services if sv.cracked)
+    said, exp = memory_mod.apply(fresh, game.city.memory['kagawa'])
+    after = sum(1 for n in fresh.nodes.values() for sv in n.services if sv.cracked)
+    T.ok(after > before and any('still open' in x for x in said), f'the doors are still open: {before} -> {after}')
+    T.ok(exp == {'chain'} and any('seen you chain' in x for x in said), 'and the brief says they have seen you chain here')
+    # The tick patches, and a watch on the faction hears it.
+    game.city.watches.append('kagawa')
+    class Always:
+        def chance(self, p): return True
+    told = memory_mod.patch_tick(game.city, Always(), lambda f: 0)
+    T.ok(len(game.city.memory['kagawa']['doors']) == 1 and any('patched' in x for x in told), 'the faction patches a door, and says so')
+    T.ok(game.city.memory['kagawa']['pings'], 'and the watch has something to say')
+    from flatline.world import deck as deck_world
+    pings = deck_world.pings(game)
+    T.ok(any('patched' in p for p in pings) and not game.city.memory['kagawa']['pings'], 'which the deck says once')
+    # The expected technique reads on a crack.
+    from flatline.run import session as run_session
+    from flatline.content import programs as PR
+    sess = Session(console=quiet_console(), slot='memtest'); sess.game = game
+    board = list(game.city.board) or (game.city.refresh_board(game.rng, game.alias) or list(game.city.board))
+    c0 = next((c for c in board if c.target == 'kagawa'), board[0]); game.city.accepted = c0.cid; c0.taken = True; game.city.where = c0.district
+    sess.console.start_capture(); sess.execute('jack in --force'); out = sess.console.end_capture()
+    if sess.run is not None and c0.target == 'kagawa':
+        T.ok('seen you chain' in ' '.join(out.split()) or sess.run.expected == {'chain'}, 'jacking in, the network expects you')
+        node = next((n for n in sess.run.net.nodes.values() if n.services), None)
+        if node is not None:
+            base = run_session.crack_check(sess.run, node, node.services[0], None).chance
+            sess.run.used.add('chain')
+            worse = run_session.crack_check(sess.run, node, node.services[0], None).chance
+            T.ok(worse < base, f'and chaining again reads on the door: {base:.2f} -> {worse:.2f}')
+        sess.console.start_capture(); sess.execute('jack out --anyway'); sess.console.end_capture()
+    if sess.run is not None:
+        sess.console.start_capture(); sess.execute('jack out --anyway'); sess.console.end_capture()
+    # The dossier, and the watch command.
+    sess.console.start_capture(); sess.execute('render kagawa'); out2 = sess.console.end_capture()
+    T.ok('what they know about you' in out2 and 'nights' in out2, 'render says what they know')
+    sess.console.start_capture(); sess.execute('watch drop kagawa'); sess.execute('watch sixes'); sess.execute('watch'); out3 = sess.console.end_capture()
+    T.ok('sixes' in game.city.watches and 'kagawa' not in game.city.watches and 'Sixes' in out3, 'a faction can be watched and dropped')
+    # A planted way ages: older is likelier found.
+    import inspect
+    src = inspect.getsource(sess.__class__.__module__ and __import__('flatline.commands.run', fromlist=['x'])._apply_backdoor)
+    T.ok('age / 120.0' in src and 'left open for you' in src, 'the planted way ages, and a found one may be a trap')
+
 def _life_for(rules, seed=280):
     """A character built for a set of story rules (D169, D170): the origin,
     the people, the runs, the rank, the rung, the habit, the mark, the
@@ -16648,6 +16719,7 @@ SUITES = (
     test_the_systems_have_stories,
     test_the_old_threads_read_the_new,
     test_the_city_at_leisure,
+    test_networks_with_memory,
     test_every_thread_opens_for_the_right_life,
     test_every_closing_stage_opens,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,

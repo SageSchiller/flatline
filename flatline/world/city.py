@@ -24,6 +24,7 @@ from .. import ui
 from . import contracts as contract_mod
 from . import debt as debt_mod
 from . import fallout as fallout_mod
+from . import memory as memory_mod
 from . import rivals as rival_mod
 from ..content import rivals as rival_content
 from . import market as market_mod
@@ -233,6 +234,9 @@ class City:
     #: faction -> the shift you left a way in on their network (D123). The
     #: next run on them starts past the wall, until they find it and it burns.
     backdoors: dict = field(default_factory=dict)
+    #: What each faction's networks remember of you (D179): doors left
+    #: cracked, techniques seen, nights, patches, routes. See world/memory.
+    memory: dict = field(default_factory=dict)
     #: faction -> its grip on the city (D124), 0 to 100, drifting from a
     #: baseline as it is robbed and preyed on and as it recovers. The power
     #: map that a campaign actually moves; `world` reads it.
@@ -344,6 +348,8 @@ class City:
             told.extend(self._expire(alias))
             told.extend(self._rival_turn(rng, alias, flags))
             told.extend(fallout_mod.bounty_check(alias, self, rng('events')))
+            # The networks patch what you left open (D179).
+            told.extend(memory_mod.patch_tick(self, rng('events'), alias.attention))
             # Arrangements come round (D65). Paid from the account; missed,
             # they end, and the ending is remembered.
             if char is not None:
@@ -1383,6 +1389,7 @@ class City:
             'done_titles': list(self.done_titles),
             'grudges': dict(self.grudges),
             'backdoors': dict(self.backdoors),
+            'memory': {k: dict(v) for k, v in self.memory.items()},
             'grip': {k: round(v, 1) for k, v in self.grip.items()},
             'tonight': self.tonight,
             'pit': dict(self.pit),
@@ -1434,6 +1441,7 @@ class City:
             grounded=int(d.get('grounded', -1)),
             grudges={str(k): str(v) for k, v in (d.get('grudges') or {}).items()},
             backdoors={str(k): int(v) for k, v in (d.get('backdoors') or {}).items()},
+            memory={str(k): dict(v) for k, v in (d.get('memory') or {}).items()},
             grip={str(k): float(v) for k, v in (d.get('grip') or {}).items()},
             tonight=str(d.get('tonight') or ''),
             pit=dict(d.get('pit') or {}),

@@ -1649,6 +1649,7 @@ TOPICS: tuple[Topic, ...] = (
 
     Topic(
         'networks', 'What you are breaking into',
+        'A network remembers you. Doors you crack stay cracked next time, until they patch them, which is news and a `watch` on the faction; a trail you leave and do not `scrub` teaches them how you work, and a technique they have seen twice reads on every door after; a route you `backdoor` is still there; a way you `plant` ages, and a found one is closed or left open for you. `render <faction>` says what they know.\n\n'
         'Shape, size, and how one lot\'s networks differ from another\'s.',
         'Every network is generated, and every one is generated the same '
         'way: four concentric [accent]zones[/] (perimeter, interior, '

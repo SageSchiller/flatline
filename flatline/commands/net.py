@@ -113,6 +113,12 @@ def cmd_watch(sess, args) -> None:
     first = (args.get(0) or '').lower()
     if first in ('drop', 'stop', 'forget'):
         rest = ' '.join(args.rest().split()[1:])
+        from ..content import factions as fac_content
+        fac = next((f for f in fac_content.FACTIONS if rest.lower().strip() in (f.key, f.short.lower())), None)
+        if fac is not None and fac.key in watches:
+            watches.remove(fac.key)
+            c.ok(f'The deck stops watching {fac.short}.')
+            return
         hit = deck_world.lookup(rest)
         if hit is None:
             hit = next(((k, i) for k, i in deck_world.matches(rest)
@@ -121,6 +127,18 @@ def cmd_watch(sess, args) -> None:
             raise CommandError('you are not watching that. `watch` lists them.')
         watches.remove(hit[1].key)
         c.ok(f'The deck stops watching for {hit[1].name}.')
+        return
+    # A faction is a thing to watch (D179): the deck says when they patch
+    # a door you left open.
+    from ..content import factions as fac_content
+    q = args.rest().lower().strip()
+    fac = next((f for f in fac_content.FACTIONS if q and (f.key == q or f.short.lower() == q)), None)
+    if fac is not None:
+        if fac.key in watches:
+            raise CommandError(f'you are already watching {fac.short}.')
+        watches.append(fac.key)
+        c.ok(f'The deck watches {fac.short}: it says when they patch a door you '
+             f'left open.')
         return
     hit = deck_world.lookup(args.rest())
     if hit is None:

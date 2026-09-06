@@ -154,3 +154,11 @@ closings and the four long threads. 0 crashes. All four long threads reached
 by play on the first run (the Terraces, the Row, the Stacks, Freeport); the
 ninth log closed on "Ten, with two handles" by play. The long life: shift
 182, 55 runs, 45 of 63 threads.
+
+## Round ten, 2026-09-05 (D179): networks with memory
+
+Six campaigns and the long life on the build where the networks remember.
+0 crashes; four endings and a partner bond by play. The memory spoke on its
+own: 113 doors found still open, 331 patches on the wire, 50 connects told
+which technique they expect, 5 planted ways sprung as traps, 17 dossiers
+read. The long life: 68 runs, 47 threads, four names.

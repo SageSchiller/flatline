@@ -342,6 +342,7 @@ def cmd_jack_in(sess, args) -> None:
     _apply_approach(state, net, contract, c)
     # Or the way you left in last time (D123), if you did not commit one.
     if not (contract.approach or {}).get('kind'):
+        _apply_memory(sess, state, net, contract, c)
         _apply_backdoor(sess, state, net, contract, c)
     if state.ally:
         from ..content import rivals as rival_content
@@ -558,6 +559,11 @@ def _resolve(sess) -> None:
 
     # The story layer reads what you have actually done.
     game.story.flags.add(f'ran:{summary["faction"]}')
+    # The network remembers the night (D179).
+    from ..world import memory as memory_mod
+    memory_mod.remember_run(game.city, summary['faction'], state.net,
+                            set(state.used), int(state.residue_total),
+                            int(game.city.shift))
 
     # What the city keeps of who cut you loose, and of who else was in
     # there (D89).
@@ -915,6 +921,24 @@ def _apply_approach(state, net, contract, c) -> None:
                     break
 
 
+
+def _apply_memory(sess, state, net, contract, c) -> None:
+    """The network remembers you (D179): doors you left open are open, a
+    route you found is there, and what they have seen you do, they
+    expect."""
+    from ..world import memory as memory_mod
+    game = sess.game
+    mem = game.city.memory.get(contract.target)
+    if not mem:
+        return
+    said, expected = memory_mod.apply(net, mem)
+    state.expected = set(expected)
+    if said:
+        c.blank()
+        for line in said:
+            c.say(f'[dim]{line}[/]')
+
+
 def _apply_backdoor(sess, state, net, contract, c) -> None:
     """A way you left into this faction last time (D123). They find it
     sometimes, and then it is gone and they are harder for it; otherwise you
@@ -925,9 +949,26 @@ def _apply_backdoor(sess, state, net, contract, c) -> None:
         return
     short = contract.target_data.short
     posture = int(game.city.posture.get(target, contract.target_data.posture))
-    if game.rng('events').chance(0.25 + posture / 400.0):
+    # Age (D179): a way in left a month ago is a way in they have had a
+    # month to find. Found, it is closed, or, half the time, left open
+    # for you, which is worse.
+    age = max(0, int(game.city.shift) - int(game.city.backdoors[target]))
+    if game.rng('events').chance(0.10 + age / 120.0 + posture / 400.0):
         del game.city.backdoors[target]
         game.city.posture[target] = min(100, posture + 3)
+        if game.rng('events').chance(0.5):
+            from ..world import memory as memory_mod
+            mem = memory_mod.of(game.city, target)
+            mem['traps'] = int(mem.get('traps', 0)) + 1
+            _reveal_topology(state)
+            entry = net.node(net.entry)
+            if entry:
+                entry.open = entry.known = entry.mapped = True
+                state.make_noise(12, entry)
+            c.blank()
+            c.say(f'[err]The way you left into {short} was left open for you. '
+                  f'Somebody is watching the door you came in by.[/]')
+            return
         c.blank()
         c.say(f'[warn]The way you left into {short} is closed. They found it, '
               f'and a network that has found one backdoor looks harder for a '
@@ -977,6 +1018,8 @@ def cmd_scan(sess, args) -> None:
     # the shape of a segment is the skill's whole description.
     depth += state.char.skill('architecture') // 2
     quiet = args.has('quiet')
+    if quiet:
+        state.used.add('quiet')
     # `--quiet` reaches for the quietest hunter, not the strongest: that is
     # the whole reason to carry a Wiretap beside an Auspex.
     hunter = (programs.quietest(state.char.deck.loaded, 'hunter') if quiet
@@ -1217,6 +1260,16 @@ def cmd_render(sess, args) -> None:
     sig = cyberspace.signature(fac.key)
     if sig:
         c.say(f'[ice]{sig.arrival}[/]')
+    # What they know about you (D179).
+    if sess.game is not None:
+        from ..world import memory as memory_mod
+        rows = memory_mod.dossier(sess.game.city, fac.key, int(sess.game.city.shift))
+        c.blank()
+        c.rule('what they know about you')
+        if rows:
+            c.kv(rows)
+        else:
+            c.say('[dim]Nothing. You have never been in.[/]')
 
 
 def _icon_reveal(sess, key: str, quick: bool = False) -> None:
@@ -1424,14 +1477,20 @@ def cmd_connect(sess, args) -> None:
     ghost = args.has('ghost')
     if ghost and not state.char.has_technique('ghost'):
         raise CommandError('you have not learned to ghost. Stealth rank 2.')
+    if ghost:
+        state.used.add('ghost')
 
     crossing = node.tier > state.net.nodes[state.here].tier
     state.previous = state.here
     state.here = uid
     # Native: the network is a room and you are walking across it.
     free = state.native > 0
+    ghost_read = ghost and 'ghost' in state.expected
+    if ghost_read:
+        c.say('[warn]They have seen you ghost here before. It is not nothing '
+              'this time.[/]')
     _act(sess, 'connect', node=node,
-         noise_scale=0.0 if (ghost or free) else 1.0,
+         noise_scale=0.0 if ((ghost and not ghost_read) or free) else (0.5 if ghost else 1.0),
          ticks=0 if free else (2 if ghost else 1))
     if state.running and crossing:
         # Depth has to feel like depth rather than a counter going up.
@@ -1465,11 +1524,14 @@ def cmd_crack(sess, args) -> None:
 
     skill_key, category = node_content.FAMILIES[svc.family]
     quiet = args.has('quiet')
+    if quiet:
+        state.used.add('quiet')
     keygrind = args.has('key')
 
     if keygrind:
         if not state.char.has_technique('keygrind'):
             raise CommandError('Keygrind is Cryptography rank 2.')
+        state.used.add('keygrind')
         if svc.family != 'crypto':
             raise CommandError('Keygrind only works on encrypted services.')
         if state.focus < 2:
@@ -1541,6 +1603,7 @@ def _crack_chain(sess, args) -> None:
         raise CommandError('Chain is Intrusion rank 2.')
 
     host = args.get(0)
+    state.used.add('chain')
     if not host:
         raise CommandError('chain what? `crack <host> --chain`')
     node = _node(state, host)
@@ -1578,6 +1641,10 @@ def _crack_chain(sess, args) -> None:
         picked = sorted(closed, key=lambda s: (-chance(s), s.difficulty))[:2]
 
     quiet = args.has('quiet')
+
+    if quiet:
+
+        state.used.add('quiet')
     checks = []
     loudest = 0.0
     for svc in picked:
@@ -1632,6 +1699,7 @@ def cmd_pretext(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     if not state.char.has_technique('pretext'):
         raise CommandError('Pretext is Subterfuge rank 2.')
+    state.used.add('pretext')
     if 'no_social' in state.char.riders():
         raise CommandError('you are rendering as a scheduled job. Processes '
                            'do not talk, and trying would drop the disguise.')
@@ -1679,6 +1747,7 @@ def cmd_pivot(sess, args) -> None:
     if not state.char.has_technique('pivot'):
         raise CommandError('Pivot is Intrusion rank 4.')
     uid = args.require(0, 'a host to pivot to')
+    state.used.add('pivot')
     node = _node(state, uid)
     if uid not in state.node.edges:
         raise CommandError(f'{uid} does not touch {state.here}')
@@ -1706,6 +1775,7 @@ def cmd_sidechannel(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     if not state.char.has_technique('sidechannel'):
         raise CommandError('Sidechannel is Cryptography rank 4.')
+    state.used.add('sidechannel')
     node = state.node
     crypto = [s for s in node.services if s.family == 'crypto' and not s.cracked]
     if not crypto:
@@ -1752,6 +1822,7 @@ def cmd_impersonate(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     if not state.char.has_technique('impersonate'):
         raise CommandError('Impersonate is Subterfuge rank 4.')
+    state.used.add('impersonate')
     if 'no_social' in state.char.riders():
         raise CommandError('a process cannot claim to be a person.')
     if 'impersonate' in state.spent:
@@ -2671,6 +2742,7 @@ def cmd_nullsig(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     if not state.char.has_technique('nullsig'):
         raise CommandError('Nullsig is Stealth rank 4.')
+    state.used.add('nullsig')
     if 'nullsig' in state.spent:
         raise CommandError('once a run')
     state.spent.add('nullsig')
@@ -2691,6 +2763,7 @@ def cmd_overclock(sess, args) -> None:
     if not state.char.has_technique('overclock'):
         raise CommandError('Overclock is Hardware rank 2.')
     steps = args.int_at(0, 1, 'a number of steps')
+    state.used.add('overclock')
     limit = 1 + state.char.skill('hardware') // 2
     if steps < 0 or steps > limit:
         raise CommandError(f'you can hold {limit} step'
@@ -3523,6 +3596,7 @@ def cmd_backdoor(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     if not state.char.has_technique('backdoor'):
         raise CommandError('Backdoor is Architecture rank 4.')
+    state.used.add('backdoor')
     if 'backdoor' in state.spent:
         raise CommandError('you only find one of those a run')
     uid = args.require(0, 'a host to reach')
@@ -3545,6 +3619,13 @@ def cmd_backdoor(sess, args) -> None:
     state.node.edges.append(uid)
     node.edges.append(state.here)
     node.known = True
+    # A route found is a route that was always there (D179): it is there
+    # next time too, until they close it.
+    from ..world import memory as memory_mod
+    mem = memory_mod.of(sess.game.city, state.net.faction)
+    here = state.net.nodes[state.here]
+    mem['routes'] = (list(mem.get('routes') or [])
+                     + [{'from': (here.zone, here.type), 'to': (node.zone, node.type)}])[-3:]
     _act(sess, 'connect', noise_scale=0.4, ticks=2)
     if state.running:
         c.ok(f'There is a route from {state.here} to [accent]{uid}[/]. '

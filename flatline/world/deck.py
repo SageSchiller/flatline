@@ -265,6 +265,9 @@ def ambiguous(query: str) -> list:
 
 
 def _name(key: str) -> str:
+    from ..content import factions as fac_content
+    if key in fac_content.BY_KEY:
+        return fac_content.BY_KEY[key].short
     for _, table in CATALOGUES:
         if key in table:
             return table[key].name
@@ -332,7 +335,17 @@ def pings(game) -> list[str]:
     something permanently in stock used to say so every single cycle."""
     out = []
     said = game.city.messaged
+    from ..content import factions as fac_content
     for key in list(game.city.watches):
+        if key in fac_content.BY_KEY:
+            # A watched faction (D179): what they patched since you looked.
+            mem = game.city.memory.get(key) or {}
+            for line in mem.get('pings') or []:
+                said['watch_hits'] = int(said.get('watch_hits', 0)) + 1
+                out.append(f'[dim]Your deck:[/] {line}')
+            if mem.get('pings'):
+                mem['pings'] = []
+            continue
         best = _best_shelf(game, key)
         mark = f'watch:{key}'
         was = int(said.get(mark, 0))
