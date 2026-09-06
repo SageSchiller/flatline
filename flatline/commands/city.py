@@ -1631,9 +1631,13 @@ def cmd_board(sess, args) -> None:
         # Whether they can kill you, which posture does not say and which
         # is the one fact a player would want before the fee (D79).
         lethal = ('[err]!' if factions.runs_lethal(contract.target) else '')
+        # A network you have been into (D180): the work finds the regular,
+        # and the regular should see which of tonight's is the same door.
+        been = ('[accent]~[/]' if city.memory.get(contract.target, {}).get('runs')
+                else '')
         rows.append((f'{mark}{n}', contract.title,
-                     contract.target_data.short + (lethal + '[/]' if lethal
-                                                   else ''),
+                     contract.target_data.short + been + (lethal + '[/]' if lethal
+                                                          else ''),
                      SHORT_OBJECTIVE.get(contract.objective,
                                          contract.objective),
                      contract_mod.SIZE_SHORT[contract.size_mod],
@@ -1649,6 +1653,10 @@ def cmd_board(sess, args) -> None:
               'countermeasures. Posture is how hard the doors are; that is '
               'whether the room can kill you, and the two are not the same '
               'number.[/]')
+    if any(city.memory.get(x.target, {}).get('runs') for x in city.board):
+        c.say('[dim]A [accent]~[/][dim] after a name means you have been into '
+              'their networks before. They remember, and so do the people '
+              'who want them hit: `render <faction>` for what they know.[/]')
     # The row numbers mean this board, as printed. See `Session.pick`.
     sess.remember('board', [contract.cid for contract in city.board])
     c.blank()

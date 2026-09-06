@@ -1649,8 +1649,7 @@ TOPICS: tuple[Topic, ...] = (
 
     Topic(
         'networks', 'What you are breaking into',
-        'A network remembers you. Doors you crack stay cracked next time, until they patch them, which is news and a `watch` on the faction; a trail you leave and do not `scrub` teaches them how you work, and a technique they have seen twice reads on every door after; a route you `backdoor` is still there; a way you `plant` ages, and a found one is closed or left open for you. `render <faction>` says what they know.\n\n'
-        'Shape, size, and how one lot\'s networks differ from another\'s.',
+        'Shape, size, how one lot\'s networks differ from another\'s, and what they remember of you.',
         'Every network is generated, and every one is generated the same '
         'way: four concentric [accent]zones[/] (perimeter, interior, '
         'restricted, core), an authored [accent]shape[/] the hosts are wired '
@@ -1693,7 +1692,8 @@ TOPICS: tuple[Topic, ...] = (
         '[warn]The decision:[/] posture decides whether you can open it, '
         'size decides how long you will be in there, and shape decides '
         'whether there is a second way round. Legwork buys all three before '
-        'you commit, and it is cheaper than finding out.',
+        'you commit, and it is cheaper than finding out.\n\n'
+        '[warn]They remember.[/] Doors you crack stay cracked next time, until they patch them, which is news and a `watch` on the faction; a trail you leave and do not `scrub` teaches them how you work, and a technique they have seen twice reads on every door after; a route you `backdoor` is still there; a way you `plant` ages, and a found one is closed or left open for you. `render <faction>` says what they know. And the people who want them hit know who gets in: the board leans toward the networks you have been into, marked `~`, so a regular is something you can choose to be.',
         see=('objectives', 'contracts', 'triangle', 'factions', 'ambitions'),
         commands=('map', 'legwork', 'board', 'scan'),
         terms=('shape', 'sprawl', 'zones', 'topology', 'layout',

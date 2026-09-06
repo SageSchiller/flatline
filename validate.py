@@ -2618,6 +2618,8 @@ def check_manual(rep: Report) -> None:
                   f'STARTER names unknown topic {key!r}')
 
     check_documented(rep)
+
+    check_topic_summaries(rep)
     check_landing(rep)
 
 
@@ -2631,6 +2633,16 @@ NOT_PLAYER_FACING = {
                    'explains what a stage and a decision are, and nobody in '
                    'play meets the dataclass',
 }
+
+
+def check_topic_summaries(rep: Report) -> None:
+    """A topic's summary is the one line the index shows. A paragraph in
+    that slot is a body written into the wrong argument (D180 found the
+    networks' memory there, where `help networks` never printed it)."""
+    from flatline.content import manual as manual_content
+    for t in manual_content.TOPICS:
+        rep.check('\n' not in t.summary and len(t.summary) <= 130, f'manual/{t.key}',
+                  f'summary is {len(t.summary)} characters: that is a body in the summary slot')
 
 
 def check_documented(rep: Report) -> None:

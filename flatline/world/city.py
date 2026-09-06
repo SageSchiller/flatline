@@ -928,13 +928,19 @@ class City:
             rng('contracts'), self.shift, alias, self.posture,
             count=want - have, start_id=self.next_cid,
             avoid={c.title for c in self.board} | set(self.done_titles),
-            flags=flags)
+            flags=flags, known=self.known_networks())
         self.next_cid += len(fresh) + 1
         self.board.extend(fresh)
         self._ensure_startable(rng, alias, char, flags, dead)
         self._ensure_lender_work(rng, alias, char, lender, dead)
         return [f'[dim]{len(fresh)} new posting'
                 f'{"s" if len(fresh) != 1 else ""} on the board.[/]']
+
+    def known_networks(self) -> dict[str, int]:
+        """Faction to nights you have spent inside their networks (D180):
+        what the board reads to send the regular more of the same."""
+        return {k: int(m.get('runs', 0)) for k, m in self.memory.items()
+                if int(m.get('runs', 0)) > 0}
 
     def post_story(self, rng: Rng, alias: Alias, posting, tag: str):
         """Put a scene's contract on the board, once. Returns it. D52."""

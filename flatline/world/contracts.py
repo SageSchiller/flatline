@@ -356,7 +356,8 @@ PATRON_RIDERS: tuple[tuple[str, str, float], ...] = (
 
 def generate_board(rng: Stream, shift: int, alias, posture: dict,
                    count: int = BOARD_SIZE, start_id: int = 1,
-                   avoid: set | None = None, flags=None) -> list[Contract]:
+                   avoid: set | None = None, flags=None,
+                   known: dict | None = None) -> list[Contract]:
     """Produce a fresh board from current world state.
 
     `avoid` is the set of titles already posted. Two jobs called Due Diligence
@@ -375,7 +376,7 @@ def generate_board(rng: Stream, shift: int, alias, posture: dict,
     for _ in range(count):
         patron = rng.weighted(patrons)
         over = {t for t, n in hit.items() if n >= target_cap}
-        target = pick_target(rng, patron, alias, over=over)
+        target = pick_target(rng, patron, alias, over=over, known=known)
         if target is None:
             continue
         contract = make_one(rng, cid, patron, target, shift, alias,
@@ -410,8 +411,17 @@ def _weighted_patrons(alias, flags=()) -> dict[str, float]:
     return weights
 
 
-def pick_target(rng: Stream, patron: str, alias, over=()) -> str | None:
-    """Who the patron wants hit. Driven by the relations table."""
+#: How much a night inside a faction raises the odds of more work against
+#: them, and how many nights count (D180). The patrons who want a faction
+#: interfered with have heard who gets in, and they call that runner.
+KNOWN_PER_NIGHT = 1.0
+KNOWN_NIGHTS_CAP = 5
+
+
+def pick_target(rng: Stream, patron: str, alias, over=(),
+                known: dict | None = None) -> str | None:
+    """Who the patron wants hit. Driven by the relations table, and then by
+    who you have already been into: `known` is faction to nights inside."""
     weights: dict[str, float] = {}
     for key in factions.FACTION_KEYS:
         if key == patron:
@@ -431,6 +441,12 @@ def pick_target(rng: Stream, patron: str, alias, over=()) -> str | None:
         # Softly, so a thin relations table still fills the board.
         if key in over:
             weight *= 0.12
+        # And a network you have been into is one the patrons have heard you
+        # can get into (D180). The memory cuts both ways: the work comes to
+        # the regular, and so does what the target has learned about them.
+        nights = int((known or {}).get(key, 0))
+        if nights > 0:
+            weight *= 1.0 + min(nights, KNOWN_NIGHTS_CAP) * KNOWN_PER_NIGHT
         weights[key] = weight
     if not weights:
         return None

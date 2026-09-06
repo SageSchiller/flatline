@@ -16666,6 +16666,43 @@ def test_host_glyphs() -> None:
                  f'the key omits {name}, which is not on the map')
 
 
+
+def test_the_regular_gets_the_call() -> None:
+    """D180: the people who want a faction hit have heard who gets in. The
+    board weighs a target by the nights you have spent inside their
+    networks, the row marks them, and the D114 cap still holds."""
+    T.section('the regular')
+    import collections
+    from flatline.world import contracts as cm
+    from flatline.world import memory as memory_mod
+    game = Game.new(Character.from_origin('gutter', 'x'), seed=5)
+    alias, posture = game.alias, game.city.posture
+    share = {}
+    worst = 0
+    for nights in (0, 5):
+        cnt = collections.Counter()
+        for seed in range(200):
+            board = cm.generate_board(Rng(seed).fork('contracts', 'x'), 10, alias, posture,
+                                      known={'aoyama': nights} if nights else None)
+            cnt.update(c.target for c in board)
+            worst = max(worst, sum(1 for c in board if c.target == 'aoyama'))
+        share[nights] = cnt['aoyama'] / max(1, sum(cnt.values()))
+    T.ok(share[5] >= share[0] * 2.5, f'five nights inside triples the work against them ({share[0]:.0%} to {share[5]:.0%})')
+    T.ok(share[5] <= 0.4, 'and it is a lean, not a monopoly')
+    T.ok(worst <= 3, 'the D114 cap still keeps a board from being one faction')
+    # The city reads it off the memory, and the board says so.
+    T.eq(game.city.known_networks(), {}, 'nothing known before a night inside')
+    game.city.memory['aoyama'] = memory_mod.blank(); game.city.memory['aoyama']['runs'] = 3
+    T.eq(game.city.known_networks(), {'aoyama': 3}, 'and the nights once there were some')
+    board = cm.generate_board(Rng(1).fork('contracts', 'y'), 10, alias, posture, known={'aoyama': 5})
+    game.city.board = board
+    if any(c.target == 'aoyama' for c in board):
+        _, out = play(['board'], game=game)
+        flat = ' '.join(out.split())
+        T.ok('~' in flat and 'been into their networks before' in flat, 'the board marks the door you know and says what the mark means')
+    _, out = play(['help networks'], game=game)
+    T.ok('regular' in ' '.join(out.split()), 'the manual says a regular is a thing you can choose to be')
+
 SUITES = (
     test_determinism, test_saves, test_character, test_checks, test_guide,
     test_consequences, test_spine, test_texture, test_arcs,
@@ -16719,7 +16756,7 @@ SUITES = (
     test_the_systems_have_stories,
     test_the_old_threads_read_the_new,
     test_the_city_at_leisure,
-    test_networks_with_memory,
+    test_networks_with_memory, test_the_regular_gets_the_call,
     test_every_thread_opens_for_the_right_life,
     test_every_closing_stage_opens,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
