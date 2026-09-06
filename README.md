@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/banner.svg" alt="FLATLINE" width="100%"></p>
+
 # flatline
 
 **Version 1.0.** A text-based cyberpunk netrunning game, played by typing at
@@ -14,6 +16,30 @@ work.
 
 Python, standard library only. No dependencies, no install, no network access
 at runtime.
+
+## What it looks like
+
+Every picture here is the game's own output, captured from a seeded life and
+written out as text by `tools/shots.py`; nothing is mocked up.
+
+<p align="center"><img src="docs/shot-title.svg" alt="The cold start: the skyline lights a bank at a time, then the mark decrypts into place under it" width="90%"></p>
+
+<p align="center">
+<img src="docs/shot-city.svg" alt="map: the twelve districts drawn, you and the job marked, the walk to anywhere" width="49%">
+<img src="docs/shot-char.svg" alt="char: the portrait, what you are called, what you read as, the attributes" width="49%">
+</p>
+
+<p align="center">
+<img src="docs/shot-run.svg" alt="map inside a run: the hosts you have found and what connects to what" width="49%">
+<img src="docs/shot-odds.svg" alt="odds: the whole sum and the exact result before you commit" width="49%">
+</p>
+
+<p align="center">
+<img src="docs/shot-brief.svg" alt="job inside a run: what you are trying to do, how far along you are, the next command" width="49%">
+<img src="docs/shot-render.svg" alt="render: a faction's front, and what they know about you" width="49%">
+</p>
+
+<p align="center"><img src="docs/shot-record.svg" alt="record: four sections for four reasons to play, counted across characters" width="90%"></p>
 
 ## Getting it
 
@@ -131,7 +157,8 @@ python3 validate.py   # what the content says
 python3 test.py       # what the game does
 ```
 
-Run both after any change. They are split on purpose: most of what goes wrong
+Run both after any change. `python3 tools/shots.py` regenerates the pictures
+in `docs/` from the game as it is now. They are split on purpose: most of what goes wrong
 in a content-heavy game is a dangling reference or a rule quietly broken in one
 entry out of two hundred, and that is cheap to catch in `validate.py` and
 expensive to catch by playing.
