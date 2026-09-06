@@ -210,6 +210,13 @@ def run_job(p, approach='', legwork='', hire=False, extra=()):
             p.do('drop'); DROPPED.add(c.cid); break
         p.do_step(step, note=f'now says: {steps[0][1][:70]}'); p.settle(prefer=SAFE)
         last = step
+    # A watch `now` offers is taken (D170): the deck's finds line never moved
+    # because no persona ever typed one.
+    if p.sess.run is None and p.g.city.current is not None:
+        for v, why in city_cmd.city_steps(p.g):
+            if v.startswith('watch '):
+                p.do(v, note=f'now says: {why[:60]}')
+                break
     if p.sess.run is None and p.g.city.current is not None:
         o = p.do('jack in')
         m = re.search(r'`((?:travel|walk) \w+)`', o)

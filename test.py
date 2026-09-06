@@ -14839,6 +14839,37 @@ def test_the_stake_the_ask_and_the_watch() -> None:
         s4.console.start_capture(); s4.execute('jack out --anyway'); s4.console.end_capture()
 
 
+
+def test_every_closing_stage_opens() -> None:
+    """D170: the other half of the audit. For every stage after the first,
+    build the life its own rules ask for, with every earlier stage of the
+    thread seen and its flags set, the thread\'s clock far enough back for
+    `after`, and hold that the stage becomes available. Ten threads\'
+    closings had never been reached by a persona; this holds all of them."""
+    T.section('every closing stage opens')
+    from flatline.content import threads as thread_content
+    for thread in thread_content.THREADS:
+        if thread.key in ('runners',):
+            continue  # fourteen bond stages, each keyed to a runner: held by the rivals tests
+        for n, stage in enumerate(thread.stages[1:], 1):
+            rules = list(stage.requires) + (list(stage.any_of[:1]) if stage.any_of else [])
+            game, ok_build = _life_for(rules, seed=290 + n)
+            if not ok_build:
+                continue
+            earlier = thread.stages[:n]
+            for st in earlier:
+                game.story.flags.update(st.sets)
+            game.story.reached[thread.key] = [st.key for st in earlier]
+            game.city.shift = max(game.city.shift, 60)
+            game.story.when[f'thread:{thread.key}'] = int(game.city.shift) - int(stage.after or 0) - 1
+            if stage.where:
+                game.city.where = stage.where
+            if any(r.startswith('not:') and game.story.satisfied(r[4:], game) for r in stage.requires):
+                continue  # a branch this life did not take
+            avail = {(k, st.key) for k, st in game.story.available(game)}
+            T.ok((thread.key, stage.key) in avail,
+                 f'{thread.key}.{stage.key}: opens for the life it asks for ({rules}, after {stage.after})')
+
 def test_the_wash_the_scene_and_the_watches() -> None:
     """D169: the long wash works a bounty off; the first ask-in is a scene
     in the runner\'s style; `now` sets a watch for the mask a hard job wants
@@ -14882,6 +14913,80 @@ def test_the_wash_the_scene_and_the_watches() -> None:
          'now watches for a mask and a bank')
 
 
+def _life_for(rules, seed=280):
+    """A character built for a set of story rules (D169, D170): the origin,
+    the people, the runs, the rank, the rung, the habit, the mark, the
+    arrangement, the flags. Returns (game, buildable)."""
+    origin = next((r[7:] for r in rules if r.startswith('origin:')), 'gutter')
+    game = Game.new(Character.from_origin(origin, 'Gate'), seed=seed)
+    ok_build = True
+    for rule in rules:
+        base = rule[4:] if rule.startswith('not:') else rule
+        kind, _, value = base.partition(':')
+        if rule.startswith('not:'):
+            if kind == 'credits':
+                game.char.credits = 0
+            continue
+        if kind == 'origin':
+            continue
+        if kind == 'met':
+            game.story.meet(value)
+        elif kind == 'runs':
+            game.char.runs = max(game.char.runs, int(value))
+        elif kind == 'diss':
+            game.char.dissonance = max(game.char.dissonance, int(value))
+        elif kind == 'credits':
+            game.char.credits = max(game.char.credits, int(value))
+        elif kind == 'shift':
+            game.city.shift = max(game.city.shift, int(value))
+        elif kind == 'heat':
+            game.alias.add_heat('sixes', int(value) + 5)
+        elif kind == 'bounty':
+            game.city.bounties['sixes'] = int(value) + 5
+        elif kind == 'debt':
+            game.debt.amount = int(value) + 1; game.debt.lender = 'sixes'
+        elif kind == 'rep':
+            fac, _, amount = value.partition(':')
+            game.alias.add_rep(fac, int(amount) + 5) if hasattr(game.alias, 'add_rep') else None
+            ok_build = ok_build and game.alias.reputation(fac) >= int(amount)
+        elif kind == 'skill':
+            key, _, rank = value.partition(':')
+            game.char.base_skills[key] = max(game.char.base_skills.get(key, 0), int(rank or 1))
+        elif kind == 'trait':
+            if value not in game.char.traits:
+                game.char.traits.append(value) if isinstance(game.char.traits, list) else game.char.traits.add(value)
+        elif kind == 'record':
+            ok_build = False
+        elif kind == 'pit':
+            if value.isdigit():
+                game.city.pit['rank'] = int(value)
+            else:
+                game.story.flags.add(base)
+        elif kind == 'habit':
+            from flatline.content import drugs as drug_content
+            dkey, _, level = value.partition(':')
+            chem = drug_content.normalise(game.char.chem)
+            chem['habit'][dkey] = int(level or 1)
+            game.char.chem = chem
+        elif kind == 'mark':
+            game.char.marks.add(value) if isinstance(game.char.marks, set) else game.char.marks.append(value)
+        elif kind == 'arranged':
+            for i in range(int(value)):
+                game.city.arrangements[['sixes', 'carrion', 'kagawa'][i % 3]] = {'since': 0, 'rate': 100}
+        elif kind == 'carrying':
+            from flatline.content import weapons as weapon_content
+            game.char.weapon = next(iter(weapon_content.BY_KEY))
+        elif kind == 'places':
+            for i in range(int(value)):
+                game.story.flags.add(f'visited:built{i}')
+        elif kind == 'finds':
+            for i in range(int(value)):
+                game.story.flags.add(f'found:built{i}')
+        else:
+            game.story.flags.add(base)
+    return game, ok_build
+
+
 def test_every_thread_opens_for_the_right_life() -> None:
     """The story audit (D169): forty-one of fifty-four threads were reached
     by play, and the rest are gated by an origin, a specialist rank, a
@@ -14890,81 +14995,10 @@ def test_every_thread_opens_for_the_right_life() -> None:
     that no thread is shipped behind a gate nothing can open."""
     T.section('every thread opens for the right life')
     from flatline.content import threads as thread_content, districts as district_content
-    from flatline.content import skills as skill_content
-    NUMERIC_BUILD = {'runs', 'diss', 'credits', 'shift', 'heat', 'bounty', 'debt', 'rep', 'skill', 'record'}
     for thread in thread_content.THREADS:
         first = thread.stages[0]
         rules = list(first.requires) + (list(first.any_of[:1]) if first.any_of else [])
-        origin = next((r[7:] for r in rules if r.startswith('origin:')), 'gutter')
-        game = Game.new(Character.from_origin(origin, 'Gate'), seed=280)
-        ok_build = True
-        for rule in rules:
-            base = rule[4:] if rule.startswith('not:') else rule
-            kind, _, value = base.partition(':')
-            if rule.startswith('not:'):
-                # A not: rule holds on a fresh character for everything the
-                # content uses (credits, bounties, flags).
-                if kind == 'credits':
-                    game.char.credits = 0
-                continue
-            if kind == 'origin':
-                continue
-            if kind == 'met':
-                game.story.meet(value)
-            elif kind == 'runs':
-                game.char.runs = max(game.char.runs, int(value))
-            elif kind == 'diss':
-                game.char.dissonance = max(game.char.dissonance, int(value))
-            elif kind == 'credits':
-                game.char.credits = max(game.char.credits, int(value))
-            elif kind == 'shift':
-                game.city.shift = max(game.city.shift, int(value))
-            elif kind == 'heat':
-                game.alias.add_heat('sixes', int(value) + 5)
-            elif kind == 'bounty':
-                game.city.bounties['sixes'] = int(value) + 5
-            elif kind == 'debt':
-                game.debt.amount = int(value) + 1; game.debt.lender = 'sixes'
-            elif kind == 'rep':
-                fac, _, amount = value.partition(':')
-                game.alias.add_rep(fac, int(amount) + 5) if hasattr(game.alias, 'add_rep') else None
-                ok_build = ok_build and game.alias.reputation(fac) >= int(amount)
-            elif kind == 'skill':
-                key, _, rank = value.partition(':')
-                game.char.base_skills[key] = max(game.char.base_skills.get(key, 0), int(rank or 1))
-            elif kind == 'trait':
-                if value not in game.char.traits:
-                    game.char.traits.append(value) if isinstance(game.char.traits, list) else game.char.traits.add(value)
-            elif kind == 'record':
-                # Built below, once, for the one thread that reads it.
-                ok_build = False
-            elif kind == 'pit':
-                if value.isdigit():
-                    game.city.pit['rank'] = int(value)
-                else:
-                    game.story.flags.add(base)
-            elif kind == 'habit':
-                from flatline.content import drugs as drug_content
-                dkey, _, level = value.partition(':')
-                chem = drug_content.normalise(game.char.chem)
-                chem['habit'][dkey] = int(level or 1)
-                game.char.chem = chem
-            elif kind == 'mark':
-                game.char.marks.add(value) if isinstance(game.char.marks, set) else game.char.marks.append(value)
-            elif kind == 'arranged':
-                for i in range(int(value)):
-                    game.city.arrangements[['sixes', 'carrion', 'kagawa'][i % 3]] = {'since': 0, 'rate': 100}
-            elif kind == 'carrying':
-                from flatline.content import weapons as weapon_content
-                game.char.weapon = next(iter(weapon_content.BY_KEY))
-            elif kind == 'places':
-                for i in range(int(value)):
-                    game.story.flags.add(f'visited:built{i}')
-            elif kind == 'finds':
-                for i in range(int(value)):
-                    game.story.flags.add(f'found:built{i}')
-            else:
-                game.story.flags.add(base)
+        game, ok_build = _life_for(rules)
         if not ok_build:
             continue
         if first.where:
@@ -14972,6 +15006,7 @@ def test_every_thread_opens_for_the_right_life() -> None:
         avail = {(k, st.key) for k, st in game.story.available(game)}
         T.ok((thread.key, first.key) in avail,
              f'{thread.key}: the first scene opens for the life it asks for ({rules})')
+
     # The reckoner reads the record of this life: build a life that has
     # crossed ten lines.
     from flatline.world import record as record_world
@@ -16315,6 +16350,7 @@ SUITES = (
     test_the_stake_the_ask_and_the_watch,
     test_the_wash_the_scene_and_the_watches,
     test_every_thread_opens_for_the_right_life,
+    test_every_closing_stage_opens,
     test_the_job_itself, test_pictures, test_the_skyline, test_the_instrument,
     test_the_schematic, test_player_icons, test_more_palettes,
     test_more_prompts, test_the_portrait, test_reveal_styles,

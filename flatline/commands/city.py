@@ -6784,6 +6784,25 @@ def cmd_home(sess, args) -> None:
                   f'{runs} night{"s" if runs != 1 else ""} in[/]')
     else:
         c.raw('  [accent]crew[/]      [dim]you run alone. `crew` or `hire`[/]')
+    # The door, as a distance (D170): the stake was a number in `retire`
+    # and nowhere else, and a goal you cannot see is not a goal.
+    from ..content import legacy as legacy_content, drugs as drugs_content
+    short = max(0, legacy_content.STAKE - game.char.credits)
+    blocks = []
+    if debt.owed:
+        blocks.append('the debt')
+    if game.city.bounties:
+        blocks.append('a number on the name')
+    habit = drugs_content.normalise(game.char.chem)['habit']
+    if max(habit.values(), default=0) >= drugs_content.WITHDRAWAL_AT:
+        blocks.append('the habit')
+    if game.city.shift - int(game.alias.established) < legacy_content.NAME_HOLDS:
+        blocks.append('a name still warm')
+    if short or blocks:
+        parts = ([f'{short:,}c short of the stake'] if short else []) + blocks
+        c.raw(f'  [accent]door[/]      [dim]{", ".join(parts)}. `retire` for the whole of it[/]')
+    else:
+        c.raw('  [accent]door[/]      [ok]open[/] [dim]`retire --confirm` when you mean it[/]')
 
     c.blank()
     c.say('[dim]None of it wins a run. All of it is why you come back from '

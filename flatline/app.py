@@ -61,6 +61,13 @@ def main(argv: list[str] | None = None) -> int:
     caps = detect_caps(theme_name=args.theme, ascii_only=args.ascii,
                        no_color=args.no_color)
     console = Console(caps)
+    # Written for eighty columns (D170): narrower, the map and the tables
+    # wrap rather than break, and the player should hear that once rather
+    # than wonder.
+    if caps.width < 80 and getattr(sys.stdout, 'isatty', lambda: False)():
+        console.warn(f'flatline is written for eighty columns and this '
+                     f'terminal has {caps.width}. It runs; the map and the '
+                     f'tables will wrap until it is wider.')
     sess = Session(console=console, slot=args.slot or 'default')
     # The shell the player earned, before anything is printed. An explicit
     # --theme on the command line still wins: a flag you typed this second

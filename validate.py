@@ -4374,6 +4374,20 @@ def catalogue() -> list[tuple[int, str]]:
     ]
 
 
+def check_python_floor(rep) -> None:
+    """The README promises 3.11 (D170). Every source file parses under the
+    3.11 grammar, so a machine with only 3.14 cannot ship syntax the floor
+    does not have."""
+    import ast as _ast
+    root = pathlib.Path(__file__).resolve().parent
+    files = list((root / 'flatline').rglob('*.py')) + [root / 'test.py', root / 'validate.py']
+    for f in files:
+        try:
+            _ast.parse(f.read_text(encoding='utf-8'), filename=str(f), feature_version=(3, 11))
+        except SyntaxError as e:
+            rep.error('python', f'{f.name}:{e.lineno} needs a newer grammar than 3.11: {e.msg}')
+
+
 def check_readme(rep: Report) -> None:
     readme = pathlib.Path('README.md')
     if not readme.exists():
@@ -4462,7 +4476,7 @@ CHECKS = (
     check_traits, check_scripting, check_npcs, check_threads,
     check_manual, check_tutorial, check_theme, check_palette_separation, check_markup, check_balance,
     check_heat, check_guile, check_roster, check_reads, check_relics, check_street,
-    check_weapons, check_pit, check_feed, check_record, check_readme,
+    check_weapons, check_pit, check_feed, check_record, check_python_floor, check_readme,
     check_pets,
 )
 
