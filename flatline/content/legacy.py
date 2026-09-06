@@ -178,6 +178,13 @@ def ending(dissonance: int, flags=()) -> tuple[str, str]:
 #: fails the build on a decision this forgets, because an ending that does
 #: not mention what you did to Lark is an ending to somebody else's game.
 EPILOGUE: tuple[tuple[str, str], ...] = (
+    # The animal and the construct, again (D178)
+    ('stray_treated', 'When the animal was ill you carried it to the Blue Surgeon in a coat, and paid what a hand costs.'),
+    ('stray_nursed', 'When the animal was ill you sat with it for two shifts, water on a finger, and on the third morning it ate.'),
+    ('stray_let', 'When the animal was ill you opened the door and did not close it, and it went the way it came.'),
+    ('construct_asked', 'When the construct said your name you asked it what it remembered, and it gave you the order: a room, a table, a name, a door.'),
+    ('construct_erased', 'When the construct said your name you wiped it, and Remnant said it would have said the third one.'),
+    ('construct_archived', 'When the construct said your name you gave it to the Archivist, who put it in the back room with the nine and said ten.'),
     # The city at leisure (D177)
     ('towers_told', 'You asked the Man With The Board where the valve house was, and he painted an arrow so they would know somebody had.'),
     ('towers_moved', 'You moved the Man With The Board on before Kagawa\'s crowd did, and he thanked you, technically.'),

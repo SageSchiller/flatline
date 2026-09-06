@@ -15076,6 +15076,27 @@ def test_the_systems_have_stories() -> None:
             if again is None or again[1] is not found[1]:
                 break
     T.ok(opened2, 'the construct says a name')
+    # Second scenes (D178): the animal gets ill, the construct says your name.
+    from flatline.content import legacy, pets as pet_content
+    stray = next(t for t in thread_content.THREADS if t.key == 'stray')
+    ill = next(st for st in stray.stages if st.key == 'ill')
+    T.ok('pet:kept:40' in ill.requires and {c.key for c in ill.choices} == {'surgeon', 'nurse', 'let'}, 'the animal gets ill after forty shifts, three answers')
+    construct = next(t for t in thread_content.THREADS if t.key == 'construct')
+    yours = next(st for st in construct.stages if st.key == 'yours')
+    T.ok('familiar:20' in yours.requires and 'construct_kept' in yours.requires, 'the construct says your name on the twentieth run, if you kept it')
+    for f in ('stray_treated', 'stray_nursed', 'stray_let', 'construct_asked', 'construct_erased', 'construct_archived'):
+        T.ok(f in legacy.EPILOGUE_BY_FLAG, f'{f} reads back')
+    game7 = Game.new(Character.from_origin('gutter', 'x'), seed=312)
+    game7.city.safehouse = {'key': 'test', 'district': game7.city.where}
+    pet_world.adopt(game7.city, 'cat', 'Ledger'); game7.city.pet['food'] = 2; game7.city.pet['neglect'] = 3
+    nurse = next(c for c in ill.choices if c.key == 'nurse')
+    from flatline.commands import people as people_cmd
+    people_cmd._settle_systems(type('S', (), {'game': game7, 'console': quiet_console()})(), nurse)
+    T.ok(game7.city.pet['food'] == pet_content.FULL and game7.city.pet['neglect'] == 0, 'sitting with it brings it back')
+    game7.char.deck.familiar = {'key': 'tally', 'name': 'Count', 'charge': 100, 'runs': 21}
+    erase = next(c for c in yours.choices if c.key == 'erase')
+    people_cmd._settle_systems(type('S', (), {'game': game7, 'console': quiet_console()})(), erase)
+    T.ok(not game7.char.deck.familiar, 'wiping it this time drops it too')
     if opened2:
         sess2.console.start_capture(); sess2.execute('choose wipe'); sess2.console.end_capture()
         T.ok(not game2.char.deck.familiar and 'construct_wiped' in game2.story.flags, 'wiping it, the deck runs cooler')

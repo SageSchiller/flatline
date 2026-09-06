@@ -84,6 +84,18 @@ for okey in ORI.BY_KEY:
             # accepted and not yet done: again, and the second time as an inside job
             if not (cur.approach or {}).get('kind'):
                 p.do('approach inside --confirm'); p.settle(prefer=('yes',))
+            # A posting that has beaten this life once gets a stronger one:
+            # the thread is the test, not the run.
+            p.shortcut('intrusion, stealth and cryptography 4, and a mask, for the thread posting')
+            for sk in ('intrusion', 'stealth', 'cryptography'):
+                g.char.base_skills[sk] = max(4, g.char.base_skills.get(sk, 0))
+            g.char.credits = max(g.char.credits, 8000)
+            if not g.char.deck.has_category('mask'):
+                p.do('market programs')
+                for mk in ('understair', 'quietcastle'):
+                    o = p.do(f'buy {mk}')
+                    if '✗' not in o:
+                        C.ensure_payload(p); p.do(f'load {mk}'); break
             spine.run_contract(p, cur.cid)
         elif posting is not None and g.city.current is None:
             spine.run_contract(p, posting.cid)

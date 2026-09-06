@@ -1480,9 +1480,15 @@ def _settle_systems(sess, choice) -> None:
     worn or thrown back."""
     from .. import save as save_mod
     game, c = sess.game, sess.console
-    if 'stray_given' in choice.sets and game.city.pet:
+    if ('stray_given' in choice.sets or 'stray_let' in choice.sets) and game.city.pet:
         game.city.pet = {}
-    if ('construct_wiped' in choice.sets or 'construct_given' in choice.sets) and game.char.deck.familiar:
+    if ('stray_treated' in choice.sets or 'stray_nursed' in choice.sets) and game.city.pet:
+        from ..world import pets as pet_world
+        for stat in ('food', 'water', 'play'):
+            pet_world.care(game.city, stat)
+        game.city.pet['neglect'] = 0
+    if any(f in choice.sets for f in ('construct_wiped', 'construct_given', 'construct_erased', 'construct_archived')) \
+            and game.char.deck.familiar:
         game.char.deck.familiar = {}
     if 'names_worn' in choice.sets or 'names_refused' in choice.sets:
         try:

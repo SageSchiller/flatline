@@ -1667,6 +1667,60 @@ MORE_THREADS: tuple[Thread, ...] = (
                   sets=('stray_toy',),
                   after=2,
                   where='ninth'),
+            Stage('ill', 'Off its food',
+                  '{Pet} is off its food, and then off its water, and then '
+                  'off the warm part of the deck, which is the one that '
+                  'tells you. The clinic will not see an animal; the clinic '
+                  'says so at the door, kindly, the way it says everything '
+                  'it has said a thousand times. Tuck knows somebody. Tuck '
+                  'always knows somebody. "The Blue Surgeon patches what '
+                  'you put in front of him," he says. "He does not ask what '
+                  'it is. That is the whole of his ethic and it is a good '
+                  'one for this."',
+                  requires=('stray_settled', 'pet:kept:40'),
+                  sets=('stray_ill',),
+                  after=6,
+                  choices=(
+                      Choice('surgeon', 'Carry it to the Shambles',
+                             'You carry {pet} to the Shambles in a coat, and '
+                             'the Blue Surgeon looks at it the way he looks '
+                             'at a deck component, and does something with '
+                             'his hands that you do not watch, and charges '
+                             'you what he charges for a hand. {Pet} is on '
+                             'the warm part of the deck by morning, in the '
+                             'exact shape of not having been ill.',
+                             sets=('stray_treated',),
+                             credits=-300),
+                      Choice('nurse', 'Sit with it',
+                             'You sit with it. There is nothing in the flat '
+                             'that fixes an animal, so you do the thing that '
+                             'is not fixing: water on a finger, the warm '
+                             'part of the deck, your hand where it can feel '
+                             'the hand. Two shifts. It is not a decision, it '
+                             'is what you find you are doing, and on the '
+                             'third morning {pet} eats, and looks at you as '
+                             'if you had been making a fuss.',
+                             sets=('stray_nursed',)),
+                      Choice('let', 'Let it go',
+                             'You carry {pet} to the door and open it and do '
+                             'not close it, and it goes the way it came, '
+                             'which is without ceremony and without looking '
+                             'back, because that is what it is. The flat is '
+                             'a flat again. You leave the door open longer '
+                             'than the cold makes sense of.',
+                             sets=('stray_let',)),
+                  )),
+            Stage('old', 'What it was',
+                  'An animal is a thing that was yours for a while, on the '
+                  'warm part of the deck or not, and the Ninth does not say '
+                  'what happened to a thing; it says what it was. Tuck asks '
+                  'after it by name, once, and you tell him, and he nods, '
+                  'and stands you a drink without saying what for.',
+                  requires=('stray_ill',),
+                  any_of=('stray_treated', 'stray_nursed', 'stray_let'),
+                  sets=('stray_old',),
+                  after=4,
+                  where='ninth'),
         )),
     Thread(
         'construct', 'The Thing That Talks',
@@ -1724,6 +1778,57 @@ MORE_THREADS: tuple[Thread, ...] = (
                   sets=('construct_settled',),
                   after=3,
                   where='glasshouse'),
+            Stage('yours', 'The second name',
+                  'On a run that is not the tenth or the twentieth but some '
+                  'ordinary night in between, {familiar} says a second '
+                  'name, and it is yours. Not the handle. The name on the '
+                  'roster, spelled the way you spell it, said the way you '
+                  'say a name you have been told not to. "It is '
+                  'remembering," Remnant said. You had thought that meant '
+                  'the past.',
+                  requires=('construct_kept', 'familiar:20'),
+                  sets=('construct_yours',),
+                  after=6,
+                  choices=(
+                      Choice('ask', 'Ask it what it remembers',
+                             'You ask. It tells you: a room, a table, a name '
+                             'said over it, a door with a number on it that '
+                             'you know, because you have walked past it in '
+                             'the Glasshouse forty times. It does not know '
+                             'what any of that is. It knows the order. '
+                             'There are three names in the file now and one '
+                             'of them is yours and you wrote it down.',
+                             sets=('construct_asked',)),
+                      Choice('erase', 'Wipe it, this time',
+                             'You drop it, and the deck runs a fraction '
+                             'cooler for the memory back, and the flat is '
+                             'quieter on the runs afterwards, and the thing '
+                             'it said is still said, which is the thing '
+                             'about a thing being said. Remnant, when you '
+                             'tell them, says only: "It would have said the '
+                             'third one."',
+                             sets=('construct_erased',)),
+                      Choice('archive', 'Give it to the Archivist',
+                             'The Archivist takes it in both hands, the way '
+                             'they took the log, and does not load it, and '
+                             'puts it in the back room with the nine, and '
+                             'says: "It is a log too. I had not thought of '
+                             'that." They turn their chair round. "Ten," '
+                             'they say, and it is not clear which ten they '
+                             'mean.',
+                             sets=('construct_archived',)),
+                  )),
+            Stage('order', 'What it knew',
+                  'The constructs come from somewhere, and where they come '
+                  'from keeps names, and now you know it keeps the order of '
+                  'them too: a room, a table, a name, a door. Whatever you '
+                  'did with {familiar}, the order is in the file, in your '
+                  'hand, and the file is yours, and the third name is not '
+                  'in it yet.',
+                  requires=('construct_yours',),
+                  any_of=('construct_asked', 'construct_erased', 'construct_archived'),
+                  sets=('construct_order',),
+                  after=3),
         )),
     Thread(
         'names', 'What They Call You',

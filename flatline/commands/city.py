@@ -5300,8 +5300,9 @@ def cmd_who(sess, args) -> None:
             data.handle,
             data.style,
             str(rival.jobs),
-            f'{rival.disposition:+d} {rival.band}' if rival.alive
-            else (f'[warn]gone[/]' if rival.gone else f'[err]dead, shift {rival.died}[/]'),
+            (f'{rival.disposition:+d} {rival.band}' if rival.alive
+             else (f'[warn]gone[/]' if rival.gone else f'[err]dead, shift {rival.died}[/]'))
+            + ('  [accent2]the ninth[/]' if game.city.ninth == rival.key else ''),
         ))
     c.table(('who', 'style', 'jobs', 'about you'), rows,
             roles=('accent', 'dim', 'dim', None))
