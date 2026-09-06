@@ -266,3 +266,7 @@ Footnotes are a real feature of the console. `{{like this}}` in any content
 string gets lifted out and printed under the block, and they nest, because the
 whole reason to have a footnote is the writer who gets halfway through an aside
 and needs an aside about the aside.
+
+## Licence
+
+MIT. See `LICENSE`.
