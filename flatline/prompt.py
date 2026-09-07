@@ -107,14 +107,18 @@ def render(sess, style: str = DEFAULT) -> str:
 
     if sess.run is not None:
         where, tick, trace = _run_parts(sess.run)
-        return _shape(key, where=where, mid=f'tick {tick}', tail=f'trace {trace}',
-                      slug=trace, short=where.split('-')[0][:6],
-                      bullet=bullet, arrow=arrow, root='run')
+        tail = f'trace {trace}'
+        shaped = _shape(key, where=where, mid=f'tick {tick}', tail=tail,
+                        slug=trace, short=where.split('-')[0][:6],
+                        bullet=bullet, arrow=arrow, root='run')
+        return _lit(shaped, tail, 'trace')
     if sess.game is not None:
         where, when, money = _city_parts(sess.game)
-        return _shape(key, where=where, mid=when, tail=f'{money}c',
-                      slug=sess.game.city.phase, short=where[:3],
-                      bullet=bullet, arrow=arrow, root='city')
+        tail = f'{money}c'
+        shaped = _shape(key, where=where, mid=when, tail=tail,
+                        slug=sess.game.city.phase, short=where[:3],
+                        bullet=bullet, arrow=arrow, root='city')
+        return _lit(shaped, tail, 'credit')
     # No character loaded. Every style still has to look like itself, or the
     # title screen quietly reverts everybody to Classic and the first thing a
     # player sees after choosing a prompt is not the prompt they chose.
@@ -131,6 +135,19 @@ def render(sess, style: str = DEFAULT) -> str:
         'tag': '#flatline > ',
         'rail': 'flatline┃ ',
     }.get(key, 'flatline > ')
+
+
+def _lit(shaped: str, tail: str, role: str) -> str:
+    """The one number that matters, in its own colour (D187): the trace in
+    a run, the money in the city. The prompt is markup from here, with the
+    shapes' own brackets escaped, and `Session.prompt` renders it with the
+    escapes fenced for readline. A style that rewrites the tail (json) is
+    left plain rather than guessed at."""
+    esc = shaped.replace('[', '[[')
+    tail_esc = tail.replace('[', '[[')
+    if tail_esc and tail_esc in esc:
+        esc = esc.replace(tail_esc, f'[{role}]{tail_esc}[/]', 1)
+    return esc
 
 
 def _shape(key: str, where: str, mid: str, tail: str, slug: str, short: str,

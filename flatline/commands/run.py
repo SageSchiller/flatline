@@ -525,6 +525,11 @@ def _resolve(sess) -> None:
         from .. import prologue as prologue_mod
         prologue_mod.finish(sess, state, summary)
         return
+    # What follows is the city's turn: pay, what the residue became, what
+    # moved while you were inside. Under its own rule (D187), because ten
+    # lines of it landing on the card read as one thing to a newcomer.
+    c.blank()
+    c.rule('afterwards', role='accent2')
 
     if summary['outcome'] == 'flatline':
         game.over = 'flatlined'

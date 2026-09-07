@@ -263,7 +263,7 @@ def _help_landing(sess) -> None:
     c.header(f'{APP_TITLE} help',
              'in a run' if context == 'run' else 'in the city')
 
-    c.say('[accent]Read these four, in this order[/]')
+    c.say('[accent]Read these, in this order[/]')
     _listing(c, [(k, manual.BY_KEY[k].summary) for k in manual.STARTER_PATH
                  if k in manual.BY_KEY])
     c.say('[dim]New here? `tutorial` turns on the coach: the one next thing '

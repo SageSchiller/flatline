@@ -228,7 +228,13 @@ class Session:
             # Rendered like anything else (D182): a question's prompt is the
             # one prompt that may carry markup, and it used to print it raw.
             return prompt_render(self.pending.prompt, self.console.caps)
-        return prompt_mod.render(self, self.prompt_style)
+        # The prompt is markup too now (D187): the trace and the money lit.
+        # Without a character the shapes are plain text with their own
+        # brackets, which the renderer must not read as tags.
+        text = prompt_mod.render(self, self.prompt_style)
+        if self.game is None:
+            text = text.replace('[', '[[')
+        return prompt_render(text, self.console.caps)
 
     # ------------------------------------------------------------------
     # questions, and lists you can answer by number

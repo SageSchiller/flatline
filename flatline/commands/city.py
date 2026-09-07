@@ -1643,7 +1643,7 @@ def cmd_board(sess, args) -> None:
         # and the regular should see which of tonight's is the same door.
         been = ('[accent]~[/]' if city.memory.get(contract.target, {}).get('runs')
                 else '')
-        rows.append((f'{mark}{n}', contract.title,
+        rows.append((f'{mark}{n}', contract.cid, contract.title,
                      contract.target_data.short + been + (lethal + '[/]' if lethal
                                                           else ''),
                      SHORT_OBJECTIVE.get(contract.objective,
@@ -1653,8 +1653,11 @@ def cmd_board(sess, args) -> None:
                      f'{contract.pay:,}c',
                      'held' if contract.held
                      else (f'{left}sh' if left > 0 else 'late')))
-    c.table(('#', 'job', 'against', 'what', 'size', 'reads', 'pay', 'left'),
-            rows, roles=('accent', 'accent', 'err', 'dim',
+    # The id beside the row (D187): `now` and the coach say `take c007`,
+    # and the board never showed a c007 to find.
+    c.table(('#', 'id', 'job', 'against', 'what', 'size', 'reads', 'pay',
+             'left'),
+            rows, roles=('accent', 'dim', 'accent', 'err', 'dim',
                          'dim', None, 'credit', 'warn'))
     if any(factions.runs_lethal(x.target) for x in city.board):
         c.say('[dim]An [err]![/][dim] after a name means they run lethal '
@@ -2868,6 +2871,13 @@ def city_steps(game) -> list[tuple[str, str]]:
              if k in programs.BY_KEY}
     loaded_cats = {programs.BY_KEY[k].category
                    for k in game.char.deck.loaded if k in programs.BY_KEY}
+    # The first night (D187): the board is guaranteed a job the starting
+    # kit can finish (D71), and a fresh runner was told to spend nearly
+    # all their money on a better breaker before it was named. Shopping
+    # waits until there is a run behind them, or a job in hand that wants
+    # the thing.
+    first_night = (game.char.runs == 0 and game.city.current is None
+                   and _suggest_contract(game) is not None)
     # The breaker is the biggest single term in every door in the game and
     # nothing ever said so: seventeen contracts and five thousand credits
     # into a playthrough the deck was still the two rating-two Crowbars it
@@ -2904,7 +2914,7 @@ def city_steps(game) -> list[tuple[str, str]]:
                           and game.char.credits >= (_shelf_price(game, p.key)
                                                     or 10 ** 9)),
                          key=lambda p: p.price, default=None)
-            if better is not None:
+            if better is not None and not first_night:
                 steps.append((f'buy {better.name.lower()}',
                               f'every door you fail is your breaker: '
                               f'{on_deck.name} is rating {on_deck.rating} and '
@@ -3090,7 +3100,7 @@ def city_steps(game) -> list[tuple[str, str]]:
                               f'the deck cannot hold the breaker and the '
                               f'{need_payload} together, and nobody here sells '
                               f'a bank: a watch says when {bank.name} lands, and where'))
-    if 'payload' not in owned:
+    if 'payload' not in owned and not first_night:
         cheapest = min((p for p in programs.by_category('payload')
                         if not p.unique), key=lambda p: p.price, default=None)
         if cheapest is not None:

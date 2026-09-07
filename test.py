@@ -8767,6 +8767,12 @@ def test_economy() -> None:
     game.char.deck.loaded = [k for k in game.char.deck.loaded
                              if k not in programs.BY_KEY
                              or programs.BY_KEY[k].category != 'payload']
+    # On the first night, with a job the kit can finish on the board, the
+    # job comes first and the shopping waits (D187).
+    first = [c for c, _ in city_cmd.city_steps(game)]
+    T.ok(not any(c.startswith('buy') for c in first[:1]),
+         f'the first night does not open with shopping ({first[:2]})')
+    game.char.runs = 1
     why = ' '.join(w for _, w in city_cmd.city_steps(game))
     T.ok('payload' in why,
          'the advice says to buy a payload once it is affordable')

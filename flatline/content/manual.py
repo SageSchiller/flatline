@@ -63,7 +63,7 @@ GROUP_TITLES = {
 #: What `help` puts in front of somebody who has just arrived, in order.
 #: Deliberately four: a landing page listing everything is the index it was
 #: supposed to replace.
-STARTER_PATH = ('basics', 'firstrun', 'triangle', 'origins')
+STARTER_PATH = ('basics', 'words', 'firstrun', 'triangle', 'origins')
 
 #: The verbs that answer "what now", listed on the landing page under their
 #: own heading. Every one costs no time and is safe to ask at any point, which
@@ -100,9 +100,51 @@ TOPICS: tuple[Topic, ...] = (
         'knowing the trace advances while you do it.'
         '\n\n[warn]The other half.[/] The street, with the deck in the bag, can hurt you and at the top of its ladder kill you, and it can be fought, though it never has to be: every encounter offers a way out that is not a fight. `help street` for all of it.',
         see=('triangle', 'firstrun', 'checks', 'saves', 'reading', 'shell',
-             'colours'),
+             'colours', 'words'),
         commands=('board', 'take', 'jack in'),
         terms=('what is this', 'premise', 'overview',),
+        group='start'),
+
+    Topic(
+        'words', 'The words, in one screen',
+        'Posture, residue, tier, shift, reads: what each one means.',
+        'The game uses a few words of its own, and it uses them before it '
+        'has had a chance to explain them. Here they all are.\n\n'
+        '[accent]Shift[/] is the city\'s clock: morning, afternoon, night. '
+        'Travel, rest and work spend shifts, and contracts expire in them. '
+        '[accent]Tick[/] is the clock inside a network; every command in '
+        'there costs one or more.\n\n'
+        '[accent]Posture[/] is how hard a faction\'s network is: how many '
+        'doors, how hard they are, how much ICE. It rises when you succeed '
+        'against them. [accent]Reads[/] on the board is two words, doors '
+        'and room: doors is whether your breaker opens what the job is '
+        'behind, room is how hard the place runs the clock while you '
+        'work.\n\n'
+        '[accent]Trace[/] is the clock inside a run; it only rises, and at '
+        '100 they cut you loose. [accent]Noise[/] is suspicion on the host '
+        'you stand on, and it fades. [accent]Residue[/] is the evidence '
+        'you leave, and it follows you home as [accent]heat[/], which is a '
+        'faction\'s attention on you. [accent]Standing[/] is the opposite '
+        'number: what people will pay you. [accent]Alert[/] is the room\'s '
+        'mood, green to red; red multiplies the trace.\n\n'
+        '[accent]Zone[/] is how deep a host is (perimeter, interior, '
+        'restricted, core) and [accent]tier[/] is the access a zone wants; '
+        'you hold a tier by cracking every service on an auth server. '
+        '[accent]Hop[/] is one link between hosts; you can only work on the '
+        'host you stand on and the ones one hop away.\n\n'
+        'On the deck: a [accent]breaker[/] opens services, a '
+        '[accent]payload[/] carries data out or does the damage, a '
+        '[accent]mask[/] keeps the trace down, a [accent]hunter[/] sees '
+        'further and reads more. Your [accent]handle[/] is what the roster '
+        'files you under; your [accent]alias[/] is the name the city knows '
+        'you by, and it can burn.\n\n'
+        'The decision this screen exists for: when a word in `now` or the '
+        'brief means nothing, it is almost always one of these, and the '
+        'move it is attached to is safe to make while you read.',
+        see=('basics', 'triangle', 'colours', 'contracts', 'deck'),
+        commands=('now', 'job', 'legend'),
+        terms=('glossary', 'jargon', 'meaning', 'terms', 'definitions',
+               'what does', 'what is'),
         group='start'),
 
     Topic(
@@ -504,7 +546,7 @@ TOPICS: tuple[Topic, ...] = (
         group='character'),
     Topic(
         'origins', 'Origins and signature abilities',
-        'Ten backgrounds, and the one thing each of them can do that nobody '
+        'Twelve backgrounds, and the one thing each of them can do that nobody '
         'else can.',
         'An origin sets where you start and never where you can go. It gives '
         'you an attribute shape, opening gear, faction standing, a passive, '
@@ -1892,4 +1934,4 @@ BY_KEY: dict[str, Topic] = {t.key: t for t in TOPICS}
 TOPIC_KEYS: tuple[str, ...] = tuple(BY_KEY)
 
 #: What `help` suggests to somebody who has just started.
-STARTER = ('basics', 'firstrun', 'triangle', 'origins')
+STARTER = ('basics', 'words', 'firstrun', 'triangle', 'origins')

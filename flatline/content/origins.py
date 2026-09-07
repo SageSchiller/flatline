@@ -541,6 +541,14 @@ ORIGIN_OPENING: dict[str, str] = {
 #: Every origin starts here before its `attrs` delta is applied.
 BASE_ATTR = 3
 
+#: The three the origin table puts first (D187), each with how it plays,
+#: for somebody who has never chosen between twelve of anything.
+FIRST_RUNNER: tuple[tuple[str, str], ...] = (
+    ('gutter', 'Loud and fast'),
+    ('defector', 'Quiet and clever'),
+    ('protege', 'Talks their way in'),
+)
+
 
 def starting_attrs(origin) -> list[tuple[str, str, int, bool]]:
     """What this origin starts with, as (short, name, value, moved) in the

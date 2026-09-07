@@ -12,6 +12,8 @@ updated: 2026-09-06
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
+> **State as of 2026-09-06, latest: D187, the welcome list.** The six things left from the author's welcome ask, all built: the origin table opens with three for a first runner framed by how they play (loud and fast, quiet and clever, talks their way in) and lists the other nine after; the board shows the contract id beside the row so `take c007` matches a line; a fresh runner's first advice is the job the starting kit can finish, with shopping held until there is a run behind them or a job in hand; the prompt's trace and money are in their own colours, fenced for readline; the city's turn after the run card sits under an `afterwards` rule; and `help words` is a one-screen glossary in the starter path, with a one-time line under `now` on the first job. `validate.py` clean, `test.py` green at **20,442 checks**, the six campaigns unchanged. **What is next:** the next tester round on the whole first hour; the balance follow-ups from D184. The paragraph below is the state this was built on.
+>
 > **State as of 2026-09-06, latest: D186, the cold open played for real.** `begin` is a run now: a hand-built three-host network of the Sixes, the real verbs, dice, readout and countermeasure, as the dead runner's own character, with Switchboard as the coach in her own voice. The crack can fail, the Scrapper wakes and strikes, the trace can fill and being cut loose is a scene, the ledger can be read for the word, and the result reaches the runner made afterwards (`dw_heard`, heat on the Sixes, or the street rounding up). The scene's prose seeds what the city has in it: Kick, a riced mask, a cat in a safehouse, the wall of the pit, Auntie Nine, Ninepins, Moth, and a name the city gives you. `test_the_cold_open` rewritten for it. `validate.py` clean, `test.py` green at **20,438 checks**. **What is next:** the rest of the welcome list from the author's ask (the origin wall, board ids, the first advice for a rich origin, the coloured prompt, the news flood after `jack out`, jargon on first sight); the balance follow-ups from D184. The paragraph below is the state this was built on.
 >
 > **State as of 2026-09-06, latest: D184 reach, D185 the numbers explained.** The author played the coach and caught the run's oldest inconsistency: a host two hops out could be probed and cracked from the gateway but not connected to. D184 makes reach strict: you work on the host you stand on and the ones one hop from it, `scan` alone sees further (Architecture ranks and a hunter program buy the distance), the map dims what you cannot reach, the brief walks toward what it saw instead of probing it from afar, and the badge detour walks too. Measured: the in-game first night held (27 of 36 brief-followers finish, none severed, against 28 and 1); the synthetic ladder shifted (the weakest build 20 to 14 of 30 on gang work, the loud breaker 26 to 29 against the quiet build's 27 on a corporate network), recorded in `test_ladder` and named below as a balance follow-up. Two advice loops the new trajectories exposed are fixed (a wrecked deck walked into a bounty sixty-one times; `sell` typed at a price list forty-six times). D185: the five attributes are explained before the origin choice, the spend plan is a grid with what every number is for, the splash says what a text game is, and the loop lesson says how commands are typed. `validate.py` clean, `test.py` green at **20,418 checks**, the six campaigns clean. **What is next:** the next round of tester notes; the balance follow-up (the stealth premium on corporate networks under strict reach; the weakest build's first night). The paragraph below is the state this was built on.
@@ -6591,6 +6593,43 @@ wakes, the word is read and reaches the flags, the sever reaches the
 heat, skip carries nothing, the borrowed runner is never filed, and it
 is ascii-clean.
 
+### D187: The welcome list
+
+The rest of the author's ask after D186: make the first hour easier to
+understand and more fun for somebody not used to text games. Six things,
+each one a place a newcomer stalled in the transcripts.
+
+1. **The origin wall.** Twelve rows was a lot on the first screen. The
+   table opens with three for a first runner, each framed by how it
+   plays (`origins.FIRST_RUNNER`: the gutter runner loud and fast, the
+   defector quiet and clever, the protege talks their way in), and lists
+   the other nine after under "each with something nobody else can do".
+   The numbers are the full list's numbers, so `2` is still the gutter
+   runner wherever it is printed.
+2. **Board ids.** `now` and the coach say `take c007` and the board showed
+   rows 1 to 5. An `id` column, dim, beside the row.
+3. **The first night's advice.** A fresh defector with 2,400c was told to
+   buy a 2,352c breaker before anything named the job. The board is
+   guaranteed a job the starting kit can finish (D71), so `city_steps`
+   holds the breaker and payload shopping while `runs == 0`, no contract
+   is held and a doable job exists; it returns the moment there is a run
+   behind them or a job in hand that wants the thing.
+4. **The prompt in colour.** The trace in a run and the money in the city
+   were the only uncoloured numbers on the screen. `prompt._lit` wraps
+   the tail in its role with the shapes' own brackets escaped, and
+   `Session.prompt` renders every prompt through `prompt_render`, fenced
+   for readline (D182). A style that rewrites the tail stays plain.
+5. **The flood after `jack out`.** Pay, what the residue became, and
+   what moved landed on the card as one block. An `afterwards` rule
+   between the card and the city's turn.
+6. **The words.** `help words`: shift and tick, posture and reads, trace,
+   noise, residue, heat, standing, alert, zone and tier, hop, the deck's
+   four program kinds, handle and alias, one screen, in the starter path
+   (`Read these, in this order` is five now). Under `now`, once, on the
+   first job: posture is how hard their doors are, a shift is the city's
+   clock, and where the rest live. The origins topic said ten backgrounds
+   for a while; it says twelve.
+
 ## Session log
 
 ### 2026-08-12 (a): project created
@@ -8335,3 +8374,9 @@ the coach, a crack that can fail, a Scrapper that wakes, a trace that
 can fill, a word to read, and a result that reaches the runner made
 afterwards; the scene seeds the city's depth in its prose. `test.py`
 green at 20,438.
+
+### 2026-09-06 (e): the welcome list
+
+D187. Three origins first, board ids, the first night's advice, the
+prompt in colour, the afterwards rule, and `help words`. `test.py`
+green at 20,442.

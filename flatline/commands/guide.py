@@ -78,6 +78,15 @@ def cmd_now(sess, args) -> None:
         bullet = c.caps.g('bullet')
         c.say('[dim]also[/]  ' + f' [dim]{bullet}[/] '.join(
             f'[fg]{a}[/]' for a in also), indent='  ', subsequent='        ')
+    # The words a newcomer meets here before anything explained them
+    # (D187): once, on the first job, and where the rest of them live.
+    if (sess.game is not None and sess.run is None
+            and getattr(sess.game.char, 'runs', 0) == 0
+            and 'words-hint' not in sess.seen):
+        sess.seen.add('words-hint')
+        c.say('[dim]words[/]  [dim]posture is how hard their doors are, a '
+              'shift is the city\'s clock, and `help words` has the rest.[/]',
+              indent='  ', subsequent='         ')
     # The record line you are closest to crossing (D163): one line, only
     # in the city, only when it is close. An achiever reads `record` for
     # this; everybody else finds out here that the city keeps count.
@@ -589,7 +598,7 @@ def article(name: str) -> str:
 
 
 def origin_table(sess) -> None:
-    """The ten origins, two lines each, which is the whole list on one screen.
+    """The twelve origins, two lines each, which is the whole list on one screen.
 
     The long form, with passive, signature and story, is `read <n>` from the
     question or `new --long` from the prompt. Somebody choosing between ten
@@ -610,7 +619,8 @@ def origin_table(sess) -> None:
     c.blank()
     name_w = max(len(o.name) for o in origins.ORIGINS)
     key_w = max(len(o.key) for o in origins.ORIGINS)
-    for i, o in enumerate(origins.ORIGINS, 1):
+
+    def row(i, o, tag=''):
         # The moved ones lit, the rest dim: the shape of the origin reads
         # at a glance and the numbers are the sheet's own (D185).
         shape = ' '.join(f'[accent]{short} {v}[/]' if moved
@@ -620,7 +630,21 @@ def origin_table(sess) -> None:
               f'{" " * (name_w - len(o.name))}  [dim]{o.key}[/]'
               f'{" " * (key_w - len(o.key))}  [credit]{o.credits:>6,}c[/]'
               f'  {shape}')
-        c.say(f'[dim]{o.blurb}[/]', indent='      ', subsequent='      ')
+        blurb = f'[accent2]{tag}.[/] [dim]{o.blurb}[/]' if tag else f'[dim]{o.blurb}[/]'
+        c.say(blurb, indent='      ', subsequent='      ')
+
+    # Twelve rows is a wall on a first screen (D187): three first, framed
+    # by how they play, and the numbers stay the numbers of the full list.
+    numbered = {o.key: i for i, o in enumerate(origins.ORIGINS, 1)}
+    c.say('[accent]Three for a first runner[/]')
+    for key, tag in origins.FIRST_RUNNER:
+        row(numbered[key], origins.BY_KEY[key], tag)
+    c.blank()
+    c.say('[dim]And nine more, each with something nobody else can do:[/]')
+    first_keys = {k for k, _ in origins.FIRST_RUNNER}
+    for i, o in enumerate(origins.ORIGINS, 1):
+        if o.key not in first_keys:
+            row(i, o)
     c.blank()
     c.say('[dim]`read 2` reads one in full before you choose, `read all` '
           'reads every one, `random` lets the city pick. Enter alone '
