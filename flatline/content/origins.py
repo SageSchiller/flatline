@@ -387,7 +387,9 @@ ORIGINS: tuple[Origin, ...] = (
         signature_name='The back way',
         signature_detail=(
             'Once per run, take a route you already knew about. Move to any '
-            'node you have seen, from anywhere, in one tick and in silence.'),
+            'node you have seen, from anywhere, in one tick and in silence. '
+            'The one thing in the game that ignores reach: a courier knows '
+            'a way that is not on the plan.'),
         look=dict(build='rangy', face='lopsided', eyes='mismatched', hair='braided', marks='clinic', dress='salvage', bearing='restless', voice='fast')),
     Origin(
         'printer', 'Compositor',

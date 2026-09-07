@@ -12,7 +12,7 @@ The slots are chosen so that no two of them are the same axis:
 - **io** buys throughput, which sets how much a tick is worth
 - **cooling** buys headroom, which is what makes overclocking survivable
 - **masking** buys trace resistance and pays in memory or speed
-- **antenna** buys reach and pays in signature
+- **antenna** buys range in the city and pays in signature
 
 A deck that is good at everything does not exist at any price, which is the
 point.
@@ -30,7 +30,8 @@ SLOT_BLURB: dict[str, str] = {
     'io': 'Throughput. How much a tick is worth.',
     'cooling': 'Thermal headroom. Gates overclocking.',
     'masking': 'Trace resistance.',
-    'antenna': 'Range, remote runs, and how far your signature carries.',
+    'antenna': 'Range in the city: where you can run from, what you hear, '
+               'and how far your signature carries.',
 }
 
 

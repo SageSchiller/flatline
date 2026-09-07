@@ -2484,7 +2484,8 @@ def cmd_signal(sess, args) -> None:
                 'you are elsewhere, `noise` is a diversion loud enough to pull '
                 'a Probe off your trail. It has its own signature and it is '
                 'not clever. Two of them will get you caught. Two of them will '
-                'also get you out with the data.')
+                'also get you out with the data. Placed on the host you '
+                'stand on or one next to it (D184).')
 def cmd_daemon(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     if not state.char.has_technique('daemon'):
@@ -3731,9 +3732,9 @@ def cmd_intercept(sess, args) -> None:
 @command('misdirect', 'Make your noise register somewhere else.',
          group='defence', contexts=('run',), ticks=1,
          usage='misdirect <host>',
-         detail='Sabotage rank 2. Moves the noise on this node onto another '
-                'one. Their countermeasures wake up, and the alert escalates '
-                'on their reading rather than yours.')
+         detail='Sabotage rank 2. Moves the noise on this node onto one '
+                'next to it (D184). Their countermeasures wake up, and the '
+                'alert escalates on their reading rather than yours.')
 def cmd_misdirect(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     if not state.char.has_technique('misdirect'):
@@ -3892,7 +3893,9 @@ def _signature(sess, key: str):
          group='defence', contexts=('run',), ticks=1, usage='policy [host]',
          detail='Corporate defector only, once per run. Tells you what a node '
                 'is required to log and when, wipes every trace of you from '
-                'it, and reveals anything watching.')
+                'it, and reveals anything watching.'
+                ' Not bound by reach (D184): this is knowing what a host is '
+                'made to log, not touching it.')
 def cmd_policy(sess, args) -> None:
     state = _signature(sess, 'policy')
     c = sess.console

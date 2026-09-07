@@ -6473,6 +6473,24 @@ The ladder's guard is held to within three and the stealth premium on
 corporate networks is a balance follow-up, as is the weakest build's
 first night.
 
+**The sweep, at the author's ask.** Every run verb that resolves a host
+was listed and checked: nine check reach, and the three that do not are
+the three that should not. `backway` is the courier's signature and says
+so; `backdoor` (Architecture 4) plants an edge to a host two hops out,
+which is the point of it; `policy` is the defector knowing what a host is
+made to log, not touching it, and its help now says so. Seeing is
+untouched everywhere it happens: `chart` reads topology two hops out,
+`listen` reads the neighbours, legwork's topology intel, an inside job's
+map and a sprung backdoor all reveal the shape, and every `scan_depth`
+on the sheet (five implants, five programs, two traits) is sight. Text
+that said "reach" for sight or for the deck's link was reworded: the
+antenna buys range in the city (where you run from, what you hear, your
+signature's carry) and never into a network, which `help deck` and the
+slot's blurb now say; Moth's and Tuck's hunters "see" a hop further; the
+effect vocabulary says a scan sees; `daemon` and `misdirect` name the
+host next to you. The memory layer's remembered routes are planted edges
+and stay valid.
+
 **Two advice loops the new trajectories exposed.** A wrecked deck with a
 bounty was walked toward the Glasshouse sixty-one times, because the
 "workshop the street will let you reach" checked the destination and not

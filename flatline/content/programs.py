@@ -576,7 +576,7 @@ RELICS: tuple[Program, ...] = (
             'wherever the most is happening, and it gets there first, and it '
             'does not burn.',
             effects={'tell_lead': 1, 'scan_depth': 1},
-            note='Reaches a hop further and hears a tick sooner. Moth\'s way.',
+            note='Sees a hop further and hears a tick sooner. Moth\'s way.',
             unique=True,
             lore='Moth is called that because Moth goes towards the light, '
                  'and has done for eleven years, and has not burned, which '
@@ -628,7 +628,7 @@ RELICS: tuple[Program, ...] = (
             'not paper. It is a map of a district, and it turns out a '
             'district and a network are the same shape.',
             effects={'scan_depth': 1},
-            note='One memory. Reaches a hop further, for nothing.',
+            note='One memory. Sees a hop further, for nothing.',
             unique=True,
             lore='Tuck mapped the Ward\'s cabling over nine years because '
                  'nobody else was going to and because the pumps depend on '

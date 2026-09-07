@@ -46,7 +46,7 @@ ADDITIVE: dict[str, str] = {
     'cover': 'How fast the story a faction is assembling about you falls apart',
     'tell_lead': 'Ticks of advance warning on an ICE tell',
     'legwork_bonus': 'Quality of information bought before a run',
-    'scan_depth': 'How far a scan reaches from the current node',
+    'scan_depth': 'How far a scan sees from the node you stand on',
     # skills, as `skill_<key>`
     **{f'skill_{k}': f'{k.title()} skill' for k in SKILL_KEYS},
 }
