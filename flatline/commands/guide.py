@@ -594,10 +594,11 @@ def origin_table(sess) -> None:
     """
     c = sess.console
     c.header('A new runner', f'{len(origins.ORIGINS)} origins')
-    c.say('[dim]An origin sets where you start, never where you can go. '
-          'Pick one by number or by name. The letters are the five '
-          'attributes, and the numbers are what each origin adds to or '
-          'takes off the middle:[/]')
+    c.say(f'[dim]An origin sets where you start, never where you can go. '
+          f'Pick one by number or by name. Every attribute starts at '
+          f'{origins.BASE_ATTR}, and an origin moves a few; the numbers on '
+          f'each row are what you start with, and they are the same numbers '
+          f'the sheet shows. The five attributes:[/]')
     for a in attr_content.ATTRIBUTES:
         c.say(f'[warn]{a.short}[/] [accent]{a.name}[/]'
               f'{" " * (7 - len(a.name))} [dim]{a.gloss}[/]',
@@ -606,12 +607,15 @@ def origin_table(sess) -> None:
     name_w = max(len(o.name) for o in origins.ORIGINS)
     key_w = max(len(o.key) for o in origins.ORIGINS)
     for i, o in enumerate(origins.ORIGINS, 1):
-        shape = '  '.join(f'{attr_content.BY_KEY[k].short} {v:+d}'
-                          for k, v in o.attrs.items())
+        # The moved ones lit, the rest dim: the shape of the origin reads
+        # at a glance and the numbers are the sheet's own (D185).
+        shape = ' '.join(f'[accent]{short} {v}[/]' if moved
+                         else f'[dim]{short} {v}[/]'
+                         for short, _, v, moved in origins.starting_attrs(o))
         c.raw(f'  [accent]{i:>2}[/]  [accent][bold]{o.name}[/][/]'
               f'{" " * (name_w - len(o.name))}  [dim]{o.key}[/]'
               f'{" " * (key_w - len(o.key))}  [credit]{o.credits:>6,}c[/]'
-              f'  [dim]{shape}[/]')
+              f'  {shape}')
         c.say(f'[dim]{o.blurb}[/]', indent='      ', subsequent='      ')
     c.blank()
     c.say('[dim]`read 2` reads one in full before you choose, `read all` '
@@ -732,7 +736,7 @@ def offer_spend(sess) -> None:
     c.say(f'{char.points} attribute point{"s" if char.points != 1 else ""} '
           f'and {char.xp} experience. {article(who).capitalize()} {who} '
           f'usually puts them here:')
-    c.kv(describe(plan, char, c.caps.g('arrow')), role='accent')
+    print_plan(c, plan, char)
     c.blank()
     c.say('[fg]1[/]  [dim]spend them this way now[/]', indent='  ')
     c.say('[fg]2[/]  [dim]keep them. `boost <attribute>` and `train <skill>` '
@@ -815,7 +819,7 @@ def cmd_spend(sess, args) -> None:
     who = char.origin_data.name.lower()
     c.say(f'[dim]{article(who).capitalize()} {who} usually puts them '
           f'here:[/]')
-    c.kv(describe(plan, char, c.caps.g('arrow')), role='accent')
+    print_plan(c, plan, char)
     if args.has('go'):
         c.blank()
         apply_plan(sess, plan)
@@ -988,12 +992,14 @@ def suggest(char, board_posture: int | None = None) -> list[tuple[str, str]]:
     return plan
 
 
-def describe(plan, char, arrow: str = '->') -> list[tuple[str, str]]:
-    """The plan as (name, change and reason) rows for a grid, one per
-    number, with what the number is for beside it (D185). The old two
-    lines named five attributes and four skills to somebody who had just
-    been told what an origin was and nothing else."""
-    out: list[tuple[str, str]] = []
+def describe(plan, char, arrow: str = '->') -> tuple[list, list]:
+    """The plan as two grids of (name, change and reason) rows (D185):
+    every attribute, moved or not, and then the skills, each with the
+    attribute it checks against. One grid mixed three attributes and four
+    skills and the author read Warfare as a stat and asked where Logic
+    had gone."""
+    attrs: list[tuple[str, str]] = []
+    skills_out: list[tuple[str, str]] = []
     boosts: dict[str, int] = {}
     for verb, key in plan:
         if verb == 'boost':
@@ -1010,10 +1016,16 @@ def describe(plan, char, arrow: str = '->') -> list[tuple[str, str]]:
         if tech:
             techs.append(tech)
         trained[key] = (start, ranks[key], techs)
-    for k, n in boosts.items():
-        a = attr_content.BY_KEY[k]
-        out.append((a.name, f'{char.base_attrs[k]}[dim]{arrow}[/]'
-                            f'{char.base_attrs[k] + n}  [dim]{a.gloss}[/]'))
+    for a in attr_content.ATTRIBUTES:
+        have = char.base_attrs[a.key]
+        n = boosts.get(a.key, 0)
+        # Padded on the plain text so the glosses line up whether or not
+        # the number moved.
+        plain_len = len(f'{have}{arrow}{have + n}') if n else len(str(have))
+        pad = ' ' * max(0, 5 - plain_len)
+        change = (f'{have}[dim]{arrow}[/][accent]{have + n}[/]' if n
+                  else f'{have}')
+        attrs.append((a.name, f'{change}{pad}  [dim]{a.gloss}[/]'))
     for key, (start, end, techs) in trained.items():
         s = skill_content.BY_KEY[key]
         why = s.summary.rstrip('.')
@@ -1021,8 +1033,31 @@ def describe(plan, char, arrow: str = '->') -> list[tuple[str, str]]:
             why += '. ' + '; '.join(
                 f'{t.name} at rank {t.rank}: {t.summary.rstrip(".").lower()}'
                 for t in techs)
-        out.append((s.name, f'{start}[dim]{arrow}[/]{end}  [dim]{why}.[/]'))
-    return out
+        governs = attr_content.BY_KEY[s.attr].name
+        pad = ' ' * max(0, 5 - len(f'{start}{arrow}{end}'))
+        skills_out.append((s.name, f'{start}[dim]{arrow}[/][accent]{end}[/]'
+                                   f'{pad}  [dim]{why}. Checks against '
+                                   f'{governs}.[/]'))
+    return attrs, skills_out
+
+
+def print_plan(c, plan, char) -> None:
+    """The two grids, with the line between them that says what a skill
+    is, because the spend screen is the first place a new player meets
+    one."""
+    attrs, skills_out = describe(plan, char, c.caps.g('arrow'))
+    points = sum(1 for verb, _ in plan if verb == 'boost')
+    c.blank()
+    c.say(f'[accent]Attributes[/] [dim]({points} of {char.points} point'
+          f'{"s" if char.points != 1 else ""}): the five numbers every '
+          f'check reads. Unmoved ones stay as they are.[/]')
+    c.kv(attrs, role='accent')
+    if skills_out:
+        c.blank()
+        c.say(f'[accent]Skills[/] [dim]({char.xp} experience): a skill is '
+              f'a trade, checked against one attribute. Ranks 2 and 4 each '
+              f'unlock a technique, which is a new thing to type.[/]')
+        c.kv(skills_out, role='accent')
 
 
 def apply_plan(sess, plan) -> None:
@@ -1046,12 +1081,12 @@ def apply_plan(sess, plan) -> None:
                 unlocked.append(tech)
     arrow = c.caps.g('arrow')
     if boosted:
-        c.ok(', '.join(f'{attr_content.BY_KEY[k].name} {a}[dim]{arrow}[/]{b}'
+        c.ok('Attributes: ' + ', '.join(f'{attr_content.BY_KEY[k].name} {a}[dim]{arrow}[/]{b}'
                        for k, (a, b) in boosted.items())
              + f'. [dim]{char.points} point'
                f'{"s" if char.points != 1 else ""} left.[/]')
     if trained:
-        c.ok(', '.join(f'{skill_content.BY_KEY[k].name} {b}'
+        c.ok('Skills: ' + ', '.join(f'{skill_content.BY_KEY[k].name} {b}'
                        for k, (a, b) in trained.items())
              + f'. [dim]{char.xp} experience left.[/]')
     for tech in unlocked:

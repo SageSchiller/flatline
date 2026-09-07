@@ -6513,10 +6513,17 @@ nothing said what LOG was; the spend question listed `Logic 5→8, Guile
 been told what an origin was.
 
 The origin table opens with the five attributes, letter, name and gloss,
-before the numbers that use the letters. The plan is a grid: one row per
-number, the change, and what it is for, the skill's own summary and the
-technique it unlocks at the rank it unlocks it. `spend` in the city gets
-the same grid. And for somebody who has never played a text game: the
+and each row shows the numbers an origin *starts with*, the moved ones
+lit, rather than `REF +2` against a middle nothing named (the author's
+first screen said `+2` and the next said `5`). The plan is two grids, not
+one: every attribute, moved or not, under a heading that says these are
+the five numbers every check reads; then the skills under a heading that
+says a skill is a trade checked against one attribute and that ranks 2
+and 4 unlock a technique, each row with the skill's own summary, the
+technique at the rank it arrives, and the attribute it checks against.
+One grid had mixed three attributes with four skills and the author read
+Warfare as a stat and asked where Logic had gone. `spend` in the city
+gets the same two grids. And for somebody who has never played a text game: the
 splash's first sentence says you type a word and press Enter, and the
 loop lesson says every command is a word or two, `help <word>` explains
 any of them, Tab completes, and a wrong word costs nothing. The coach

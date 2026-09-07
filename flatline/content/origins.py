@@ -541,6 +541,15 @@ ORIGIN_OPENING: dict[str, str] = {
 #: Every origin starts here before its `attrs` delta is applied.
 BASE_ATTR = 3
 
+
+def starting_attrs(origin) -> list[tuple[str, str, int, bool]]:
+    """What this origin starts with, as (short, name, value, moved) in the
+    order the sheet prints them (D185). The table used to show `REF +2`
+    and the spend screen `Reflex 5`, and nothing said what the middle was."""
+    from . import attributes as attr_content
+    return [(a.short, a.name, BASE_ATTR + origin.attrs.get(a.key, 0),
+             a.key in origin.attrs) for a in attr_content.ATTRIBUTES]
+
 #: Riders the engine implements. A passive naming anything else is a
 #: validation error, which is what stops an origin's headline ability from
 #: being a sentence that does nothing.

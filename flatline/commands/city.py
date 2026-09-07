@@ -151,10 +151,11 @@ def show_origin(sess, origin, number: int | None = None) -> None:
     num = f'[dim]{number:>2}[/]  ' if number is not None else ''
     c.raw(f'{num}[accent][bold]{origin.name}[/][/]  [dim]{origin.key}[/]')
     c.say(origin.blurb, indent='  ')
-    shape = '  '.join(
-        f'{attr_content.BY_KEY[k].short} {v:+d}'
-        for k, v in origin.attrs.items())
-    c.say(f'[dim]{shape}  {origin.credits:,}c[/]', indent='  ')
+    shape = '  '.join(f'[accent]{name} {v}[/]' if moved else f'[dim]{name} {v}[/]'
+                      for _, name, v, moved in origins.starting_attrs(origin))
+    c.say(f'{shape}  [credit]{origin.credits:,}c[/] [dim](what you start '
+          f'with; every attribute starts at {origins.BASE_ATTR})[/]',
+          indent='  ', subsequent='  ')
     c.say(f'[warn]{origin.passive}:[/] [dim]{origin.passive_detail}[/]',
           indent='  ', subsequent='  ')
     c.say(f'[accent2]{origin.signature_name}[/] '

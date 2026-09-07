@@ -5736,8 +5736,12 @@ def test_guide() -> None:
              f'{o.key}: and maxes nothing')
         T.ok(any(r >= 2 for r in char.base_skills.values()),
              f'{o.key}: and buys at least one technique')
-        T.ok(guide.describe(plan, Character.from_origin(o.key, 'P'))
-             , f'{o.key}: the plan can be described')
+        attrs_rows, skill_rows = guide.describe(
+            plan, Character.from_origin(o.key, 'P'))
+        T.ok(len(attrs_rows) == 5
+             and bool(skill_rows) == any(v == 'train' for v, _ in plan),
+             f'{o.key}: the plan can be described, attributes apart from '
+             f'skills')
 
     # `new --long` is the long listing.
     _, out = play(['new --long'])
