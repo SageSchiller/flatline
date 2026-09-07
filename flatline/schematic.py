@@ -199,7 +199,7 @@ def draw(net, state, caps: Caps, tall: bool = False) -> list[str]:
     rows = canvas.rows()
     legend = ('[dim]@ you  ! the job  ' + ('^' if ascii_only else '▲')
               + ' something on it  lit: the way to the job[/]')
-    reach = '[dim]dim: shut, or out of reach from where you stand (D184)[/]'
+    reach = '[dim]dim: shut, or out of reach from where you stand[/]'
     # A key for the type glyphs, but only for the types actually on the map,
     # so it names what you can see and grows as you find more (D111).
     present = {n.display_type for n in known}
