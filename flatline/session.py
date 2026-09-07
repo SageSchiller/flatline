@@ -118,6 +118,10 @@ class Session:
     #: Set while the first runner on this profile is being made (D182), so
     #: creation ends by turning the tutorial on. Nothing else reads it.
     teach: bool = False
+    #: The cold open while it runs (D186): the scene's own state, spoken
+    #: to after every command; and what it left for the runner made next.
+    prologue: object | None = None
+    prologue_result: dict = field(default_factory=dict)
     #: How many times the blank-prompt lifeline has been shown (D118). It
     #: fades after a few, and stops the moment `now` is used.
     lifelines: int = 0
@@ -617,6 +621,10 @@ class Session:
         """
         self._coach_said = False
         self._turns += 1
+        if self.prologue is not None:
+            from . import prologue as prologue_mod
+            if prologue_mod.intercept(self, line):
+                return
         if self.pending is not None:
             was_done = self._objective_state()
             self.answer(line)
@@ -633,6 +641,11 @@ class Session:
             except CommandError as e:
                 if str(e):
                     self.console.err(str(e))
+                if self.prologue is not None:
+                    # A wrong word in the cold open is answered by her
+                    # repeating the right one (D186).
+                    from . import prologue as prologue_mod
+                    prologue_mod.after(self)
                 continue
             was_done = self._objective_state()
             self.invoke(inv)
@@ -704,6 +717,9 @@ class Session:
         # player got there.
         if self.tutorial_on:
             self.tutorial_advance()
+        if self.prologue is not None:
+            from . import prologue as prologue_mod
+            prologue_mod.after(self)
 
     # ------------------------------------------------------------------
     # tutorial
@@ -1003,6 +1019,8 @@ class Session:
     def autosave(self) -> None:
         """Called on shift boundaries. Silent on success, loud on failure,
         because a save that is quietly not happening is the worst outcome."""
+        if self.prologue is not None:
+            return
         if self.game is None:
             return
         self.sync_scripts()

@@ -11149,9 +11149,12 @@ def test_the_fourth_wave() -> None:
 
 
 def test_the_cold_open() -> None:
-    """D115: the first job, before there is a you. On rails, never stalls,
-    and rolls into character creation."""
+    """D115, rebuilt in D186: the first job, before there is a you, played
+    for real. A run on a hand-built network with Switchboard as the coach,
+    a crack that can fail, a sentry that wakes, a word to read or not, and
+    a result that reaches the runner made afterwards."""
     T.section('the cold open')
+    from flatline import prologue as pro
 
     def fresh():
         con = quiet_console()
@@ -11160,41 +11163,105 @@ def test_the_cold_open() -> None:
     def do(sess, con, cmd):
         con.start_capture()
         sess.execute(cmd)
-        return strip_ansi(con.end_capture())
+        # Flattened: her instructions wrap, and a backticked command can
+        # break across a line in the capture.
+        return ' '.join(strip_ansi(con.end_capture()).split())
 
-    # It opens on the scene and leaves a question waiting for the next line.
+    def crack(sess, con):
+        out = ''
+        for _ in range(8):
+            out += do(sess, con, f'crack {pro.VAULT} {pro.SHARE}')
+            if sess.run is None or sess.run.net.node(pro.VAULT).open:
+                break
+        return out
+
+    # It opens on the scene, and it is a run: the real dispatcher, the real
+    # readout, her voice saying the next thing.
     sess, con = fresh()
     out = do(sess, con, 'begin')
-    T.ok('borrowed deck' in out, 'the cold open sets the scene')
-    T.ok('Switchboard' in out, 'the voice is on the line')
-    T.ok(sess.pending is not None, 'and it waits for the next line')
+    T.ok('borrowed deck' in out and 'Switchboard' in out,
+         'the cold open sets the scene with the voice on the line')
+    T.ok(sess.run is not None and sess.prologue is not None,
+         'and it is a real run')
+    T.ok('Type `scan`' in out, 'and says the first thing to type')
+    T.ok(sess.run.trace >= pro.TRACE_AT_THE_DOOR,
+         'the trace is already running, because the job was hers')
+    T.ok('Kick' in out and 'riced' in out and 'cat' in out,
+         'the opening hints at what the city has in it')
 
-    # The real verbs walk it to the end, where creation is waiting.
-    for verb in ('scan', 'crack', 'grab', 'jack out'):
-        T.ok(sess.pending is not None, f'a beat waits before {verb}')
-        out = do(sess, con, verb)
-    T.ok('Deepwater' in out, 'the hook seeds the spine')
-    T.ok('Who are you' in out or 'who are you' in out.lower(),
-         'and hands over to character creation')
+    # A wrong word is answered by the shell, and she repeats herself.
+    out = do(sess, con, 'florble')
+    T.ok('not a command' in out and '`scan`' in out,
+         'a wrong word is refused and the next thing is repeated')
+    out = do(sess, con, 'scan')
+    T.ok(f'probe {pro.VAULT}' in out, 'a scan is answered with the probe')
+    out = do(sess, con, f'probe {pro.DESK}')
+    T.ok('Not that one' in out and f'probe {pro.VAULT}' in out,
+         'a wander to the desk is answered')
+    out = do(sess, con, f'probe {pro.VAULT}')
+    T.ok(f'crack {pro.VAULT} {pro.SHARE}' in out, 'the probe is answered with the crack')
+    out = crack(sess, con)
+    T.ok(sess.run.net.node(pro.VAULT).open, 'the crack opens the share')
+    T.ok(f'connect {pro.VAULT}' in out, 'and is answered with the connect')
+    out = do(sess, con, f'connect {pro.VAULT}')
+    T.ok(sess.run.here == pro.VAULT and 'pull' in out,
+         'standing on the vault, she says pull')
+    out = do(sess, con, 'pull')
+    T.ok(pro.LEDGER in sess.run.haul, 'the ledger is in the deck')
+    T.ok('jack out' in out and 'read' in out,
+         'she says out, and the game offers the word')
+    sentry = sess.run.net.node(pro.VAULT).ice[0]
+    T.ok(sentry.state != 'dormant', 'the sentry is awake')
+    out = do(sess, con, 'read')
+    T.ok('Deepwater' in out and sess.prologue.read, 'reading finds the word')
+    out = do(sess, con, 'jack out')
+    if sess.run is not None:
+        out += do(sess, con, 'jack out --anyway')
+    T.ok(sess.run is None and sess.prologue is None, 'the run is over')
+    T.ok('You are out' in out or 'cut you loose' in out, 'with a verdict')
+    T.ok('Who are you' in out, 'and it hands over to character creation')
+    T.ok('cat still needs feeding' in out and 'Ninepins' in out
+         and 'Moth' in out and 'pit' in out,
+         'the reveal hints at what is possible')
+    T.ok(sess.game is None, 'and nothing of the borrowed runner is kept')
     T.ok(sess.pending is not None and 'origin' in sess.pending.prompt,
          'the origin question is waiting')
+    took = sess.prologue_result.get('took')
+    read = sess.prologue_result.get('read')
+    T.ok(read, 'the result remembers the word was read')
+    out = do(sess, con, '2'); out += do(sess, con, 'Cold'); out += do(sess, con, '1')
+    T.ok(sess.game is not None, 'a runner is made')
+    T.ok('dw_heard' in sess.game.story.flags, 'who has heard the word')
+    if took:
+        T.ok('rounds up' in out and sess.game.char.credits > 700,
+             'and the street rounds up a clean exit')
+    save_mod.delete(sess.slot)
 
-    # It never stalls: a wrong word or an empty line still advances, with the
-    # word shown, so a newcomer cannot get stuck.
+    # Cut loose: the trace fills, the sever is a scene, and the Sixes have
+    # a shape to look for.
     sess, con = fresh()
     do(sess, con, 'begin')
-    out = do(sess, con, 'florble')
-    T.ok('scan' in out and 'shapes resolve' in out,
-         'a wrong word is nudged and the scene carries on')
-    out = do(sess, con, '')
-    T.ok(sess.pending is not None, 'an empty line advances rather than cancels')
+    sess.run.trace = 99.0
+    out = do(sess, con, 'scan')
+    if sess.run is not None:
+        sess.run.trace = 99.5
+        out += do(sess, con, f'probe {pro.VAULT}')
+    T.ok(sess.run is None and 'cut you loose' in out,
+         'the trace filling cuts the borrowed runner loose')
+    T.ok('Who are you' in out, 'and still hands over to creation')
+    T.eq(sess.prologue_result.get('outcome'), 'severed', 'the result says so')
+    do(sess, con, '2'); do(sess, con, 'Cut'); out = do(sess, con, '1')
+    T.ok(sess.game.alias.raw_heat('sixes') >= pro.SEVERED_HEAT
+         and 'shape' in out, 'and the Sixes start with a shape to look for')
+    save_mod.delete(sess.slot)
 
-    # `skip` bails straight to creation.
+    # `skip` bails straight to creation, carrying nothing.
     sess, con = fresh()
     do(sess, con, 'begin')
-    do(sess, con, 'skip')
-    T.ok(sess.pending is not None and 'origin' in sess.pending.prompt,
-         'skip jumps to character creation')
+    out = do(sess, con, 'skip')
+    T.ok(sess.run is None and sess.pending is not None
+         and 'origin' in sess.pending.prompt, 'skip jumps to creation')
+    T.ok(not sess.prologue_result, 'and carries nothing')
 
     # It refuses once somebody already exists.
     sess, con = fresh()
@@ -11202,13 +11269,20 @@ def test_the_cold_open() -> None:
     out = do(sess, con, 'begin')
     T.ok('already' in out.lower(), 'begin refuses when a character is loaded')
 
+    # Nothing of it is saved: the borrowed runner is not on the roster.
+    T.ok(not save_mod.find('Rook'), 'the borrowed runner is never filed')
+
     # Every beat is safe on a plain terminal too (no escapes leak, all ascii).
     caps = Caps(ColorLevel.NONE, GlyphLevel.ASCII, 80, theme.NEUTRAL)
     con = Console(caps, stream=io.StringIO())
     sess = Session(console=con, slot='cold')
     con.start_capture()
     sess.execute('begin')
-    for verb in ('scan', 'crack', 'grab', 'jack out'):
+    for verb in ('scan', f'probe {pro.VAULT}', f'crack {pro.VAULT} {pro.SHARE}',
+                 f'crack {pro.VAULT} {pro.SHARE}', f'connect {pro.VAULT}', 'pull',
+                 'jack out', 'jack out --anyway'):
+        if sess.run is None:
+            break
         sess.execute(verb)
     text = con.end_capture()
     T.ok(text.isascii(), 'the cold open is ascii-clean on an ascii terminal')

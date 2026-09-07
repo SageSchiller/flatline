@@ -519,6 +519,12 @@ def _resolve(sess) -> None:
             for s, level in hurt))
     c.blank()
     c.box(rows, title=summary['outcome'])
+    if getattr(sess, 'prologue', None) is not None:
+        # The cold open (D186): no city to hand this to, and nothing of
+        # the borrowed runner is kept. The scene says what it meant.
+        from .. import prologue as prologue_mod
+        prologue_mod.finish(sess, state, summary)
+        return
 
     if summary['outcome'] == 'flatline':
         game.over = 'flatlined'

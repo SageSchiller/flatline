@@ -543,11 +543,15 @@ NOT_MADE = 'No runner made. `new` when you are ready.'
 
 @command('begin', 'Your first job, right now. The way in.',
          group='character', bare=True, contexts=('city',), usage='begin',
-         detail='The cold open (D115): a short first heist, on rails, that '
-                'teaches the game by making you run it once before it asks '
-                'you to build anybody. Nothing you do in it can go wrong. '
-                '`new` skips straight to making a character; `tutorial` is '
-                'the slower, fuller guided run.')
+         detail='The cold open (D115, a real run since D186): a short '
+                'first heist on a borrowed deck, with a voice in your ear '
+                'saying the next thing to type, played with the game\'s own '
+                'verbs, dice and countermeasures before it asks you to build '
+                'anybody. The crack can fail and the trace can fill, and '
+                'being cut loose is a scene rather than an ending; what '
+                'happens reaches the runner you make afterwards. `skip` '
+                'inside it goes straight to `new`; `tutorial` is the coach, '
+                'which turns itself on for your first runner anyway.')
 def cmd_begin(sess, args) -> None:
     if sess.game is not None:
         raise CommandError('you already have somebody. `new` makes another, '
@@ -769,6 +773,15 @@ def _on_spend(sess, text: str) -> None:
 
 def _close(sess) -> None:
     c = sess.console
+    # What last night left (D186): said once, here, where the runner it
+    # happened to now exists.
+    from .. import prologue as prologue_mod
+    carried = prologue_mod.carry(sess)
+    if carried:
+        c.blank()
+        c.rule('from last night', role='accent2')
+        for line in carried:
+            c.say(f'[dim]{line}[/]')
     c.blank()
     c.say('[dim]That is a runner. `char` is the sheet, `self` is the face, '
           '`trait` is who they are. Enter on an empty line, at any point, '

@@ -12,6 +12,8 @@ updated: 2026-09-06
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
+> **State as of 2026-09-06, latest: D186, the cold open played for real.** `begin` is a run now: a hand-built three-host network of the Sixes, the real verbs, dice, readout and countermeasure, as the dead runner's own character, with Switchboard as the coach in her own voice. The crack can fail, the Scrapper wakes and strikes, the trace can fill and being cut loose is a scene, the ledger can be read for the word, and the result reaches the runner made afterwards (`dw_heard`, heat on the Sixes, or the street rounding up). The scene's prose seeds what the city has in it: Kick, a riced mask, a cat in a safehouse, the wall of the pit, Auntie Nine, Ninepins, Moth, and a name the city gives you. `test_the_cold_open` rewritten for it. `validate.py` clean, `test.py` green at **20,438 checks**. **What is next:** the rest of the welcome list from the author's ask (the origin wall, board ids, the first advice for a rich origin, the coloured prompt, the news flood after `jack out`, jargon on first sight); the balance follow-ups from D184. The paragraph below is the state this was built on.
+>
 > **State as of 2026-09-06, latest: D184 reach, D185 the numbers explained.** The author played the coach and caught the run's oldest inconsistency: a host two hops out could be probed and cracked from the gateway but not connected to. D184 makes reach strict: you work on the host you stand on and the ones one hop from it, `scan` alone sees further (Architecture ranks and a hunter program buy the distance), the map dims what you cannot reach, the brief walks toward what it saw instead of probing it from afar, and the badge detour walks too. Measured: the in-game first night held (27 of 36 brief-followers finish, none severed, against 28 and 1); the synthetic ladder shifted (the weakest build 20 to 14 of 30 on gang work, the loud breaker 26 to 29 against the quiet build's 27 on a corporate network), recorded in `test_ladder` and named below as a balance follow-up. Two advice loops the new trajectories exposed are fixed (a wrecked deck walked into a bounty sixty-one times; `sell` typed at a price list forty-six times). D185: the five attributes are explained before the origin choice, the spend plan is a grid with what every number is for, the splash says what a text game is, and the loop lesson says how commands are typed. `validate.py` clean, `test.py` green at **20,418 checks**, the six campaigns clean. **What is next:** the next round of tester notes; the balance follow-up (the stealth premium on corporate networks under strict reach; the weakest build's first night). The paragraph below is the state this was built on.
 >
 > **State as of 2026-09-06, later: D183, the coach.** The author's second round of notes on the same day: the testers had no idea what to do, did not know Enter gave the next step, saw `job` and `now` disagree, and got cut loose on their first runs; the legend was good but undiscoverable. The transcript showed why: the tutorial was a fixed list, a player who skipped `deck` held it on that step through the whole run, and none of the run's teaching printed. D183 replaces it with lessons that read the state, and inside a network the lesson is the brief itself, word for word, with a reason per verb written once. Enter repeats it, `now` leads with it, a `next` line follows every other command, and the room is explained once at the first door. `test_the_coach_finishes_a_run` plays four pupils who type nothing but what the coach says and get out clean. `validate.py` clean, `test.py` green at **20,392 checks**, the six campaigns clean on D182 (D183 touches nothing they read). Counts unchanged from D182: 48 manual topics, 157 commands; 21 lessons. **What is next:** more tester notes as they come; the follow-ups below are unchanged. The paragraph below is the state this was built on.
@@ -6530,6 +6532,65 @@ any of them, Tab completes, and a wrong word costs nothing. The coach
 line under a command reads "press Enter" when that is the lesson, and
 every lesson ends by naming `tutorial skip` and `tutorial stop`.
 
+### D186: The cold open, played for real
+
+The author, after playing the coach: the `begin` flow is too simple and
+needs to be a lot more exciting and dramatic, and the intro should hint in
+an in-story way at what the game has (drugs, rice, titles, allies, pets,
+gambling, the pit) so a player comes out curious about how deep it goes.
+
+**What D115 was.** A scripted scene. Four words were listened for and any
+word advanced it, the trace was four hand-picked percentages, the ICE
+waking was an animation, nothing could be lost, and the word Deepwater
+was printed but set no flag even though the main line already knew how
+to start from one. A cutscene where the player types "next".
+
+**What it is now.** A run. `prologue.py` builds the dead runner (a gutter
+runner with Sable, Siphon and Ledgerhand on a six-memory deck), a
+throwaway game that is never saved, and a three-host network by hand:
+the gateway you come up on, a desk that is somebody's lunch, and a
+fileserver in the perimeter with the ledger and one Scrapper asleep on
+it. `RunState.begin` runs it with the real dispatcher, so `scan`,
+`probe`, `odds`, `crack`, `connect`, `pull` and `jack out` are the game's
+own, the readout after every tick is the game's own, and the trace
+starts at twenty-two because the job was hers and she was halfway
+through it. Switchboard is the coach in her own voice: after every
+command the scene reads the run (seen, mapped, open, stood on, taken)
+and says the next thing to type, once in full when the job moves on and
+once as a short line when it has not, including after a wrong word.
+She reacts, each once: to the desk, to a crack that held, to the strike,
+to eighty on the trace. The Scrapper wakes on the noise or on the ledger
+leaving, whichever first, and the vault's line reads which. `read`, a
+word only the scene knows, costs a tick and finds the word. The run's
+own close-out prints the verdict and the card and then hands the scene
+its outcome in place of the city consequences: out with the ledger,
+out without it, or cut loose, each with her line, and then the reveal.
+
+**What it carries.** `carry`, at the end of creation: read the word and
+the new runner has `dw_heard`; cut loose and the Sixes start with eight
+heat and a news line about a shape; out clean and the street rounds up
+two hundred and fifty. Said once under "from last night". `skip` still
+goes straight to creation and carries nothing.
+
+**The hints.** In the opening: Kick and cat on the deck, a mask riced to
+look like a broken television. In the reveal: a cat in a safehouse in
+the Ninth nobody has fed since Tuesday; three names on the wall of the
+pit under the Shambles and a fourth that put her in a clinic; a debt to
+Auntie Nine; a deck lost at Ninepins twice and won back; Kick, and why
+she is not here; Moth's offer, refused; and a name the city gave her
+that it will give you when you have done a thing worth one. Then: all of
+it is still there, the cat still needs feeding, who are you.
+
+**Plumbing.** `Session.prologue` and `prologue_result`; `execute`
+intercepts `skip` and `read` and calls the scene after a refused word;
+`invoke` calls it after every command; `autosave` is a no-op while the
+scene runs; `_resolve` returns to the scene after the card. Held by
+`test_the_cold_open`, rewritten: the run is real, the hints are there, a
+typo is answered, the desk is answered, the crack opens, the sentry
+wakes, the word is read and reaches the flags, the sever reaches the
+heat, skip carries nothing, the borrowed runner is never filed, and it
+is ascii-clean.
+
 ## Session log
 
 ### 2026-08-12 (a): project created
@@ -8266,3 +8327,11 @@ trajectories exposed are fixed; the first night measured before and
 after, the ladder's shift recorded. D185: the attributes explained before
 the origin choice, the spend plan a grid, the splash for people who have
 never typed at a game. `test.py` green at 20,418.
+
+### 2026-09-06 (d): the cold open, played for real
+
+D186. `begin` is a real run on a hand-built network with Switchboard as
+the coach, a crack that can fail, a Scrapper that wakes, a trace that
+can fill, a word to read, and a result that reaches the runner made
+afterwards; the scene seeds the city's depth in its prose. `test.py`
+green at 20,438.
