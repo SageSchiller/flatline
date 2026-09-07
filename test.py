@@ -1146,29 +1146,87 @@ def test_the_first_hour() -> None:
     os.environ['XDG_DATA_HOME'] = tempfile.mkdtemp()
     try:
         sess, out = play(['new', '2', 'First', '1'])
-        T.ok('The tutorial is on' in out, 'a first runner gets the tutorial')
-        T.ok(0 <= sess.tutorial_step < len(tut.STEPS)
-             and tut.STEPS[sess.tutorial_step].key == 'sheet',
-             'and it stands at the sheet, the making being done')
-        T.eq(out.count('step 2 of'), 2,
-             'the step prints once, and once more under what now')
+        T.ok('The coach is on' in out, 'a first runner gets the coach')
+        cur = tut.current(sess)
+        T.ok(sess.tutorial_on and cur is not None and cur[0] == 'loop',
+             'and it stands at the loop, the making being done')
+        T.eq(out.count('lesson 2 of'), 1, 'the lesson prints once')
+        T.ok('Press Enter on an empty line.' in out, 'and asks for Enter')
+        sess.console.start_capture(); sess.execute('')
+        out = sess.console.end_capture()
+        T.ok('That is the button' in out, 'Enter completes the loop lesson')
+        T.ok('Type `char`' in out, 'and the sheet is next')
+        sess.console.start_capture(); sess.execute('board')
+        out = sess.console.end_capture()
+        T.ok('next' in out and 'char' in out.split('next')[-1],
+             'a command that is not the lesson gets the coach line under it')
         sess.console.start_capture(); sess.execute('now')
         out = sess.console.end_capture()
-        T.ok('tutorial' in out and 'Type `char`' in out,
-             'now leads with the current step')
+        T.ok('coach' in out and 'Type `char`' in out,
+             'now leads with the current lesson')
         sess.console.start_capture(); sess.execute('char'); sess.execute('legend')
         out = sess.console.end_capture()
-        T.ok('Type `legend`' in out, 'the sheet step hands on to the colours')
+        T.ok('Type `legend`' in out, 'the sheet lesson hands on to the colours')
         T.ok('Whenever a colour means nothing to you' in out,
              'and legend completes it')
         sess, out = play(['new', '2', 'Second', '1'])
-        T.ok('The tutorial is on' not in out and sess.tutorial_step < 0,
+        T.ok('The coach is on' not in out and not sess.tutorial_on,
              'a second runner is left alone')
     finally:
         if old_home is None:
             del os.environ['XDG_DATA_HOME']
         else:
             os.environ['XDG_DATA_HOME'] = old_home
+
+
+def test_the_coach_finishes_a_run() -> None:
+    """D183: somebody who types exactly what the coach says, and nothing
+    else, gets through their first run and out the other side."""
+    T.section('the coach, followed')
+    from flatline.content import tutorial as tut
+
+    def follow(origin, seed, cap=140):
+        con = quiet_console()
+        sess = Session(console=con, slot=f'coach{seed}')
+        sess.game = Game.new(Character.from_origin(origin, 'Pupil'), seed=seed)
+        con.start_capture()
+        sess.execute('tutorial')
+        typed, placeholders = [], 0
+        for _ in range(cap):
+            if not sess.tutorial_on:
+                break
+            if sess.pending is not None:
+                sess.execute('1'); typed.append('1'); continue
+            cur = tut.current(sess)
+            if cur is None:
+                sess.execute('now'); typed.append('now'); continue
+            cmd = tut.command_of(cur[1])
+            if sess.run is not None and '<' in cmd:
+                placeholders += 1
+            if cmd == 'Enter':
+                sess.execute(''); typed.append('')
+            elif '<' in cmd:
+                sess.execute('tutorial skip'); typed.append('skip')
+            else:
+                sess.execute(cmd); typed.append(cmd)
+        out = con.end_capture()
+        return sess, out, typed, placeholders
+
+    for origin, seed in (('gutter', 11), ('defector', 22), ('chromed', 33),
+                         ('courier', 44)):
+        sess, out, typed, placeholders = follow(origin, seed)
+        label = f'{origin} {seed}'
+        T.ok(sess.game.char.runs >= 1,
+             f'{label}: the pupil got through a run ({len(typed)} turns)')
+        T.eq(placeholders, 0, f'{label}: the coach never handed out a <host>')
+        T.ok('cut you loose from the far end' not in out,
+             f'{label}: and was not cut loose from the far end')
+        T.ok('You are inside their network' in out,
+             f'{label}: the room was explained')
+        T.ok(not sess.tutorial_on or 'again' in sess.tutorial_done,
+             f'{label}: and the coach reached the loop again or finished')
+        T.ok(sess.run is None, f'{label}: and is out')
+        save_mod.delete(sess.slot)
 
 
 def test_ui() -> None:
@@ -1865,14 +1923,14 @@ def test_regressions() -> None:
     #    caller showed it again. Anybody with a character hit it, because
     #    having one completes step 1, which is to say almost everybody.
     _, out = play(['new Testrunner --origin gutter', 'tutorial'])
-    T.eq(out.count('step 2 of'), 1, 'the tutorial shows a step once')
-    T.eq(out.count('Type `char` to read the build.'), 1,
+    T.eq(out.count('lesson 2 of'), 1, 'the tutorial shows a lesson once')
+    T.eq(out.count('Press Enter on an empty line.'), 1,
          'and prints its instruction once')
 
-    # The step it has nothing to advance past must still print, which is the
-    # thing the obvious fix breaks.
+    # The lesson it has nothing to advance past must still print, which is
+    # the thing the obvious fix breaks.
     _, out = play(['tutorial'])
-    T.eq(out.count('step 1 of'), 1, 'a tutorial from nothing shows step 1')
+    T.eq(out.count('lesson 1 of'), 1, 'a tutorial from nothing shows lesson 1')
 
 def _source_of(*dirs) -> str:
     import pathlib
@@ -5482,7 +5540,8 @@ def test_guide() -> None:
     T.ok(max(sess.game.char.base_attrs.values()) < attr_content.ATTR_MAX,
          'without pushing an attribute to the ceiling')
     T.ok(sess.pending is None, 'and nothing is left waiting')
-    T.ok('what now' in out, 'and it ends on the next move')
+    T.ok('what now' in out or 'Press Enter on an empty line' in out,
+         'and it ends on the next move')
     T.ok(save_mod.exists(sess.slot), 'and they are on disk')
     save_mod.delete(sess.slot)
 
@@ -5549,11 +5608,11 @@ def test_guide() -> None:
 
     # The tutorial waits for the conversation to end.
     sess, out = play(['tutorial', 'new', '2', 'Taught'])
-    T.ok('step 2' not in out, 'no tutorial step prints between questions')
+    T.ok('Press Enter' not in out, 'no lesson prints between questions')
     sess.console.start_capture()
     sess.execute('2')
     out = sess.console.end_capture()
-    T.ok('step 2' in out, 'and the next step prints once it is over')
+    T.ok('Press Enter' in out, 'and the next lesson prints once it is over')
     save_mod.delete(sess.slot)
 
     # The one-shot form is unchanged, and takes the number too.
@@ -6538,61 +6597,98 @@ def test_arcs() -> None:
 
 
 def test_tutorial_second_half() -> None:
-    """D60: the tutorial goes on past the door, into what the city does."""
+    """D60, on the coach (D183): the tutorial goes on past the door, into
+    what the city does, and reads the state to get there."""
     T.section('tutorial')
     from flatline.content import tutorial as tut
-    keys = [s.key for s in tut.STEPS]
-    T.ok(keys.index('out') < keys.index('settle') < keys.index('again'),
-         'the second half follows the first, in order')
-    for key in ('settle', 'rep', 'look', 'talk', 'visit', 'journal', 'now',
+    keys = list(tut.LESSON_KEYS)
+    T.ok(keys.index('run') < keys.index('settle') < keys.index('again'),
+         'the second half follows the run, in order')
+    for key in ('settle', 'rep', 'look', 'talk', 'visit', 'journal', 'face',
                 'door', 'again'):
-        T.ok(key in keys, f'there is a {key} step')
+        T.ok(key in keys, f'there is a {key} lesson')
+
+    def key_now(sess):
+        cur = tut.current(sess)
+        return cur[0] if cur else None
 
     # A character who has run once and is standing in the city gets the
-    # second half, step by step, however they get there.
+    # second half, lesson by lesson, however they get there.
     game = Game.new(Character.from_origin('gutter', 'Taught'), seed=4242)
     game.char.runs = 1
     sess, out = play(['tutorial'], game=game)
-    T.ok(sess.tutorial_step >= 0, 'the tutorial starts')
-    # Everything up to `out` is satisfied or skippable; walk into the second
-    # half. `out` and `settle` are both already true for a character who has
-    # run once and left nothing pending, so the walk lands on `rep`.
-    for _ in range(30):
-        if sess.tutorial_step < 0:
-            break
-        if tut.STEPS[sess.tutorial_step].key in ('settle', 'rep'):
+    T.ok(sess.tutorial_on, 'the tutorial starts')
+    for _ in range(12):
+        if key_now(sess) in ('settle', 'rep', None):
             break
         sess.execute('tutorial skip')
-    T.ok(sess.tutorial_step >= 0
-         and tut.STEPS[sess.tutorial_step].key in ('settle', 'rep'),
-         'and reaches the second half')
-    if tut.STEPS[sess.tutorial_step].key == 'settle':
+    T.ok(key_now(sess) in ('settle', 'rep'), 'and reaches the second half')
+    if key_now(sess) == 'settle':
         sess.console.start_capture()
         sess.execute('rest 1')
         out = sess.console.end_capture()
         T.ok('landed' in out, 'a shift completes settle')
-    step = tut.STEPS[sess.tutorial_step].key
-    T.eq(step, 'rep', 'and the next step is rep')
+    T.eq(key_now(sess), 'rep', 'and the next lesson is rep')
     sess.execute('rep')
-    T.eq(tut.STEPS[sess.tutorial_step].key, 'look', 'then look')
+    T.eq(key_now(sess), 'look', 'then look')
     sess.execute('look')
-    T.eq(tut.STEPS[sess.tutorial_step].key, 'talk', 'then talk')
+    T.eq(key_now(sess), 'talk', 'then talk')
     sess.execute('talk mara')
-    T.eq(tut.STEPS[sess.tutorial_step].key, 'visit', 'then visit')
+    T.eq(key_now(sess), 'visit', 'then visit')
     sess.execute('visit exchange')
-    T.eq(tut.STEPS[sess.tutorial_step].key, 'journal', 'then journal')
+    T.eq(key_now(sess), 'journal', 'then journal')
     sess.execute('journal')
-    T.eq(tut.STEPS[sess.tutorial_step].key, 'now', 'then the empty line')
-    sess.execute('')
-    T.eq(tut.STEPS[sess.tutorial_step].key, 'door', 'then the door')
+    T.eq(key_now(sess), 'face', 'then the face')
+    sess.execute('self')
+    T.eq(key_now(sess), 'door', 'then the door')
     sess.execute('retire')
-    T.eq(tut.STEPS[sess.tutorial_step].key, 'again', 'then another contract')
+    T.eq(key_now(sess), 'again', 'then another contract')
     sess.console.start_capture()
     sess.execute(f'take {game.city.board[0].cid}')
     out = sess.console.end_capture()
-    T.ok(sess.tutorial_step < 0, 'and taking one ends the tutorial')
+    T.ok(not sess.tutorial_on, 'and taking one ends the tutorial')
     T.ok('done all of it once' in out and 'news' in out,
          'with a closing that points at the wire and the map')
+
+    # The lesson follows the player, not the list: a contract taken and a
+    # district walked to lands on `jack in`, wherever `deck` was.
+    game = Game.new(Character.from_origin('gutter', 'Walker'), seed=4242)
+    contract = game.city.board[0]
+    game.city.where = contract.district
+    sess, _ = play([f'take {contract.cid}'], game=game)
+    sess.tutorial_done.update({'loop', 'sheet', 'colours', 'spend', 'board',
+                               'take'})
+    sess.execute('tutorial')
+    T.ok(key_now(sess) in ('kit', 'deck', 'jackin'),
+         f'standing on the job it asks for the kit, the deck or the door '
+         f'({key_now(sess)})')
+    sess.execute('deck')
+    while key_now(sess) == 'kit':
+        sess.execute('tutorial skip')
+    T.eq(key_now(sess), 'jackin', 'the deck seen, it asks for the door')
+    sess.console.start_capture()
+    sess.execute('jack in --force')
+    out = sess.console.end_capture()
+    T.ok(sess.run is not None and 'You are inside their network' in out,
+         'inside, the room is explained once')
+    T.ok(key_now(sess) is not None and key_now(sess).startswith('run:'),
+         'and the coach is the brief')
+    cur = tut.current(sess)
+    T.ok('<' not in cur[1], 'which names a real host')
+    T.eq(cur[1], f'Type `{sess.run.brief().steps[0]}`.'
+         if sess.run.brief().steps and '<' not in sess.run.brief().steps[0]
+         else 'Type `scan`.',
+         'and is exactly what job says')
+    sess.console.start_capture()
+    sess.execute('tutorial skip')
+    sess.execute('scan')
+    out = sess.console.end_capture()
+    T.ok('coach  Type' not in out, 'skipped inside a run, the coach is quiet')
+    sess.execute('jack out --anyway')
+    if sess.run is not None:
+        sess.execute('jack out --anyway')
+    T.ok('run:skip' not in sess.tutorial_done,
+         'and speaks again once the run is over')
 
 
 def test_conditions() -> None:
@@ -15804,7 +15900,7 @@ def test_the_lifeline() -> None:
 
     # Never mid-run, mid-question, or during the tutorial.
     sess, con = fresh()
-    sess.tutorial_step = 0
+    sess.tutorial_on = True
     T.eq(show(sess, con), '', 'the tutorial has its own hand to hold')
     sess, con = fresh()
     sess.pending = Question(prompt='? ', handler=lambda s, l: None)
@@ -16928,6 +17024,7 @@ SUITES = (
     test_networks, test_run_mechanics, test_city, test_rivals,
     test_signatures, test_story, test_traits_and_spread, test_regressions, test_herders_and_kinds, test_passives_and_debt, test_dissonance, test_scripting, test_social, test_objectives, test_fallout, test_appearance, test_tone, test_anim, test_bench, test_crew, test_safehouse, test_bonds, test_legacy, test_offers, test_vices, test_brief, test_city_map, test_topology, test_clock, test_rice, test_cover, test_roster, test_migration, test_help, test_shell,
     test_playthrough, test_ui, test_the_first_hour,
+    test_the_coach_finishes_a_run,
 )
 
 

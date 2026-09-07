@@ -2764,37 +2764,70 @@ def check_landing(rep: Report) -> None:
 
 
 def check_tutorial(rep: Report) -> None:
-    """Tutorial conditions run after every command. They must be total."""
+    """The coach's conditions run after every command. They must be total,
+    every lesson must teach, and every verb the brief can hand out must have
+    its reason written (D183)."""
     class _Empty:
         game = None
         run = None
         seen: set = set()
+        tutorial_done: set = set()
 
     blank = _Empty()
-    for step in tut.STEPS:
-        where = f'tutorial/{step.key}'
-        rep.check(bool(step.instruction), where, 'has no instruction')
-        rep.check(bool(step.why), where, 'has no reason, so it teaches nothing')
-        rep.check(callable(step.done), where, 'has no condition')
-        if step.topic:
-            rep.check(step.topic in manual.BY_KEY, where,
-                      f'points at unknown topic {step.topic!r}')
+    for lesson in tut.LESSONS:
+        where = f'tutorial/{lesson.key}'
+        rep.check(bool(lesson.why), where, 'has no reason, so it teaches nothing')
+        rep.check(callable(lesson.when) and callable(lesson.done), where,
+                  'has no condition')
+        if lesson.topic:
+            rep.check(lesson.topic in manual.BY_KEY, where,
+                      f'points at unknown topic {lesson.topic!r}')
         # A condition that raises would take the shell down mid-run, and the
         # tutorial is optional: it is never worth a traceback.
+        for fn, what in ((lesson.when, 'when'), (lesson.done, 'done')):
+            try:
+                result = fn(blank)
+                rep.check(isinstance(result, bool) or result in (0, 1), where,
+                          f'{what} returned {result!r}, not a truth value')
+            except Exception as e:
+                rep.error(where, f'{what} raises on an empty session: {e!r}')
         try:
-            result = step.done(blank)
-            rep.check(isinstance(result, bool) or result in (0, 1), where,
-                      f'condition returned {result!r}, not a truth value')
+            instr = tut.instruction_of(lesson, blank)
         except Exception as e:
-            rep.error(where, f'condition raises on an empty session: {e!r}')
+            rep.error(where, f'instruction raises on an empty session: {e!r}')
+            instr = ''
+        rep.check(bool(instr), where, 'has no instruction')
+        # Every instruction names a thing to type, and the thing is real.
+        cmd = tut.command_of(instr)
+        rep.check(bool(cmd), where, 'instruction names nothing to type')
+        if cmd and cmd != 'Enter':
+            head = cmd if REGISTRY.lookup(cmd) else cmd.split()[0]
+            rep.check(REGISTRY.lookup(head) is not None, where,
+                      f'instruction names no command: {cmd!r}')
 
-    keys = [s.key for s in tut.STEPS]
-    rep.check(len(keys) == len(set(keys)), 'tutorial', 'duplicate step keys')
-    rep.check(bool(tut.OPENING and tut.CLOSING), 'tutorial',
-              'missing opening or closing text')
+    keys = [l.key for l in tut.LESSONS]
+    rep.check(len(keys) == len(set(keys)), 'tutorial', 'duplicate lesson keys')
+    rep.check('run' in keys and tut.LAST in keys, 'tutorial',
+              'missing the run lesson or the last one')
+    rep.check(bool(tut.OPENING and tut.CLOSING and tut.INSIDE), 'tutorial',
+              'missing opening, closing or inside text')
     for name in tut.WATCHED:
         rep.check(REGISTRY.lookup(name) is not None, 'tutorial',
                   f'WATCHED names no command: {name!r}')
+    # Every verb the brief can hand a player has its reason written, and
+    # every reason is about a real verb.
+    for verb in ('scan', 'probe', 'crack', 'connect', 'pivot', 'wait',
+                 'observe', 'pull', 'push', 'wipe', 'jack out', 'signal',
+                 'mask', 'strike', '*'):
+        rep.check(verb in tut.RUN_WHY, 'tutorial/run',
+                  f'no reason written for {verb!r}')
+    for verb in tut.RUN_WHY:
+        if verb != '*':
+            rep.check(REGISTRY.lookup(verb) is not None, 'tutorial/run',
+                      f'a reason for a verb that does not exist: {verb!r}')
+    # Nothing in a run lesson is a placeholder: the brief names real hosts.
+    rep.check(tut.run_lesson(blank) is None, 'tutorial/run',
+              'run_lesson answers outside a run')
 
 
 def check_commands(rep: Report) -> None:
@@ -2989,10 +3022,14 @@ def check_markup(rep: Report) -> None:
         collect(f'traits/{t.key}', t.drawback)
     for t in manual.TOPICS:
         collect(f'manual/{t.key}', t.summary)
-    for step in tut.STEPS:
-        collect(f'tutorial/{step.key}', step.instruction)
-        collect(f'tutorial/{step.key}', step.why)
-        collect(f'tutorial/{step.key}', step.payoff)
+    for lesson in tut.LESSONS:
+        if not callable(lesson.instruction):
+            collect(f'tutorial/{lesson.key}', lesson.instruction)
+        collect(f'tutorial/{lesson.key}', lesson.why)
+        collect(f'tutorial/{lesson.key}', lesson.payoff)
+    collect('tutorial/inside', tut.INSIDE)
+    for verb, why in tut.RUN_WHY.items():
+        collect(f'tutorial/run/{verb}', why)
     for r in rival_content.RIVALS:
         collect(f'rivals/{r.key}', r.blurb)
         collect(f'rivals/{r.key}', r.manner)

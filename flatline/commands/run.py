@@ -375,7 +375,7 @@ def cmd_jack_in(sess, args) -> None:
     c.blank()
     c.say('[dim]`job` at any point for this and the next move, or Enter on '
           'an empty line. `scan` to look around. `status` for where you '
-          'stand. `jack out` to leave.[/]')
+          'stand. `legend` for the colours. `jack out` to leave.[/]')
 
 
 #: Above this much trace, leaving with nothing is a decision rather than a

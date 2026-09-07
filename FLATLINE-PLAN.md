@@ -12,6 +12,8 @@ updated: 2026-09-06
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
+> **State as of 2026-09-06, later: D183, the coach.** The author's second round of notes on the same day: the testers had no idea what to do, did not know Enter gave the next step, saw `job` and `now` disagree, and got cut loose on their first runs; the legend was good but undiscoverable. The transcript showed why: the tutorial was a fixed list, a player who skipped `deck` held it on that step through the whole run, and none of the run's teaching printed. D183 replaces it with lessons that read the state, and inside a network the lesson is the brief itself, word for word, with a reason per verb written once. Enter repeats it, `now` leads with it, a `next` line follows every other command, and the room is explained once at the first door. `test_the_coach_finishes_a_run` plays four pupils who type nothing but what the coach says and get out clean. `validate.py` clean, `test.py` green at **20,392 checks**, the six campaigns clean on D182 (D183 touches nothing they read). Counts unchanged from D182: 48 manual topics, 157 commands; 21 lessons. **What is next:** more tester notes as they come; the follow-ups below are unchanged. The paragraph below is the state this was built on.
+>
 > **State as of 2026-09-06: D182, the testers' first hour.** The first strangers played 1.0.1 and could not read it: nothing explained the sheet, the screen or the colours, the key/value lists read as wrapped prose, the prologue's last prompt printed its own markup, and the pixel pictures were ugly. D182 answers all of it on the release build: `legend` and `help colours`, a rule down every key/value grid, a gloss beside every number on `char`, question prompts rendered and fenced for readline, the tutorial turning itself on for the first runner on a profile with the step repeated under `now`, the words in place of the pictures (`rice render picture` brings them back), and tables allowed a hundred and twenty columns while prose stays at seventy-six. `validate.py` clean, `test.py` green at **20,356 checks** (`test_the_first_hour`, forty-five of them), the six campaigns clean. Counts that moved: 48 manual topics, 157 commands, 26 tutorial steps. **What is next:** the rest of the testers' notes as they come; the two follow-ups below are unchanged. The paragraph below is the state this was built on.
 >
 > **State as of 2026-09-05: version 1.0, tagged `v1.0` and public at github.com/SageSchiller/flatline under MIT, with `dist/flatline.pyz` on the release.** D1 to D181 are locked and the plan is current through all of them. `validate.py` clean, `test.py` green at **20,120 checks**, six campaigns and the two-hundred-shift life clean, every ending and both arcs reached by play. Counts (read off the code on 2026-09-05): 15 skills / 30 techniques, 33 traits, 12 origins, 14 icons, 58 implants, 13 weapons and 3 things to wear, 70 programs, 34 components, 14 drugs, 25 one of a kind, 28 ICE, 63 threads / 215 scenes / 208 decisions, 32 named people, 7 rivals, 204 events, 12 factions, 12 districts / 72 quarters / 60 places, 6 animals and 5 familiars, 28 record lines and 18 titles, 7 ambitions, 47 manual topics, 156 commands, 91 pieces of terminal across 9 axes. **What is next:** the author's own read-through of the prose, and the testers' notes; those become a fix pass and a `v1.0.1`. Two follow-ups are known and unbuilt: techniques that decide outcomes (a technique a network has not seen worth more than one it has), and the brief letting go of the verb after the tenth run against a target that remembers you. The paragraph below is the long day that got here.
@@ -406,6 +408,11 @@ thing they were just told about and never reading ahead. Nothing is forced.
 Conditions must be total, and `validate.py` calls every one against an empty
 session to prove they cope with nothing existing yet: a tutorial is optional
 and a bug in one is never worth a traceback in the middle of somebody's run.
+
+*Amended by D183 (2026-09-06): the tutorial now leads as well as watches.
+The list of steps became lessons that read where the player is standing,
+and inside a network the lesson is the brief. The three rules above
+(nothing forced, conditions total, a reason with every instruction) stand.*
 
 ### D28: Traits, and a pool bigger than the slots
 
@@ -6366,6 +6373,65 @@ hundred and twenty: declined, above. The title skyline: kept, it is the
 title card and not an in-game picture. Held by `test_the_first_hour` and
 the six-campaign regression.
 
+### D183: The coach
+
+The author's second round of tester notes, the same day as D182: they had
+no idea what to do; it was not clear Enter gave the next suggestion; `job`
+gave one next move inside a run and `now` or Enter gave a different one;
+the author's own first runs ended cut loose without understanding how to
+move; and the legend was good but nobody knew it existed. The ask was to
+rethink the help and the tutorial deeply, for the player.
+
+**What the transcript showed.** A first run played with the tutorial on,
+doing what it said and then what `job` said. The tutorial was a fixed list
+with a condition per step, and the player walked past `deck` before
+`jack in`, so the list held on "Type `deck`" through the entire run while
+`job` said "probe coldstore": that is the disagreement the testers saw,
+and none of the run's seven teaching steps ever printed. Separately, the
+brief itself was sound: a pupil who followed it finished the surveil job
+at trace eighteen. The problem was never the advice; it was that nothing
+put the advice in front of a newcomer as *the* thing to do.
+
+**Lessons, not steps.** `content/tutorial.py` is rewritten. A `Lesson`
+says when it applies (where the player stands, what they hold) and when
+it is done; the coach is always the first lesson in order that applies and
+is not done. Twenty-one of them: make, the loop, the sheet, the colours,
+the spend, the board, the kit (whenever the city's own advice leads with
+shopping, before the first job or with a job in hand; never cached),
+take (always a real job: the city's pick, else the softest on the board),
+the deck, go (the real district), jack in, the run, and then the second
+half from D60 (settle, rep, look, talk, visit, journal, the face, the
+door, again). Inside a network the lesson *is* the brief: the instruction
+is `job`'s next step word for word and host for host, and the reason is
+`RUN_WHY[verb]`, written once per verb and printed once per verb. One
+source of truth, so the tutorial, `now`, `job` and Enter cannot disagree.
+
+**How it speaks.** A lesson prints in full when it becomes current (rule,
+instruction, reason, topic). Every other command gets one line under it:
+`→ next  <command>  Enter says why`. Enter, which is `now`, leads with
+the coach's instruction and its reason (held back when the lesson printed
+a moment ago), then the city's own advice. The first time the coach speaks
+inside a network it prints `INSIDE` once: what a network is, the three
+numbers, that every command costs ticks, that `jack out` always works.
+The first lesson after creation is the loop itself, and its instruction is
+to press Enter, which is the affordance the testers never found. `tutorial
+skip` inside a run quiets the coach for that run only.
+
+**Discoverability.** The splash's Start here lists `legend`; `help` opens
+with the coach line unconditionally; the connect screen names `legend`;
+the coach's fourth lesson is `legend`.
+
+**Held by.** `validate.check_tutorial`: every condition total on an empty
+session, every instruction names a real command, every verb the brief can
+emit has a reason, every reason is about a real verb, the run lesson is
+silent outside a run. `test_the_coach_finishes_a_run`: four pupils (four
+origins, four seeds) who type nothing but what the coach says, answering
+`1` to any question and skipping any lesson with a placeholder, each get
+through a run without being cut loose, with the room explained and no
+`<host>` ever handed to them. `test_tutorial_second_half` rewritten for
+the model, with the case that broke the old one: a contract taken and a
+district walked to lands on `jack in`, wherever `deck` was.
+
 ## Session log
 
 ### 2026-08-12 (a): project created
@@ -8086,3 +8152,10 @@ rendered prompt, the tutorial that turns itself on and stays under `now`,
 the words in place of the pictures, and tables allowed a hundred and
 twenty columns while prose stays at seventy-six. The README's screenshots
 regenerated on the new default. `test.py` green at 20,356.
+
+### 2026-09-06 (b): the coach
+
+D183. The tutorial rewritten as lessons that read the state, with the
+brief as the lesson inside a network; Enter, `now`, `job` and the coach
+say one thing. Four pupils who follow it blind get out clean. D27 amended
+to say so. `test.py` green at 20,392.

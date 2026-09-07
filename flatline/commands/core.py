@@ -266,10 +266,9 @@ def _help_landing(sess) -> None:
     c.say('[accent]Read these four, in this order[/]')
     _listing(c, [(k, manual.BY_KEY[k].summary) for k in manual.STARTER_PATH
                  if k in manual.BY_KEY])
-    if sess.game is None:
-        c.say('[dim]...or `tutorial`, which walks you through a run one '
-              'instruction at a time while you play it.[/]', indent='  ',
-              subsequent='  ')
+    c.say('[dim]New here? `tutorial` turns on the coach: the one next thing '
+          'to type, and why, wherever you are standing. Enter on an empty '
+          'line always says the next move.[/]', indent='  ', subsequent='  ')
 
     c.blank()
     c.say('[accent]Lost right now[/]')
@@ -1327,59 +1326,53 @@ def cmd_legend(sess, args) -> None:
           'it. `help colours` for the reasoning.[/]')
 
 
-@command('tutorial', 'A guided first run, one instruction at a time.',
+@command('tutorial', 'The coach: the next thing to type, and why.',
          group='session', bare=True, usage='tutorial [stop|skip|again]',
-         detail='Optional and interruptible. It watches what you do rather '
-                'than leading you by the hand, so you can do the steps in any '
-                'order, ignore it, or stop it. `skip` moves past a step you '
-                'do not want to do.')
+         detail='Optional and interruptible (D183). The coach reads where '
+                'you are standing and says the one next thing to type, with '
+                'the reason; inside a network it is the brief itself, word '
+                'for word. Enter on an empty line repeats it. `skip` moves '
+                'past a lesson (inside a run, past the coaching for that '
+                'run), `again` starts over, `stop` turns it off.')
 def cmd_tutorial(sess, args) -> None:
     c = sess.console
     action = (args.get(0) or '').lower()
 
     if action == 'stop':
-        if sess.tutorial_step < 0:
+        if not sess.tutorial_on:
             raise CommandError('the tutorial is not running.')
-        sess.tutorial_step = -1
-        c.ok('Tutorial off. `tutorial` starts it again from wherever you are.')
+        sess.tutorial_on = False
+        c.ok('Coach off. `tutorial` turns it back on from wherever you are.')
         return
 
     if action == 'skip':
-        if sess.tutorial_step < 0:
+        if not sess.tutorial_on:
             raise CommandError('the tutorial is not running.')
-        sess.tutorial_step += 1
-        if sess.tutorial_step >= len(tutorial.STEPS):
-            sess.tutorial_step = -1
-            c.ok('That was the last one.')
-            return
-        c.info('Skipped.')
-        sess.tutorial_show()
+        cur = tutorial.current(sess)
+        if cur is None:
+            raise CommandError('nothing to skip here.')
+        key = cur[0]
+        in_run = key.startswith('run:')
+        sess.tutorial_done.add('run:skip' if in_run else key)
+        c.info('Skipped.' + (' The coach is quiet for the rest of this run.'
+                             if in_run else ''))
+        sess.tutorial_advance()
         return
 
     if action == 'again':
-        sess.tutorial_step = 0
+        sess.tutorial_done.clear()
+        sess.tutorial_told.clear()
+        sess.tutorial_shown = ''
 
-    if sess.tutorial_step < 0:
-        # Start at the first step the player has not already satisfied, so
-        # somebody who asks for it forty shifts in is not told to make a
-        # character they already have.
-        sess.tutorial_step = 0
+    if not sess.tutorial_on:
+        sess.tutorial_on = True
         c.blank()
         c.rule('tutorial', role='accent2')
         c.say(tutorial.OPENING)
-        before = sess.tutorial_step
         sess.tutorial_advance()
-        # advance() shows whatever step it lands on, so showing here as well
-        # would print the same instruction twice for anybody who already
-        # satisfied a step before asking: the common case, since having a
-        # character at all completes the first one. Only print when there was
-        # nothing to advance past.
-        if sess.tutorial_step == before:
-            sess.tutorial_show()
         return
 
-    c.info(f'Step {sess.tutorial_step + 1} of {len(tutorial.STEPS)}.')
-    sess.tutorial_show()
+    sess.tutorial_show(full=True)
 
 
 @command('title', 'The cold start, again.',

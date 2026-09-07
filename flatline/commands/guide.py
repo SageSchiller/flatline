@@ -48,11 +48,23 @@ def cmd_now(sess, args) -> None:
     # prints once when reached, and a screenful of scrollback later the one
     # place a newcomer looks for it is here.
     from ..content import tutorial
-    if 0 <= sess.tutorial_step < len(tutorial.STEPS):
-        step = tutorial.STEPS[sess.tutorial_step]
-        c.say(f'[accent2]tutorial[/]  [dim]step {sess.tutorial_step + 1} of '
-              f'{len(tutorial.STEPS)}:[/] [accent]{step.instruction}[/]',
-              indent='  ', subsequent='            ')
+    cur = tutorial.current(sess) if sess.tutorial_on else None
+    if cur is not None:
+        key, instruction, why, topic, number = cur
+        c.say(f'[accent2]coach[/]  [accent]{instruction}[/]',
+              indent='  ', subsequent='         ')
+        in_run = key.startswith('run:')
+        # The reason, unless it was printed in full a moment ago: Enter
+        # straight after a lesson repeats the instruction, not the paragraph.
+        fresh = (key == sess.tutorial_shown
+                 and sess._turns - sess.tutorial_shown_turn <= 2)
+        if why and not fresh and not (in_run and f'why:{key}' in sess.tutorial_done):
+            if in_run:
+                sess.tutorial_done.add(f'why:{key}')
+            c.say(f'[dim]{why}[/]', indent='         ', subsequent='         ')
+        sess.tutorial_told.add('run' if in_run else key)
+        sess.tutorial_shown = key
+        sess._coach_said = True
     if line:
         c.say(f'[dim]{line}[/]', indent='  ', subsequent='  ')
     width = max((len(cmd) for cmd, _ in steps), default=0)
@@ -752,17 +764,20 @@ def _close(sess) -> None:
     c.say('[dim]That is a runner. `char` is the sheet, `self` is the face, '
           '`trait` is who they are. Enter on an empty line, at any point, '
           'says what to do next:[/]')
-    if sess.teach and sess.tutorial_step < 0:
+    if sess.teach and not sess.tutorial_on:
         sess.teach = False
         c.blank()
-        c.say('[accent]The tutorial is on[/][dim], because this is your '
-              'first runner here. It watches what you do and says the next '
-              'thing; `tutorial stop` turns it off, `tutorial` brings it '
-              'back, and Enter on an empty line repeats the step.[/]')
-        sess.tutorial_step = 0
-        # Having a character completes the first step; advancing here shows
-        # the second, so the advice below arrives with the step above it.
+        c.say('[accent]The coach is on[/][dim], because this is your first '
+              'runner here. It reads where you are standing and says the '
+              'next thing to type, and why. Enter on an empty line repeats '
+              'it; `tutorial stop` turns it off, `tutorial` brings it '
+              'back.[/]')
+        sess.tutorial_on = True
+        # The first lesson is the loop, and its instruction is to press
+        # Enter; printing the advice under it would answer the lesson for
+        # them.
         sess.tutorial_advance()
+        return
     sess.what_now()
 
 

@@ -99,8 +99,22 @@ class Session:
     #: said once it has finished (D144).
     _in_command: bool = False
     _announce_queue: list = field(default_factory=list)
-    #: Index of the current tutorial step, or -1 when it is not running.
-    tutorial_step: int = -1
+    #: The coach (D183): whether it is on, the lessons done (and the
+    #: reasons already given, as `why:<key>`), the lessons ever shown, and
+    #: the key of the one last printed in full, so a new lesson always
+    #: prints and the same one never prints twice.
+    tutorial_on: bool = False
+    tutorial_done: set = field(default_factory=set)
+    tutorial_told: set = field(default_factory=set)
+    tutorial_shown: str = ''
+    #: Set while a command has already printed the current lesson this turn
+    #: (`now`, `tutorial`), so the coach line under the command stays quiet.
+    _coach_said: bool = False
+    #: Commands executed this session, and the one on which the current
+    #: lesson was last printed in full: Enter right after a lesson repeats
+    #: its instruction and not its paragraph.
+    _turns: int = 0
+    tutorial_shown_turn: int = -99
     #: Set while the first runner on this profile is being made (D182), so
     #: creation ends by turning the tutorial on. Nothing else reads it.
     teach: bool = False
@@ -286,7 +300,7 @@ class Session:
         # printed between one question and the next reads as the answer to
         # the question, and the tutorial is the one reader with no way to
         # tell that it was not.
-        if self.tutorial_step >= 0 and self.pending is None:
+        if self.tutorial_on and self.pending is None:
             self.tutorial_advance()
 
     def remember(self, kind: str, keys) -> None:
@@ -535,7 +549,9 @@ class Session:
                     ('begin', 'a first job, right now. The fastest way in, '
                               'and it teaches itself.'),
                     ('new', 'skip that and make a runner yourself.'),
-                    ('tutorial', 'a guided first run, one step at a time.'),
+                    ('tutorial', 'the coach: the next thing to type, and '
+                                 'why, wherever you are.'),
+                    ('legend', 'what the colours mean.'),
                     ('help', 'what to read first, and what it all means.')):
                 c.say(f'[fg]{name}[/]{" " * (10 - len(name))}[dim]{blurb}[/]',
                       indent='  ', subsequent='            ')
@@ -598,6 +614,8 @@ class Session:
         type does with the keyboard, and it used to be the one input the game
         had no answer to.
         """
+        self._coach_said = False
+        self._turns += 1
         if self.pending is not None:
             was_done = self._objective_state()
             self.answer(line)
@@ -683,65 +701,109 @@ class Session:
         # The tutorial watches rather than leads: it checks after every
         # command whether the current step has been satisfied, however the
         # player got there.
-        if self.tutorial_step >= 0:
+        if self.tutorial_on:
             self.tutorial_advance()
 
     # ------------------------------------------------------------------
     # tutorial
     # ------------------------------------------------------------------
 
-    def tutorial_show(self) -> None:
-        """Print the current instruction."""
-        if not 0 <= self.tutorial_step < len(tutorial.STEPS):
+    def tutorial_show(self, full: bool = True) -> None:
+        """Print the current lesson (D183): in full, with the reason and the
+        topic, or as the one-line coach line under a command."""
+        cur = tutorial.current(self)
+        if cur is None:
             return
-        step = tutorial.STEPS[self.tutorial_step]
+        key, instruction, why, topic, number = cur
         c = self.console
+        if not full:
+            cmd = tutorial.command_of(instruction)
+            if cmd:
+                c.say(f'[dim]{c.caps.g("arrow")} next[/]  [accent]{cmd}[/]  '
+                      f'[dim]Enter says why[/]')
+            return
         c.blank()
-        c.rule(f'step {self.tutorial_step + 1} of {len(tutorial.STEPS)}',
-               role='accent2')
-        c.say(f'[accent]{step.instruction}[/]')
-        c.blank()
-        c.say(f'[dim]{step.why}[/]')
-        if step.topic:
-            c.say(f'[dim]More: `help {step.topic}`.[/]')
+        if key.startswith('run:'):
+            # Inside a network the coach is the brief. The room is explained
+            # once, ever; each verb's reason once, ever.
+            if 'inside' not in self.tutorial_done:
+                self.tutorial_done.add('inside')
+                c.rule('inside', role='accent2')
+                for para in tutorial.INSIDE.split('\n\n'):
+                    c.say(f'[dim]{para}[/]')
+                    c.blank()
+            c.say(f'[accent2]coach[/]  [accent]{instruction}[/]',
+                  subsequent='       ')
+            if f'why:{key}' not in self.tutorial_done:
+                self.tutorial_done.add(f'why:{key}')
+                c.say(f'[dim]{why}[/]', indent='       ', subsequent='       ')
+            self.tutorial_told.add('run')
+        else:
+            c.rule(f'lesson {number} of {len(tutorial.LESSONS)}',
+                   role='accent2')
+            c.say(f'[accent]{instruction}[/]')
+            if why:
+                c.blank()
+                c.say(f'[dim]{why}[/]')
+            if topic:
+                c.say(f'[dim]More: `help {topic}`.[/]')
+            self.tutorial_told.add(key)
+        self.tutorial_shown = key
+        self.tutorial_shown_turn = self._turns
+        self._coach_said = True
 
     def tutorial_advance(self) -> None:
-        """Complete every satisfied step, and show the next one.
-
-        A loop rather than a single check, because one command can satisfy
-        several steps at once and stopping after the first would leave the
-        player being told to do something they have already done.
+        """After every command while the coach is on: complete what is done
+        and say so, end when the last lesson is done, and show the lesson
+        that applies now, in full when it is new and as one line when it is
+        not.
 
         A condition that raises must never take the shell down with it: the
         tutorial is optional and a bug in it is not worth a traceback in the
         middle of somebody's run.
         """
+        if not self.tutorial_on:
+            return
         c = self.console
-        while 0 <= self.tutorial_step < len(tutorial.STEPS):
-            step = tutorial.STEPS[self.tutorial_step]
+        if self.run is None:
+            self.tutorial_done.discard('run:skip')
+        for lesson in tutorial.LESSONS:
+            if lesson.key in self.tutorial_done:
+                continue
             try:
-                done = bool(step.done(self))
+                done = bool(lesson.done(self))
             except Exception:
                 done = False
             if not done:
-                return
-            if step.payoff:
+                continue
+            if lesson.sticky:
+                self.tutorial_done.add(lesson.key)
+            elif lesson.key not in self.tutorial_told:
+                continue
+            else:
+                self.tutorial_told.discard(lesson.key)
+            if lesson.payoff and lesson.key in self.tutorial_told:
                 c.blank()
-                c.say(f'[ok]{c.caps.g("check")}[/] [dim]{step.payoff}[/]')
-            self.tutorial_step += 1
-            if self.tutorial_step >= len(tutorial.STEPS):
-                self.tutorial_step = -1
+                c.say(f'[ok]{c.caps.g("check")}[/] [dim]{lesson.payoff}[/]')
+        if tutorial.LAST in self.tutorial_done:
+            self.tutorial_on = False
+            c.blank()
+            c.rule('done', role='accent2')
+            for line in tutorial.CLOSING.split('\n\n'):
+                for part in line.split('\n'):
+                    if part.startswith('  '):
+                        c.raw(part)
+                    else:
+                        c.say(part)
                 c.blank()
-                c.rule('done', role='accent2')
-                for line in tutorial.CLOSING.split('\n\n'):
-                    for part in line.split('\n'):
-                        if part.startswith('  '):
-                            c.raw(part)
-                        else:
-                            c.say(part)
-                    c.blank()
-                return
-            self.tutorial_show()
+            return
+        cur = tutorial.current(self)
+        if cur is None:
+            return
+        if cur[0] != self.tutorial_shown:
+            self.tutorial_show(full=True)
+        elif not self._coach_said:
+            self.tutorial_show(full=False)
 
     # ------------------------------------------------------------------
     # scripts
@@ -918,7 +980,7 @@ class Session:
         holding their hand, and never once a run is behind them.
         """
         if (self.game is None or self.run is not None or self.pending is not None
-                or self.tutorial_step >= 0):
+                or self.tutorial_on):
             return
         if 'now' in self.seen or getattr(self.game.char, 'runs', 0) > 0:
             return

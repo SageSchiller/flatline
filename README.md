@@ -118,11 +118,12 @@ Thank you. The game has been played to its endings by scripts a few hundred
 times; what it has not had is you. Three things are worth an evening each:
 
 1. **The first hour, cold.** Start with `begin` and do what the screen says.
-   Your first runner turns the tutorial on by itself; it watches what you
-   do and says the next thing, and Enter on an empty line repeats the step.
-   `legend` says what the colours mean, `char` says what every number is
-   for, and `help colours` says why. If at any point you do not know what
-   to type, that is the bug; note what was on the screen.
+   Your first runner turns the coach on by itself: it reads where you are
+   standing and says the one next thing to type, and why, and inside a
+   network it says exactly what `job` says. Enter on an empty line repeats
+   it. `legend` says what the colours mean, `char` says what every number
+   is for, and `help colours` says why. If at any point you do not know
+   what to type, that is the bug; note what was on the screen.
 2. **A life.** `new`, pick an origin, and play until something ends: the
    main line (*What Deepwater Is*, which starts when somebody mentions the
    name and stops), a retirement, or a flatline. After the main line there
