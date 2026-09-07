@@ -82,11 +82,14 @@ game shows you a list, `take 2`, `buy 3`, `travel 1` and `switch 2` mean the
 row you just read. A typo gets "did you mean", and arriving anywhere ends
 with a line of the verbs that district makes possible.
 
-At the prompt, `tutorial` walks you through a first run one instruction at a
-time. `help` is one screen: what to read first, the verbs that answer "what
-now", and where the rest lives. `help commands` is all 157 verbs, `help
-topics` is all 47 explanations, and `help <anything>` finds a verb, a system,
-or searches both, including every proper noun in the game.
+At the prompt, `tutorial` turns on the coach: it reads where you are
+standing and says the one next thing to type, and why, and inside a network
+it says exactly what `job` says. It turns itself on for your first runner.
+`legend` says what the colours mean and `help words` is the jargon on one
+screen. `help` is one screen: what to read first, the verbs that answer
+"what now", and where the rest lives. `help commands` is all 157 verbs,
+`help topics` is all 49 explanations, and `help <anything>` finds a verb, a
+system, or searches both, including every proper noun in the game.
 
 Two verbs are worth knowing before anything else. **`job`** says what you are
 trying to do, where it is, how far along you are, and the next command to

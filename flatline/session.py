@@ -22,7 +22,7 @@ from . import save as save_mod
 from .content import threads as thread_content
 from . import theme
 from .content import factions, rice
-from .config import APP_TITLE, TAGLINE_PARTS, history_path
+from .config import TAGLINE_PARTS, history_path
 from .game import Game
 from .content import tutorial
 from .script import MAX_DISPATCH, ScriptError, parse
@@ -718,8 +718,8 @@ class Session:
         # content anywhere can write one without knowing this exists, and an
         # error path cannot leave a note orphaned into the next command.
         self.console.footnotes()
-        # The tutorial watches rather than leads: it checks after every
-        # command whether the current step has been satisfied, however the
+        # The coach reads the state after every command (D183): completes
+        # what is done, shows the lesson that applies now, however the
         # player got there.
         if self.tutorial_on:
             self.tutorial_advance()

@@ -60,9 +60,10 @@ from dataclasses import dataclass
 KINDS = ('palette', 'prompt', 'frame', 'bars', 'marks', 'banner', 'hud',
          'render', 'reveal')
 
-#: How a faction's cyberspace arrives on connect (D102). A picture, two
-#: pixels a cell in the faction's own colours, where the terminal can; the
-#: text mark where it cannot; or nothing.
+#: How a faction's cyberspace arrives on connect (D102). The text mark
+#: beside the words, which is the default (D182); a picture, two pixels a
+#: cell in the faction's own colours, where the terminal can and the player
+#: asked; or nothing.
 RENDER_MODES = ('picture', 'wide', 'mark', 'none')
 
 #: How a picture arrives on screen (D109). Cosmetic and visible only where

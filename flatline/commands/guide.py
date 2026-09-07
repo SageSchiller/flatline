@@ -36,7 +36,8 @@ from . import city as city_cmds
          detail='Enter on an empty line does the same thing. It reads the '
                 'state and names one real thing to type next, with the '
                 'reason, then the handful of verbs worth knowing where you '
-                'are standing. It costs nothing and is always safe to ask. '
+                'are standing. While the coach is on it leads with the '
+                'lesson (D183). It costs nothing and is always safe to ask. '
                 '`job` is the whole brief; this is the line of it you were '
                 'about to ask for.')
 def cmd_now(sess, args) -> None:

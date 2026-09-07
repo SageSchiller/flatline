@@ -15,6 +15,10 @@ is not: at 256 colours it is drawn in the cube, at sixteen or in ASCII it
 is not drawn at all and the text mark stands in for it. `blit` is the only
 thing that emits escapes, and it coalesces runs so a picture is a few
 hundred bytes rather than a few thousand.
+
+Off unless asked for, since D182: the testers found the pictures ugly and
+the words were always the real render. `rice render picture` turns the
+layer on; nothing here was removed.
 """
 
 from __future__ import annotations
