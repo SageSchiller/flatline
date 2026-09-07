@@ -595,7 +595,13 @@ def origin_table(sess) -> None:
     c = sess.console
     c.header('A new runner', f'{len(origins.ORIGINS)} origins')
     c.say('[dim]An origin sets where you start, never where you can go. '
-          'Pick one by number or by name.[/]')
+          'Pick one by number or by name. The letters are the five '
+          'attributes, and the numbers are what each origin adds to or '
+          'takes off the middle:[/]')
+    for a in attr_content.ATTRIBUTES:
+        c.say(f'[warn]{a.short}[/] [accent]{a.name}[/]'
+              f'{" " * (7 - len(a.name))} [dim]{a.gloss}[/]',
+              indent='  ', subsequent='              ')
     c.blank()
     name_w = max(len(o.name) for o in origins.ORIGINS)
     key_w = max(len(o.key) for o in origins.ORIGINS)
@@ -726,8 +732,7 @@ def offer_spend(sess) -> None:
     c.say(f'{char.points} attribute point{"s" if char.points != 1 else ""} '
           f'and {char.xp} experience. {article(who).capitalize()} {who} '
           f'usually puts them here:')
-    for line in describe(plan, char, c.caps.g('arrow')):
-        c.say(line, indent='  ', subsequent='  ')
+    c.kv(describe(plan, char, c.caps.g('arrow')), role='accent')
     c.blank()
     c.say('[fg]1[/]  [dim]spend them this way now[/]', indent='  ')
     c.say('[fg]2[/]  [dim]keep them. `boost <attribute>` and `train <skill>` '
@@ -810,8 +815,7 @@ def cmd_spend(sess, args) -> None:
     who = char.origin_data.name.lower()
     c.say(f'[dim]{article(who).capitalize()} {who} usually puts them '
           f'here:[/]')
-    for line in describe(plan, char, c.caps.g('arrow')):
-        c.say(line, indent='  ', subsequent='  ')
+    c.kv(describe(plan, char, c.caps.g('arrow')), role='accent')
     if args.has('go'):
         c.blank()
         apply_plan(sess, plan)
@@ -984,20 +988,18 @@ def suggest(char, board_posture: int | None = None) -> list[tuple[str, str]]:
     return plan
 
 
-def describe(plan, char, arrow: str = '->') -> list[str]:
-    """The plan as two lines a person can read before saying yes."""
-    out: list[str] = []
+def describe(plan, char, arrow: str = '->') -> list[tuple[str, str]]:
+    """The plan as (name, change and reason) rows for a grid, one per
+    number, with what the number is for beside it (D185). The old two
+    lines named five attributes and four skills to somebody who had just
+    been told what an origin was and nothing else."""
+    out: list[tuple[str, str]] = []
     boosts: dict[str, int] = {}
     for verb, key in plan:
         if verb == 'boost':
             boosts[key] = boosts.get(key, 0) + 1
-    if boosts:
-        out.append(', '.join(
-            f'[accent]{attr_content.BY_KEY[k].name}[/] '
-            f'{char.base_attrs[k]}[dim]{arrow}[/]{char.base_attrs[k] + n}'
-            for k, n in boosts.items()))
     ranks = dict(char.base_skills)
-    trained: dict[str, tuple[int, int, list[str]]] = {}
+    trained: dict[str, tuple[int, int, list]] = {}
     for verb, key in plan:
         if verb != 'train':
             continue
@@ -1006,17 +1008,20 @@ def describe(plan, char, arrow: str = '->') -> list[str]:
         techs = trained.get(key, (0, 0, []))[2]
         tech = skill_content.BY_KEY[key].technique_at(ranks[key])
         if tech:
-            techs.append(tech.name)
+            techs.append(tech)
         trained[key] = (start, ranks[key], techs)
-    if trained:
-        parts = []
-        for key, (start, end, techs) in trained.items():
-            name = skill_content.BY_KEY[key].name
-            span = (f'{start}[dim]{arrow}[/]{end}' if start
-                    else f'[dim]{arrow}[/]{end}')
-            tail = f' [dim]({", ".join(techs)})[/]' if techs else ''
-            parts.append(f'[accent]{name}[/] {span}{tail}')
-        out.append(', '.join(parts))
+    for k, n in boosts.items():
+        a = attr_content.BY_KEY[k]
+        out.append((a.name, f'{char.base_attrs[k]}[dim]{arrow}[/]'
+                            f'{char.base_attrs[k] + n}  [dim]{a.gloss}[/]'))
+    for key, (start, end, techs) in trained.items():
+        s = skill_content.BY_KEY[key]
+        why = s.summary.rstrip('.')
+        if techs:
+            why += '. ' + '; '.join(
+                f'{t.name} at rank {t.rank}: {t.summary.rstrip(".").lower()}'
+                for t in techs)
+        out.append((s.name, f'{start}[dim]{arrow}[/]{end}  [dim]{why}.[/]'))
     return out
 
 

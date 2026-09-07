@@ -185,6 +185,10 @@ def draw(net, state, caps: Caps, tall: bool = False) -> list[str]:
             role = 'accent2'
         elif awake:
             role = 'err'
+        elif state is not None and not state.in_reach(node.uid):
+            # Seen, not reachable from here (D184): the scan saw it and
+            # nothing you type will touch it until you are next to it.
+            role = 'dim'
         elif node.open:
             role = 'accent'
         else:
@@ -194,11 +198,11 @@ def draw(net, state, caps: Caps, tall: bool = False) -> list[str]:
         canvas.label(x_of[z], 0, z, 'muted')
     rows = canvas.rows()
     legend = ('[dim]@ you  ! the job  ' + ('^' if ascii_only else '▲')
-              + ' something on it  lit: the way to the job  '
-              'shut hosts dim[/]')
+              + ' something on it  lit: the way to the job[/]')
+    reach = '[dim]dim: shut, or out of reach from where you stand (D184)[/]'
     # A key for the type glyphs, but only for the types actually on the map,
     # so it names what you can see and grows as you find more (D111).
     present = {n.display_type for n in known}
     key = '  '.join(f'{node_content.host_glyph(name, ascii_only)} {name}'
                      for name in node_content.HOST_GLYPHS if name in present)
-    return rows + [legend, f'[dim]{key}[/]']
+    return rows + [legend, reach, f'[dim]{key}[/]']

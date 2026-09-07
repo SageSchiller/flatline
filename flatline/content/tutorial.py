@@ -144,7 +144,9 @@ LOOP = (
     'fills. Then the city reacts: what you left behind becomes heat, the '
     'board changes, people notice. Everything else is detail on that loop. '
     'Enter on an empty line always says the next step, out here and inside '
-    'a run, and `now` is the same thing typed.'
+    'a run, and `now` is the same thing typed. Every command is a word or '
+    'two; `help <word>` explains any of them, Tab completes one, and a '
+    'wrong word costs nothing.'
 )
 
 
@@ -483,8 +485,10 @@ INSIDE = (
     'You are inside their network, standing on the gateway. A network is '
     'hosts joined by links, in zones from the perimeter in to the core, '
     'and every zone deeper wants a higher access tier. The job is on one '
-    'host: find it, open a service on it, stand on it, do the thing, '
-    'leave.\n\n'
+    'host: find it, get next to it, open a service on it, stand on it, do '
+    'the thing, leave. You can only work on the host you stand on and the '
+    'ones one hop from it; a scan sees further than that, and seeing is '
+    'what it is for.\n\n'
     'Three numbers matter. The trace is the clock: it only rises, and at '
     '100 they cut you loose. Noise is suspicion where you are standing, and '
     'it fades. Residue is what you leave behind, and it follows you home. '
@@ -502,11 +506,13 @@ RUN_WHY: dict[str, str] = {
             'the access tier each one wants. It is the first noise you make.',
     'probe': 'A scan says a host exists. `probe` says what it runs, what is '
              'guarding it, and whether there is anything on it worth taking. '
-             'You need that before you can open anything on it.',
+             'You need that before you can open anything on it, and you can '
+             'only do it from next to the host.',
     'crack': 'One open service is enough to stand on a host. `crack` breaks '
-             'one open, and it is the loudest ordinary thing you do: noise '
-             'wakes the countermeasures on that node. `odds crack <host> '
-             '<service>` prints the whole sum first, if you want to see it.',
+             'one open, from next to it, and it is the loudest ordinary '
+             'thing you do: noise wakes the countermeasures on that node. '
+             '`odds crack <host> <service>` prints the whole sum first, if '
+             'you want to see it.',
     'connect': 'A host with an open service will take you. `connect` moves '
                'you onto it; where you stand decides what you can reach and '
                'what can reach you. Deeper zones want a higher access tier, '

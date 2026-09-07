@@ -2228,21 +2228,57 @@ def _hunted_on_route(game, target: str) -> tuple[str, str]:
 
 
 
+def _bag_sale(game) -> list[tuple[str, str, int]]:
+    """What the bag would fetch here, best first, as (name, key, value).
+    Empty where nobody buys. The same items and the same prices `sell`
+    lists, so the advice and the shop cannot disagree."""
+    if not any(s in game.city.district.services for s in ('fence', 'market')):
+        return []
+    rows = []
+    for key in game.char.library:
+        item = (programs.BY_KEY.get(key) or cyberware.BY_KEY.get(key)
+                or hardware.BY_KEY.get(key)
+                or weapon_content.BY_KEY.get(key)
+                or armour_content.BY_KEY.get(key))
+        if item is None:
+            continue
+        kind = ('program' if key in programs.BY_KEY
+                else 'ware' if key in cyberware.BY_KEY
+                else 'weapon' if key in weapon_content.BY_KEY
+                else 'armour' if key in armour_content.BY_KEY
+                else 'component')
+        rows.append((item.name, key, market_mod.sale_value(kind, key)))
+    return sorted(rows, key=lambda r: -r[2])
+
+
 def _hot_walk(game, target: str) -> str:
     """The faction whose people would refuse the walk to `target` the way
-    `walk` refuses it (same terms), as its short name, or ''."""
+    `walk` refuses it (same terms), as its short name, or ''.
+
+    Every district on the way, not only the last (D184): the advice sent a
+    wrecked deck to the Glasshouse sixty-one times running because the
+    Glasshouse was safe and the walk went through Marrow, where it was
+    stopped at the first step every time.
+    """
     if target == game.city.where:
         return ''
     try:
-        danger, who = game.city.danger(game.alias, target, game.rng,
-                                       flags=game.story.flags,
-                                       riders=game.char.riders())
+        route = list(game.city.route(target)) or [target]
     except Exception:  # noqa: BLE001
-        return ''
-    if (who and danger >= fallout.INCIDENT_FLOOR
-            and who not in game.city.arrangements
-            and who in factions.BY_KEY):
-        return factions.BY_KEY[who].short
+        route = [target]
+    for stop in route:
+        if stop == game.city.where:
+            continue
+        try:
+            danger, who = game.city.danger(game.alias, stop, game.rng,
+                                           flags=game.story.flags,
+                                           riders=game.char.riders())
+        except Exception:  # noqa: BLE001
+            continue
+        if (who and danger >= fallout.INCIDENT_FLOOR
+                and who not in game.city.arrangements
+                and who in factions.BY_KEY):
+            return factions.BY_KEY[who].short
     return ''
 
 
@@ -2956,10 +2992,29 @@ def city_steps(game) -> list[tuple[str, str]]:
                               f'the deck needs {bill:,}c of work and you are '
                               f'{short:,}c short: street work pays '
                               f'({offers[best]["pay"]:,}c for this one)'))
-            else:
-                steps.append(('sell',
+            elif _bag_sale(game) and _bag_sale(game)[0][2] >= short:
+                # Named, and only when the sale covers it (D184's follower
+                # typed `sell` forty-six times at a listing): `sell` alone
+                # is a price list, not a sale.
+                name, key, value = _bag_sale(game)[0]
+                steps.append((f'sell {name.lower()}',
                               f'the deck needs {bill:,}c of work and you are '
-                              f'{short:,}c short: the bag, or `borrow`'))
+                              f'{short:,}c short: {name} fetches {value:,}c '
+                              f'here'))
+            elif lenders.here(game.city.where, game.city.district.services):
+                # An empty bag was told to `sell` forty-six times running
+                # (D184's follower): the bag is on the sheet, and so is
+                # who lends here.
+                steps.append(('borrow',
+                              f'the deck needs {bill:,}c of work, you are '
+                              f'{short:,}c short and the bag is empty: '
+                              f'somebody here lends'))
+            else:
+                steps.append(('rest 1',
+                              f'the deck needs {bill:,}c of work, you are '
+                              f'{short:,}c short, the bag is empty and nobody '
+                              f'here lends: a shift brings street work, or '
+                              f'`walk` to a district with a fence or a lender'))
     elif wrecked:
         # Serious damage with no workshop here: the walk, named. The
         # nudge only ever fired where a workshop was, so a deck with a

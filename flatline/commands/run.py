@@ -1009,7 +1009,9 @@ def _host_glyph(caps, node) -> str:
                 'rating. `scan --quiet` reaches for your quietest hunter '
                 'instead of your best and costs an extra tick for a fraction '
                 'of the noise, which is usually the better trade in a room '
-                'that has already noticed you.'))
+                'that has already noticed you. Seeing a host is not reaching '
+                'it: you work on the one you stand on and the ones next to '
+                'it, and `connect` is how you get next to the rest.'))
 def cmd_scan(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     depth = 1 + state.char.bonus('scan_depth')
@@ -1094,13 +1096,17 @@ def cmd_scan(sess, args) -> None:
                 'identifies the countermeasures by name rather than as '
                 'something unidentified, which is the difference between '
                 'knowing a Coffin is there and finding out. Cheap, and the '
-                'thing new players skip.'))
+                'thing new players skip. Only from where you stand or one '
+                'hop from it (D184): a scan sees further than you can '
+                'reach.'))
 def cmd_probe(sess, args) -> None:
     state, c = sess.require_run(), sess.console
     uid = args.get(0) or state.here
     node = _node(state, uid)
     if not node.known:
         raise CommandError(f'{uid} has not been found yet. `scan` first.')
+    if not state.in_reach(uid):
+        raise CommandError(state.reach_error(uid))
 
     hunter = programs.best(state.char.deck.loaded, 'hunter')
     node.mapped = True
@@ -1608,6 +1614,8 @@ def _crack_chain(sess, args) -> None:
     if not host:
         raise CommandError('chain what? `crack <host> --chain`')
     node = _node(state, host)
+    if not state.in_reach(node.uid):
+        raise CommandError(state.reach_error(node.uid))
     if not node.mapped:
         raise CommandError(f'{node.uid} has not been probed. '
                            f'`probe {node.uid}` first.')
@@ -2523,6 +2531,8 @@ def cmd_daemon(sess, args) -> None:
     node = _node(state, host)
     if not node.known:
         raise CommandError(f'{host} has not been found yet')
+    if not state.in_reach(node.uid):
+        raise CommandError(state.reach_error(node.uid))
 
     arg = ''
     if task == 'grind':
@@ -3436,6 +3446,8 @@ def _target_service(state, args, offset: int = 0):
     else:
         raise CommandError('crack what? `crack <host> <service>`')
 
+    if not state.in_reach(node.uid):
+        raise CommandError(state.reach_error(node.uid))
     if not node.mapped:
         raise CommandError(f'{node.uid} has not been probed. `probe '
                            f'{node.uid}` first.')
@@ -3732,6 +3744,8 @@ def cmd_misdirect(sess, args) -> None:
         raise CommandError('that is where the noise already is')
     if not node.known:
         raise CommandError(f'{uid} has not been found yet')
+    if not state.in_reach(uid):
+        raise CommandError(state.reach_error(uid))
 
     moved = state.node.noise
     if moved <= 0:
@@ -4107,7 +4121,9 @@ def cmd_nobody(sess, args) -> None:
 @command('backway', 'Take a route you already knew about.',
          group='access', contexts=('run',), ticks=1, usage='backway <host>',
          detail='Courier only, once per run. Move to any node you have seen, '
-                'from anywhere, in one tick and in silence.')
+                'from anywhere, in one tick and in silence. The one verb in '
+                'the game that ignores reach (D184): a courier knows a way '
+                'that is not on the plan.')
 def cmd_backway(sess, args) -> None:
     state = _signature(sess, 'backway')
     c = sess.console

@@ -12,6 +12,8 @@ updated: 2026-09-06
 > Resumable build plan for **flatline**, a text-based cyberpunk intrusion game. **Read this file first** when picking the project back up. Every locked decision and every completed step is recorded here so work can pause and resume without re-deriving context.
 
 > [!tip] Picking this back up: START HERE
+> **State as of 2026-09-06, latest: D184 reach, D185 the numbers explained.** The author played the coach and caught the run's oldest inconsistency: a host two hops out could be probed and cracked from the gateway but not connected to. D184 makes reach strict: you work on the host you stand on and the ones one hop from it, `scan` alone sees further (Architecture ranks and a hunter program buy the distance), the map dims what you cannot reach, the brief walks toward what it saw instead of probing it from afar, and the badge detour walks too. Measured: the in-game first night held (27 of 36 brief-followers finish, none severed, against 28 and 1); the synthetic ladder shifted (the weakest build 20 to 14 of 30 on gang work, the loud breaker 26 to 29 against the quiet build's 27 on a corporate network), recorded in `test_ladder` and named below as a balance follow-up. Two advice loops the new trajectories exposed are fixed (a wrecked deck walked into a bounty sixty-one times; `sell` typed at a price list forty-six times). D185: the five attributes are explained before the origin choice, the spend plan is a grid with what every number is for, the splash says what a text game is, and the loop lesson says how commands are typed. `validate.py` clean, `test.py` green at **20,418 checks**, the six campaigns clean. **What is next:** the next round of tester notes; the balance follow-up (the stealth premium on corporate networks under strict reach; the weakest build's first night). The paragraph below is the state this was built on.
+>
 > **State as of 2026-09-06, later: D183, the coach.** The author's second round of notes on the same day: the testers had no idea what to do, did not know Enter gave the next step, saw `job` and `now` disagree, and got cut loose on their first runs; the legend was good but undiscoverable. The transcript showed why: the tutorial was a fixed list, a player who skipped `deck` held it on that step through the whole run, and none of the run's teaching printed. D183 replaces it with lessons that read the state, and inside a network the lesson is the brief itself, word for word, with a reason per verb written once. Enter repeats it, `now` leads with it, a `next` line follows every other command, and the room is explained once at the first door. `test_the_coach_finishes_a_run` plays four pupils who type nothing but what the coach says and get out clean. `validate.py` clean, `test.py` green at **20,392 checks**, the six campaigns clean on D182 (D183 touches nothing they read). Counts unchanged from D182: 48 manual topics, 157 commands; 21 lessons. **What is next:** more tester notes as they come; the follow-ups below are unchanged. The paragraph below is the state this was built on.
 >
 > **State as of 2026-09-06: D182, the testers' first hour.** The first strangers played 1.0.1 and could not read it: nothing explained the sheet, the screen or the colours, the key/value lists read as wrapped prose, the prologue's last prompt printed its own markup, and the pixel pictures were ugly. D182 answers all of it on the release build: `legend` and `help colours`, a rule down every key/value grid, a gloss beside every number on `char`, question prompts rendered and fenced for readline, the tutorial turning itself on for the first runner on a profile with the step repeated under `now`, the words in place of the pictures (`rice render picture` brings them back), and tables allowed a hundred and twenty columns while prose stays at seventy-six. `validate.py` clean, `test.py` green at **20,356 checks** (`test_the_first_hour`, forty-five of them), the six campaigns clean. Counts that moved: 48 manual topics, 157 commands, 26 tutorial steps. **What is next:** the rest of the testers' notes as they come; the two follow-ups below are unchanged. The paragraph below is the state this was built on.
@@ -6432,6 +6434,77 @@ through a run without being cut loose, with the room explained and no
 the model, with the case that broke the old one: a contract taken and a
 district walked to lands on `jack in`, wherever `deck` was.
 
+### D184: Reach
+
+The author, playing with the coach on: `probe sepsis` and `crack sepsis
+--chain` both worked from the gateway with sepsis two hops out behind
+harvest, and `connect sepsis` refused. The rules as they stood: `scan`
+reveals to a depth of one hop plus one per two ranks of Architecture plus
+a third of the hunter's rating; `probe`, `crack`, `odds crack`, `daemon`,
+`misdirect` and `backway` then work on any found host from anywhere;
+only `connect` and `pivot` need adjacency. The plan never chose that. D97
+met the same confusion once before and answered it with a `hops` column.
+
+**The rule now, the author's call: strict.** You work on the host you are
+standing on and the ones one hop from it. `scan` alone sees further, and
+how much further is the thing you buy with Architecture ranks and a
+hunter program: seeing a host is what the seeing is for, and `connect` is
+how you get next to the rest. `backway`, the courier's signature, is the
+one verb that ignores it, and its help says so.
+
+**What moved.** `RunState.in_reach` and `reach_error` (the hops, and the
+`connect` that gets you closer). Gated: `probe`, `crack` and `--chain`,
+`odds crack` and `pretext` through the shared resolver, `daemon`,
+`misdirect`. The brief's search probes what is in reach and walks toward
+the deepest thing it saw; the badge detour walks to a far auth server
+instead of cracking it from here, flagged so the walk's own dead end
+cannot ask for the badge again (that recursion took `test_ladder` down).
+The run map dims what is out of reach and says so. `scan`, `probe` and
+the coach's reasons say the rule; `help firstrun` has a paragraph on it.
+
+**Measured, before and after.** The in-game first night, thirty-six fresh
+characters across every origin following the brief on the job the city
+recommends: 28 finished and 1 severed before, 27 finished and none
+severed after. The synthetic ladder on the same thirty networks: the
+starting build on gang work 20 to 14 of 30; a corporate network with the
+quiet top build 26 to 27, with the loudest breaker 26 to 29. Every door is
+a walk now, a walk is time, and time is the fast loud breaker's friend.
+The ladder's guard is held to within three and the stealth premium on
+corporate networks is a balance follow-up, as is the weakest build's
+first night.
+
+**Two advice loops the new trajectories exposed.** A wrecked deck with a
+bounty was walked toward the Glasshouse sixty-one times, because the
+"workshop the street will let you reach" checked the destination and not
+Marrow on the way: `_hot_walk` now checks every district on the route.
+Then `sell` was typed forty-six times at a price list: the advice names
+the item now, only when the sale covers the bill, and otherwise says
+`borrow` where somebody lends, or a shift for street work. `crack <host>`
+with no service answers about that host rather than the one you stand
+on. Held by `test_reach` (a seen host two hops out refused with the way
+closer named, its neighbour allowed, the map's legend, the brief never
+handing out a far host), the coach's four pupils, and the stall fuzz.
+
+### D185: The numbers explained before they are chosen
+
+The author: the stats are never explained, and the player is asked to
+make choices about them before they have a clue what they are. True at
+both places creation asks. The origin table showed `LOG +2  GUI +1` and
+nothing said what LOG was; the spend question listed `Logic 5→8, Guile
+4→6` and `Intrusion 1→2 (Chain)` on two lines to somebody who had just
+been told what an origin was.
+
+The origin table opens with the five attributes, letter, name and gloss,
+before the numbers that use the letters. The plan is a grid: one row per
+number, the change, and what it is for, the skill's own summary and the
+technique it unlocks at the rank it unlocks it. `spend` in the city gets
+the same grid. And for somebody who has never played a text game: the
+splash's first sentence says you type a word and press Enter, and the
+loop lesson says every command is a word or two, `help <word>` explains
+any of them, Tab completes, and a wrong word costs nothing. The coach
+line under a command reads "press Enter" when that is the lesson, and
+every lesson ends by naming `tutorial skip` and `tutorial stop`.
+
 ## Session log
 
 ### 2026-08-12 (a): project created
@@ -8159,3 +8232,12 @@ D183. The tutorial rewritten as lessons that read the state, with the
 brief as the lesson inside a network; Enter, `now`, `job` and the coach
 say one thing. Four pupils who follow it blind get out clean. D27 amended
 to say so. `test.py` green at 20,392.
+
+### 2026-09-06 (c): reach, and the numbers explained
+
+D184: reach is strict, seeing is what `scan` and its stats are for, the
+brief walks toward what it saw, and the two advice loops the new
+trajectories exposed are fixed; the first night measured before and
+after, the ladder's shift recorded. D185: the attributes explained before
+the origin choice, the spend plan a grid, the splash for people who have
+never typed at a game. `test.py` green at 20,418.

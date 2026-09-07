@@ -158,6 +158,9 @@ class RunState:
     #: The contract being served, as a plain dict from the city layer. None
     #: for a speculative run, which is legal and pays worse.
     contract: dict | None = None
+    #: True while the brief is already walking toward a badge (D184), so
+    #: the walk's own dead end cannot ask for the badge again.
+    _seeking_badge: bool = False
 
     here: str = ''
     tick: int = 0
@@ -2445,6 +2448,9 @@ class RunState:
         # to run out of time in the part of the network the job is not in.
         unmapped = [n for n in self.net.nodes.values()
                     if n.known and not n.mapped]
+        # Only what you can touch from here (D184): a host two hops out is
+        # something to walk toward, not something to probe.
+        near = [n for n in unmapped if self.in_reach(n.uid)]
         # With Intrusion 4 the search is a walk (D100): pivot to the
         # deepest unopened host next to this one and look from there.
         if self.char.has_technique('pivot') and self.node.open:
@@ -2459,10 +2465,18 @@ class RunState:
         # at amber, and the trace spent on reading rather than on doors.
         # Two hosts mapped and one of them shut is enough to go through.
         mapped = sum(1 for n in self.net.nodes.values() if n.mapped)
-        if unmapped and not (shut and mapped >= 2):
-            return (f'probe {self._deepest(unmapped).uid}',)
+        if near and not (shut and mapped >= 2):
+            return (f'probe {self._deepest(near).uid}',)
         if shut:
             return (f'crack {shut[0]} {shut[1]}', f'connect {shut[0]}')
+        # Something seen further in than you can reach (D184): the scan
+        # saw it, so walk toward it, deepest first, over what you know.
+        far = [n for n in unmapped if not self.in_reach(n.uid)]
+        while far:
+            node = self._deepest(far, penalise_tier=False)
+            if self.route_to(node.uid):
+                return self._steps_toward(node.uid)
+            far.remove(node)
         # An open host a warden holds is not somewhere to stand (D100):
         # the search picked the deepest one, `_steps_toward` saw it
         # blocked and gave up, and a soft network with a plain open host
@@ -2493,8 +2507,13 @@ class RunState:
         """You know where it is. Open the next hop and take it."""
         return self._steps_toward(self.net.objective_node)
 
-    def _steps_toward(self, uid: str) -> tuple[str, ...]:
-        """The next move toward a host you can see and are not standing on."""
+    def _steps_toward(self, uid: str, seek_badge: bool = True) -> tuple[str, ...]:
+        """The next move toward a host you can see and are not standing on.
+
+        `seek_badge` off means a locked hop above your tier is cracked
+        where it stands rather than answered with a detour to an auth
+        server: the caller is already that detour.
+        """
         route = self.route_to(uid)
         if not route:
             shut = self._first_shut()
@@ -2525,7 +2544,7 @@ class RunState:
             # attempt, and grinding at it is the commonest way to spend a
             # whole run getting nowhere loudly. The answer is somewhere else
             # on the network, which is exactly why it needs pointing at.
-            if hop.tier > self.tier:
+            if hop.tier > self.tier and seek_badge:
                 badge = self._tier_steps()
                 if badge:
                     return badge
@@ -2719,10 +2738,24 @@ class RunState:
         # At or below your tier first; then one above, which is three
         # points and the only rung there is. Two above is a wall, and
         # sending somebody at it is not advice.
+        if self._seeking_badge:
+            return None
         for reach in (0, 1):
             for node in self.net.nodes.values():
                 if (node.type != 'auth' or not node.known
                         or node.tier > self.tier + reach):
+                    continue
+                if not self.in_reach(node.uid):
+                    # Seen and not next to you (D184): the badge is a walk
+                    # away, and the walk is the advice. Flagged, so the
+                    # walk's own dead end cannot ask for a badge again.
+                    if self.route_to(node.uid):
+                        self._seeking_badge = True
+                        try:
+                            return self._steps_toward(node.uid,
+                                                      seek_badge=False)
+                        finally:
+                            self._seeking_badge = False
                     continue
                 if not node.mapped:
                     return (f'probe {node.uid}',)
@@ -2904,6 +2937,25 @@ class RunState:
 
     def _attempts_at(self, node) -> int:
         return sum(v for (uid, _), v in self.failed.items() if uid == node.uid)
+
+    def in_reach(self, uid: str) -> bool:
+        """Where you stand, or one hop from it (D184). Everything you do to
+        a host is done from next to it. Only `scan` sees further, and how
+        much further is Architecture and the hunter program."""
+        return uid == self.here or uid in self.node.edges
+
+    def reach_error(self, uid: str) -> str:
+        """Why a verb refused a host you can see but cannot touch, with the
+        move that gets you closer."""
+        route = self.route_to(uid)
+        hops = len(route)
+        far = (f'{hops} hop{"s" if hops != 1 else ""} from {self.here}'
+               if hops else f'not next to {self.here}')
+        via = (f' `connect {route[0]}` first.' if route
+               else ' Get next to it first.')
+        return (f'{uid} is {far}. You can only work on the host you are '
+                f'standing on and the ones one hop from it; a scan sees '
+                f'further than you can reach.{via}')
 
     def route_to(self, uid: str) -> list[str]:
         """The hops from here to a host, over what you have actually found.

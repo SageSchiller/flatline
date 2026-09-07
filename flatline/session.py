@@ -544,6 +544,10 @@ class Session:
             # Nobody has ever sat down here. Three things to type, each with
             # what it does, rather than one sentence that assumes the reader
             # already knows what a command is. D50.
+            c.say('[dim]This is a text game: you type a word and press '
+                  'Enter. Enter on its own, at any point, says what to do '
+                  'next.[/]')
+            c.blank()
             c.say('[accent]Start here[/]')
             for name, blurb in (
                     ('begin', 'a first job, right now. The fastest way in, '
@@ -555,9 +559,6 @@ class Session:
                     ('help', 'what to read first, and what it all means.')):
                 c.say(f'[fg]{name}[/]{" " * (10 - len(name))}[dim]{blurb}[/]',
                       indent='  ', subsequent='            ')
-            c.blank()
-            c.say('[dim]Enter on an empty line, at any point, says what to '
-                  'do next.[/]')
         else:
             c.say(f'[dim]{self.opening_line()}[/]')
             c.say('[dim]Enter on an empty line says what to do next.[/]')
@@ -718,7 +719,10 @@ class Session:
         c = self.console
         if not full:
             cmd = tutorial.command_of(instruction)
-            if cmd:
+            if cmd == 'Enter':
+                c.say(f'[dim]{c.caps.g("arrow")} next[/]  [accent]press '
+                      f'Enter[/]')
+            elif cmd:
                 c.say(f'[dim]{c.caps.g("arrow")} next[/]  [accent]{cmd}[/]  '
                       f'[dim]Enter says why[/]')
             return
