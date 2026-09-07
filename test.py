@@ -6684,6 +6684,15 @@ def test_tutorial_second_half() -> None:
     sess.execute('scan')
     out = sess.console.end_capture()
     T.ok('coach  Type' not in out, 'skipped inside a run, the coach is quiet')
+    # `crack <host>` with no service is about that host (D184).
+    other = next((u for u, n in sess.run.net.nodes.items()
+                  if n.known and u != sess.run.here), None)
+    if other:
+        sess.console.start_capture()
+        sess.execute(f'crack {other}')
+        out = sess.console.end_capture()
+        T.ok(other in out and ('runs:' in out or 'has not been probed' in out),
+             'crack <host> answers about that host')
     sess.execute('jack out --anyway')
     if sess.run is not None:
         sess.execute('jack out --anyway')

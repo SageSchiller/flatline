@@ -3419,6 +3419,18 @@ def _target_service(state, args, offset: int = 0):
         node = _node(state, first)
         key = second
     elif first:
+        # `crack harvest` from ossuary listed ossuary's services (D184): a
+        # host's name with no service is somebody asking about that host.
+        other = state.net.node(first)
+        on_here = any(s.key.startswith(first.lower())
+                      for s in state.node.services)
+        if other is not None and other.uid != state.here and not on_here:
+            if not other.mapped:
+                raise CommandError(f'{other.uid} has not been probed. '
+                                   f'`probe {other.uid}` first.')
+            have = ', '.join(s.key for s in other.services) or 'nothing'
+            raise CommandError(f'{other.uid} runs: {have}. `crack '
+                               f'{other.uid} <service>`.')
         node = state.node
         key = first
     else:

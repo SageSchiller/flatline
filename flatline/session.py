@@ -747,6 +747,8 @@ class Session:
                 c.say(f'[dim]{why}[/]')
             if topic:
                 c.say(f'[dim]More: `help {topic}`.[/]')
+            c.say('[dim]`tutorial skip` passes this one; `tutorial stop` '
+                  'ends the coach.[/]')
             self.tutorial_told.add(key)
         self.tutorial_shown = key
         self.tutorial_shown_turn = self._turns

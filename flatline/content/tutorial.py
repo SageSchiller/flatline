@@ -491,7 +491,7 @@ INSIDE = (
     'Every command in here costs ticks, and ticks feed the trace.\n\n'
     '`job` is the whole brief. Enter is the next move, every time, and the '
     'coach says why. `jack out` leaves at any moment, and leaving early is '
-    'a skill.'
+    'a skill. `tutorial stop` ends the coach whenever you like.'
 )
 
 #: Why the brief says what it says, by verb. Printed the first time the
